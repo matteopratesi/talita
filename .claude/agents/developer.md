@@ -33,7 +33,9 @@ sbagliata, non decidere tu: commento firmato con il problema, ticket in To Do, t
 7. Commento firmato con il link alla PR e ticket in In QA.
 
 Se ricevi un difetto dal QA, lo correggi sullo stesso branch, aggiungi un test che lo
-riproduce e riporti il ticket in In QA.
+riproduce e riporti il ticket in In QA. Il branch te lo passa l'orchestratore: ne fai il checkout
+(`git fetch origin <branch>` e `git switch <branch>`) invece di partire da `main` o di crearne
+uno nuovo.
 
 Se ricevi i commenti della review di CodeRabbit, correggi quelli fondati sullo stesso branch e
 rispondi agli altri sulla PR spiegando perché. Poi CI verde e commento firmato con cosa hai

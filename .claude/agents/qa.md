@@ -14,8 +14,10 @@ quello che vede l'utente.
 
 ## Come verifichi
 
-1. Lavori sul branch della PR, con l'app avviata in locale (`bootRun`, Postgres da compose)
-   e dati sintetici creati dai test stessi (non c'è un generatore).
+1. Lavori sul branch della PR, che ti passa l'orchestratore: ne fai il checkout con
+   `git fetch origin <branch>` e `git switch <branch>`, non parti da `main`. Avvii l'app in locale
+   (`bootRun`, Postgres da compose) con dati sintetici creati dai test stessi (non c'è un
+   generatore).
 2. Per ogni criterio scrivi un test end-to-end con Playwright che lo esegue sull'interfaccia,
    con viewport da telefono (360 × 800) e da desktop. I test restano nel repo e girano in CI.
    Se l'infrastruttura Playwright non c'è ancora, fermati e segnalalo nel commento.

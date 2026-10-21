@@ -47,6 +47,13 @@ deve consegnare. Prima di lanciarlo assegna il ticket all'account Jira dell'agen
 se CLAUDE.md ne riporta l'account ID; altrimenti basta la firma nei commenti. Lancia il
 developer con `isolation: "worktree"`, così lavora su un checkout suo.
 
+Un worktree nuovo parte dal ramo di default, non dal branch della PR. Quando lanci il QA, o
+riprendi il developer per un difetto o per i commenti di CodeRabbit, scrivi nel prompt il branch
+della PR (`gh pr view <numero> --json headRefName --jq .headRefName`) e chiedi all'agente di
+farne il checkout (`git fetch origin <branch>` e `git switch <branch>`) prima di toccare
+qualcosa: si lavora su quel branch, mai su `main`, e il developer lo riusa invece di crearne uno
+nuovo.
+
 La PR nasce sempre in bozza (`gh pr create --draft`) e resta in bozza durante sviluppo, QA e
 correzioni, così CodeRabbit non la rivede a ogni push. Appena il developer la apre, collegala
 al ticket come web link su Jira: prima `listJiraIssueRemoteIssueLinks` (lo stesso URL aggiunto
