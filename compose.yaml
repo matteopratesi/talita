@@ -1,18 +1,20 @@
 # Local development only: test credentials, synthetic data, port bound to localhost.
 # Spring Boot starts this file on bootRun (spring-boot-docker-compose).
+# Host port 5433 (not 5432) so that this database and the one of another project on the same PC
+# do not collide; the dev profile runs the app on 8081 for the same reason.
 services:
   postgres:
     image: postgres:18
     environment:
-      POSTGRES_DB: koine
-      POSTGRES_USER: koine
-      POSTGRES_PASSWORD: koine
+      POSTGRES_DB: talita
+      POSTGRES_USER: talita
+      POSTGRES_PASSWORD: talita
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U koine -d koine"]
+      test: ["CMD-SHELL", "pg_isready -U talita -d talita"]
       interval: 5s
       timeout: 3s
       retries: 10

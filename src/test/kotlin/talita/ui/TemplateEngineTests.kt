@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
+import org.springframework.core.env.Environment
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -122,6 +123,7 @@ class TemplateEngineTests(
 class TemplateEngineDevProfileTests(
     @Autowired private val engine: TemplateEngine,
     @Autowired private val jte: JteProperties,
+    @Autowired private val environment: Environment,
 ) {
 
     @Test
@@ -129,5 +131,10 @@ class TemplateEngineDevProfileTests(
         assertTrue(jte.isDevelopmentMode)
         assertFalse(jte.isUsePrecompiledTemplates)
         assertEquals("OnDemand", engine.templateMode())
+    }
+
+    @Test
+    fun `t2 c12 the dev profile runs the app on port 8081`() {
+        assertEquals("8081", environment.getProperty("server.port"))
     }
 }

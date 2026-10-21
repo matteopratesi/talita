@@ -1,4 +1,8 @@
 # Profile used by bootRun (see build.gradle.kts).
+server:
+  # Not 8080, so that this app and another one on the same PC can run together.
+  port: 8081
+
 spring:
   web:
     resources:
