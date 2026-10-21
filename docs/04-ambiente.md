@@ -44,6 +44,9 @@ diverso da quello di Koinè, perché il nome del progetto compose è quello dell
 - **Build completa**: `./gradlew build` (migrazioni, generazione jOOQ, template JTE, CSS di Tailwind,
   test unitari ed e2e). Poi `scripts/smoke-test-jar.sh`: avvia il jar come in produzione, senza
   profili e con un Postgres usa e getta, e controlla `GET /`, il CSS, htmx, `app.js` e i font.
+  Avvia il jar con il `java` del PATH, che deve essere il JDK 25 (il jar è compilato per la 25):
+  sul PC di Matteo il `java` di sistema è più vecchio, quindi
+  `JAVA=~/.gradle/jdks/<jdk 25>/bin/java scripts/smoke-test-jar.sh`; in CI c'è già il 25.
 - **Sviluppo**: `./gradlew bootRun` (profilo `dev`, Postgres di `compose.yaml`; i template `.jte`
   si ricaricano da `src/main/jte` a ogni richiesta, i file Kotlin richiedono il riavvio) e, in un
   secondo terminale, `./gradlew tailwindWatch` (rigenera il CSS quando cambia un template o

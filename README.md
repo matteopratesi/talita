@@ -18,6 +18,8 @@ Nasce da Koinè, con cui condivide stack e design system, ma è un'app separata.
 scripts/smoke-test-jar.sh  # avvia il jar come in produzione e controlla la home
 ```
 
+Lo smoke test avvia il jar con il `java` del PATH, che deve essere il JDK 25: se non lo è, `JAVA=<percorso di un java 25> scripts/smoke-test-jar.sh` (la toolchain di Gradle ne tiene uno in `~/.gradle/jdks/`).
+
 Per i soli test unitari: `./gradlew test`; per i soli e2e: `./gradlew e2eTest`. Se la sessione non vede ancora il gruppo `docker`: `sg docker -c "./gradlew build"`.
 
 ## Sviluppo
