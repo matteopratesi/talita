@@ -42,8 +42,8 @@ far verificare.
 - **Segnalazioni** (dati sanitari): **consenso esplicito** del genitore (art. 9.2.a), distinto
   dall'iscrizione, facoltativo e revocabile. Senza consenso la segnalazione non si raccoglie.
 - **Convinzioni religiose che si possono dedurre**: in Koinè la base è l'art. 9.2.d, che vale per un
-  ente religioso e per i suoi membri. Talità ha come titolare una persona fisica, quindi **quella
-  strada non c'è**. L'ipotesi più semplice è chiedere al genitore il consenso esplicito anche per
+  ente religioso e per i suoi membri. Talità ha come titolare una persona fisica, quindi **a quanto
+  pare quella strada non c'è, da verificare**. L'ipotesi più semplice è chiedere al genitore il consenso esplicito anche per
   questo, insieme all'iscrizione e non solo per le segnalazioni. Si decide con il testo
   dell'informativa (TALITA-5).
 - **Account dei maestri** (inviti e accesso): ipotesi di legittimo interesse del titolare
