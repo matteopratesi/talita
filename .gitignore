@@ -1,0 +1,33 @@
+# Build e IDE
+build/
+.gradle/
+.kotlin/
+out/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Worktree degli agenti di Claude Code
+.claude/worktrees/
+
+# JTE: classi compilate al volo in modalità sviluppo
+jte-classes/
+
+# Configurazione locale e segreti
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dati: qui non entrano mai dati reali.
+# I dump del vecchio database restano sul server.
+/data/
+/dump*/
+*.sql.gz
+*.dump
+*.bak
+# Le migrazioni Flyway sono .sql ma stanno in src/: tutti gli altri .sql sono esclusi
+*.sql
+!src/**/*.sql
