@@ -6,7 +6,7 @@ Questa guida vale per tutte le schermate di Talità. Chi sviluppa la usa così c
 Tailwind e testi. Se una schermata ha bisogno di un pezzo che qui non c'è, il pezzo si aggiunge
 prima qui (con il ticket della schermata), poi nel template.
 
-`docs/design/KOINE-11/` è il mockup di origine, copiato da Koinè e non più modificato: componenti e guscio valgono ancora, testi, voci e marchio no. Si apre `index.html` nel browser, senza server e senza rete. Se il mockup e questa guida non vanno d'accordo, vale la guida.
+`docs/design/KOINE-11/` è il mockup di origine, copiato da Koinè e non più modificato, tranne alcune righe di `componenti.html` (nomi di parrocchia e indirizzo email di esempio, sostituiti con «Parrocchia di esempio» e `nome@example.org` perché il repo è pubblico): componenti e guscio valgono ancora, testi, voci e marchio no. Si apre `index.html` nel browser, senza server e senza rete. Se il mockup e questa guida non vanno d'accordo, vale la guida.
 
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
