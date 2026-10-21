@@ -3,7 +3,6 @@ import org.flywaydb.core.Flyway
 import org.jooq.codegen.GenerationTool
 import org.jooq.meta.jaxb.Configuration
 import org.jooq.meta.jaxb.Database
-import org.jooq.meta.jaxb.ForcedType
 import org.jooq.meta.jaxb.Generator
 import org.jooq.meta.jaxb.Jdbc
 import org.testcontainers.postgresql.PostgreSQLContainer
@@ -37,7 +36,7 @@ plugins {
     id("gg.jte.gradle") version "3.2.4"
 }
 
-group = "koine"
+group = "talita"
 version = "0.0.1-SNAPSHOT"
 
 java {
@@ -50,7 +49,6 @@ repositories {
     mavenCentral()
 }
 
-extra["springModulithVersion"] = "2.1.1"
 // The JTE plugin and the starter must have the same version. The plugin version is repeated
 // in the plugins block, which cannot read variables.
 val jteVersion = "3.2.4"
@@ -61,9 +59,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("org.jooq:jooq-postgres-extensions")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("gg.jte:jte-spring-boot-starter-4:$jteVersion")
     implementation("tools.jackson.module:jackson-module-kotlin")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
@@ -71,16 +67,9 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.modulith:spring-modulith-bom:${property("springModulithVersion")}")
-    }
 }
 
 // Same major version as compose.yaml and TestcontainersConfiguration.
@@ -134,18 +123,11 @@ val generateJooq = tasks.register("generateJooq") {
                                         .withInputSchema("public")
                                         .withExcludes("flyway_schema_history")
                                         // Skips the hundreds of functions added by the extensions.
-                                        .withIncludeRoutines(false)
-                                        // Membership periods: daterange as a range of LocalDate.
-                                        .withForcedTypes(
-                                            ForcedType()
-                                                .withIncludeTypes("daterange")
-                                                .withUserType("org.jooq.postgres.extensions.types.LocalDateRange")
-                                                .withBinding("org.jooq.postgres.extensions.bindings.LocalDateRangeBinding"),
-                                        ),
+                                        .withIncludeRoutines(false),
                                 )
                                 .withTarget(
                                     JooqTarget()
-                                        .withPackageName("koine.jooq")
+                                        .withPackageName("talita.jooq")
                                         .withDirectory(outputDir.path),
                                 ),
                         ),
@@ -176,7 +158,7 @@ val tailwindChecksums = mapOf(
     "linux-x64" to "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a",
 )
 // Outside build/, so it survives `clean`. Under the Gradle caches, which CI caches.
-val tailwindCacheDir = gradle.gradleUserHomeDir.resolve("caches/koine-tools/tailwindcss/v$tailwindVersion")
+val tailwindCacheDir = gradle.gradleUserHomeDir.resolve("caches/talita-tools/tailwindcss/v$tailwindVersion")
 
 fun tailwindPlatform(): String {
     val os = System.getProperty("os.name").lowercase()

@@ -1,6 +1,6 @@
-@import koine.ui.ErrorPage
-@import koine.ui.Icon
-@import koine.ui.Shell
+@import talita.ui.ErrorPage
+@import talita.ui.Icon
+@import talita.ui.Shell
 @param Shell shell
 @param ErrorPage page
 

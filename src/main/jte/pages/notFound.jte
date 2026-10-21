@@ -1,5 +1,5 @@
-@import koine.ui.Icon
-@import koine.ui.Shell
+@import talita.ui.Icon
+@import talita.ui.Shell
 @param Shell shell
 
 @template.layout.shell(shell = shell, content = @`

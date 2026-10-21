@@ -2,7 +2,7 @@
 # and from SPRING_DATASOURCE_* environment variables on the server.
 spring:
   application:
-    name: koine
+    name: talita
   web:
     resources:
       chain:

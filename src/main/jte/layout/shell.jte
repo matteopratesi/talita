@@ -1,6 +1,6 @@
-@import koine.ui.Icon
-@import koine.ui.NavItem
-@import koine.ui.Shell
+@import talita.ui.Icon
+@import talita.ui.NavItem
+@import talita.ui.Shell
 @param Shell shell
 @param gg.jte.Content content
 <!doctype html>

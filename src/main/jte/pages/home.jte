@@ -1,7 +1,7 @@
-@import koine.ui.HomePage
-@import koine.ui.Icon
-@import koine.ui.Section
-@import koine.ui.Shell
+@import talita.ui.HomePage
+@import talita.ui.Icon
+@import talita.ui.Section
+@import talita.ui.Shell
 @param Shell shell
 @param HomePage page
 

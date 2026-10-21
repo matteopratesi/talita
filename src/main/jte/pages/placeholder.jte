@@ -1,6 +1,6 @@
-@import koine.ui.Icon
-@import koine.ui.PlaceholderPage
-@import koine.ui.Shell
+@import talita.ui.Icon
+@import talita.ui.PlaceholderPage
+@import talita.ui.Shell
 @param Shell shell
 @param PlaceholderPage page
 

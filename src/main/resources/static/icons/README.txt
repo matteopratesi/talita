@@ -9,7 +9,7 @@ cartella icons/, senza modifiche ai tracciati.
 
 Usate nel guscio: house, users-round, contact-round, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
-nell'enum koine.ui.Icon; un test controlla che il template le disegni tutte.
+nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.
 
 Per aggiungere un'icona: nuova voce in Icon, nuovo ramo in icon.jte con i tracciati del file
 lucide-static della stessa versione, e il suo nome qui sopra. Se si cambia versione di Lucide

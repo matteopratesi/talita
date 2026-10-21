@@ -1,4 +1,4 @@
-@import koine.ui.Icon
+@import talita.ui.Icon
 @param String id
 @param Icon icon
 @param String title
