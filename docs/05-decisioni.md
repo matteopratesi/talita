@@ -4,7 +4,7 @@ Registro delle decisioni di progetto, dalla più vecchia alla più recente. Il l
 su Jira (progetto TALITA); qui resta il perché delle scelte, versionato con il codice.
 
 Le prime voci sono ereditate da Koinè, l'applicazione da cui Talità nasce: riportano la data e
-l'origine (`docs/06-decisioni.md` di Koinè, commit `23ea63d`). I rimandi «KOINE-N» sono ai
+l'origine (registro delle decisioni di Koinè, commit `23ea63d`). I rimandi «KOINE-N» sono ai
 ticket di Koinè.
 
 ## 2026-10-21: nascita di Talità (KOINE-29)
@@ -43,7 +43,7 @@ La organizzano i maestri dei bambini di due parrocchie, una volta l'anno, a sett
   iscrizione (TALITA-5), check-in e stampe (TALITA-6), cancellazioni (TALITA-7), deploy, Dockerfile
   e backup (TALITA-8), account e dominio (TALITA-9).
 
-Origine: commento di chiusura di KOINE-29 e voce del 21/10/2026 di `docs/06-decisioni.md` di
+Origine: commento di chiusura di KOINE-29 e voce del 21/10/2026 del registro delle decisioni di
 Koinè.
 
 ## 2026-10-21: lo stack di Koinè, senza ciò che qui non serve (TALITA-2)
@@ -132,7 +132,7 @@ unico invece dei tre proposti dall'analisi).
 
 ## 2026-10-19: design system (KOINE-11)
 
-Origine: `docs/06-decisioni.md` di Koinè, voce «design system (KOINE-11)». Guida completa in
+Origine: registro delle decisioni di Koinè, voce «design system (KOINE-11)». Guida completa in
 `docs/design/README.md`, mockup di origine in `docs/design/KOINE-11/`.
 
 - **Font Inter 4.1** (OFL 1.1), servito dall'app in due sottoinsiemi woff2 (latino circa 48 KB,
@@ -149,7 +149,7 @@ Origine: `docs/06-decisioni.md` di Koinè, voce «design system (KOINE-11)». Gu
 
 ## 2026-10-19: spike JTE (KOINE-11), si resta su JTE
 
-Origine: `docs/06-decisioni.md` di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
+Origine: registro delle decisioni di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
 4.1.1, Gradle 9.8.1, JDK 25 (toolchain) e Kotlin 2.3.21: **JTE 3.2.4 funziona, senza workaround**.
 Thymeleaf non serve.
 
@@ -172,7 +172,7 @@ Thymeleaf non serve.
 
 ## 2026-10-19: asset, e2e e guscio (KOINE-11)
 
-Origine: `docs/06-decisioni.md` di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
+Origine: registro delle decisioni di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
 sviluppando il guscio, oltre a quelle del design.
 
 - **Tailwind 4.3.3 standalone, senza Node**: il binario si scarica una volta nella cache di Gradle,
@@ -211,7 +211,7 @@ sviluppando il guscio, oltre a quelle del design.
 
 ## 2026-10-19: un solo ticket, sviluppo subito (KOINE-11)
 
-Origine: `docs/06-decisioni.md` di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
+Origine: registro delle decisioni di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
 branch e una PR e le parti come passi in ordine, perché le parti servono solo insieme (il guscio si
 verifica solo con gli e2e) e il QA controlla tutti i criteri in una volta. Per TALITA-2 vale la
 stessa scelta.
