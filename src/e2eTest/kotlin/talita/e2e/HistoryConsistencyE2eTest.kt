@@ -190,7 +190,7 @@ class HistoryConsistencyE2eTest {
         assertEquals(emptyList<String>(), violations)
     }
 
-    // ---- Defect found in the second round of the QA (D6). Enable the tests when it is fixed. ----
+    // ---- Defect found in the second round of the QA (D6), now fixed: these tests guard against a regression. ----
 
     @E2eTest
     fun `a back while another back is still waiting for its answer, the last one wins`(e2e: E2e) {
