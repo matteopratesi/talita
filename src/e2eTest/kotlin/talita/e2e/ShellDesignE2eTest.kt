@@ -69,6 +69,9 @@ class ShellDesignE2eTest {
         assertThat(page.locator("main a")).hasText("Vai alla home")
 
         e2e.open("/test/errore")
+        // The content slides in for 160 ms: while it moves, the browser reports the 48 px of a button as
+        // 47.99997 (about one load in five), and the check of the height below fails by chance.
+        page.waitForSettledContent()
         val buttons = page.locator("main a")
         assertEquals(listOf("Riprova", "Vai alla home"), buttons.allInnerTexts().map { it.trim() }, "500: buttons, in order")
         val retry = buttons.nth(0).box()
