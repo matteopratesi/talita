@@ -16,6 +16,9 @@ jobs:
         with:
           # The whole history, for the check of the commit addresses below.
           fetch-depth: 0
+          # The job only reads the repository: the token must not stay in the git config, where
+          # the Gradle plugins, the dependencies and the tests that run later could read it.
+          persist-credentials: false
       # The repository is public: no commit of a pull request may carry a personal or a work email.
       - name: Commit addresses
         if: github.event_name == 'pull_request'
