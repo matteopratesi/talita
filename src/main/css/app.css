@@ -1,0 +1,155 @@
+@import "tailwindcss" source(none);
+@source "../jte";
+
+/*! fonts: inter-latin 1f04d9c03355 inter-latin-ext e1cda607b846 */
+/* Font: Inter 4.1, sottoinsiemi woff2 serviti dall'app. URL riscritti con l'impronta del
+   contenuto dalla catena delle risorse di Spring. La riga qui sopra riporta l'inizio dello
+   SHA-256 dei due file: la catena calcola l'impronta del CSS prima di riscrivere gli indirizzi
+   dei font, quindi se cambia un font deve cambiare il CSS (un test controlla che la riga sia
+   aggiornata). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@theme {
+  /* Solo i nostri colori: la palette di Tailwind è spenta */
+  --color-*: initial;
+  --color-canvas: #f6f5f2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #efede8;
+  --color-line: #e2ded6;
+  --color-line-strong: #8b8478;
+  --color-ink: #1c1b19;
+  --color-ink-muted: #57534c;
+  --color-white: #ffffff;
+  --color-brand: #2a4ba0;
+  --color-brand-strong: #1f3b85;
+  --color-brand-soft: #e7ecf8;
+  --color-danger: #b42318;
+  --color-danger-strong: #912018;
+  --color-danger-soft: #fdedeb;
+  --color-success: #1d6b3a;
+  --color-success-soft: #e5f2ea;
+  --color-warning: #8a5300;
+  --color-warning-soft: #fff2d9;
+  --color-focus: #2a4ba0;
+
+  --font-*: initial;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-sans--font-feature-settings: "cv08";
+
+  --text-*: initial;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+
+  --animate-enter: enter 160ms ease-out;
+  --animate-toast-in: toast-in 200ms ease-out;
+  --animate-sheet-in: sheet-in 200ms ease-out;
+  --animate-progress: progress 1.2s ease-in-out infinite;
+
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(4px); }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+  }
+  @keyframes sheet-in {
+    from { opacity: 0; transform: translateY(1.5rem); }
+  }
+  @keyframes progress {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+  }
+}
+
+/* busy: l'elemento che ha fatto partire una richiesta htmx, o ciò che c'è dentro */
+@custom-variant busy {
+  &.htmx-request { @slot; }
+  .htmx-request & { @slot; }
+}
+
+/* page-busy: c'è almeno una richiesta htmx in corso nella pagina */
+@custom-variant page-busy {
+  body:has(.htmx-request) & { @slot; }
+}
+
+/* nav-busy: è in corso un cambio di pagina (link) o l'invio di un form */
+@custom-variant nav-busy {
+  body:has(a.htmx-request, form.htmx-request) & { @slot; }
+}
+
+/* short: schermo basso, per esempio il telefono in orizzontale */
+@custom-variant short {
+  @media (max-height: 30rem) { @slot; }
+}
+
+/* Margini laterali con la safe area dell'iPhone (tacca in orizzontale) */
+@utility px-gutter {
+  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Spazio in fondo al contenuto: navigazione (4rem) + barra home dell'iPhone + respiro */
+@utility pb-above-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 2rem);
+}
+
+/* Posizione dei messaggi a comparsa, appena sopra la navigazione */
+@utility bottom-above-nav {
+  bottom: calc(4rem + env(safe-area-inset-bottom) + 0.75rem);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* h1 e main ricevono il fuoco dal codice dopo una navigazione: niente anello */
+  [tabindex="-1"]:focus {
+    outline: none;
+  }
+}

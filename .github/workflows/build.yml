@@ -1,0 +1,45 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 25
+      # Validates the wrapper jar. Basic caching is the MIT-licensed provider, no proprietary component.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-provider: basic
+      # Chromium for the e2e tests. The browsers are cached by Playwright version (read from the
+      # build script, so the key follows the version); the system libraries are installed every run.
+      - id: playwright
+        run: echo "version=$(sed -n 's/^val playwrightVersion = "\(.*\)"/\1/p' build.gradle.kts)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ steps.playwright.outputs.version }}-chromium-${{ runner.os }}
+      - run: ./gradlew playwrightInstall -PplaywrightWithDeps
+      # Tests use Testcontainers with the runner's Docker. `build` runs the unit tests and the e2e
+      # tests (check depends on e2eTest): an e2e failure fails the build.
+      - run: ./gradlew build
+      # The production jar starts without profiles and serves the precompiled templates (KOINE-11).
+      - run: ./scripts/smoke-test-jar.sh
+      # Trace and screenshot of every failed e2e test, only on failure and for at most 7 days.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: e2e-failures
+          path: build/e2e-artifacts
+          retention-days: 7
+          if-no-files-found: ignore

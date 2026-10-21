@@ -1,0 +1,24 @@
+# The datasource comes from compose.yaml in development, from Testcontainers in tests
+# and from SPRING_DATASOURCE_* environment variables on the server.
+spring:
+  application:
+    name: koine
+  web:
+    resources:
+      chain:
+        strategy:
+          content:
+            # Static files get a content fingerprint in their URL (`app-<hash>.css`), see Assets.
+            enabled: true
+            paths: /**
+      cache:
+        # A fingerprinted URL never changes content, so it can be cached for a year.
+        cachecontrol:
+          max-age: 365d
+          cache-public: true
+
+gg:
+  jte:
+    # Without profiles (production and tests) the templates are the classes compiled by the
+    # build. Development mode is only switched on by the dev profile, see application-dev.yaml.
+    use-precompiled-templates: true

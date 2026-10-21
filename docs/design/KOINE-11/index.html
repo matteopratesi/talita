@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOINE-11 · Tavola del mockup · Koinè</title>
+<!--
+  Tavola del mockup di KOINE-11. Ogni riquadro è una pagina vera di questa cartella,
+  mostrata in un iframe alla larghezza indicata, così valgono le stesse regole responsive.
+  Niente risorse esterne, niente download: font di sistema al posto di Inter (vedi mockup.css).
+  Lo stile qui sotto riguarda solo la tavola, non l'app.
+-->
+<style>
+  :root {
+    --canvas: #f6f5f2;
+    --surface: #ffffff;
+    --line: #e2ded6;
+    --ink: #1c1b19;
+    --ink-muted: #57534c;
+    --brand: #2a4ba0;
+    --brand-soft: #e7ecf8;
+    font-family: "Inter", "InterVariable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "cv08";
+    -webkit-text-size-adjust: 100%;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e9e7e2;
+    color: var(--ink);
+    font-size: 1.0625rem;
+    line-height: 1.625rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand); text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+  .wrap { max-width: 96rem; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+  .eyebrow { color: var(--ink-muted); font-size: .9375rem; font-weight: 600; }
+  h1 { margin-top: .25rem; font-size: 2rem; line-height: 2.5rem; font-weight: 600; letter-spacing: -.025em; }
+  .intro { max-width: 48rem; margin-top: 1rem; }
+  .intro p + p { margin-top: .75rem; }
+  .intro ul { margin: .5rem 0 0 1.25rem; }
+  .intro li + li { margin-top: .25rem; }
+  .callout {
+    max-width: 48rem;
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 1rem;
+    background: var(--brand-soft);
+  }
+  .callout h2 { font-size: 1.1875rem; font-weight: 600; }
+  .callout ol { margin: .5rem 0 0 1.5rem; }
+  .callout p { margin-top: .5rem; }
+  section { margin-top: 3.5rem; }
+  section > h2 { font-size: 1.375rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -.025em; }
+  section > p { max-width: 48rem; margin-top: .25rem; color: var(--ink-muted); }
+  .grid { display: flex; flex-wrap: wrap; gap: 2.5rem 2rem; margin-top: 1.5rem; align-items: flex-start; }
+  figure { display: flex; flex-direction: column; gap: .75rem; max-width: 100%; }
+  .device { max-width: 100%; }
+  .device {
+    overflow: hidden;
+    border: 1px solid #cfcac1;
+    border-radius: 1.5rem;
+    background: var(--surface);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / .08), 0 4px 6px -4px rgb(0 0 0 / .08);
+  }
+  .device iframe { display: block; border: 0; }
+  .phone { width: 360px; height: 760px; }
+  .phone iframe { width: 360px; height: 760px; }
+  .land { width: 800px; height: 360px; border-radius: 1.25rem; }
+  .land iframe { width: 800px; height: 360px; }
+  .narrow { width: 300px; height: 640px; }
+  .narrow iframe { width: 300px; height: 640px; }
+  .desk { width: 640px; height: 400px; border-radius: .75rem; }
+  .desk iframe { width: 1280px; height: 800px; transform: scale(.5); transform-origin: 0 0; }
+  figcaption { max-width: 360px; font-size: .9375rem; line-height: 1.375rem; }
+  .land + figcaption, .desk + figcaption { max-width: 640px; }
+  figcaption strong { display: block; font-size: 1.0625rem; line-height: 1.625rem; }
+  figcaption span { display: block; color: var(--ink-muted); }
+  figcaption .crit { margin-top: .25rem; font-weight: 600; }
+  figcaption a { display: block; width: fit-content; margin-top: .25rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Koinè · design · dati sintetici</p>
+  <h1>KOINE-11 · Guscio dell’app</h1>
+
+  <div class="intro">
+    <p>Mockup statico per giudicare l’aspetto del guscio: intestazione, navigazione, home provvisoria,
+      segnaposto delle sezioni, pagine di errore, messaggi e indicatore di caricamento.
+      Le regole complete sono in <code>docs/design/README.md</code>.</p>
+    <p>Come guardarlo:</p>
+    <ul>
+      <li>ogni riquadro è una pagina vera di questa cartella, mostrata alla larghezza scritta sopra;
+        con “Apri la pagina” la vedi da sola, la puoi ridimensionare e le voci della navigazione funzionano;</li>
+      <li>nell’app il cambio di pagina avviene senza ricaricare (htmx), qui invece il browser ricarica;</li>
+      <li>gli stati (caricamento, messaggi, dialogo) qui sono accesi dall’ancora nell’indirizzo, per esempio
+        <code>home.html#rete-assente</code>; nell’app li accende htmx;</li>
+      <li>il mockup non scarica niente, quindi usa il font di sistema al posto di Inter: le lettere
+        possono sembrare un po’ diverse, misure e colori sono quelli giusti.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <h2>Approvate da Matteo: le voci della navigazione</h2>
+    <ol>
+      <li>Home</li>
+      <li>Comunità</li>
+      <li>Persone</li>
+      <li>Convivenze</li>
+    </ol>
+    <p>Si riverificano dopo la prima call con il Centro. Quattro voci, tutte dentro il perimetro. Le strutture stanno dentro Convivenze, il profilo con
+      “Esci” arriverà in alto a destra con il login (KOINE-17). Se un giorno le voci visibili a una persona
+      fossero più di cinque, la quinta diventa “Altro”.</p>
+  </div>
+
+  <section aria-labelledby="t-telefono">
+    <h2 id="t-telefono">Telefono · 360 px</h2>
+    <p>Navigazione in basso, intestazione con il nome in alto, titolo grande della pagina.</p>
+    <div class="grid">
+      <figure>
+        <div class="device phone"><iframe src="home.html" title="Home sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Home provvisoria</strong><span>Voce corrente evidenziata, sezioni come lista di schede.</span><span class="crit">Criteri 18, 19</span><a href="home.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="comunita.html" title="Segnaposto Comunità sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Segnaposto di sezione</strong><span>Stato vuoto “In preparazione”, una frase su cosa arriverà.</span><span class="crit">Criterio 21</span><a href="comunita.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="home.html#caricamento" title="Caricamento sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Caricamento</strong><span>Barra in cima dopo 300 ms, contenuto di prima attenuato finché arriva quello nuovo.</span><span class="crit">Criterio 24</span><a href="home.html#caricamento">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="home.html#rete-assente" title="Connessione assente sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Connessione assente</strong><span>Messaggio sopra la navigazione, resta finché non lo chiudi o la richiesta dopo riesce. Il contenuto non cambia.</span><span class="crit">Criterio 27</span><a href="home.html#rete-assente">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="home.html#rete-lenta" title="Connessione lenta sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Connessione troppo lenta</strong><span>Dopo 20 secondi senza risposta. Stesso comportamento della connessione assente.</span><span class="crit">Edge case “rete lenta”</span><a href="home.html#rete-lenta">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="home.html#errore-server" title="Errore del server sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Errore del server</strong><span>Per le richieste che non cambiano pagina: il contenuto resta, compare il messaggio.</span><span class="crit">Criterio 28</span><a href="home.html#errore-server">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="non-trovata.html" title="Pagina non trovata sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Pagina non trovata (404)</strong><span>Dentro il guscio, nessuna voce corrente, un bottone per la home.</span><span class="crit">Criterio 25</span><a href="non-trovata.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="errore.html" title="Errore imprevisto sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Errore imprevisto (500)</strong><span>Nessun dettaglio tecnico. “Riprova” solo se la richiesta era una lettura.</span><span class="crit">Criterio 26</span><a href="errore.html">Apri la pagina</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-limiti">
+    <h2 id="t-limiti">Casi limite sul telefono</h2>
+    <p>Testo di sistema molto ingrandito e telefono in orizzontale. Per il fondo di una pagina lunga
+      (criterio 19) scorri fino in fondo il catalogo dei componenti, più sotto: l’ultimo elemento resta
+      sopra la navigazione.</p>
+    <div class="grid">
+      <figure>
+        <div class="device narrow"><iframe src="convivenze.html" title="Testo ingrandito, 300 px" loading="lazy"></iframe></div>
+        <figcaption><strong>Testo di sistema ingrandito · 300 px</strong><span>Con il testo grande di Android lo schermo “si stringe”: le etichette restano, sotto i 320 px diventano più piccole.</span><span class="crit">Edge case “testo ingrandito, zoom 200%”</span><a href="convivenze.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device land"><iframe src="home.html" title="Telefono in orizzontale" loading="lazy"></iframe></div>
+        <figcaption><strong>Telefono in orizzontale · 800 × 360</strong><span>Intestazione che scorre via, navigazione bassa con icona ed etichetta affiancate.</span><span class="crit">Edge case “telefono in orizzontale”</span><a href="home.html">Apri la pagina</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-desktop">
+    <h2 id="t-desktop">Desktop · 1280 px (riquadri al 50%)</h2>
+    <p>Da 1024 px la navigazione passa a sinistra con le stesse voci; il contenuto è largo al massimo 768 px.</p>
+    <div class="grid">
+      <figure>
+        <div class="device desk"><iframe src="home.html" title="Home su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Home provvisoria</strong><span class="crit">Criteri 18, 20</span><a href="home.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="persone.html" title="Segnaposto Persone su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Segnaposto di sezione</strong><span class="crit">Criteri 20, 21</span><a href="persone.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="home.html#caricamento" title="Caricamento su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Caricamento</strong><span class="crit">Criterio 24</span><a href="home.html#caricamento">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="home.html#rete-assente" title="Connessione assente su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Connessione assente</strong><span>Su desktop il messaggio sta in basso a destra.</span><span class="crit">Criterio 27</span><a href="home.html#rete-assente">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="non-trovata.html" title="Pagina non trovata su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Pagina non trovata (404)</strong><span class="crit">Criterio 25</span><a href="non-trovata.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="errore.html" title="Errore imprevisto su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Errore imprevisto (500)</strong><span class="crit">Criterio 26</span><a href="errore.html">Apri la pagina</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-componenti">
+    <h2 id="t-componenti">Componenti del design system</h2>
+    <p>Non fanno parte di KOINE-11, ma le schermate di KOINE-13 e di M1 useranno questi pezzi:
+      bottoni, campi con errori, liste, schede, etichette, avvisi, messaggi, dialogo di conferma, stato vuoto.
+      Il riquadro del telefono si scorre.</p>
+    <div class="grid">
+      <figure>
+        <div class="device phone"><iframe src="componenti.html" title="Componenti sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Catalogo · telefono</strong><a href="componenti.html">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device phone"><iframe src="componenti.html#dialogo" title="Dialogo di conferma sul telefono" loading="lazy"></iframe></div>
+        <figcaption><strong>Dialogo di conferma · telefono</strong><span>Sale dal basso; “Annulla” sotto l’azione.</span><a href="componenti.html#dialogo">Apri la pagina</a></figcaption>
+      </figure>
+      <figure>
+        <div class="device desk"><iframe src="componenti.html#dialogo" title="Dialogo di conferma su desktop" loading="lazy" tabindex="-1"></iframe></div>
+        <figcaption><strong>Dialogo di conferma · desktop</strong><span>Al centro, azione a destra.</span><a href="componenti.html#dialogo">Apri la pagina</a></figcaption>
+      </figure>
+    </div>
+  </section>
+</div>
+</body>
+</html>

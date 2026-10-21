@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Componenti · Koinè</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+<!-- Mockup statico di KOINE-11: dati e testi sintetici, nessuna risorsa esterna. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header">
+  <a class="wordmark" href="home.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M11.5 9v14M20.5 9l-8 7 8 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Koinè</span></a>
+</header>
+<nav class="nav" aria-label="Navigazione principale">
+  <ul>
+      <li><a href="home.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="comunita.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span class="nav__label">Comunità</span></a></li>
+      <li><a href="persone.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 2v2"/><path d="M17.915 21a6 6 0 1 0-12 0"/><path d="M8 2v2"/><circle cx="12" cy="11" r="4"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span><span class="nav__label">Persone</span></a></li>
+      <li><a href="convivenze.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span><span class="nav__label">Convivenze</span></a></li>
+  </ul>
+</nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Componenti</h1>
+      <p class="lead">Catalogo del design system con dati sintetici. Non è una pagina dell’app: serve a vedere insieme i pezzi che useranno le schermate.</p>
+    </div>
+
+    <section class="section" aria-labelledby="c-bottoni">
+      <h2 class="section-title" id="c-bottoni">Bottoni</h2>
+      <div class="card stack">
+        <div class="row-wrap">
+          <button class="btn btn--primary" type="button">Salva la comunità</button>
+          <button class="btn btn--secondary" type="button">Annulla</button>
+        </div>
+        <div class="row-wrap">
+          <button class="btn btn--danger" type="button">Elimina l’iscrizione</button>
+          <button class="btn btn--text" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Aggiungi un fratello</button>
+        </div>
+        <div class="row-wrap">
+          <button class="btn btn--primary is-busy" type="button" aria-disabled="true"><svg class="spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Salvataggio…</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-campi">
+      <h2 class="section-title" id="c-campi">Campi ed errori</h2>
+      <form class="card" action="#" novalidate>
+        <div class="alert alert--danger mb-5" role="alert">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <p>Controlla i 2 campi segnati in rosso.</p>
+        </div>
+        <div class="field">
+          <label class="label" for="nome">Nome</label>
+          <input class="input" id="nome" name="nome" autocomplete="given-name" aria-invalid="true" aria-describedby="nome-errore">
+          <p class="error" id="nome-errore"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>Scrivi il nome.</p>
+        </div>
+        <div class="field">
+          <label class="label" for="cognome">Cognome</label>
+          <input class="input" id="cognome" name="cognome" autocomplete="family-name" value="Conti">
+        </div>
+        <fieldset class="field" aria-describedby="nascita-aiuto nascita-errore">
+          <legend>Data di nascita</legend>
+          <p class="hint" id="nascita-aiuto">Per esempio 4 4 1961</p>
+          <div class="date-parts">
+            <div><label for="giorno">Giorno</label><input class="input input--short tabular" id="giorno" name="giorno" inputmode="numeric" autocomplete="bday-day" value="4"></div>
+            <div><label for="mese">Mese</label><input class="input input--short tabular" id="mese" name="mese" inputmode="numeric" autocomplete="bday-month" value="4"></div>
+            <div><label for="anno">Anno</label><input class="input input--year tabular" id="anno" name="anno" inputmode="numeric" autocomplete="bday-year" value="61" aria-invalid="true"></div>
+          </div>
+          <p class="error" id="nascita-errore"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>Scrivi l’anno con quattro cifre, per esempio 1961.</p>
+        </fieldset>
+        <div class="field">
+          <label class="label" for="email">Email</label>
+          <p class="hint" id="email-aiuto">Serve per mandare il link di accesso.</p>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" aria-describedby="email-aiuto" value="nome@esempio.it">
+        </div>
+        <fieldset class="field">
+          <legend>Ruolo nella comunità</legend>
+          <div class="choice"><input type="radio" name="ruolo" id="ruolo-1" checked><label for="ruolo-1">Fratello</label></div>
+          <div class="choice"><input type="radio" name="ruolo" id="ruolo-2"><label for="ruolo-2">Responsabile</label></div>
+          <div class="choice"><input type="radio" name="ruolo" id="ruolo-3"><label for="ruolo-3">Corresponsabile</label></div>
+          <div class="choice"><input type="radio" name="ruolo" id="ruolo-4"><label for="ruolo-4">Catechista</label></div>
+        </fieldset>
+        <div class="actions form-actions">
+          <button class="btn btn--primary btn--block" type="button">Salva la persona</button>
+          <button class="btn btn--secondary btn--block" type="button">Annulla</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="section" aria-labelledby="c-liste">
+      <h2 class="section-title" id="c-liste">Liste</h2>
+      <div class="input-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
+        <label class="sr-only" for="cerca">Cerca una persona</label>
+        <input class="input" id="cerca" type="search" placeholder="Cerca per nome o cognome">
+      </div>
+      <ul class="list mt-3">
+        <li><a class="list__row" href="#"><span class="avatar">IC</span><span class="list__text"><span class="list__title">Ilaria Conti</span><span class="list__meta">Prima comunità · responsabile</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+        <li><a class="list__row" href="#"><span class="avatar">MN</span><span class="list__text"><span class="list__title">Marco Neri</span><span class="list__meta">Prima comunità · fratello</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+        <li><a class="list__row" href="#"><span class="avatar">GB</span><span class="list__text"><span class="list__title">Giulia Bianchi</span><span class="list__meta">Seconda comunità · catechista</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+      </ul>
+      <ul class="list mt-3">
+        <li><a class="list__row" href="#"><span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span class="list__text"><span class="list__head"><span class="list__title">Prima comunità</span><span class="badge badge--success">Attiva</span></span><span class="list__meta">Parrocchia di esempio · 32 fratelli</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+        <li><a class="list__row" href="#"><span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span class="list__text"><span class="list__head"><span class="list__title">Seconda comunità</span><span class="badge badge--success">Attiva</span></span><span class="list__meta">Parrocchia di esempio · 24 fratelli</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+        <li><a class="list__row" href="#"><span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span class="list__text"><span class="list__head"><span class="list__title">Terza comunità</span><span class="badge badge--neutral">Fusa</span></span><span class="list__meta">Parrocchia di esempio · unita alla Seconda il 12 maggio 2025</span></span><svg class="list__chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></li>
+      </ul>
+    </section>
+
+    <section class="section" aria-labelledby="c-schede">
+      <h2 class="section-title" id="c-schede">Schede</h2>
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Dati personali</h3>
+          <button class="btn btn--text" type="button">Modifica</button>
+        </div>
+        <dl class="dl">
+          <dt>Data di nascita</dt><dd>4 aprile 1961 · 65 anni</dd>
+          <dt>Stato civile</dt><dd>Sposata</dd>
+          <dt>Email</dt><dd>nome@esempio.it</dd>
+        </dl>
+      </div>
+      <div class="card card--list mt-3">
+        <h3 class="card__title">Comunità</h3>
+        <ul class="list list--flat mt-3">
+          <li><div class="list__row"><span class="list__text"><span class="list__head"><span class="list__title">Prima comunità · responsabile</span><span class="badge badge--brand">In corso</span></span><span class="list__meta">dal 12 marzo 1998</span></span></div></li>
+          <li><div class="list__row"><span class="list__text"><span class="list__title">Terza comunità · fratello</span><span class="list__meta">dal 3 ottobre 1990 all’11 marzo 1998</span></span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-etichette">
+      <h2 class="section-title" id="c-etichette">Etichette di stato</h2>
+      <div class="card row-wrap">
+        <span class="badge badge--success">Attiva</span>
+        <span class="badge badge--neutral">Fusa</span>
+        <span class="badge badge--neutral">Chiusa</span>
+        <span class="badge badge--brand">Regionale</span>
+        <span class="badge badge--warning">Da pagare</span>
+        <span class="badge badge--success">Pagata</span>
+        <span class="badge badge--danger">Annullata</span>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-avvisi">
+      <h2 class="section-title" id="c-avvisi">Avvisi nella pagina</h2>
+      <div class="stack">
+        <div class="alert alert--info"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><p>Le iscrizioni chiudono il 30 novembre 2026.</p></div>
+        <div class="alert alert--success" role="status"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><p>Comunità salvata.</p></div>
+        <div class="alert alert--warning"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><p>Mancano 3 posti letto per le iscrizioni ricevute.</p></div>
+        <div class="alert alert--danger"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><p>Non è stato possibile salvare: controlla i 2 campi segnati in rosso.</p></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-toast">
+      <h2 class="section-title" id="c-toast">Messaggi a comparsa</h2>
+      <p class="section-note">Compaiono in basso, sopra la navigazione. Quelli di errore restano finché non li chiudi o finché la richiesta dopo va a buon fine.</p>
+      <div class="stack">
+        <div class="toast toast--inline" role="status">
+          <svg class="toast__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          <div><p class="toast__title">Iscrizione salvata.</p></div>
+          <button class="toast__close" type="button" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="toast toast--inline">
+          <svg class="toast__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+          <div>
+            <p class="toast__title">Nessuna connessione</p>
+            <p class="toast__text">Controlla di avere campo o il Wi-Fi e riprova.</p>
+            <button class="toast__action" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Riprova</button>
+          </div>
+          <button class="toast__close" type="button" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-dialoghi">
+      <h2 class="section-title" id="c-dialoghi">Dialogo di conferma</h2>
+      <p class="section-note">Sul telefono sale dal basso, su desktop compare al centro. Il titolo è la domanda, il bottone ripete l’azione.</p>
+      <div class="card">
+        <a class="btn btn--primary" href="#dialogo">Unisci alla Prima comunità</a>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-vuoto">
+      <h2 class="section-title" id="c-vuoto">Stato vuoto</h2>
+      <div class="card empty">
+        <span class="empty__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span>
+        <h3 class="empty__title">Nessuna convivenza in programma</h3>
+        <p class="empty__text">Quando ne crei una, la trovi qui con le iscrizioni e le quote.</p>
+        <button class="btn btn--primary" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Nuova convivenza</button>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="c-caricamento">
+      <h2 class="section-title" id="c-caricamento">Indicatore di caricamento</h2>
+      <p class="section-note">Barra in cima allo schermo, compare se la risposta tarda più di 300 ms; intanto il contenuto di prima si attenua.</p>
+      <div class="card"><div class="demo-bar"><div class="indicator__bar"></div></div></div>
+    </section>
+
+    <p class="end-note" id="fondo">Fine della pagina: l’ultimo elemento resta sopra la navigazione.</p>
+  </div>
+</main>
+<div class="toasts" aria-live="polite">
+  <div class="toast" id="rete-assente" role="alert">
+    <svg class="toast__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+    <div>
+      <p class="toast__title">Nessuna connessione</p>
+      <p class="toast__text">Controlla di avere campo o il Wi-Fi e riprova.</p>
+      <a class="toast__action" href="#"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Riprova</a>
+    </div>
+    <a class="toast__close" href="#" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a>
+  </div>
+  <div class="toast" id="rete-lenta" role="alert">
+    <svg class="toast__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div>
+      <p class="toast__title">La connessione è troppo lenta</p>
+      <p class="toast__text">Koinè non ha risposto in tempo. Riprova quando hai più campo.</p>
+      <a class="toast__action" href="#"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Riprova</a>
+    </div>
+    <a class="toast__close" href="#" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a>
+  </div>
+  <div class="toast" id="errore-server" role="alert">
+    <svg class="toast__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div>
+      <p class="toast__title">Qualcosa non ha funzionato</p>
+      <p class="toast__text">Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.</p>
+      <a class="toast__action" href="#"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Riprova</a>
+    </div>
+    <a class="toast__close" href="#" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a>
+  </div>
+</div>
+<div class="dialog" id="dialogo" role="dialog" aria-modal="true" aria-labelledby="dialogo-titolo" aria-describedby="dialogo-testo">
+  <a class="dialog__backdrop" href="#c-dialoghi" tabindex="-1" aria-label="Chiudi"></a>
+  <div class="dialog__panel">
+    <h2 class="dialog__title" id="dialogo-titolo">Unire le due comunità?</h2>
+    <p class="dialog__text" id="dialogo-testo">I 24 fratelli della Seconda comunità passeranno nella Prima comunità dal 19 ottobre 2026. Nessuno viene cancellato: la storia di tutte e due resta consultabile.</p>
+    <div class="actions">
+      <a class="btn btn--primary btn--block" href="#c-dialoghi">Unisci le comunità</a>
+      <a class="btn btn--secondary btn--block" href="#c-dialoghi">Annulla</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

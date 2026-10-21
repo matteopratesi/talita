@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__fcd55015-e375-4e00-9dba-aa8917e2d20e__editJiraIssue",
+      "mcp__fcd55015-e375-4e00-9dba-aa8917e2d20e__addOrEditJiraIssueComment",
+      "mcp__fcd55015-e375-4e00-9dba-aa8917e2d20e__transitionJiraIssue"
+    ]
+  }
+}
