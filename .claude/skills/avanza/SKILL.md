@@ -55,9 +55,11 @@ con l'URL della PR e un titolo che inizia con `PR #<numero>`.
 
 ## 3. Controlla il risultato
 
-Prima di andare avanti verifica che l'agente abbia consegnato davvero: le sezioni nella
-descrizione, il commento firmato, lo stato giusto, la PR in bozza collegata al ticket, la CI
-verde sull'ultimo commit (controlla tu il run: l'agente può citarne uno vecchio). Se manca
+Prima di andare avanti verifica che l'agente abbia consegnato davvero: `## Analisi` nella
+descrizione e, se l'analisi dice "Interfaccia: sì", anche `## Design` (senza interfaccia il
+designer scrive solo un commento); poi il commento firmato, lo stato giusto, la PR in bozza
+collegata al ticket, la CI verde sull'ultimo commit (controlla tu il run: l'agente può citarne
+uno vecchio). Se manca
 qualcosa, rilancia lo stesso agente dicendo cosa manca. Dopo due tentativi falliti fermati e
 chiedi a Matteo.
 
