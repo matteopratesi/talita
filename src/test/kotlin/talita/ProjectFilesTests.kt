@@ -200,9 +200,9 @@ class ProjectFilesTests {
             "## 2026-10-21: nascita di Talità ($otherKey-29)",
             "## 2026-10-21: lo stack di $otherName, senza ciò che qui non serve (TALITA-2)",
             "## 2026-10-21: scelte di TALITA-2",
-            "## 2026-10-19: design system (KOINE-11)",
-            "## 2026-10-19: spike JTE (KOINE-11), si resta su JTE",
-            "## 2026-10-19: asset, e2e e guscio (KOINE-11)",
+            "## 2026-10-19: design system ($otherKey-11)",
+            "## 2026-10-19: spike JTE ($otherKey-11), si resta su JTE",
+            "## 2026-10-19: asset, e2e e guscio ($otherKey-11)",
         )) {
             assertTrue(log.contains("\n$heading\n"), "missing $heading")
         }
