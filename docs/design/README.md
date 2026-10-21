@@ -1,14 +1,14 @@
-# Design system di Koinè
+# Design system di Talità
 
-Prima versione, scritta per KOINE-11 da Grace Kerning (designer).
+Eredita il design system di Koinè (KOINE-11, Grace Kerning) e lo adatta a Talità con TALITA-2: token, componenti, accessibilità e movimento restano quelli, cambiano marchio, voci, testi ed esempi.
 
-Questa guida vale per tutte le schermate di Koinè. Chi sviluppa la usa così com'è: token, classi
+Questa guida vale per tutte le schermate di Talità. Chi sviluppa la usa così com'è: token, classi
 Tailwind e testi. Se una schermata ha bisogno di un pezzo che qui non c'è, il pezzo si aggiunge
 prima qui (con il ticket della schermata), poi nel template.
 
-Il mockup del guscio e il catalogo dei componenti sono in `docs/design/KOINE-11/`: si apre
-`index.html` nel browser, senza server e senza rete. Se il mockup e questa guida non vanno
-d'accordo, vale la guida e si corregge il mockup.
+`docs/design/KOINE-11/` è il mockup di origine, copiato da Koinè e non più modificato: componenti e guscio valgono ancora, testi, voci e marchio no. Si apre `index.html` nel browser, senza server e senza rete. Se il mockup e questa guida non vanno d'accordo, vale la guida.
+
+I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
 
@@ -17,15 +17,14 @@ d'accordo, vale la guida e si corregge il mockup.
    schermi difficili, icone, movimento
 3. [Guscio dell'app](#3-guscio-dellapp)
 4. [Componenti](#4-componenti)
-5. [htmx: cosa vede chi usa Koinè](#5-htmx-cosa-vede-chi-usa-koinè)
+5. [htmx: cosa vede chi usa Talità](#5-htmx-cosa-vede-chi-usa-talità)
 6. [Scrivere i testi](#6-scrivere-i-testi)
 7. [Accessibilità: controlli prima della PR](#7-accessibilità-controlli-prima-della-pr)
 8. [Da non fare](#8-da-non-fare)
 
 ## 1. Principi
 
-Chi usa Koinè: responsabili di comunità, catechisti, persone del Centro. Non informatici, spesso
-adulti o anziani, quasi sempre dal telefono, a volte con poco campo.
+Chi usa Talità: i maestri che organizzano la convivenza dei bambini e i genitori che arrivano da un link condiviso su WhatsApp per iscrivere i figli. Non informatici, spesso adulti, quasi sempre dal telefono. I maestri la usano anche durante la convivenza, in una casa dove il campo può essere scarso.
 
 1. **Un'app, non un sito.** Navigazione in basso sul telefono, titolo grande in cima alla
    pagina, cambio di pagina senza ricaricare, risposta visibile appena si tocca qualcosa,
@@ -124,7 +123,7 @@ Regole:
 
 - Pesi: `font-normal` (400) per il testo, `font-semibold` (600) per titoli, bottoni ed etichette
   dei campi, `font-medium` (500) per le etichette della navigazione e i valori nelle schede.
-  `font-bold` (700) solo per il nome "Koinè" nell'intestazione.
+  `font-bold` (700) solo per il nome "Talità" nell'intestazione.
 - Titoli `h1` e `h2` con `tracking-tight`.
 - Niente corsivo, niente maiuscolo, niente sottolineato fuori dai link dentro un testo.
 - Date e numeri in colonna con `tabular-nums`.
@@ -162,7 +161,7 @@ Rapporti di contrasto calcolati con la formula WCAG 2.
 
 Perché questi colori: un blu profondo, calmo e leggibile, che tutti riconoscono come "si può
 toccare"; neutri caldi invece dei grigi freddi, per un tono accogliente; nessun richiamo a un
-Centro o a una regione. Il colore non è mai l'unico segnale: c'è sempre anche un'icona o un testo.
+ente o a una regione. Il colore non è mai l'unico segnale: c'è sempre anche un'icona o un testo.
 
 Il tema scuro è fuori perimetro. I token semantici permetteranno di aggiungerlo ridefinendo i
 valori, senza toccare i template.
@@ -424,18 +423,16 @@ Icone assegnate (nomi di Lucide):
 | Uso | Icona |
 |---|---|
 | Home | `house` |
-| Comunità | `users-round` |
-| Persone | `contact-round` |
-| Convivenze | `calendar-days` |
-| Strutture (dentro Convivenze, KOINE-19) | `building-2` |
+| Convivenza | `calendar-days` |
+| Iscrizioni | `users-round` |
+| Arrivi | `clipboard-check` |
 | Altro (se le voci diventano più di cinque) | `ellipsis` |
 | Aggiungi, nuovo | `plus` |
 | Modifica | `pencil` |
 | Elimina | `trash-2` |
 | Cerca | `search` |
-| Unisci comunità (fusione) | `merge` |
 | Esporta | `download` |
-| Esci (KOINE-17) | `log-out` |
+| Esci (TALITA-3) | `log-out` |
 | Riprova | `rotate-cw` |
 | Chiudi | `x` |
 | Apri un elemento di lista | `chevron-right` |
@@ -447,16 +444,16 @@ Icone assegnate (nomi di Lucide):
 | Connessione troppo lenta | `clock` |
 | Sezione in preparazione | `hourglass` |
 | Pagina non trovata | `compass` |
-| Permesso negato (KOINE-17) | `lock` |
+| Permesso negato (TALITA-3) | `lock` |
 | Attesa dentro un bottone | `loader-circle` |
 
-**Marchio**: un quadrato arrotondato `brand` con una K bianca, disegnato qui (non è un'icona di
+**Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
 
 ```html
 <svg viewBox="0 0 32 32" aria-hidden="true" class="size-7 text-brand">
   <rect width="32" height="32" rx="9" fill="currentColor"/>
-  <path d="M11.5 9v14M20.5 9l-8 7 8 7" fill="none" stroke="#fff" stroke-width="3"
+  <path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3"
         stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 ```
@@ -480,7 +477,7 @@ Telefono (sotto 1024 px):
 
 ```
 ┌──────────────────────────────┐  ← barra di caricamento (4 px, solo durante le richieste)
-│ [K] Koinè                    │  intestazione, 56 px, resta in alto
+│ [T] Talità                   │  intestazione, 56 px, resta in alto
 ├──────────────────────────────┤
 │ Titolo della pagina (h1)     │
 │                              │  contenuto, colonna unica
@@ -489,23 +486,23 @@ Telefono (sotto 1024 px):
 │ ┌──────────────────────────┐ │  messaggi a comparsa, sopra la navigazione
 │ └──────────────────────────┘ │
 ├──────────────────────────────┤
-│  Home  Comunità Persone Conv.│  navigazione, 64 px + barra home
+│ Home  Conviv. Iscriz. Arrivi │  navigazione, 64 px + barra home
 └──────────────────────────────┘
 ```
 
 Desktop (da 1024 px):
 
 ```
-┌────────────┬─────────────────────────────────────────┐
-│ [K] Koinè  │                                         │
-│            │   Titolo della pagina (h1)              │
-│ ▣ Home     │   contenuto centrato, max 768 px        │
-│ ○ Comunità │                                         │
-│ ○ Persone  │                                         │
-│ ○ Conviv.  │                       ┌───────────────┐ │
-│            │                       │ messaggio     │ │
-│ (256 px)   │                       └───────────────┘ │
-└────────────┴─────────────────────────────────────────┘
+┌──────────────┬─────────────────────────────────────────┐
+│ [T] Talità   │                                         │
+│              │   Titolo della pagina (h1)              │
+│ ▣ Home       │   contenuto centrato, max 768 px        │
+│ ○ Convivenza │                                         │
+│ ○ Iscrizioni │                                         │
+│ ○ Arrivi     │                       ┌───────────────┐ │
+│              │                       │ messaggio     │ │
+│ (256 px)     │                       └───────────────┘ │
+└──────────────┴─────────────────────────────────────────┘
 ```
 
 Un solo HTML per i due layout: cambiano solo le classi `lg:`.
@@ -523,7 +520,7 @@ pagina; `<hash>` è l'impronta messa dalla catena delle risorse.
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <meta name="htmx-config" content='{"historyCacheSize":0,"includeIndicatorStyles":false,"timeout":20000}'>
-  <title>Comunità · Koinè</title>
+  <title>Convivenza · Talità</title>
   <link rel="icon" href="/favicon-<hash>.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/inter-latin-<hash>.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/app-<hash>.css">
@@ -541,7 +538,7 @@ pagina; `<hash>` è l'impronta messa dalla catena delle risorse.
   <header class="sticky top-0 z-40 flex min-h-14 items-center gap-2 border-b border-line bg-surface pt-safe px-gutter short:static lg:fixed lg:top-0 lg:left-0 lg:h-16 lg:w-64 lg:border-r lg:border-b-0 lg:px-6">
     <a href="/" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-lg font-bold tracking-tight text-ink">
       <!-- marchio, vedi 2.8 -->
-      Koinè
+      Talità
     </a>
   </header>
 
@@ -554,7 +551,7 @@ pagina; `<hash>` è l'impronta messa dalla catena delle risorse.
   <main id="contenuto" tabindex="-1" class="block px-gutter pt-6 pb-above-nav transition-opacity duration-150 motion-safe:animate-enter nav-busy:opacity-60 nav-busy:delay-300 lg:ml-64 lg:px-10 lg:pt-10 lg:pb-16">
     <div class="mx-auto w-full max-w-3xl">
       <div class="mb-6 lg:mb-8">
-        <h1 tabindex="-1" class="text-2xl font-semibold tracking-tight lg:text-3xl">Comunità</h1>
+        <h1 tabindex="-1" class="text-2xl font-semibold tracking-tight lg:text-3xl">Convivenza</h1>
         <!-- facoltativo: <p class="mt-2 text-ink-muted">…</p> -->
       </div>
       …
@@ -577,55 +574,49 @@ Note:
   che non devono passare da htmx (download, siti esterni) hanno `hx-boost="false"`.
 - Nessun `hx-indicator`: htmx mette la classe `htmx-request` sull'elemento che fa la richiesta e
   le varianti `busy:`, `page-busy:` e `nav-busy:` fanno il resto.
-- Il nome "Koinè" è un link alla home ma **non** ha mai `aria-current`: l'unica voce con
+- Il nome "Talità" è un link alla home ma **non** ha mai `aria-current`: l'unica voce con
   `aria-current="page"` è quella della navigazione (criterio 21).
 - Nessun `<script>` inline, nessun attributo `on*=`, nessun `hx-on`, nessuno `style=""`.
 - `theme-color` bianco: su Android la barra del browser si fonde con l'intestazione.
 - `px-1` sul `<nav>` e nessun margine sull'etichetta delle voci, per tenere a 320 px ogni voce a
-  78 px: "Convivenze" a 13 px misura 74 e con margini più larghi si tronca in "Conviven…".
+  78 px: "Convivenza" a 13 px misura 74 e con margini più larghi si tronca in "Conviven…".
 
 ### 3.3 Navigazione
 
-**Voci** (approvate da Matteo il 19/10/2026; si riverificano dopo la prima call con il Centro,
-domanda 11 in `docs/05-accordo-e-call.md`, e se serve si ritocca la lista):
+**Voci** (TALITA-2, vista del maestro; le voci del genitore le decide TALITA-3):
 
 | Ordine | Etichetta | URL | Icona | Cosa ci sarà |
 |---|---|---|---|---|
 | 1 | Home | `/` | `house` | pagina iniziale |
-| 2 | Comunità | `/comunita` | `users-round` | elenco e schede delle comunità, appartenenze, fusioni (M1) |
-| 3 | Persone | `/persone` | `contact-round` | ricerca e scheda della persona (M1) |
-| 4 | Convivenze | `/convivenze` | `calendar-days` | convivenze, iscrizioni, quote, camere; dentro anche la rubrica delle strutture (M2) |
+| 2 | Convivenza | `/convivenza` | `calendar-days` | configurazione, maestri, pagina informativa per i genitori |
+| 3 | Iscrizioni | `/iscrizioni` | `users-round` | elenco e inserimento dal modulo cartaceo |
+| 4 | Arrivi | `/arrivi` | `clipboard-check` | check-in e stampe |
 
-Perché quattro e non cinque: con quattro voci ogni voce è larga almeno 78 px anche su uno schermo
-da 320 px (74 bastano a "Convivenze" a 13 px), quindi si legge intera anche con il testo
-ingrandito. Le strutture servono solo a organizzare le convivenze e stanno dentro quella sezione.
-Il profilo con "Esci" arriva con il login (KOINE-17) in alto a destra nell'intestazione, come nelle
-app di posta. Registro (KOINE-18) e cassa (KOINE-28), se e quando avranno una pagina propria,
-rientrano nella regola sotto.
+Perché quattro: restano sotto il limite di cinque, e con quattro ogni voce è larga almeno 78 px anche su uno schermo da 320 px (74 bastano a "Convivenza" a 13 px), quindi si legge intera anche con il testo ingrandito. Il profilo con "Esci" arriva con il login (TALITA-3) in alto a destra nell'intestazione, come nelle app di posta.
 
 Regole:
 
 - Al massimo cinque voci sul telefono. Se le voci visibili a una persona diventano più di cinque,
   le prime quattro restano e la quinta diventa "Altro" (`ellipsis`), che apre una pagina con le
   altre come lista. Su desktop si possono mostrare tutte.
-- Solo sezioni del perimetro: niente turni di preparazione, niente preti.
+- Solo sezioni del perimetro di Talità: la convivenza, le iscrizioni, gli arrivi.
 - Le voci arrivano al template come lista costruita a ogni richiesta (etichetta, URL, icona,
-  corrente sì/no), non scritte nel template: KOINE-17 le filtrerà per ruolo e ambito.
+  corrente sì/no), non scritte nel template: TALITA-3 le filtrerà per ruolo (maestro o genitore).
 - La voce corrente è quella della sezione in cui si trova la pagina (anche nelle pagine interne:
-  la scheda di una comunità ha corrente "Comunità"). Nelle pagine di errore nessuna voce è
+  la pagina di una singola iscrizione ha corrente "Iscrizioni"). Nelle pagine di errore nessuna voce è
   corrente.
-- URL in italiano e senza accenti (li vede chi usa Koinè, anche nei link condivisi).
+- URL in italiano e senza accenti (li vede chi usa Talità, anche nei link condivisi).
 
 Voce della navigazione, classi esatte (la stessa `<li>` per telefono e desktop):
 
 ```html
 <li class="min-w-0 flex-1">
-  <a href="/comunita" aria-current="page"
+  <a href="/convivenza" aria-current="page"
      class="group flex h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium text-ink-muted transition-colors duration-150 active:bg-surface-muted busy:bg-surface-muted aria-[current=page]:font-semibold aria-[current=page]:text-brand max-[20rem]:text-2xs sm:short:h-12 sm:short:flex-row sm:short:gap-2 sm:short:text-sm sm:short:aria-[current=page]:bg-brand-soft lg:h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-base lg:hover:bg-surface-muted lg:aria-[current=page]:bg-brand-soft">
     <span class="flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 group-aria-[current=page]:bg-brand-soft max-[20rem]:w-12 sm:short:h-auto sm:short:w-auto sm:short:group-aria-[current=page]:bg-transparent lg:h-auto lg:w-auto lg:group-aria-[current=page]:bg-transparent">
       <svg class="size-6" …></svg>
     </span>
-    <span class="max-w-full truncate">Comunità</span>
+    <span class="max-w-full truncate">Convivenza</span>
   </a>
 </li>
 ```
@@ -642,8 +633,8 @@ Cosa si vede:
 
 ### 3.4 Titolo della scheda del browser
 
-`<title>`: nome della pagina, punto in mezzo, Koinè. Esempi: `Comunità · Koinè`,
-`Pagina non trovata · Koinè`. La home ha solo `Koinè`. Lo stesso testo dell'`h1` quando
+`<title>`: nome della pagina, punto in mezzo, Talità. Esempi: `Convivenza · Talità`,
+`Pagina non trovata · Talità`. La home ha solo `Talità`. Lo stesso testo dell'`h1` quando
 l'`h1` è il nome della pagina.
 
 ## 4. Componenti
@@ -676,7 +667,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 ```html
 <button type="submit" class="… base … bg-brand text-white …">
   <svg class="hidden size-5 animate-spin busy:block" aria-hidden="true">…loader-circle…</svg>
-  <span class="busy:hidden">Salva la comunità</span>
+  <span class="busy:hidden">Salva la convivenza</span>
   <span class="hidden busy:inline">Salvataggio…</span>
 </button>
 ```
@@ -706,7 +697,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
   segnati in rosso." e il fuoco va al primo campo sbagliato.
 - `type`, `inputmode` e `autocomplete` giusti per ogni campo: la tastiera del telefono cambia di
   conseguenza (`type="email"`, `type="tel"`, `inputmode="numeric"`).
-- **Data di nascita** (tre campi, approvati da Matteo il 19/10/2026, valgono da M1): Giorno,
+- **Data di nascita** (tre campi, regola di Koinè approvata da Matteo il 19/10/2026; in Talità la data di nascita del bambino è un dato da confermare in TALITA-5, e lì si decide anche il campo): Giorno,
   Mese e Anno dentro un `fieldset` con `legend`, tutti con
   `inputmode="numeric"` e larghi `w-18`, `w-18`, `w-26`; per una data di nascita è molto più facile
   scrivere 4 4 1961 che scorrere un calendario di sessant'anni. Le date degli eventi (convivenze)
@@ -721,21 +712,19 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 
 ### 4.3 Liste
 
-La lista è il componente principale di Koinè: comunità, persone, convivenze, iscrizioni.
+La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 
 ```html
 <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
   <li>
-    <a href="/comunita/…" class="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-surface-muted active:bg-surface-muted busy:bg-surface-muted">
-      <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
-        <svg class="size-6" aria-hidden="true">…</svg>
-      </span>
+    <a href="/iscrizioni/…" class="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-surface-muted active:bg-surface-muted busy:bg-surface-muted">
+      <span class="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">MB</span>
       <span class="min-w-0 flex-1">
         <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span class="font-semibold wrap-break-word">Prima comunità</span>
-          <span class="… etichetta di stato …">Attiva</span>
+          <span class="font-semibold wrap-break-word">Marta Bianchi</span>
+          <span class="… etichetta di stato …">Confermata</span>
         </span>
-        <span class="block text-sm text-ink-muted">Parrocchia di esempio · 32 fratelli</span>
+        <span class="block text-sm text-ink-muted">3 giorni di presenza</span>
       </span>
       <svg class="size-5 shrink-0 text-ink-muted" aria-hidden="true">…chevron-right…</svg>
     </a>
@@ -751,7 +740,7 @@ La lista è il componente principale di Koinè: comunità, persone, convivenze, 
 - I nomi non si tagliano mai con i puntini: vanno a capo.
 - L'etichetta di stato sta accanto al titolo (va a capo se non c'è spazio), non in colonna a
   destra: sul telefono ruberebbe spazio al testo.
-- Righe non cliccabili (storico delle appartenenze): stesso `li`, senza link e senza freccia.
+- Righe non cliccabili (per esempio un elenco di sola lettura): stesso `li`, senza link e senza freccia.
 - Lista vuota: si mostra lo stato vuoto (4.9), mai una lista senza righe.
 - Liste lunghe: ricerca in cima; la paginazione o il "Mostra altre" li decide il ticket della
   schermata.
@@ -759,15 +748,15 @@ La lista è il componente principale di Koinè: comunità, persone, convivenze, 
 ### 4.4 Schede
 
 ```html
-<section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="dati-personali">
+<section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="iscrizione">
   <div class="flex items-center justify-between gap-3">
-    <h2 id="dati-personali" class="text-lg font-semibold">Dati personali</h2>
+    <h2 id="iscrizione" class="text-lg font-semibold">Iscrizione</h2>
     <a href="…" class="… bottone testo …">Modifica</a>
   </div>
   <dl class="mt-3 space-y-3">
     <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
-      <dt class="text-sm text-ink-muted">Data di nascita</dt>
-      <dd class="font-medium">4 aprile 1961 · 65 anni</dd>
+      <dt class="text-sm text-ink-muted">Giorni di presenza</dt>
+      <dd class="font-medium">3 giorni</dd>
     </div>
   </dl>
 </section>
@@ -786,10 +775,10 @@ più una variante:
 
 | Variante | Classi | Esempi |
 |---|---|---|
-| Neutra | `bg-surface-muted text-ink-muted` | Fusa, Chiusa |
-| Informativa | `bg-brand-soft text-brand` | Regionale, In corso |
-| Positiva | `bg-success-soft text-success` | Attiva, Pagata |
-| Attenzione | `bg-warning-soft text-warning` | Da pagare, In attesa |
+| Neutra | `bg-surface-muted text-ink-muted` | Bozza, Chiusa |
+| Informativa | `bg-brand-soft text-brand` | Aperta, In corso |
+| Positiva | `bg-success-soft text-success` | Confermata, Pagata |
+| Attenzione | `bg-warning-soft text-warning` | In forse, Da pagare |
 | Negativa | `bg-danger-soft text-danger` | Annullata |
 
 Una parola o due, con l'iniziale maiuscola. L'etichetta ripete in parole quello che il colore
@@ -851,16 +840,16 @@ a destra su desktop.
 
 ### 4.8 Dialogo di conferma
 
-Prima di un'azione con conseguenze (fusione di comunità, annullamento di un'iscrizione,
+Prima di un'azione con conseguenze (ritiro di un'iscrizione,
 eliminazione). Non per le azioni normali: salvare non chiede conferma.
 
 ```html
-<dialog id="conferma-fusione" aria-labelledby="conferma-titolo" aria-describedby="conferma-testo"
+<dialog id="conferma-ritiro" aria-labelledby="conferma-titolo" aria-describedby="conferma-testo"
         class="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl bg-surface px-gutter pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ink shadow-xl backdrop:bg-ink/50 motion-safe:animate-sheet-in sm:m-auto sm:max-w-md sm:rounded-2xl sm:p-6">
-  <h2 id="conferma-titolo" class="text-xl font-semibold tracking-tight">Unire le due comunità?</h2>
-  <p id="conferma-testo" class="mt-2 text-ink-muted">I 24 fratelli della Seconda comunità passeranno nella Prima comunità dal 19 ottobre 2026. Nessuno viene cancellato: la storia di tutte e due resta consultabile.</p>
+  <h2 id="conferma-titolo" class="text-xl font-semibold tracking-tight">Ritirare l’iscrizione?</h2>
+  <p id="conferma-testo" class="mt-2 text-ink-muted">L’iscrizione di Marta Bianchi alla convivenza di settembre 2027 risulterà ritirata. Resta nell’elenco, con lo stato «Ritirata».</p>
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
-    <button type="submit" form="form-fusione" class="… primario … w-full sm:w-auto">Unisci le comunità</button>
+    <button type="submit" form="form-ritiro" class="… primario … w-full sm:w-auto">Ritira l’iscrizione</button>
     <form method="dialog" class="contents"><button autofocus class="… secondario … w-full sm:w-auto">Annulla</button></form>
   </div>
 </dialog>
@@ -873,7 +862,7 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
 - Il fuoco iniziale va su "Annulla" (`autofocus`).
 - Titolo = la domanda con il verbo. Testo = cosa succede, con numeri, nomi e data, e cosa resta.
   Bottone = lo stesso verbo del titolo. Mai "Sei sicuro?", mai "OK" o "Sì".
-- Il bottone è primario se l'azione si può rimediare (fusione: la storia resta), di pericolo se
+- Il bottone è primario se l'azione si può rimediare (ritiro: l'iscrizione resta nell'elenco), di pericolo se
   toglie qualcosa per sempre.
 - Senza JavaScript il bottone che apre il dialogo è un link a una pagina di conferma con gli stessi
   testi.
@@ -888,8 +877,8 @@ Quando una lista non ha elementi o una sezione non è ancora pronta.
     <svg class="size-8" aria-hidden="true">…</svg>
   </span>
   <h2 class="mt-4 text-xl font-semibold tracking-tight">Nessuna convivenza in programma</h2>
-  <p class="mt-2 max-w-sm text-ink-muted">Quando ne crei una, la trovi qui con le iscrizioni e le quote.</p>
-  <a href="…" class="mt-6 … primario …">Nuova convivenza</a>
+  <p class="mt-2 max-w-sm text-ink-muted">Quando la crei, la trovi qui con le date, i maestri e le iscrizioni.</p>
+  <a href="…" class="mt-6 … primario …">Crea la convivenza</a>
 </div>
 ```
 
@@ -926,12 +915,12 @@ Dentro il guscio (intestazione e navigazione ci sono, nessuna voce corrente), co
 | Pagina | Icona e colori | Titolo | Testo | Bottoni |
 |---|---|---|---|---|
 | 404 | `compass`, `bg-brand-soft text-brand` | Pagina non trovata | L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più. | Vai alla home (primario) |
-| 500 | `triangle-alert`, `bg-warning-soft text-warning` | Qualcosa non ha funzionato | Non è colpa tua: c’è stato un problema in Koinè. Riprova tra qualche minuto. Se il problema continua, avvisa il Centro. | Riprova (primario, solo se la richiesta era un GET: link allo stesso indirizzo), Vai alla home (secondario) |
-| 403 (KOINE-17) | `lock`, `bg-brand-soft text-brand` | Non puoi vedere questa pagina | La pagina esiste, ma il tuo accesso non comprende questi dati. Se pensi di doverla vedere, chiedi al Centro. | Vai alla home (primario) |
+| 500 | `triangle-alert`, `bg-warning-soft text-warning` | Qualcosa non ha funzionato | Non è colpa tua: c’è stato un problema in Talità. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. | Riprova (primario, solo se la richiesta era un GET: link allo stesso indirizzo), Vai alla home (secondario) |
+| 403 (TALITA-3) | `lock`, `bg-brand-soft text-brand` | Non puoi vedere questa pagina | La pagina esiste, ma il tuo accesso non comprende questi dati. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. | Vai alla home (primario) |
 
 Mai codici di errore, nomi di eccezioni, stack trace o parole come "server" e "database".
 
-## 5. htmx: cosa vede chi usa Koinè
+## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
 
@@ -960,7 +949,8 @@ modifica):
   connessione" (criterio 27);
 - dopo 20 secondi senza risposta la richiesta si ferma e compare "La connessione è troppo
   lenta", con lo stesso comportamento;
-- tornata la rete, "Riprova" o un nuovo tocco funzionano normalmente.
+- tornata la rete, "Riprova" o un nuovo tocco funzionano normalmente;
+- vale soprattutto per i maestri durante la convivenza, dove il campo può mancare a lungo: una richiesta che fallisce non cancella mai quello che la persona ha scritto, il form resta compilato (già previsto in 4.7).
 
 **Senza JavaScript** (o prima che htmx sia caricato): link e form funzionano come in un sito
 normale, con il ricaricamento della pagina. Niente indicatore e niente messaggi a comparsa, ma le
@@ -976,20 +966,21 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 
 - Si dà del **tu**, con gentilezza. Frasi brevi, parole di tutti i giorni.
 - Niente gergo informatico: non "utente", "login", "sessione", "server", "database", "errore 500",
-  "campo obbligatorio", "operazione non valida". Al loro posto: "persona", "accedi", "Koinè",
+  "campo obbligatorio", "operazione non valida". Al loro posto: "persona", "accedi", "Talità",
   "scrivi il nome".
 - Le parole che maestri e genitori usano già vanno bene: convivenza, maestri, bambini, genitori,
   iscrizione, arrivi. "Persona" quando non si sa di chi si parla. Non si usano «Koinè», «Centro»,
   «comunità», «fratelli»: sono di un altro progetto.
 - Quando si può, forme che valgono per tutti: "Ti diamo il benvenuto" invece di "Benvenuto".
-  Quando si parla di una persona precisa, si accorda ("Sposata").
-- Mai il nome di un Centro o di una regione scritto nei template: si scrive "Koinè", e "il
-  Centro" come istituzione.
+  Talità non raccoglie il sesso: di un bambino o di un genitore non si scrivono forme accordate.
+  Si parla della cosa («Iscrizione confermata», «Arrivo segnato») o si usano parole che non
+  cambiano («Presente»). Il bambino è «il bambino», mai «bambino/a».
+- Mai il nome di una parrocchia, di una città o di una persona scritto nei template: si scrive
+  "Talità".
 
 ### Maiuscole e punteggiatura
 
-- Maiuscola solo all'inizio: "Nuova convivenza", non "Nuova Convivenza". "Centro" con la maiuscola
-  quando è l'istituzione.
+- Maiuscola solo all'inizio: "Nuova convivenza", non "Nuova Convivenza".
 - Titoli, etichette e bottoni senza punto finale. Frasi complete (messaggi, aiuti, errori) con il
   punto.
 - Caratteri tipografici giusti: apostrofo ’, puntini di sospensione … (un carattere), trattino
@@ -999,14 +990,14 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 
 ### Titoli
 
-- Pagina di sezione: il nome della sezione ("Comunità").
-- Pagina di dettaglio: il nome della cosa ("Prima comunità", "Ilaria Conti").
-- Form: l'azione ("Nuova comunità", "Modifica i dati").
+- Pagina di sezione: il nome della sezione ("Iscrizioni").
+- Pagina di dettaglio: il nome della cosa ("Convivenza di settembre 2027", "Marta Bianchi").
+- Form: l'azione ("Nuova iscrizione", "Modifica i dati").
 
 ### Bottoni
 
-- Verbo all'imperativo, più l'oggetto se serve a capire: "Salva la comunità", "Unisci le
-  comunità", "Iscrivi", "Annulla".
+- Verbo all'imperativo, più l'oggetto se serve a capire: "Salva la convivenza", "Ritira
+  l’iscrizione", "Iscrivi", "Annulla".
 - Al massimo tre o quattro parole.
 - Mai "OK", "Sì", "No", "Conferma" da soli, "Clicca qui".
 - Durante l'attesa: il nome dell'azione in corso con i puntini: "Salvataggio…", "Invio…".
@@ -1018,29 +1009,29 @@ Un errore dice cosa fare, non solo cosa non va. Senza colpe e senza codici.
 | Invece di | Si scrive |
 |---|---|
 | Campo obbligatorio | Scrivi il nome. |
-| Data non valida | Scrivi una data vera, per esempio 4 4 1961. |
+| Data non valida | Scrivi una data vera, per esempio 4 4 2016. |
 | Formato email errato | Scrivi un indirizzo email completo, per esempio nome@esempio.it. |
-| Errore 500 | Qualcosa non ha funzionato. Riprova tra qualche minuto. Se il problema continua, avvisa il Centro. |
+| Errore 500 | Qualcosa non ha funzionato. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. |
 | Network error | Nessuna connessione. Controlla di avere campo o il Wi-Fi e riprova. |
-| Accesso negato | Non puoi vedere questa pagina. Se pensi di doverla vedere, chiedi al Centro. |
+| Accesso negato | Non puoi vedere questa pagina. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. |
 
 ### Conferme
 
-- Dopo un'azione riuscita: oggetto e participio, breve. "Comunità salvata.", "Iscrizione annullata."
+- Dopo un'azione riuscita: oggetto e participio, breve. "Convivenza salvata.", "Iscrizione ritirata."
 - Prima di un'azione con conseguenze: dialogo (4.8).
 
 ### Stati vuoti
 
-Cosa manca, cosa comparirà, come aggiungerlo: "Nessuna convivenza in programma. Quando ne crei
-una, la trovi qui con le iscrizioni e le quote."
+Cosa manca, cosa comparirà, come aggiungerlo: "Nessuna convivenza in programma. Quando la crei,
+la trovi qui con le date, i maestri e le iscrizioni."
 
 ### Date, numeri, importi
 
 | Cosa | Formato | Esempio |
 |---|---|---|
-| Data | giorno senza zero, mese in lettere minuscole, anno | 4 aprile 1961 |
-| Data con giorno della settimana | quando aiuta (eventi) | sabato 12 marzo 2026 |
-| Intervallo nello stesso mese | trattino medio senza spazi | 12–14 marzo 2026 |
+| Data | giorno senza zero, mese in lettere minuscole, anno | 3 settembre 2027 |
+| Data con giorno della settimana | quando aiuta (eventi) | venerdì 3 settembre 2027 |
+| Intervallo nello stesso mese | trattino medio senza spazi | 3–5 settembre 2027 |
 | Intervallo fra mesi diversi | trattino medio con spazi | 30 aprile – 2 maggio 2026 |
 | Periodo | "dal … al …" | dal 3 ottobre 1990 all’11 marzo 1998 |
 | Ora | 24 ore con i due punti | 21:30 |
@@ -1048,7 +1039,7 @@ una, la trovi qui con le iscrizioni e le quote."
 | Numeri | punto per le migliaia | 1.250 persone |
 | Importi | virgola per i decimali, euro dopo, decimali solo se non zero | 120 €, 120,50 € |
 | Zero | in parole | Nessuna iscrizione (non "0 iscrizioni") |
-| Singolare e plurale | sempre giusti | 1 fratello, 24 fratelli (mai "fratello/i") |
+| Singolare e plurale | sempre giusti | 1 bambino, 24 bambini (mai "bambino/i") |
 
 Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 
@@ -1080,7 +1071,7 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - Corsivo, maiuscolo, sottolineature decorative, ombre sulle schede.
 - Font, icone, script o stili da CDN o da servizi esterni.
 - `<script>` inline, attributi `on*=`, `hx-on`, `style=""`: la Content-Security-Policy li
-  bloccherà (KOINE-17).
+  bloccherà (TALITA-3).
 - Testi tecnici rivolti alle persone (codici, eccezioni, nomi di tabelle).
-- Il nome di un Centro o di una regione nei testi fissi.
-- Voci o schermate per turni di preparazione o preti: fuori perimetro per scelta del cliente.
+- Le parole «Koinè», «Centro», «comunità» e «fratelli» nei testi fissi: sono di un altro progetto.
+- Voci o schermate fuori dal perimetro di Talità, quello scritto in `CLAUDE.md`.
