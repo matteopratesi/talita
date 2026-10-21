@@ -96,7 +96,7 @@ unico invece dei tre proposti dall'analisi).
   `git archive` dal commit `23ea63d`, mai copiando cartelle, così non passa niente che non fosse
   tracciato. I mockup di `docs/design/KOINE-11/` sono copiati com'erano, salvo due nomi di
   parrocchia di esempio e un indirizzo email di esempio, sostituiti con «Parrocchia di esempio» e
-  `nome@esempio.it` per la regola precedente.
+  `nome@example.org` per la regola precedente.
 - **Porte di sviluppo**: Postgres di compose su `127.0.0.1:5433` e app con il profilo `dev` su
   8081, così Koinè e Talità girano insieme sullo stesso PC. Database, utente e password di
   sviluppo sono `talita` (solo dati sintetici). Il volume di compose è comunque diverso, perché il

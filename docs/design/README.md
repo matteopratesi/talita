@@ -1010,7 +1010,7 @@ Un errore dice cosa fare, non solo cosa non va. Senza colpe e senza codici.
 |---|---|
 | Campo obbligatorio | Scrivi il nome. |
 | Data non valida | Scrivi una data vera, per esempio 4 4 2016. |
-| Formato email errato | Scrivi un indirizzo email completo, per esempio nome@esempio.it. |
+| Formato email errato | Scrivi un indirizzo email completo, per esempio nome@example.org. |
 | Errore 500 | Qualcosa non ha funzionato. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. |
 | Network error | Nessuna connessione. Controlla di avere campo o il Wi-Fi e riprova. |
 | Accesso negato | Non puoi vedere questa pagina. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. |

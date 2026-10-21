@@ -259,7 +259,7 @@ class ProjectFilesTests {
 
         // A placeholder that shows the format of an address is not the address of anyone. The ones
         // written as <id>+<user>@... are not matched at all: a bracket is not part of an address.
-        val placeholders = setOf("nome@esempio.it")
+        val placeholders = setOf("nome@example.org")
         val email = Regex("""[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}""")
         val binary = setOf("woff2", "jar", "png", "ico")
 
