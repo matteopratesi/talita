@@ -1,6 +1,10 @@
 # Talità
 
-Iscrizioni e organizzazione della convivenza dei bambini: pagina informativa per i genitori, iscrizione che è anche la manleva, check-in dal telefono e stampe per il giorno dell'evento. Kotlin, Spring Boot, JTE, htmx e Tailwind, con Postgres. Una convivenza all'anno, 30-35 persone.
+Talità aiuta a organizzare i ritiri spirituali dei bambini della parrocchia. Le famiglie trovano le informazioni e iscrivono i figli online, con l'autorizzazione dei genitori già compresa. Chi organizza segue iscrizioni e arrivi dal telefono e stampa il registro per il giorno del ritiro.
+
+*An app for organizing spiritual retreats for parish children. The app and its documentation are in Italian.*
+
+Kotlin, Spring Boot, JTE, htmx e Tailwind, con Postgres.
 
 Nasce da Koinè, con cui condivide stack e design system, ma è un'app separata. Il contesto, le regole e il flusso di lavoro sono in [`CLAUDE.md`](CLAUDE.md); i documenti in [`docs/`](docs/).
 

@@ -185,6 +185,8 @@ class ProjectFilesTests {
         val readme = read("README.md")
 
         assertTrue(readme.startsWith("# Talità\n"))
+        assertTrue(readme.contains("*An app for organizing spiritual retreats for parish children. The app and its documentation are in Italian.*"))
+        assertTrue(readme.contains("Kotlin, Spring Boot, JTE, htmx e Tailwind, con Postgres."))
         for (item in listOf("JDK", "Docker", "./gradlew build", "scripts/smoke-test-jar.sh", "./gradlew bootRun", "./gradlew tailwindWatch", "./gradlew test", "./gradlew e2eTest")) {
             assertTrue(readme.contains(item), "the README does not say $item")
         }
