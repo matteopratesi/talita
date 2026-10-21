@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
+import org.springframework.core.env.Environment
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -18,7 +19,13 @@ import kotlin.test.assertTrue
 class TalitaApplicationTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val dsl: DSLContext,
+    @Autowired private val environment: Environment,
 ) {
+
+    @Test
+    fun `t2 c08 the application is called talita`() {
+        assertEquals("talita", environment.getProperty("spring.application.name"))
+    }
 
     @Test
     fun `health endpoint reports UP`() {

@@ -30,6 +30,17 @@ class RepositoryRulesTests {
         assertTrue(script.contains("""group = "talita""""))
         assertEquals("""rootProject.name = "talita"""", read("settings.gradle.kts").lines().last { it.isNotBlank() })
         assertTrue(script.contains(""".withPackageName("talita.jooq")"""))
+        assertTrue(!Files.exists(root.resolve("src/test/kotlin/talita/" + "Modularity" + "Tests.kt")), "the test of the module boundaries is gone with the framework")
+    }
+
+    @Test
+    fun `t2 c13 htmx has its license and source next to it, and the source names the test that checks its hash`() {
+        val source = read("src/main/resources/static/js/htmx-SOURCE.txt")
+
+        assertTrue(source.startsWith("htmx 2.0.11,"))
+        assertTrue(source.contains("Un test (AssetTests) confronta"))
+        assertTrue(Files.isRegularFile(root.resolve("src/test/kotlin/talita/ui/AssetTests.kt")), "the test named in htmx-SOURCE.txt does not exist")
+        assertTrue(Files.isRegularFile(root.resolve("src/main/resources/static/js/htmx-LICENSE.txt")))
     }
 
     @Test
