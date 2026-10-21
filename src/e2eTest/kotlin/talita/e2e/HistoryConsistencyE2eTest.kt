@@ -23,10 +23,10 @@ class HistoryConsistencyE2eTest {
     private data class Known(val heading: String, val title: String, val current: String)
 
     private val pages = mapOf(
-        "/" to Known("Ti diamo il benvenuto", "Koinè", "Home"),
-        "/comunita" to Known("Comunità", "Comunità · Koinè", "Comunità"),
-        "/persone" to Known("Persone", "Persone · Koinè", "Persone"),
-        "/convivenze" to Known("Convivenze", "Convivenze · Koinè", "Convivenze"),
+        "/" to Known("Ti diamo il benvenuto", "Talità", "Home"),
+        "/convivenza" to Known("Convivenza", "Convivenza · Talità", "Convivenza"),
+        "/iscrizioni" to Known("Iscrizioni", "Iscrizioni · Talità", "Iscrizioni"),
+        "/arrivi" to Known("Arrivi", "Arrivi · Talità", "Arrivi"),
     )
 
     /** What the page shows, as a short line for the messages of a failure. */
@@ -62,7 +62,7 @@ class HistoryConsistencyE2eTest {
     fun `a trip with failed backs and forwards never leaves address and page apart`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        for (label in listOf("Persone", "Comunità", "Convivenze")) {
+        for (label in listOf("Iscrizioni", "Convivenza", "Arrivi")) {
             e2e.touch(page.navLink(label))
             assertThat(page.locator("h1")).hasText(label)
         }
@@ -99,10 +99,10 @@ class HistoryConsistencyE2eTest {
     fun `a failed back does not hide a page change that works afterwards`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         e2e.browserContext.setOffline(true)
         page.goBack()
@@ -110,9 +110,9 @@ class HistoryConsistencyE2eTest {
         e2e.browserContext.setOffline(false)
 
         // Not the Riprova: an ordinary touch on the navigation.
-        e2e.touch(page.navLink("Convivenze"))
+        e2e.touch(page.navLink("Arrivi"))
 
-        assertThat(page).hasURL(e2e.url("/convivenze"))
+        assertThat(page).hasURL(e2e.url("/arrivi"))
         assertTogether(page, "after a touch on the navigation")
         assertThat(page.messages()).hasCount(0)
     }
@@ -121,14 +121,14 @@ class HistoryConsistencyE2eTest {
     fun `a back that gets no answer for 20 seconds shows the message of the slow connection`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
 
         // The server never answers the page that the back button asks for.
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
         page.goBack()
         assertThat(page.messages()).hasCount(0)
 
@@ -136,7 +136,7 @@ class HistoryConsistencyE2eTest {
             "La connessione è troppo lenta",
             LocatorAssertions.ContainsTextOptions().setTimeout(25_000.0),
         )
-        assertThat(page.messages()).containsText("Koinè non ha risposto in tempo. Riprova quando hai più campo.")
+        assertThat(page.messages()).containsText("Talità non ha risposto in tempo. Riprova quando hai più campo.")
         assertTogether(page, "after the slow back")
     }
 
@@ -159,10 +159,10 @@ class HistoryConsistencyE2eTest {
 
         // ... and a back that fails for lack of network.
         page.navigate(e2e.url("/"))
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
         e2e.browserContext.setOffline(true)
         page.goBack()
         assertThat(page.messages()).hasCount(1)
@@ -174,10 +174,10 @@ class HistoryConsistencyE2eTest {
     fun `axe-core finds no serious or critical violation after a failed back`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
         e2e.browserContext.setOffline(true)
         page.goBack()
         assertThat(page.messages()).hasCount(1)
@@ -196,55 +196,55 @@ class HistoryConsistencyE2eTest {
     fun `a back while another back is still waiting for its answer, the last one wins`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        for (label in listOf("Persone", "Comunità", "Convivenze")) {
+        for (label in listOf("Iscrizioni", "Convivenza", "Arrivi")) {
             e2e.touch(page.navLink(label))
             assertThat(page.locator("h1")).hasText(label)
         }
         // The page that the first back asks for is slow; the second one is answered at once.
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
         page.goBack()
         page.waitForTimeout(300.0)
         page.goBack()
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
 
         runCatching { held.get()?.resume() }
         page.waitForTimeout(600.0)
 
         assertTogether(page, "after the late answer of the first back")
-        assertThat(page).hasURL(e2e.url("/persone"))
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
     }
 
     @E2eTest
     fun `a touch on an entry while a back is waiting for its answer wins over the late answer`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         val held = AtomicReference<Route>()
-        page.route("**/persone") { held.set(it) }
+        page.route("**/iscrizioni") { held.set(it) }
         page.goBack()
         page.waitForTimeout(300.0)
-        e2e.touch(page.navLink("Convivenze"))
-        assertThat(page).hasURL(e2e.url("/convivenze"))
-        assertThat(page.locator("h1")).hasText("Convivenze")
+        e2e.touch(page.navLink("Arrivi"))
+        assertThat(page).hasURL(e2e.url("/arrivi"))
+        assertThat(page.locator("h1")).hasText("Arrivi")
 
         runCatching { held.get()?.resume() }
         page.waitForTimeout(600.0)
 
         assertTogether(page, "after the late answer of the back")
-        assertThat(page).hasURL(e2e.url("/convivenze"))
+        assertThat(page).hasURL(e2e.url("/arrivi"))
     }
 
     @E2eTest
     fun `a forward while another forward is still waiting for its answer, the last one wins`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        for (label in listOf("Persone", "Comunità")) {
+        for (label in listOf("Iscrizioni", "Convivenza")) {
             e2e.touch(page.navLink(label))
             assertThat(page.locator("h1")).hasText(label)
         }
@@ -254,40 +254,40 @@ class HistoryConsistencyE2eTest {
 
         // The page that the first forward asks for is slow; the second one is answered at once.
         val held = AtomicReference<Route>()
-        page.route("**/persone") { held.set(it) }
+        page.route("**/iscrizioni") { held.set(it) }
         page.goForward()
         page.waitForTimeout(300.0)
         page.goForward()
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         runCatching { held.get()?.resume() }
         page.waitForTimeout(600.0)
 
         assertTogether(page, "after the late answer of the first forward")
-        assertThat(page).hasURL(e2e.url("/comunita"))
+        assertThat(page).hasURL(e2e.url("/convivenza"))
     }
 
     @E2eTest
     fun `a forward after a back that is still waiting for its answer, the forward wins`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        for (label in listOf("Persone", "Comunità", "Convivenze")) {
+        for (label in listOf("Iscrizioni", "Convivenza", "Arrivi")) {
             e2e.touch(page.navLink(label))
             assertThat(page.locator("h1")).hasText(label)
         }
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
         page.goBack()
         page.waitForTimeout(300.0)
         page.goForward()
-        assertThat(page).hasURL(e2e.url("/convivenze"))
+        assertThat(page).hasURL(e2e.url("/arrivi"))
 
         runCatching { held.get()?.resume() }
         page.waitForTimeout(600.0)
 
         assertTogether(page, "after the late answer of the back")
-        assertThat(page).hasURL(e2e.url("/convivenze"))
+        assertThat(page).hasURL(e2e.url("/arrivi"))
     }
 
     @org.junit.jupiter.api.Disabled("Osservazione KOINE-11 (D7, bassa, da portare in un ticket a parte): un indietro che aspetta la risposta viene annullato da un tocco su una voce, e se anche quel tocco fallisce per mancanza di rete l'indirizzo resta quello dell'indietro mentre la pagina è l'ultima visibile. Succede solo con indietro lento, tocco e rete che cade nello stesso momento.")
@@ -295,23 +295,23 @@ class HistoryConsistencyE2eTest {
     fun `a touch that fails while a back was waiting does not leave address and page apart`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        for (label in listOf("Persone", "Comunità", "Convivenze")) {
+        for (label in listOf("Iscrizioni", "Convivenza", "Arrivi")) {
             e2e.touch(page.navLink(label))
             assertThat(page.locator("h1")).hasText(label)
         }
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
         page.goBack()
         page.waitForTimeout(300.0)
 
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
         assertThat(page.messages()).hasCount(1)
         e2e.browserContext.setOffline(false)
         runCatching { held.get()?.resume() }
         page.waitForTimeout(600.0)
 
-        // The page on screen is still Convivenze (nothing succeeded), so that is the address too.
-        assertEquals("/convivenze", URI(page.url()).path, "the address is ${page.url()} but the page is ${page.locator("h1").first().innerText()}")
+        // The page on screen is still Arrivi (nothing succeeded), so that is the address too.
+        assertEquals("/arrivi", URI(page.url()).path, "the address is ${page.url()} but the page is ${page.locator("h1").first().innerText()}")
     }
 }

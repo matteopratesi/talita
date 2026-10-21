@@ -111,7 +111,7 @@ class TemplateEngineTests(
         mockMvc.get("/").andExpect {
             status { isOk() }
             content { contentType("text/html;charset=UTF-8") }
-            content { string(containsString("<title>Koinè</title>")) }
+            content { string(containsString("<title>Talità</title>")) }
         }
     }
 }

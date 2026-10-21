@@ -15,13 +15,13 @@ class MessagesE2eTest {
     private data class Message(val title: String, val text: String)
 
     private val network = Message("Nessuna connessione", "Controlla di avere campo o il Wi-Fi e riprova.")
-    private val slow = Message("La connessione è troppo lenta", "Koinè non ha risposto in tempo. Riprova quando hai più campo.")
-    private val server = Message("Qualcosa non ha funzionato", "Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.")
+    private val slow = Message("La connessione è troppo lenta", "Talità non ha risposto in tempo. Riprova quando hai più campo.")
+    private val server = Message("Qualcosa non ha funzionato", "Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.")
 
     /** The network is gone and the person touches an entry. */
     private fun lostConnection(e2e: E2e) {
         e2e.browserContext.setOffline(true)
-        e2e.touch(e2e.page.navLink("Persone"))
+        e2e.touch(e2e.page.navLink("Iscrizioni"))
         assertThat(e2e.page.messages().filter(textFilter(network.title))).hasCount(1)
     }
 
@@ -38,8 +38,8 @@ class MessagesE2eTest {
     /** The server does not answer in time: the timeout of htmx (20 s in the app) is shortened by the test. */
     private fun slowConnection(e2e: E2e) {
         e2e.page.evaluate("htmx.config.timeout = 700")
-        e2e.page.route("**/persone") { /* never answered */ }
-        e2e.touch(e2e.page.navLink("Persone"))
+        e2e.page.route("**/iscrizioni") { /* never answered */ }
+        e2e.touch(e2e.page.navLink("Iscrizioni"))
         assertThat(e2e.page.messages().filter(textFilter(slow.title))).hasCount(1)
     }
 
@@ -123,8 +123,8 @@ class MessagesE2eTest {
         assertThat(page.messages()).hasCount(1)
 
         e2e.browserContext.setOffline(false)
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertThat(page.messages()).hasCount(0)
     }
 
@@ -134,8 +134,8 @@ class MessagesE2eTest {
         e2e.open("/")
 
         lostConnection(e2e)
-        e2e.touch(page.navLink("Comunità"))
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Convivenza"))
+        e2e.touch(page.navLink("Iscrizioni"))
         assertThat(page.messages().filter(textFilter(network.title))).hasCount(1)
         assertThat(page.messages()).hasCount(1)
 

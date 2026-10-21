@@ -29,9 +29,9 @@
     <a href="/" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-lg font-bold tracking-tight text-ink">
       <svg viewBox="0 0 32 32" aria-hidden="true" class="size-7 text-brand">
         <rect width="32" height="32" rx="9" fill="currentColor"/>
-        <path d="M11.5 9v14M20.5 9l-8 7 8 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      Koinè
+      Talità
     </a>
   </header>
 
@@ -52,7 +52,7 @@
   <div id="messaggi" aria-live="polite" class="pointer-events-none fixed inset-x-0 bottom-above-nav z-50 flex flex-col items-center gap-2 px-gutter lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-full lg:max-w-md lg:px-0"></div>
 
   @template.components.toast(id = "messaggio-rete-assente", icon = Icon.WIFI_OFF, title = "Nessuna connessione", text = "Controlla di avere campo o il Wi-Fi e riprova.")
-  @template.components.toast(id = "messaggio-rete-lenta", icon = Icon.CLOCK, title = "La connessione è troppo lenta", text = "Koinè non ha risposto in tempo. Riprova quando hai più campo.")
-  @template.components.toast(id = "messaggio-errore-server", icon = Icon.TRIANGLE_ALERT, title = "Qualcosa non ha funzionato", text = "Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.")
+  @template.components.toast(id = "messaggio-rete-lenta", icon = Icon.CLOCK, title = "La connessione è troppo lenta", text = "Talità non ha risposto in tempo. Riprova quando hai più campo.")
+  @template.components.toast(id = "messaggio-errore-server", icon = Icon.TRIANGLE_ALERT, title = "Qualcosa non ha funzionato", text = "Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.")
 </body>
 </html>

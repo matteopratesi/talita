@@ -13,9 +13,9 @@ class ShellDesignE2eTest {
 
     private val sections = listOf(
         // path, name, summary on the home, sentence of the placeholder
-        Quadruple("/comunita", "Comunità", "L’elenco delle comunità, con i fratelli e lo storico.", "Qui troverai l’elenco delle comunità, con i fratelli e lo storico di ciascuna."),
-        Quadruple("/persone", "Persone", "Cerca una persona e apri la sua scheda.", "Qui potrai cercare una persona e aprire la sua scheda."),
-        Quadruple("/convivenze", "Convivenze", "Le convivenze, con le iscrizioni e le quote.", "Qui troverai le convivenze, con le iscrizioni e le quote."),
+        Quadruple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori.", "Qui troverai le date, i maestri e la pagina con le informazioni per i genitori."),
+        Quadruple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo.", "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo."),
+        Quadruple("/arrivi", "Arrivi", "Chi è arrivato e le liste da stampare.", "Qui potrai segnare chi è arrivato e stampare le liste."),
     )
 
     private data class Quadruple(val path: String, val name: String, val summary: String, val placeholder: String)
@@ -25,12 +25,12 @@ class ShellDesignE2eTest {
         val page = e2e.page
         e2e.open("/")
 
-        assertThat(page).hasTitle("Koinè")
+        assertThat(page).hasTitle("Talità")
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
-        assertThat(page.locator("main")).containsText("Koinè raccoglie l’anagrafe delle comunità e l’organizzazione delle convivenze.")
-        assertThat(page.locator("main")).containsText("Koinè è in costruzione. Le sezioni arriveranno una alla volta.")
+        assertThat(page.locator("main")).containsText("Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla.")
+        assertThat(page.locator("main")).containsText("Talità è in costruzione. Le sezioni arriveranno una alla volta.")
         // Only the first words of the notice are in bold.
-        assertThat(page.locator("main strong")).hasText("Koinè è in costruzione.")
+        assertThat(page.locator("main strong")).hasText("Talità è in costruzione.")
         assertThat(page.locator("main h2")).hasText("Sezioni")
 
         val rows = page.locator("main section ul a")
@@ -49,7 +49,7 @@ class ShellDesignE2eTest {
             e2e.open(section.path)
             val where = section.path
 
-            assertThat(page).hasTitle("${section.name} · Koinè")
+            assertThat(page).hasTitle("${section.name} · Talità")
             assertThat(page.locator("h1")).hasText(section.name)
             assertThat(page.locator("main h2")).hasText("In preparazione")
             assertThat(page.locator("main")).containsText(section.placeholder)
@@ -212,13 +212,13 @@ class ShellDesignE2eTest {
     }
 
     @E2eTest
-    fun `the name Koine in the header leads to the home and is never the current entry`(e2e: E2e) {
+    fun `the name Talita in the header leads to the home and is never the current entry`(e2e: E2e) {
         val page = e2e.page
         for (shellPage in shellPages) {
             e2e.open(shellPage.path)
             val brand = page.locator("header a")
             assertThat(brand).hasAttribute("href", "/")
-            assertThat(brand).containsText("Koinè")
+            assertThat(brand).containsText("Talità")
             assertEquals(0, page.locator("header [aria-current]").count(), "${shellPage.name}: the brand is marked as current")
         }
     }
@@ -226,7 +226,7 @@ class ShellDesignE2eTest {
     @E2eTest
     fun `the keyboard reaches the skip link first, then the content, and the focus ring is visible`(e2e: E2e) {
         val page = e2e.page
-        e2e.open("/comunita")
+        e2e.open("/convivenza")
 
         page.keyboard().press("Tab")
         val skip = page.locator("a[href='#contenuto']")
@@ -240,10 +240,10 @@ class ShellDesignE2eTest {
         assertEquals("contenuto", page.evaluate("document.activeElement.id"), "the focus did not move to the content")
 
         // Brand, then the entries of the navigation, in order, with a visible ring.
-        page.navigate(e2e.url("/comunita"))
+        page.navigate(e2e.url("/convivenza"))
         page.keyboard().press("Tab") // skip link
         page.keyboard().press("Tab") // brand
-        assertEquals("Koinè", (page.evaluate("document.activeElement.textContent") as String).trim())
+        assertEquals("Talità", (page.evaluate("document.activeElement.textContent") as String).trim())
         for (label in navigationLabels) {
             page.keyboard().press("Tab")
             assertEquals(label, (page.evaluate("document.activeElement.textContent") as String).trim())
@@ -260,11 +260,11 @@ class ShellDesignE2eTest {
         e2e.open("/")
         page.evaluate("window.__marker = 'still-here'")
 
-        page.navLink("Persone").focus()
+        page.navLink("Iscrizioni").focus()
         page.keyboard().press("Enter")
 
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertEquals("still-here", page.evaluate("window.__marker"), "the page was reloaded")
         // A screen reader announces the new title: the focus goes to the h1, without a ring.
         page.waitForFunction("document.activeElement.tagName === 'H1'")
@@ -273,13 +273,13 @@ class ShellDesignE2eTest {
 
     @E2eTest
     fun `no inline style or script is left by the navigation, the messages or the error pages`(e2e: E2e) {
-        // A future Content-Security-Policy (KOINE-17) blocks them: the DOM built by htmx and app.js must be free too.
+        // A future Content-Security-Policy (TALITA-3) blocks them: the DOM built by htmx and app.js must be free too.
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
         assertThat(page.messages()).hasCount(1)
         e2e.browserContext.setOffline(false)
 

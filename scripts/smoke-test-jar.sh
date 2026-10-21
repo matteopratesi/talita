@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test of the production jar (KOINE-11, criterion 3).
+# Smoke test of the production jar (from KOINE-11, criterion 3).
 #
 # Starts the jar produced by `./gradlew bootJar` with `java -jar`, from a folder outside the
 # repository, without profiles and with a throwaway Postgres, then checks that `GET /` answers
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-jar="$(ls "$repo"/build/libs/koine-*-SNAPSHOT.jar 2>/dev/null | grep -v -- '-plain' | head -n 1 || true)"
+jar="$(ls "$repo"/build/libs/talita-*-SNAPSHOT.jar 2>/dev/null | grep -v -- '-plain' | head -n 1 || true)"
 java_bin="${JAVA:-java}"
 
 if [[ -z "$jar" ]]; then
@@ -39,20 +39,20 @@ app_port="$(free_port)"
 
 echo "Starting Postgres on port $db_port"
 container="$(docker run -d --rm \
-  -e POSTGRES_DB=koine -e POSTGRES_USER=koine -e POSTGRES_PASSWORD=koine \
+  -e POSTGRES_DB=talita -e POSTGRES_USER=talita -e POSTGRES_PASSWORD=talita \
   -p "127.0.0.1:$db_port:5432" postgres:18)"
 
 for _ in $(seq 1 60); do
-  if docker exec "$container" pg_isready -U koine -d koine >/dev/null 2>&1; then break; fi
+  if docker exec "$container" pg_isready -U talita -d talita >/dev/null 2>&1; then break; fi
   sleep 1
 done
-docker exec "$container" pg_isready -U koine -d koine >/dev/null
+docker exec "$container" pg_isready -U talita -d talita >/dev/null
 
 echo "Starting $jar from $workdir"
 cd "$workdir"
-SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$db_port/koine" \
-SPRING_DATASOURCE_USERNAME=koine \
-SPRING_DATASOURCE_PASSWORD=koine \
+SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$db_port/talita" \
+SPRING_DATASOURCE_USERNAME=talita \
+SPRING_DATASOURCE_PASSWORD=talita \
 SERVER_PORT="$app_port" \
   "$java_bin" -jar "$jar" >"$workdir/app.log" 2>&1 &
 app_pid=$!
@@ -75,7 +75,8 @@ if [[ "$status" != "200" ]]; then
   exit 1
 fi
 
-if ! grep -q "Ti diamo il benvenuto" "$workdir/home.html"; then
+# The heading of the home and its title: a jar of another project would not pass.
+if ! grep -q "Ti diamo il benvenuto" "$workdir/home.html" || ! grep -q "<title>Talità</title>" "$workdir/home.html"; then
   echo "GET / answered 200 but the page was not rendered by the template:" >&2
   head -c 600 "$workdir/home.html" >&2
   exit 1

@@ -26,7 +26,7 @@ class LoadingStateE2eTest {
                 t: performance.now() - start,
                 bar: parseFloat(getComputedStyle(document.getElementById('caricamento')).opacity),
                 main: parseFloat(getComputedStyle(document.querySelector('main')).opacity),
-                entry: getComputedStyle(document.querySelector('nav a[href="/comunita"]')).backgroundColor,
+                entry: getComputedStyle(document.querySelector('nav a[href="/convivenza"]')).backgroundColor,
             });
             window.__frame = requestAnimationFrame(tick);
         };
@@ -44,9 +44,9 @@ class LoadingStateE2eTest {
         e2e.open("/")
         page.waitForSettledContent()
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         // The bar: 4 px, on the top edge, as wide as the screen, in the blue of the actions.
@@ -59,12 +59,12 @@ class LoadingStateE2eTest {
         // The content before the change is dimmed to 60% (it is still the old page), the touched entry is darker.
         page.waitForFunction("parseFloat(getComputedStyle(document.querySelector('main')).opacity) === 0.6")
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
-        assertEquals("rgb(239, 237, 232)", page.evaluate("getComputedStyle(document.querySelector('nav a[href=\"/comunita\"]')).backgroundColor"))
+        assertEquals("rgb(239, 237, 232)", page.evaluate("getComputedStyle(document.querySelector('nav a[href=\"/convivenza\"]')).backgroundColor"))
         // It never blocks the page: no layer over the content catches the touches.
         assertEquals("none", page.evaluate("getComputedStyle($bar).pointerEvents"))
 
         held.get().resume()
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
         page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
         page.waitForSettledContent()
         assertEquals(1.0, (page.evaluate("parseFloat(getComputedStyle(document.querySelector('main')).opacity)") as Number).toDouble())
@@ -79,12 +79,12 @@ class LoadingStateE2eTest {
         page.waitForSettledContent()
         page.evaluate(sampler)
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForTimeout(900.0)
         held.get().resume()
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         val all = samples(page)
         val darker = all.firstOrNull { it["entry"] == "rgb(239, 237, 232)" }?.number("t")
@@ -103,10 +103,10 @@ class LoadingStateE2eTest {
         page.waitForSettledContent()
         page.evaluate(sampler)
         // The server answers in about 100 ms: well under the 300 ms of the design.
-        page.route("**/persone") { route -> Thread.sleep(100); route.resume() }
+        page.route("**/iscrizioni") { route -> Thread.sleep(100); route.resume() }
 
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         page.waitForTimeout(600.0)
 
         val brightest = samples(page).maxOf { it.number("bar") }
@@ -119,16 +119,16 @@ class LoadingStateE2eTest {
         page.navigate(e2e.url("/"))
         page.waitForSettledContent()
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
 
-        page.navLink("Comunità").tap()
+        page.navLink("Convivenza").tap()
         page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         assertEquals(360.0, page.locator("#caricamento > div").box().width, "the bar is not full width")
         assertEquals(0, (page.evaluate("document.querySelector('#caricamento > div').getAnimations().length") as Number).toInt(), "the bar is moving")
         // And the content does not slide in.
         held.get().resume()
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
         assertEquals("none", page.evaluate("getComputedStyle(document.querySelector('main')).animationName"), "the content is animated")
     }
 
@@ -137,14 +137,14 @@ class LoadingStateE2eTest {
         val page = e2e.page
         e2e.open("/")
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         assertEquals("progress", page.evaluate("getComputedStyle(document.querySelector('#caricamento > div')).animationName"))
         held.get().resume()
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -162,7 +162,7 @@ class LoadingStateE2eTest {
         assertEquals(0, page.locator(".htmx-request").count())
 
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
         page.waitForFunction("document.querySelectorAll('#messaggi [role=alert]').length === 2")
         page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
         assertEquals(0, page.locator(".htmx-request").count())

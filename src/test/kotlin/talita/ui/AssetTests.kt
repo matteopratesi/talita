@@ -38,15 +38,15 @@ class AssetTests(@Autowired private val mockMvc: MockMvc) {
 
     private fun errorPage(status: Int): String = mockMvc.get("/error") {
         requestAttr(RequestDispatcher.ERROR_STATUS_CODE, status)
-        requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/comunita")
+        requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
     }.andReturn().response.contentAsString
 
     /** Every page of the shell: the home, the sections, the page not found and the error page. */
     private fun shellPages(): Map<String, String> = mapOf(
         "/" to text("/"),
-        "/comunita" to text("/comunita"),
-        "/persone" to text("/persone"),
-        "/convivenze" to text("/convivenze"),
+        "/convivenza" to text("/convivenza"),
+        "/iscrizioni" to text("/iscrizioni"),
+        "/arrivi" to text("/arrivi"),
         "404" to errorPage(404),
         "500" to errorPage(500),
     )

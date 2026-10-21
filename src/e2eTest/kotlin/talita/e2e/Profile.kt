@@ -4,7 +4,7 @@ import com.microsoft.playwright.Browser
 
 /** The two ways every e2e test looks at the app: a phone and a desktop. */
 enum class Profile(val label: String) {
-    /** 360x800, touch, mobile: the way most people use Koinè. */
+    /** 360x800, touch, mobile: the way most people use Talità. */
     PHONE("phone"),
 
     /** 1280x800 with mouse and keyboard. */

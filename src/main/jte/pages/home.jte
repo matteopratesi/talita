@@ -6,9 +6,9 @@
 @param HomePage page
 
 @template.layout.shell(shell = shell, content = @`
-  @template.components.pageHead(title = "Ti diamo il benvenuto", lead = "Koinè raccoglie l’anagrafe delle comunità e l’organizzazione delle convivenze.")
+  @template.components.pageHead(title = "Ti diamo il benvenuto", lead = "Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla.")
 
-  @template.components.alert(content = @`<strong>Koinè è in costruzione.</strong> Le sezioni arriveranno una alla volta.`)
+  @template.components.alert(content = @`<strong>Talità è in costruzione.</strong> Le sezioni arriveranno una alla volta.`)
 
   <section class="mt-8" aria-labelledby="sezioni">
     <h2 id="sezioni" class="mb-3 text-xl font-semibold tracking-tight">Sezioni</h2>

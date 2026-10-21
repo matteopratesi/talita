@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 class HistoryE2eTest {
 
     /** The names of the pages, to tell that address and content go together. */
-    private val headings = mapOf("/" to "Ti diamo il benvenuto", "/comunita" to "Comunità", "/persone" to "Persone", "/convivenze" to "Convivenze")
+    private val headings = mapOf("/" to "Ti diamo il benvenuto", "/convivenza" to "Convivenza", "/iscrizioni" to "Iscrizioni", "/arrivi" to "Arrivi")
 
     /** Waits until htmx is done with the page: no request in flight, nothing settling. */
     private fun Page.settled() {
@@ -38,20 +38,20 @@ class HistoryE2eTest {
         e2e.open("/")
         assertNothingKept(page, "first visit")
 
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
         assertNothingKept(page, "after a change of page")
 
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertNothingKept(page, "after a second change of page")
 
         page.goBack()
-        assertThat(page).hasURL(e2e.url("/comunita"))
+        assertThat(page).hasURL(e2e.url("/convivenza"))
         assertNothingKept(page, "after back")
 
         page.goForward()
-        assertThat(page).hasURL(e2e.url("/persone"))
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
         assertNothingKept(page, "after forward")
 
         page.addToContent("""<a id="link-rotto" href="/altra-pagina-che-non-esiste">x</a>""")
@@ -67,7 +67,7 @@ class HistoryE2eTest {
         assertNothingKept(page, "on the page of the error")
 
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Convivenze"))
+        e2e.touch(page.navLink("Arrivi"))
         assertThat(page.messages()).hasCount(1)
         assertNothingKept(page, "with the message of the lost connection")
         e2e.browserContext.setOffline(false)
@@ -80,17 +80,17 @@ class HistoryE2eTest {
     fun `the back button asks the server for the page, it is never served from a copy`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
 
-        val request = page.waitForRequest({ it.url().endsWith("/comunita") }) { page.goBack() }
+        val request = page.waitForRequest({ it.url().endsWith("/convivenza") }) { page.goBack() }
 
         assertEquals("true", request.allHeaders()["hx-history-restore-request"], "the page was not asked for as a restoration of the history")
-        assertThat(page.locator("h1")).hasText("Comunità")
-        assertThat(page).hasTitle("Comunità · Koinè")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
+        assertThat(page).hasTitle("Convivenza · Talità")
+        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -99,23 +99,23 @@ class HistoryE2eTest {
         e2e.open("/")
         val requests = AtomicInteger()
         val first = AtomicReference<Route>()
-        page.route("**/comunita") { route -> if (requests.incrementAndGet() == 1) first.set(route) else route.resume() }
+        page.route("**/convivenza") { route -> if (requests.incrementAndGet() == 1) first.set(route) else route.resume() }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("document.querySelector('a.htmx-request') !== null")
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
 
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
         // The page gave up on the first request: its late answer changes nothing.
         runCatching { first.get()?.resume() }
         page.waitForTimeout(500.0)
         assertEquals(2, requests.get(), "both touches should have sent a request")
-        assertEquals(e2e.url("/comunita"), page.url())
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertEquals(e2e.url("/convivenza"), page.url())
+        assertThat(page.locator("h1")).hasText("Convivenza")
         assertThat(page.messages()).hasCount(0)
         page.settled()
-        assertEquals("Comunità", page.locator("nav a[aria-current=page]").innerText().trim())
+        assertEquals("Convivenza", page.locator("nav a[aria-current=page]").innerText().trim())
     }
 
     @E2eTest
@@ -124,17 +124,17 @@ class HistoryE2eTest {
         e2e.open("/")
 
         if (e2e.profile.isPhone) {
-            page.navLink("Persone").tap()
-            page.navLink("Persone").tap()
+            page.navLink("Iscrizioni").tap()
+            page.navLink("Iscrizioni").tap()
         } else {
-            page.navLink("Persone").dblclick()
+            page.navLink("Iscrizioni").dblclick()
         }
 
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         page.waitForTimeout(500.0)
         assertThat(page.messages()).hasCount(0)
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertEquals(1, page.locator("nav a[aria-current=page]").count())
         page.settled()
     }
@@ -145,7 +145,7 @@ class HistoryE2eTest {
 
         val notFound = requireNotNull(page.navigate(e2e.url("/pagina-che-non-esiste")))
         assertEquals(404, notFound.status())
-        assertThat(page).hasTitle("Pagina non trovata · Koinè")
+        assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
         assertThat(page.locator("main")).containsText("L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più.")
         assertEquals(navigationLabels, page.locator("nav a").allInnerTexts().map { it.trim() })
@@ -157,9 +157,9 @@ class HistoryE2eTest {
 
         val failure = requireNotNull(page.navigate(e2e.url("/test/errore")))
         assertEquals(500, failure.status())
-        assertThat(page).hasTitle("Qualcosa non ha funzionato · Koinè")
+        assertThat(page).hasTitle("Qualcosa non ha funzionato · Talità")
         assertThat(page.locator("h1")).hasText("Qualcosa non ha funzionato")
-        assertThat(page.locator("main")).containsText("Non è colpa tua: c’è stato un problema in Koinè.")
+        assertThat(page.locator("main")).containsText("Non è colpa tua: c’è stato un problema in Talità.")
         val retry = page.locator("main a").filter(com.microsoft.playwright.Locator.FilterOptions().setHasText("Riprova"))
         assertThat(retry).hasAttribute("href", "/test/errore")
         retry.click(com.microsoft.playwright.Locator.ClickOptions().setForce(true))
@@ -187,7 +187,7 @@ class HistoryE2eTest {
         openBrokenLinkThenHomeThenBack(e2e, "/altra-pagina-che-non-esiste")
 
         assertThat(page).hasURL(e2e.url("/altra-pagina-che-non-esiste"))
-        assertThat(page).hasTitle("Pagina non trovata · Koinè")
+        assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
         assertEquals(0, page.locator("nav [aria-current]").count())
     }
@@ -202,7 +202,7 @@ class HistoryE2eTest {
         page.goBack()
 
         assertThat(page).hasURL(e2e.url("/indirizzo-che-non-esiste"))
-        assertThat(page).hasTitle("Pagina non trovata · Koinè")
+        assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
         assertEquals(0, page.locator("nav [aria-current]").count())
     }
@@ -213,7 +213,7 @@ class HistoryE2eTest {
         openBrokenLinkThenHomeThenBack(e2e, "/test/errore")
 
         assertThat(page).hasURL(e2e.url("/test/errore"))
-        assertThat(page).hasTitle("Qualcosa non ha funzionato · Koinè")
+        assertThat(page).hasTitle("Qualcosa non ha funzionato · Talità")
         assertThat(page.locator("h1")).hasText("Qualcosa non ha funzionato")
         assertEquals(0, page.locator("nav [aria-current]").count())
     }
@@ -222,10 +222,10 @@ class HistoryE2eTest {
     fun `back without network shows the message and never leaves address and page apart`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         e2e.browserContext.setOffline(true)
         page.goBack()
@@ -257,16 +257,16 @@ class HistoryE2eTest {
         e2e.open("/")
         page.addToContent("""<div id="f">f-prima</div><button id="carica" type="button" hx-get="/test/frammento" hx-target="#f">Carica</button>""")
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
+        page.route("**/convivenza") { held.set(it) }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("document.querySelector('a.htmx-request') !== null")
         e2e.touch(page.locator("#carica"))
         assertThat(page.locator("#f")).hasText("Frammento caricato")
         runCatching { held.get()?.resume() }
 
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -274,24 +274,24 @@ class HistoryE2eTest {
         val page = e2e.page
         e2e.open("/")
         val held = java.util.concurrent.CopyOnWriteArrayList<Route>()
-        page.route("**/comunita") { held += it }
-        page.route("**/persone") { held += it }
+        page.route("**/convivenza") { held += it }
+        page.route("**/iscrizioni") { held += it }
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("document.querySelector('a.htmx-request') !== null")
-        e2e.touch(page.navLink("Persone"))
-        page.waitForFunction("document.querySelector('a.htmx-request')?.getAttribute('href') === '/persone'")
-        e2e.touch(page.navLink("Convivenze"))
+        e2e.touch(page.navLink("Iscrizioni"))
+        page.waitForFunction("document.querySelector('a.htmx-request')?.getAttribute('href') === '/iscrizioni'")
+        e2e.touch(page.navLink("Arrivi"))
 
-        assertThat(page).hasURL(e2e.url("/convivenze"))
-        assertThat(page.locator("h1")).hasText("Convivenze")
+        assertThat(page).hasURL(e2e.url("/arrivi"))
+        assertThat(page.locator("h1")).hasText("Arrivi")
         // The answers that were still on their way change nothing.
         held.forEach { runCatching { it.resume() } }
         page.waitForTimeout(500.0)
-        assertEquals(e2e.url("/convivenze"), page.url())
-        assertThat(page.locator("h1")).hasText("Convivenze")
+        assertEquals(e2e.url("/arrivi"), page.url())
+        assertThat(page.locator("h1")).hasText("Arrivi")
         assertThat(page.messages()).hasCount(0)
         page.settled()
-        assertEquals("Convivenze", page.locator("nav a[aria-current=page]").innerText().trim())
+        assertEquals("Arrivi", page.locator("nav a[aria-current=page]").innerText().trim())
     }
 }

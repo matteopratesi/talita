@@ -37,7 +37,7 @@ class ErrorPagesE2eTest {
 
     private fun assertNotFoundPage(e2e: E2e) {
         val page = e2e.page
-        assertThat(page).hasTitle("Pagina non trovata · Koinè")
+        assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
         assertThat(page.locator("main")).containsText("L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più.")
         // Inside the shell: the navigation is there and none of its entries is the current one.
@@ -73,9 +73,9 @@ class ErrorPagesE2eTest {
 
     private fun assertErrorPage(e2e: E2e) {
         val page = e2e.page
-        assertThat(page).hasTitle("Qualcosa non ha funzionato · Koinè")
+        assertThat(page).hasTitle("Qualcosa non ha funzionato · Talità")
         assertThat(page.locator("h1")).hasText("Qualcosa non ha funzionato")
-        assertThat(page.locator("main")).containsText("Non è colpa tua: c’è stato un problema in Koinè.")
+        assertThat(page.locator("main")).containsText("Non è colpa tua: c’è stato un problema in Talità.")
         assertThat(page.mainNavigation()).isVisible()
         assertThat(page.locator("nav [aria-current]")).hasCount(0)
 
@@ -107,7 +107,7 @@ class ErrorPagesE2eTest {
 
         assertThat(page.messages()).hasCount(1)
         assertThat(page.messages()).containsText("Qualcosa non ha funzionato")
-        assertThat(page.messages()).containsText("Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.")
+        assertThat(page.messages()).containsText("Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.")
         assertThat(page.locator("#bersaglio")).hasText("Contenuto di prima")
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
         assertEquals(e2e.url("/"), page.url())

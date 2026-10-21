@@ -21,29 +21,29 @@ class HistoryRecoveryE2eTest {
     fun `after a failed back, Riprova leads to the page that the back button was going to once the network is back`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        e2e.touch(page.navLink("Comunità"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        e2e.touch(page.navLink("Convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         e2e.browserContext.setOffline(true)
         page.goBack()
         assertThat(page.messages()).containsText("Nessuna connessione")
-        assertThat(page).hasURL(e2e.url("/comunita"))
+        assertThat(page).hasURL(e2e.url("/convivenza"))
 
         // Still no network: the same message, once.
         e2e.touch(retryButton(e2e))
         assertThat(page.messages()).hasCount(1)
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
 
         e2e.browserContext.setOffline(false)
         e2e.touch(retryButton(e2e))
 
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
-        assertThat(page).hasTitle("Persone · Koinè")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        assertThat(page).hasTitle("Iscrizioni · Talità")
+        assertThat(page.locator("nav a[aria-current=page]")).hasText("Iscrizioni")
         assertThat(page.messages()).hasCount(0)
     }
 
@@ -51,8 +51,8 @@ class HistoryRecoveryE2eTest {
     fun `forward without network shows the message and keeps address and page together`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         page.goBack()
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
 
@@ -69,12 +69,12 @@ class HistoryRecoveryE2eTest {
     fun `a back while a page change is on its way wins, and the late answer changes nothing`(e2e: E2e) {
         val page = e2e.page
         e2e.open("/")
-        e2e.touch(page.navLink("Persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        e2e.touch(page.navLink("Iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
 
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { held.set(it) }
-        e2e.touch(page.navLink("Comunità"))
+        page.route("**/convivenza") { held.set(it) }
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("document.querySelector('a.htmx-request') !== null")
 
         page.goBack()

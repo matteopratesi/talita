@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** The pages of the shell as the server renders them: titles, texts, current entry, error pages. */
@@ -49,29 +50,60 @@ class ShellTests(
     fun `the home page has its title, heading, notice and the list of the sections`() {
         val html = html("/")
 
-        assertEquals("Koinè", title(html))
+        assertEquals("Talità", title(html))
         assertEquals("Ti diamo il benvenuto", heading(html))
-        assertTrue(html.contains("Koinè raccoglie l’anagrafe delle comunità e l’organizzazione delle convivenze."))
-        assertTrue(html.contains("<strong>Koinè è in costruzione.</strong> Le sezioni arriveranno una alla volta."))
+        assertTrue(html.contains("Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla."))
+        assertTrue(html.contains("<strong>Talità è in costruzione.</strong> Le sezioni arriveranno una alla volta."))
         assertTrue(html.contains(">Sezioni</h2>"))
-        for (section in listOf("/comunita", "/persone", "/convivenze")) {
+        for (section in listOf("/convivenza", "/iscrizioni", "/arrivi")) {
             assertTrue(html.contains("""<a href="$section" class="flex min-h-16"""), "the list of the home does not link $section")
         }
         assertEquals(listOf("/"), currentEntries(html))
     }
 
     @Test
+    fun `t2 c14 the header has the T mark and the name, and the tab has the favicon of Talita`() {
+        val html = html("/")
+
+        assertTrue(html.contains("""<path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff""""), "the mark in the header is not the T")
+        assertTrue(Regex("""<a href="/" [^>]*>\s*<svg[\s\S]*?</svg>\s*Talità\s*</a>""").containsMatchIn(html), "the header has no mark followed by the name")
+
+        val favicon = Regex("""<link rel="icon" href="([^"]+)" type="image/svg\+xml">""").find(html)?.groupValues?.get(1)
+        assertNotNull(favicon, "no favicon in the page")
+        val response = mockMvc.get(favicon).andReturn().response
+        assertEquals(200, response.status)
+        assertTrue(response.contentAsString.contains("""fill="#2a4ba0""""))
+        assertTrue(response.contentAsString.contains("M10.5 9h11M16 9v14"), "the favicon is not the T")
+    }
+
+    @Test
+    fun `t2 c18 no page or pop-up message names the other project, the Centro, the communities or the brothers`() {
+        // Written in pieces: this file is under src/ and must not contain the words of the other project.
+        val forbidden = listOf("koi" + "nè", "cen" + "tro", "comuni" + "tà", "fra" + "telli")
+        val pages = listOf("/", "/convivenza", "/iscrizioni", "/arrivi").associateWith { html(it) } +
+            mapOf("404" to error(404).response.contentAsString, "500" to error(500).response.contentAsString)
+
+        for ((name, html) in pages) {
+            // The whole page: visible text, title, attributes read aloud and the three <template> of the pop-up messages.
+            for (word in forbidden) {
+                assertFalse(html.contains(word, ignoreCase = true), "'$word' is in the page $name")
+            }
+        }
+        assertTrue(pages.values.all { it.contains("""<template id="messaggio-rete-assente">""") }, "the pop-up messages are not in every page")
+    }
+
+    @Test
     fun `every section has its placeholder page with its text and as the current entry`() {
         val expected = mapOf(
-            "/comunita" to ("Comunità" to "Qui troverai l’elenco delle comunità, con i fratelli e lo storico di ciascuna."),
-            "/persone" to ("Persone" to "Qui potrai cercare una persona e aprire la sua scheda."),
-            "/convivenze" to ("Convivenze" to "Qui troverai le convivenze, con le iscrizioni e le quote."),
+            "/convivenza" to ("Convivenza" to "Qui troverai le date, i maestri e la pagina con le informazioni per i genitori."),
+            "/iscrizioni" to ("Iscrizioni" to "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo."),
+            "/arrivi" to ("Arrivi" to "Qui potrai segnare chi è arrivato e stampare le liste."),
         )
         for ((path, texts) in expected) {
             val (name, sentence) = texts
             val html = html(path)
 
-            assertEquals("$name · Koinè", title(html), path)
+            assertEquals("$name · Talità", title(html), path)
             assertEquals(name, heading(html), path)
             assertTrue(html.contains(">In preparazione</h2>"), path)
             assertTrue(html.contains(sentence), path)
@@ -81,10 +113,10 @@ class ShellTests(
 
     @Test
     fun `the navigation is a list built on every request, in order, with at most one current entry`() {
-        assertEquals(listOf("Home", "Comunità", "Persone", "Convivenze"), navigation.items(null).map { it.label })
-        assertEquals(listOf("/", "/comunita", "/persone", "/convivenze"), navigation.items(null).map { it.href })
+        assertEquals(listOf("Home", "Convivenza", "Iscrizioni", "Arrivi"), navigation.items(null).map { it.label })
+        assertEquals(listOf("/", "/convivenza", "/iscrizioni", "/arrivi"), navigation.items(null).map { it.href })
         assertEquals(emptyList(), navigation.items(null).filter { it.current })
-        assertEquals(listOf("Persone"), navigation.items(Section.PERSONE).filter { it.current }.map { it.label })
+        assertEquals(listOf("Iscrizioni"), navigation.items(Section.ISCRIZIONI).filter { it.current }.map { it.label })
         // A new list every time, so that the login can filter it by role and scope.
         assertFalse(navigation.items(null) === navigation.items(null))
     }
@@ -96,7 +128,7 @@ class ShellTests(
 
         assertEquals(404, result.response.status)
         assertEquals("text/html;charset=UTF-8", result.response.contentType)
-        assertEquals("Pagina non trovata · Koinè", title(html))
+        assertEquals("Pagina non trovata · Talità", title(html))
         assertEquals("Pagina non trovata", heading(html))
         assertTrue(html.contains("L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più."))
         assertTrue(html.contains("""<a href="/" class="mt-6 inline-flex"""))
@@ -115,17 +147,17 @@ class ShellTests(
     @Test
     fun `the error page says something went wrong, with no technical detail, and offers to try again`() {
         val result = error(500) {
-            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/comunita")
+            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
             requestAttr(RequestDispatcher.ERROR_EXCEPTION, IllegalStateException("dettaglio-tecnico"))
             requestAttr(RequestDispatcher.ERROR_MESSAGE, "dettaglio-tecnico")
         }
         val html = result.response.contentAsString
 
         assertEquals(500, result.response.status)
-        assertEquals("Qualcosa non ha funzionato · Koinè", title(html))
+        assertEquals("Qualcosa non ha funzionato · Talità", title(html))
         assertEquals("Qualcosa non ha funzionato", heading(html))
-        assertTrue(html.contains("Non è colpa tua: c’è stato un problema in Koinè. Riprova tra qualche minuto. Se il problema continua, avvisa il Centro."))
-        assertTrue(html.contains("""<a href="/comunita" class="inline-flex min-h-12 w-full"""), "Riprova leads to the same address")
+        assertTrue(html.contains("Non è colpa tua: c’è stato un problema in Talità. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza."))
+        assertTrue(html.contains("""<a href="/convivenza" class="inline-flex min-h-12 w-full"""), "Riprova leads to the same address")
         assertTrue(html.contains("""<a href="/" class="inline-flex min-h-12 w-full"""), "Vai alla home")
         assertEquals(emptyList(), currentEntries(html))
         for (detail in listOf("dettaglio-tecnico", "IllegalStateException", "Whitelabel", "at talita")) {
@@ -136,18 +168,18 @@ class ShellTests(
     @Test
     fun `the query of the failed address is kept when trying again`() {
         val html = error(500) {
-            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/persone")
+            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/iscrizioni")
             requestAttr(RequestDispatcher.FORWARD_QUERY_STRING, "q=ilaria")
         }.response.contentAsString
 
-        assertTrue(html.contains("""<a href="/persone?q=ilaria" """))
+        assertTrue(html.contains("""<a href="/iscrizioni?q=ilaria" """))
     }
 
     @Test
     fun `there is no try again after something other than a read, nor towards another host`() {
         val afterPost = mockMvc.post("/error") {
             requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 500)
-            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/comunita")
+            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
         }.andReturn().response.contentAsString
         assertFalse(retryLink.containsMatchIn(afterPost), "no retry after a POST")
         assertTrue(afterPost.contains("Vai alla home"))
@@ -173,8 +205,8 @@ class ShellTests(
 
         for (text in listOf(
             "Nessuna connessione", "Controlla di avere campo o il Wi-Fi e riprova.",
-            "La connessione è troppo lenta", "Koinè non ha risposto in tempo. Riprova quando hai più campo.",
-            "Qualcosa non ha funzionato", "Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.",
+            "La connessione è troppo lenta", "Talità non ha risposto in tempo. Riprova quando hai più campo.",
+            "Qualcosa non ha funzionato", "Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.",
         )) {
             assertTrue(html.contains(text), "missing in the layout: $text")
         }

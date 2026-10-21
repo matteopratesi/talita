@@ -6,16 +6,16 @@ import com.microsoft.playwright.options.BoundingBox
 import com.microsoft.playwright.options.ViewportSize
 
 /** The labels of the main navigation, in order: the same on the phone and on the desktop. */
-internal val navigationLabels = listOf("Home", "Comunità", "Persone", "Convivenze")
+internal val navigationLabels = listOf("Home", "Convivenza", "Iscrizioni", "Arrivi")
 
 /** A page of the shell: the home, the placeholders of the sections and the two error pages. */
 internal data class ShellPage(val name: String, val path: String)
 
 internal val shellPages = listOf(
     ShellPage("home", "/"),
-    ShellPage("comunita", "/comunita"),
-    ShellPage("persone", "/persone"),
-    ShellPage("convivenze", "/convivenze"),
+    ShellPage("convivenza", "/convivenza"),
+    ShellPage("iscrizioni", "/iscrizioni"),
+    ShellPage("arrivi", "/arrivi"),
     ShellPage("404", "/pagina-che-non-esiste"),
     // Exists only in the e2e tests (TestOnlyController).
     ShellPage("500", "/test/errore"),

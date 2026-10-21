@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class ShellResponsiveE2eTest {
 
     /** The pages checked on every screen: the home (the longest), a section and the error page. */
-    private val paths = listOf("/", "/convivenze", "/test/errore")
+    private val paths = listOf("/", "/arrivi", "/test/errore")
 
     private fun Page.horizontalOverflow(): Int =
         (evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") as Number).toInt()
@@ -189,7 +189,7 @@ class ShellResponsiveE2eTest {
         // A message sits above the navigation, home bar included.
         page.navigate(e2e.url("/"))
         page.context().setOffline(true)
-        page.navLink("Persone").tap()
+        page.navLink("Iscrizioni").tap()
         page.waitForSelector("#messaggi [role=alert]")
         page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
         val message = page.messages().box()

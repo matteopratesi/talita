@@ -7,7 +7,7 @@ data class NavItem(val label: String, val href: String, val icon: Icon, val curr
 
 /**
  * The main navigation. The list is built on every request, not written in the template: login
- * (KOINE-17) will filter it by role and scope.
+ * (TALITA-3) will filter it by role (teacher or parent).
  */
 @Component
 class Navigation {

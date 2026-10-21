@@ -7,7 +7,7 @@ package talita.ui
 enum class Icon {
     HOUSE,
     USERS_ROUND,
-    CONTACT_ROUND,
+    CLIPBOARD_CHECK,
     CALENDAR_DAYS,
     INFO,
     CHEVRON_RIGHT,

@@ -8,7 +8,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 import kotlin.test.assertEquals
 
-/** Koinè has no JavaScript toolchain: Tailwind is a standalone binary, htmx is a vendored file. */
+/** Talità has no JavaScript toolchain: Tailwind is a standalone binary, htmx is a vendored file. */
 class NoNodeToolchainTests {
 
     private val ignoredDirs = setOf(".git", "build", ".gradle", ".kotlin", ".idea", "jte-classes")

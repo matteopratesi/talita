@@ -10,7 +10,7 @@
       @template.components.icon(icon = Icon.TRIANGLE_ALERT, classes = "size-8")
     </span>
     <h1 tabindex="-1" class="mt-5 text-2xl font-semibold tracking-tight lg:text-3xl">Qualcosa non ha funzionato</h1>
-    <p class="mt-2 max-w-sm text-ink-muted">Non è colpa tua: c’è stato un problema in Koinè. Riprova tra qualche minuto. Se il problema continua, avvisa il Centro.</p>
+    <p class="mt-2 max-w-sm text-ink-muted">Non è colpa tua: c’è stato un problema in Talità. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.</p>
     <div class="mt-6 flex w-full max-w-xs flex-col gap-3">
       @if(page.getRetryHref() != null)
         <a href="${page.getRetryHref()}" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-5 text-base font-semibold text-white transition-colors duration-150 select-none hover:bg-brand-strong active:bg-brand-strong disabled:cursor-wait disabled:opacity-70">

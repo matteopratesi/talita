@@ -13,9 +13,9 @@ class NavigationE2eTest {
 
     private val sections = listOf(
         // label, path, title of the tab
-        Triple("Comunità", "/comunita", "Comunità · Koinè"),
-        Triple("Persone", "/persone", "Persone · Koinè"),
-        Triple("Convivenze", "/convivenze", "Convivenze · Koinè"),
+        Triple("Convivenza", "/convivenza", "Convivenza · Talità"),
+        Triple("Iscrizioni", "/iscrizioni", "Iscrizioni · Talità"),
+        Triple("Arrivi", "/arrivi", "Arrivi · Talità"),
     )
 
     @E2eTest
@@ -24,7 +24,7 @@ class NavigationE2eTest {
         e2e.open("/")
         page.evaluate("window.__marker = 'still-here'")
 
-        for ((label, path, title) in sections + Triple("Home", "/", "Koinè")) {
+        for ((label, path, title) in sections + Triple("Home", "/", "Talità")) {
             e2e.touch(page.navLink(label))
 
             assertThat(page).hasURL(e2e.url(path))
@@ -48,16 +48,16 @@ class NavigationE2eTest {
         }
 
         page.goBack()
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page).hasTitle("Persone · Koinè")
-        assertThat(page.locator("h1")).hasText("Persone")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page).hasTitle("Iscrizioni · Talità")
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        assertThat(page.locator("nav a[aria-current=page]")).hasText("Iscrizioni")
 
         page.goBack()
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page).hasTitle("Comunità · Koinè")
-        assertThat(page.locator("h1")).hasText("Comunità")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page).hasTitle("Convivenza · Talità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
+        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
 
         assertEquals(0, (page.evaluate("localStorage.length") as Number).toInt(), "localStorage is not empty")
         assertEquals(
@@ -72,11 +72,11 @@ class NavigationE2eTest {
         val page = e2e.newPage { setJavaScriptEnabled(false) }
         page.navigate(e2e.url("/"))
 
-        e2e.touch(page.navLink("Comunità"))
+        e2e.touch(page.navLink("Convivenza"))
 
-        assertThat(page).hasURL(e2e.url("/comunita"))
-        assertThat(page.locator("h1")).hasText("Comunità")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Comunità")
+        assertThat(page).hasURL(e2e.url("/convivenza"))
+        assertThat(page.locator("h1")).hasText("Convivenza")
+        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -87,8 +87,8 @@ class NavigationE2eTest {
 
         // The test holds the answer back, as a slow network would.
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { route -> held.set(route) }
-        e2e.touch(page.navLink("Comunità"))
+        page.route("**/convivenza") { route -> held.set(route) }
+        e2e.touch(page.navLink("Convivenza"))
 
         page.waitForFunction("$indicatorOpacity === '1'")
         // Until the content arrives, the old one stays (a little dimmed) and so does the address.
@@ -100,7 +100,7 @@ class NavigationE2eTest {
 
         held.get().resume()
 
-        assertThat(page.locator("h1")).hasText("Comunità")
+        assertThat(page.locator("h1")).hasText("Convivenza")
         page.waitForFunction("$indicatorOpacity === '0'")
     }
 
@@ -110,7 +110,7 @@ class NavigationE2eTest {
         e2e.open("/")
 
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
 
         assertThat(page.messages()).hasCount(1)
         assertThat(page.messages()).containsText("Nessuna connessione")
@@ -124,10 +124,10 @@ class NavigationE2eTest {
         assertThat(page.messages()).hasCount(1)
 
         e2e.browserContext.setOffline(false)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
 
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertThat(page.messages()).hasCount(0)
     }
 
@@ -136,7 +136,7 @@ class NavigationE2eTest {
         val page = e2e.page
         e2e.open("/")
         e2e.browserContext.setOffline(true)
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
         assertThat(page.messages()).hasCount(1)
 
         e2e.touch(page.messages().getByLabel("Chiudi"))
@@ -151,19 +151,19 @@ class NavigationE2eTest {
 
         // The first answer is held back, so the second touch comes while it is still on its way.
         val held = AtomicReference<Route>()
-        page.route("**/comunita") { route -> held.set(route) }
-        e2e.touch(page.navLink("Comunità"))
+        page.route("**/convivenza") { route -> held.set(route) }
+        e2e.touch(page.navLink("Convivenza"))
         page.waitForFunction("document.querySelector('a.htmx-request') !== null")
-        e2e.touch(page.navLink("Persone"))
+        e2e.touch(page.navLink("Iscrizioni"))
 
-        assertThat(page).hasURL(e2e.url("/persone"))
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         held.get()?.resume()
         page.waitForTimeout(500.0)
 
-        assertEquals(e2e.url("/persone"), page.url(), "the late answer of the first touch took over")
-        assertThat(page.locator("h1")).hasText("Persone")
+        assertEquals(e2e.url("/iscrizioni"), page.url(), "the late answer of the first touch took over")
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertThat(page.messages()).hasCount(0)
-        assertTrue(page.locator("nav a[aria-current=page]").innerText().contains("Persone"))
+        assertTrue(page.locator("nav a[aria-current=page]").innerText().contains("Iscrizioni"))
     }
 }
