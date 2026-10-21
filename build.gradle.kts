@@ -13,6 +13,7 @@ import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.time.Duration
 import org.jooq.meta.jaxb.Target as JooqTarget
 
 buildscript {
@@ -203,8 +204,13 @@ val downloadTailwind = tasks.register("downloadTailwind") {
             val partial = File(binary.path + ".part")
             val failure = try {
                 tailwindCacheDir.mkdirs()
-                val client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
-                val request = HttpRequest.newBuilder(URI.create(url)).build()
+                // Without timeouts an unreachable or silent GitHub would block the build forever. A timeout
+                // is an IOException (HttpTimeoutException), so it ends in the "cannot download" error below.
+                val client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(30))
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .build()
+                val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(2)).build()
                 val status = client.send(request, HttpResponse.BodyHandlers.ofFile(partial.toPath())).statusCode()
                 if (status == 200) null else "HTTP $status"
             } catch (e: java.io.IOException) {
