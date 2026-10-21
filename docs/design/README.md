@@ -700,7 +700,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 - **Data di nascita** (tre campi, regola di Koinè approvata da Matteo il 19/10/2026; in Talità la data di nascita del bambino è un dato da confermare in TALITA-5, e lì si decide anche il campo): Giorno,
   Mese e Anno dentro un `fieldset` con `legend`, tutti con
   `inputmode="numeric"` e larghi `w-18`, `w-18`, `w-26`; per una data di nascita è molto più facile
-  scrivere 4 4 1961 che scorrere un calendario di sessant'anni. Le date degli eventi (convivenze)
+  scrivere 4 4 2016 che scorrere un calendario di dieci anni. Le date degli eventi (convivenze)
   usano invece `type="date"`.
 - Scelte: `fieldset` + `legend`; ogni opzione in `flex min-h-12 items-center gap-3`, con
   `size-6 accent-brand` sul controllo. Sotto le cinque opzioni radio; oltre, una `select` con le
