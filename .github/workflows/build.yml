@@ -13,6 +13,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, for the check of the commit addresses below.
+          fetch-depth: 0
+      # The repository is public: no commit of a pull request may carry a personal or a work email.
+      - name: Commit addresses
+        if: github.event_name == 'pull_request'
+        run: ./scripts/check-commit-emails.sh "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
