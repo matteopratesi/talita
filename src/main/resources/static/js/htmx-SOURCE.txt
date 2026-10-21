@@ -1,0 +1,17 @@
+htmx 2.0.11, file htmx.min.js (mai la 4: la linea 2.x resta quella che usa Talità)
+
+Licenza: Zero-Clause BSD, nel file htmx-LICENSE.txt accanto a questo.
+
+Fonte: pacchetto npm htmx.org 2.0.11, file dist/htmx.min.js
+  https://registry.npmjs.org/htmx.org/-/htmx.org-2.0.11.tgz
+Lo stesso file, byte per byte, è su https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js
+e nel tag v2.0.11 del repository github.com/bigskysoftware/htmx.
+
+Hash pubblicato da htmx.org (SRI della versione 2.0.11 nella pagina di installazione):
+sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg
+
+SHA-256 del file: d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717
+
+Un test (AssetTests) confronta l'hash di htmx.min.js con quello di questo file. Per
+aggiornare htmx: scaricare la nuova release 2.0.x dalla stessa fonte, sostituire il file,
+riportare qui versione, fonte e hash pubblicato.

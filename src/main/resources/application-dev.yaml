@@ -1,0 +1,21 @@
+# Profile used by bootRun (see build.gradle.kts).
+server:
+  # Not 8080, so that this app and another one on the same PC can run together.
+  port: 8081
+
+spring:
+  web:
+    resources:
+      # The CSS is served straight from build/, where `./gradlew tailwindWatch` rewrites it
+      # on every change, before the copy that processResources puts in build/resources.
+      static-locations:
+        - file:build/generated-resources/tailwind/static/
+        - classpath:/static/
+      chain:
+        cache: false
+
+gg:
+  jte:
+    # JTE reads the templates from src/main/jte and recompiles them when they change.
+    use-precompiled-templates: false
+    development-mode: true
