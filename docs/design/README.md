@@ -451,6 +451,7 @@ Icone assegnate (nomi di Lucide):
 | Controlla la posta, la mail del link | `mail` |
 | Conferma dell'accesso | `log-in` |
 | Il link non vale più | `link-2-off` |
+| Maestri, nella pagina Convivenza | `user-round` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -694,6 +695,15 @@ esci quando hai finito.». Dopo «Esci» si arriva a `/accedi` con l'avviso di c
 rientrare, chiedi un nuovo link.», una volta sola. Le pagine di chi è dentro hanno `Cache-Control: no-store`:
 il tasto indietro non le mostra più dopo l'uscita.
 
+**«Il tuo nome»** (solo il maestro): una seconda scheda (4.4) sotto «Il tuo accesso», con i due campi **Nome**
+e **Cognome** (come in «Accetta l’invito»: stesse regole, stessi errori, `novalidate`, nessun `required`,
+`maxlength` né `pattern`) compilati con il nome di adesso, e il bottone primario «Salva il nome» (in attesa:
+«Salvataggio…»). Salvato, si torna al profilo con la conferma «Nome salvato.» (`role="status"`, in cima, una volta
+sola) e le iniziali nell'intestazione cambiano al tocco dopo. Con errori: la stessa pagina, compilata, con l'errore
+sotto il campo e il fuoco sul primo sbagliato; con due errori, in cima «Controlla i 2 campi segnati in rosso.».
+Con htmx l'indirizzo resta `/profilo` (il form rimandato non lo cambia). Il genitore non ha la scheda: un genitore
+non ha un nome da correggere.
+
 ### 3.7 Home e «Iscrizioni» per ruolo, e «Accetta l’invito»
 
 **Home** (`/`). Il titolo è sempre «Ti diamo il benvenuto». Il maestro ha il testo di sempre; il genitore ha
@@ -734,6 +744,60 @@ valido portano alla home, il secondo senza messaggio.
 
 **Profilo del maestro**: nella scheda «Il tuo accesso» c'è anche la riga «Ruolo → Maestro». Il genitore non ha
 la riga: ogni account è un genitore, non serve dirlo.
+
+### 3.8 «Maestri»
+
+`/maestri` (scheda `Maestri · Talità`) è dei soli maestri (403 per gli altri, 4.11). Non è una voce della
+navigazione: sta sotto la Convivenza, che resta la voce corrente. Ci si arriva dalla pagina Convivenza, che
+finché non ha altro sotto il testo «in preparazione» ha una sezione «Maestri» (h2) con una riga (4.3, con
+freccia): `user-round` in un riquadro, «Maestri» e «Chi organizza la convivenza e chi puoi invitare.».
+
+**Struttura**, nell'ordine: titolo «Maestri» e introduzione («Chi organizza la convivenza insieme a te. I maestri
+vedono tutta la convivenza, i bambini e le segnalazioni.»); la scheda **Invita un maestro** (h2) con il campo
+«Indirizzo email» (`type="email"`, senza correzione né controllo ortografico, aiuto «Gli arriverà una mail con le
+istruzioni. L’invito vale 7 giorni. Chi accetta potrà vedere tutta la convivenza, bambini compresi.») e il bottone
+primario «Manda l’invito» (in attesa: «Invio…»); la lista **I maestri** (h2); la lista **Inviti in attesa** (h2).
+Il campo viene prima delle liste: è quello che il maestro viene a fare, e con molti inviti non finisce sotto.
+
+**I maestri**: righe non cliccabili (4.3) con le iniziali in un cerchio, nome e cognome (mai l'indirizzo: non serve
+a chi guarda e la pagina si può mostrare a un collega), l'etichetta «Sei tu» sulla propria riga e il bottone di testo
+«Togli». Con un maestro solo il bottone non c'è, e sotto il nome sta la spiegazione «Serve almeno un maestro: per
+toglierti, invita prima un altro maestro.». Ordine alfabetico per cognome, poi nome.
+
+**Inviti in attesa**: righe non cliccabili con `mail` in un riquadro, l'indirizzo (`wrap-anywhere`) e la scadenza,
+«Scade il 29 ottobre 2026» oppure, se è passata, l'etichetta di attenzione «Scaduto» e «Scadeva il 15 ottobre
+2026»; due bottoni di testo, «Manda di nuovo» (stessa mail, nuova scadenza: un invito solo per indirizzo) e «Ritira»
+(dialogo, 4.8). Senza inviti: «Nessun invito in attesa.» in testo semplice, non uno stato vuoto (4.9): la lista è
+secondaria e il campo per invitare è lì sopra.
+
+**Avvisi** (4.6, `live`, in cima al blocco, con il fuoco): conferma «Invito mandato.» (anche per «Manda di nuovo»),
+conferma «Invito ritirato.», conferma «{Nome Cognome} non è più tra i maestri.»; errore «Non siamo riusciti a mandare
+la mail. Riprova tra qualche minuto.» (la mail non è partita e l'invito non è stato salvato); attenzione per il limite
+del giorno, con il testo della pagina di accesso («Oggi Talità ha già mandato tante mail e non può mandarne altre.
+Riprova domani. Se è urgente, avvisa chi organizza la convivenza.»); attenzione «Serve almeno un maestro. Per
+togliere questa persona, invita prima un altro maestro.» (quando la pagina era aperta con due maestri e uno se n'è
+andato nel frattempo). Errori del campo: quello dell'accesso per un indirizzo malformato, «È già tra i maestri.» per un
+maestro; il campo resta compilato come era scritto e prende il fuoco. Chi toglie sé stesso arriva alla home, da
+genitore, con «Non sei più tra i maestri.».
+
+**Dialoghi** (4.8, uno per riga, dentro il blocco): primari, perché si rimedia (si invita di nuovo).
+
+| Dialogo | Titolo | Testo | Bottone |
+|---|---|---|---|
+| Togli un altro | Togliere {Nome Cognome} dai maestri? | {Nome Cognome} non potrà più gestire la convivenza né vedere i bambini e le segnalazioni. Il suo nome viene cancellato dall’elenco dei maestri. Potrà ancora entrare in Talità come genitore. | Togli dai maestri |
+| Togli sé stesso | Toglierti dai maestri? | Non potrai più gestire la convivenza né vedere i bambini e le segnalazioni. Il tuo nome viene cancellato dall’elenco dei maestri. Un altro maestro potrà invitarti di nuovo. | Toglimi dai maestri |
+| Ritira | Ritirare l’invito? | L’invito a {indirizzo} non varrà più. La persona potrà entrare in Talità, ma non come maestro. | Ritira l’invito |
+
+**Niente nell'indirizzo**: nome, id e indirizzo email di una persona non stanno mai in un URL (finirebbero nei log e
+nella cronologia): i form li mandano nel corpo di un `POST`. Ogni azione risponde con il blocco `#maestri-contenuto`
+intero (avviso, scheda, liste e dialoghi), che htmx mette al posto del vecchio senza muovere la pagina (5). I
+dialoghi sono nel blocco, quindi spariscono con la risposta.
+
+**Senza JavaScript** il bottone «Togli» o «Ritira» manda il suo form a una pagina di conferma con lo stesso titolo,
+lo stesso testo e lo stesso bottone del dialogo, e «Annulla» come link a `/maestri` (guscio con la Convivenza
+corrente, colonna `max-w-md`); il bottone fa l'azione e la pagina «Maestri» torna con l'avviso. Un form senza
+JavaScript che torna con un errore resta all'indirizzo della sua azione: chi lo apre di nuovo con un `GET`
+(un preferito, il tasto indietro) arriva a `/maestri`.
 
 ## 4. Componenti
 
@@ -839,6 +903,10 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 - L'etichetta di stato sta accanto al titolo (va a capo se non c'è spazio), non in colonna a
   destra: sul telefono ruberebbe spazio al testo.
 - Righe non cliccabili (per esempio un elenco di sola lettura): stesso `li`, senza link e senza freccia.
+- Righe con azioni (l'elenco dei maestri, gli inviti): il contenuto sta in un `div` (non un link) con
+  `flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3`; i bottoni di testo (4.1, `min-h-11`) vanno a
+  capo sotto il testo se non c'è spazio, con `-ml-3` sul telefono perché il loro testo si allinei a quello della
+  riga. Un `form` per bottone, con il suo codice CSRF; l'azione che ha conseguenze apre un dialogo (4.8).
 - Lista vuota: si mostra lo stato vuoto (4.9), mai una lista senza righe.
 - Liste lunghe: ricerca in cima; la paginazione o il "Mostra altre" li decide il ticket della
   schermata.
@@ -972,6 +1040,16 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   toglie qualcosa per sempre.
 - Senza JavaScript il bottone che apre il dialogo è un link a una pagina di conferma con gli stessi
   testi.
+- Realizzazione (TALITA-3): il bottone che apre il dialogo è un normale bottone di un form (`data-apri="<id del
+  dialogo>"` su `components/button.jte`): senza JavaScript manda il form alla pagina di conferma, con JavaScript
+  `app.js` ferma l'invio e fa `showModal()`. Il dialogo è `components/confirmDialog.jte`, dentro il blocco che
+  l'azione sostituisce; il suo form è un `hx-post` verso lo stesso blocco. L'id del dialogo è `togli-0`,
+  `ritira-0`…: mai un nome o un indirizzo.
+- **Se la richiesta del dialogo fallisce** (rete assente, lenta, errore del server, accesso negato) i dialoghi
+  aperti si chiudono prima che compaia il messaggio (4.7): un dialogo aperto sta sopra a tutto, anche ai messaggi,
+  e il messaggio resterebbe nascosto sotto il suo sfondo. La pagina resta com'era e il messaggio si vede.
+  Se invece il server risponde con il blocco (422, 429), il blocco sostituisce anche il dialogo.
+- Dopo l'azione il fuoco va all'avviso del blocco (5); dopo «Annulla» o Esc, al bottone che aveva aperto il dialogo.
 
 ### 4.9 Stato vuoto
 
@@ -1057,6 +1135,14 @@ restano compilati. Il fuoco va al primo campo con `aria-invalid="true"`; se non 
 `data-fuoco` (l'avviso); se non c'è nemmeno quello e la pagina è cambiata, all'`h1`. L'errore di un campo lo
 legge il lettore di schermo grazie ad `aria-describedby`. Il form rimandato non lascia un'altra voce nella
 cronologia. Vale per ogni form con `hx-boost` e per ogni `hx-post` con un suo `hx-target`.
+
+**Azione su un blocco della pagina** (un form o un bottone con `hx-post`, `hx-target` e `hx-swap="outerHTML"`,
+come in «Maestri», 3.8): il server risponde con il blocco intero, che htmx mette al posto del vecchio; la pagina
+resta com'è, compresa la posizione di scorrimento, e l'indirizzo non cambia. Con 422 e 429 il blocco si sostituisce
+come con 200. Il fuoco va al primo campo con `aria-invalid="true"` del blocco nuovo o, se non c'è, al suo primo
+elemento con `data-fuoco` (l'avviso); se non c'è nemmeno quello, non si muove. Senza JavaScript lo stesso form si
+manda come una pagina: risponde con un 303 alla pagina, con l'avviso lasciato in sessione e letto una volta sola, o
+con la pagina intera e gli errori.
 
 **Accesso mancante o scaduto** su una richiesta di htmx (un cambio di pagina o un pezzo di pagina): il
 server risponde con l'intestazione `HX-Redirect: /accedi` (non un 302, che htmx seguirebbe dentro il pezzo, e
@@ -1146,6 +1232,9 @@ Un errore dice cosa fare, non solo cosa non va. Senza colpe e senza codici.
 | Accesso negato | Non puoi vedere questa pagina. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. |
 | Codice CSRF scaduto | La pagina era aperta da troppo tempo. Riprova. |
 | Invio della mail fallito | Non siamo riusciti a mandare il link. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. |
+| Invio dell'invito fallito | Non siamo riusciti a mandare la mail. Riprova tra qualche minuto. |
+| Invito a un maestro | È già tra i maestri. |
+| Ultimo maestro | Serve almeno un maestro. Per togliere questa persona, invita prima un altro maestro. |
 
 ### Conferme
 

@@ -238,23 +238,30 @@ class RolesTests(
         }
         assertEquals(listOf("AccessHandlers.kt", "CurrentAccountFilter.kt", "CurrentAccounts.kt"), readers)
         // The addresses of the teachers: one list, read by the security configuration.
-        assertEquals(listOf("/convivenza/**", "/arrivi/**", "/maestri/**"), TeacherPaths.patterns)
+        assertEquals(listOf("/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome"), TeacherPaths.patterns)
         assertTrue(Files.readString(Path.of("src/main/kotlin/talita/account/SecurityConfiguration.kt")).contains("TeacherPaths.patterns.forEach"))
     }
 
     @Test
     fun `t3 c38 a parent is tried on every address of the teachers, with a page and with a form`() {
         val session = signIn.session()
-        val concrete = listOf("/convivenza", "/convivenza/x", "/convivenza/x/y", "/arrivi", "/arrivi/x", "/maestri", "/maestri/x", "/maestri/x/y")
+        val concrete = listOf(
+            "/convivenza", "/convivenza/x", "/convivenza/x/y", "/arrivi", "/arrivi/x", "/maestri", "/maestri/x", "/maestri/x/y",
+            // The correction of the name that a teacher makes in the profile: one address, not a branch.
+            "/profilo/nome",
+        )
         // Every pattern of the rule is covered by an address here, and every address here by a pattern.
-        assertEquals(TeacherPaths.patterns.toSet(), concrete.map { "/" + it.removePrefix("/").substringBefore("/") + "/**" }.toSet())
+        assertEquals(
+            TeacherPaths.patterns.toSet(),
+            concrete.map { if (it == "/profilo/nome") it else "/" + it.removePrefix("/").substringBefore("/") + "/**" }.toSet(),
+        )
 
         for (path in concrete) {
             assertTrue(TeacherPaths.matches(path), path)
             assertEquals(403, mockMvc.get(path) { this.session = session }.andReturn().response.status, "GET $path")
             assertEquals(403, mockMvc.post(path) { this.session = session; with(csrf()) }.andReturn().response.status, "POST $path")
         }
-        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/profilo", "/invito")) {
+        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/profilo", "/profilo/altro", "/invito")) {
             assertFalse(TeacherPaths.matches(path), path)
         }
     }

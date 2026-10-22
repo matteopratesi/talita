@@ -92,9 +92,18 @@ if ! grep -q "<title>Accedi · Talità</title>" "$workdir/accedi.html" || ! grep
 fi
 
 # No profile and no spring.mail.host: the application starts without mail (health UP) and the log says so.
-health="$(curl -s "http://127.0.0.1:$app_port/actuator/health" || true)"
+# Tomcat answers a little before the application has run its start-up tasks (the check of the mail, the first
+# teacher): until then the readiness is still "refusing traffic" and the health is OUT_OF_SERVICE, so it is asked
+# again for up to 30 seconds.
+health=""
+for _ in $(seq 1 30); do
+  health="$(curl -s "http://127.0.0.1:$app_port/actuator/health" || true)"
+  if grep -q '"status":"UP"' <<<"$health"; then break; fi
+  sleep 1
+done
 if ! grep -q '"status":"UP"' <<<"$health"; then
   echo "GET /actuator/health did not answer UP: $health" >&2
+  tail -n 40 "$workdir/app.log" >&2
   exit 1
 fi
 if ! grep -q "Mail is not configured" "$workdir/app.log"; then

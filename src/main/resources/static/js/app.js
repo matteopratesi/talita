@@ -44,6 +44,15 @@
     }
   }
 
+  /**
+   * The dialogs that are open are in the top layer of the page, above everything: a message that appears
+   * while one is open would stay under its backdrop, invisible. When a request fails the dialogs are closed
+   * first, so that the message is seen and the page is as the person left it.
+   */
+  function closeDialogs() {
+    document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  }
+
   function dismissAll() {
     const area = document.getElementById("messaggi");
     if (area) area.replaceChildren();
@@ -55,6 +64,7 @@
     const template = document.getElementById(TEMPLATES[kind]);
     if (!area || !template) return;
 
+    closeDialogs();
     area.querySelectorAll('[data-messaggio="' + TEMPLATES[kind] + '"]').forEach((old) => old.remove());
 
     const message = template.content.firstElementChild.cloneNode(true);
@@ -98,8 +108,9 @@
    * first wrong field (a screen reader reads its error through aria-describedby), else the first
    * notice (data-fuoco), else, if the page changed, the heading.
    */
-  function focusAfterSwap(pageChanged) {
-    const target = document.querySelector('[aria-invalid="true"]') || document.querySelector("[data-fuoco]");
+  function focusAfterSwap(pageChanged, root) {
+    const scope = root || document;
+    const target = scope.querySelector('[aria-invalid="true"]') || scope.querySelector("[data-fuoco]");
     if (target) {
       target.focus();
     } else if (pageChanged) {
@@ -217,8 +228,30 @@
 
   document.addEventListener("htmx:afterSettle", (event) => {
     const pageChanged = describe(event.detail).boosted;
-    const status = event.detail.xhr ? event.detail.xhr.status : 0;
-    if (pageChanged || status === 422 || status === 429) focusAfterSwap(pageChanged);
+    if (pageChanged) {
+      focusAfterSwap(true);
+      return;
+    }
+    // A piece of a page that was replaced (a block that every action of a page answers with): the focus goes to what is
+    // wrong in it or to its notice, and nowhere if it has neither. The target of an outerHTML swap is the old element,
+    // gone from the page: the new one has the same id.
+    const swapped = event.detail.target;
+    const root = swapped && swapped.isConnected ? swapped : swapped && swapped.id ? document.getElementById(swapped.id) : null;
+    if (root) focusAfterSwap(false, root);
+  });
+
+  // ---- Dialogs ----
+
+  // A button with data-apri="<id>" opens the dialog with that id (a native <dialog>: Esc, focus kept inside,
+  // the page behind inert, with no more code). Without JavaScript the button sends its form, which leads to a page
+  // with the same words; with it, the form is not sent.
+  document.addEventListener("click", (event) => {
+    const opener = event.target.closest("[data-apri]");
+    if (!opener) return;
+    const dialog = document.getElementById(opener.getAttribute("data-apri"));
+    if (!dialog || typeof dialog.showModal !== "function") return;
+    event.preventDefault();
+    if (!dialog.open) dialog.showModal();
   });
 
   // A form that comes back with its errors stays at the address it had: no second entry in the history.

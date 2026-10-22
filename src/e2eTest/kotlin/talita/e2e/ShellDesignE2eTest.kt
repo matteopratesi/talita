@@ -51,9 +51,15 @@ class ShellDesignE2eTest {
 
             assertThat(page).hasTitle("${section.name} · Talità")
             assertThat(page.locator("h1")).hasText(section.name)
-            assertThat(page.locator("main h2")).hasText("In preparazione")
+            assertThat(page.locator("main h2").first()).hasText("In preparazione")
             assertThat(page.locator("main")).containsText(section.placeholder)
-            assertEquals(0, page.locator("main a, main button").count(), "$where: the empty state has no buttons")
+            // The empty state has no buttons; the page of the gathering has, under it, the way to «Maestri» (TALITA-3, 3.8).
+            if (section.path == "/convivenza") {
+                assertThat(page.locator("main a, main button")).hasCount(1)
+                assertThat(page.locator("main a")).hasAttribute("href", "/maestri")
+            } else {
+                assertEquals(0, page.locator("main a, main button").count(), "$where: the empty state has no buttons")
+            }
             // The current entry is the one of the section, and only that one.
             assertThat(page.locator("nav a[aria-current=page]")).hasText(section.name)
             assertThat(page.locator("nav [aria-current]")).hasCount(1)

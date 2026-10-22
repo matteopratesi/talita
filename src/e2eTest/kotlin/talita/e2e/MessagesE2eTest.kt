@@ -153,7 +153,7 @@ class MessagesE2eTest {
         val page = e2e.page
         // The profile page has a form, so it has the CSRF code that a form of the app needs.
         e2e.open("/profilo")
-        val csrf = page.locator("input[name=_csrf]").inputValue()
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
         // A form of the app is boosted by htmx; the address answers 405 to a POST, which is a failure.
         page.addToContent("""<form method="post" action="/test/errore"><input type="hidden" name="_csrf" value="$csrf"><button id="invia" type="submit">Invia</button></form>""")
 

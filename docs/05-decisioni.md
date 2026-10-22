@@ -383,3 +383,44 @@ in quest'ordine, ognuno con la build verde.
   «il genitore vede solo i suoi» è di TALITA-5.
 - **Navigazione per ruolo** (`Section.visibleToParents`): il genitore ha Home e Iscrizioni, il maestro le
   quattro voci; la tabella della guida dice chi vede ogni voce e un test la confronta con `Section`.
+
+**D. Maestri e inviti**
+
+- **«Maestri»** (`/maestri`) sta sotto la Convivenza (voce corrente «Convivenza», non è una voce): ci si arriva da
+  una sezione «Maestri» della pagina Convivenza (il design diceva «link dalla pagina Convivenza»; la pagina è
+  ancora il segnaposto «in preparazione» e TALITA-4 la riempie, lasciando la sezione). Maestri per nome e
+  cognome, mai per indirizzo; inviti per indirizzo, con scadenza o «Scaduto».
+- **Un invito si salva solo se la mail parte** (`InviteTeacher`): invito e mail stanno in una transazione, e se la
+  mail non parte (server giù, limite del giorno, niente `talita.public-url`) la transazione torna indietro, la
+  scadenza di un invito che c'era non cambia e la pagina lo dice. Così «Invito mandato.» è vero, e nessuno ha un
+  invito di cui nessuno gli ha detto niente. Per il limite del giorno il design non aveva un testo: si usa quello
+  della pagina di accesso. L'indirizzo invitato non va mai nel log.
+- **Togliere un maestro** (`Teachers.remove`) è una transazione che prima blocca tutte le righe di `teacher`
+  (`SELECT … ORDER BY account_id FOR UPDATE`), poi conta, poi cancella. Due maestri che si tolgono a vicenda nello
+  stesso istante sono in coda: il secondo trova un solo maestro e riceve «Serve almeno un maestro». Il test lo prova
+  con due transazioni vere per 25 giri, e provato senza il blocco fallisce. **TALITA-4 aggiunge qui, nella stessa
+  transazione e sotto lo stesso blocco, il controllo che il maestro non sia affidatario di una convivenza non
+  finita** (e il testo del dialogo che lo dice). Chi si toglie da solo arriva alla home da genitore con l'avviso
+  «Non sei più tra i maestri.» (`HX-Redirect`: cambia la navigazione, quindi si ricarica la pagina).
+- **Nessun nome, id o indirizzo in un URL**: ogni azione è un `POST` con i dati nel corpo (`maestro` = id
+  dell'account, `email`). I dialoghi hanno id `togli-0`, `ritira-0`. Un `GET` all'indirizzo di un'azione (un form senza
+  JavaScript che è tornato con un errore, e la persona lo riapre) porta a `/maestri` invece di un 405.
+- **Un blocco che ogni azione sostituisce** (`#maestri-contenuto`, `hx-swap="outerHTML"`): avviso, scheda, liste e
+  dialoghi. La pagina non si muove e il fuoco va all'avviso o al campo sbagliato; senza JavaScript la stessa azione
+  è un 303 verso la pagina con l'avviso in sessione (una volta sola) o, con errori, la pagina intera.
+- **Dialoghi nativi** (`<dialog>` aperto da `app.js` con `showModal()`, un bottone con `data-apri`), con le pagine di
+  conferma al posto loro senza JavaScript (`/maestri/togli/conferma`, `/maestri/inviti/ritira/conferma`: stesso titolo,
+  testo e verbo). **Se una richiesta fallisce con un dialogo aperto, `app.js` lo chiude prima di mostrare il
+  messaggio**: un dialogo aperto sta nel livello più alto della pagina e il messaggio, sotto lo sfondo, non si
+  vedrebbe (c'è un test e2e con la rete spenta).
+- **Il nome si corregge dal profilo** (`POST /profilo/nome`, scheda «Il tuo nome», solo maestri): stesse regole
+  dell'invito. L'indirizzo è nell'elenco unico di `TeacherPaths` (un indirizzo esatto, non un ramo), e il test che
+  prova un genitore su ogni indirizzo dei maestri lo include. Con htmx un form rimandato con errori tiene
+  l'indirizzo `/profilo` (`HX-Replace-Url`).
+- **Nessuna dipendenza nuova** in questa parte. Per i test: un `Person`/`MaestriSupport` che prepara i maestri
+  (ogni test comincia con quelli che gli servono, senza inviti, perché il database è condiviso) e tre contesti
+  piccoli con le proprietà della posta cambiate (server giù, nessun indirizzo pubblico, un solo invio al giorno).
+- **Cose che i test e2e hanno insegnato**: Playwright scrolla un elemento solo se non si vede per niente, e un
+  bottone che mostra la cima sopra la barra in basso del telefono è «in vista» ma coperto (negli e2e si centra
+  prima, come fa chi scrolla); axe non gira in una pagina senza JavaScript e resta appeso, quindi le pagine di conferma
+  si controllano con JavaScript acceso, inviando a mano il form del bottone.

@@ -99,6 +99,13 @@ Previste dal progetto, con il ticket in cui diventano vere:
     con una regola sola e un test su ognuno.
   - **Un invito** è un indirizzo e una scadenza (7 giorni), senza token: chi entra con quell'indirizzo, con il
     suo link, trova l'invito. Un invito ritirato o scaduto non apre niente, e chi entra vale come genitore.
+  - **L'elenco dei maestri** (pagina «Maestri», solo per i maestri) mostra nome e cognome, mai l'indirizzo email
+    di un altro maestro; gli indirizzi si vedono solo negli inviti in attesa, che li hanno scritti i maestri
+    stessi. Nome e id di una persona non stanno mai in un indirizzo web (non finiscono nei log né nella
+    cronologia): i form li mandano nel corpo della richiesta.
+  - **Togliere un maestro** cancella nome e cognome e il ruolo; l'account resta, come genitore, e con
+    l'account i diritti di quella persona. Un invito si salva solo se la mail parte: la persona non si trova
+    mai un invito di cui nessuno le ha detto niente. Il log non scrive mai l'indirizzo invitato.
   - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi, chi ha invitato chi: se
     servono (per esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né

@@ -6,7 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping
 import talita.account.CurrentAccount
 
 /** Model of the "in preparation" page of a section. */
-data class PlaceholderPage(val title: String, val text: String)
+/** [maestriLink]: the page of the gathering of a teacher carries the way to «Maestri», where the teachers are invited and taken away. */
+data class PlaceholderPage(val title: String, val text: String, val maestriLink: Boolean = false)
 
 /**
  * The "in preparation" pages of the sections. They are temporary: each ticket replaces the one of
@@ -29,7 +30,7 @@ class SectionController(private val shells: ShellFactory) {
     private fun placeholder(section: Section, account: CurrentAccount, model: Model): String {
         val text = if (account.isTeacher) section.placeholder else section.parentPlaceholder
         model.addAttribute("shell", shells.shell(page = section.label, current = section))
-        model.addAttribute("page", PlaceholderPage(title = section.label, text = checkNotNull(text)))
+        model.addAttribute("page", PlaceholderPage(title = section.label, text = checkNotNull(text), maestriLink = section == Section.CONVIVENZA && account.isTeacher))
         return "pages/placeholder"
     }
 }

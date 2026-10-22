@@ -2,6 +2,7 @@ package talita
 
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import talita.ui.Icon
 import talita.ui.Section
 import java.nio.file.Files
 import java.nio.file.Path
@@ -368,6 +369,10 @@ class ProjectFilesTests {
             listOf(it.label, it.path, it.icon.name.lowercase().replace('_', '-'), if (it.visibleToParents) "Maestro e genitore" else "Solo maestro")
         }
         assertEquals(sections, rows)
+
+        // Every icon of the code has its row in the table of 2.8 (the ones that TALITA-3 added: mail, log-in, link-2-off, lock, user-round).
+        val icons = guide.substringAfter("Icone assegnate").substringBefore("**Marchio**")
+        for (icon in Icon.entries) assertTrue(icons.contains("| `" + icon.name.lowercase().replace('_', '-') + "` |"), "the guide has no row for the icon $icon")
     }
 
     // ---- A repository that is public (criteria 35, 37) ----------------------------------------------
