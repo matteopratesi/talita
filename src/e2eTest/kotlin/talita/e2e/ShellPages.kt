@@ -30,16 +30,21 @@ internal fun Page.navLink(label: String): Locator =
 /** The pop-up messages of the app (errors that do not change the page). */
 internal fun Page.messages(): Locator = locator("#messaggi [role=alert]")
 
-/** Adds an element to the content of the page and tells htmx about it, as a future screen would. */
-internal fun Page.addToContent(html: String) {
+/**
+ * Adds an element to the content of the page and tells htmx about it, as a future screen would. At the end of the content, or, with
+ * [atTop], before it: a button that a test touches while a message is open must not sit where the message is (just above the
+ * navigation, where the end of a short page is), because the message would catch the touch.
+ */
+internal fun Page.addToContent(html: String, atTop: Boolean = false) {
     evaluate(
-        """(html) => {
+        """({ html, atTop }) => {
             const holder = document.createElement('div');
             holder.innerHTML = html;
-            document.querySelector('main > div').append(holder);
+            const content = document.querySelector('main > div');
+            if (atTop) content.prepend(holder); else content.append(holder);
             htmx.process(holder);
         }""",
-        html,
+        mapOf("html" to html, "atTop" to atTop),
     )
 }
 

@@ -30,6 +30,7 @@ class MessagesE2eTest {
         e2e.page.addToContent(
             """<div id="bersaglio"><p>Contenuto di prima</p></div>
                <button id="carica" type="button" hx-get="/test/errore" hx-target="#bersaglio">Carica</button>""",
+            atTop = true,
         )
         e2e.touch(e2e.page.locator("#carica"))
         assertThat(e2e.page.messages().filter(textFilter(server.title))).hasCount(1)
