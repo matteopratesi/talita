@@ -6,7 +6,7 @@ Talità aiuta a organizzare i ritiri spirituali dei bambini della parrocchia. Le
 
 Kotlin, Spring Boot, JTE, htmx e Tailwind, con Postgres.
 
-Nasce da Koinè, con cui condivide stack e design system, ma è un'app separata. Il contesto, le regole e il flusso di lavoro sono in [`CLAUDE.md`](CLAUDE.md); i documenti in [`docs/`](docs/).
+Il contesto, le regole e il flusso di lavoro sono in [`CLAUDE.md`](CLAUDE.md); i documenti in [`docs/`](docs/).
 
 ## Prerequisiti
 
