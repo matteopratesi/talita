@@ -50,6 +50,7 @@ class AccountAuthentication(val account: CurrentAccount, authorities: Collection
     override fun toString(): String = "AccountAuthentication(${account.id})"
 
     companion object {
+        /** The authority of a teacher, as `hasRole("TEACHER")` reads it. */
         const val ROLE_TEACHER = "ROLE_TEACHER"
 
         fun teacherAuthority(): GrantedAuthority = SimpleGrantedAuthority(ROLE_TEACHER)

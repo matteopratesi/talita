@@ -10,9 +10,11 @@ import com.microsoft.playwright.options.LoadState
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Import
+import org.jooq.DSLContext
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import talita.Addresses
+import talita.account.TestAccounts
 import talita.TestcontainersConfiguration
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
@@ -37,6 +39,10 @@ class E2e(
     val application: ApplicationContext,
 ) {
     private val extraContexts = mutableListOf<BrowserContext>()
+
+    /** Whether the person of the test is a teacher (the default: the four sections) or a parent (two). */
+    var teacher: Boolean = true
+        internal set
 
     /** Messages of the console of every page of the test that complain of the Content-Security-Policy. */
     internal val cspViolations = CopyOnWriteArrayList<String>()
@@ -64,9 +70,11 @@ class E2e(
     /**
      * Enters as a person does, with the real flow and no shortcut in the application: a link made by
      * the service of the one-time tokens (what the application does, without the mail), the page of the
-     * link, the tap on "Entra". The account is born here, as at the first login of anyone.
+     * link, the tap on "Entra". The account is born here, as at the first login of anyone. A [teacher] is
+     * one before entering (the invitation that made them one is old news for the test); the others are parents.
      */
-    fun signIn(on: Page = page, email: String = Addresses.unique("persona")): String {
+    fun signIn(on: Page = page, email: String = Addresses.unique("persona"), teacher: Boolean = true): String {
+        if (teacher) TestAccounts.makeTeacher(application.getBean(DSLContext::class.java), email)
         val link = application.getBean(OneTimeTokenService::class.java)
             .generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue
         on.navigate(url("/accedi/conferma?token=$link"))
@@ -84,15 +92,15 @@ class E2e(
 
     /**
      * A second page in its own browser context, in the same profile, for what the main one cannot
-     * do (for example JavaScript switched off, or another size). It is inside like the main one, unless
-     * the test says [signedIn] false. It is closed with the test.
+     * do (for example JavaScript switched off, or another size). It is inside like the main one (as a
+     * teacher, if the test is), unless the test says [signedIn] false. It is closed with the test.
      */
-    fun newPage(signedIn: Boolean = true, customize: Browser.NewContextOptions.() -> Unit = {}): Page {
+    fun newPage(signedIn: Boolean = true, teacher: Boolean = this.teacher, customize: Browser.NewContextOptions.() -> Unit = {}): Page {
         val context = Browsers.chromium.newContext(profile.contextOptions().apply(customize))
         extraContexts += context
         val extra = context.newPage().also { it.setDefaultTimeout(10_000.0) }
         watchCsp(extra)
-        if (signedIn) signIn(extra)
+        if (signedIn) signIn(extra, teacher = teacher)
         return extra
     }
 

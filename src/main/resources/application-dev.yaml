@@ -28,6 +28,10 @@ spring:
 talita:
   # The links in the mails start with this address (in production TALITA_PUBLIC_URL).
   public-url: http://localhost:8081
+  bootstrap:
+    # The first teacher: with no teacher yet, this address is invited at the start (no mail).
+    # It enters from /accedi (the link arrives in Mailpit) and accepts the invitation.
+    teacher: nome@example.org
   mail:
     from: nome@example.org
 

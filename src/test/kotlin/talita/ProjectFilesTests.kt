@@ -2,6 +2,7 @@ package talita
 
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import talita.ui.Icon
 import talita.ui.Section
 import java.nio.file.Files
 import java.nio.file.Path
@@ -361,10 +362,17 @@ class ProjectFilesTests {
         assertTrue(guide.contains("con una T bianca"))
 
         // The table of the entries (3.3) is the list of sections of the code: same order, labels, addresses and icons.
-        val rows = Regex("""(?m)^\| (\d) \| ([^|]+) \| `([^`]+)` \| `([^`]+)` \|""").findAll(guide.substringAfter("### 3.3 Navigazione").substringBefore("### 3.4"))
-            .map { listOf(it.groupValues[2].trim(), it.groupValues[3], it.groupValues[4]) }.toList()
-        val sections = Section.entries.map { listOf(it.label, it.path, it.icon.name.lowercase().replace('_', '-')) }
+        val rows = Regex("""(?m)^\| (\d) \| ([^|]+) \| `([^`]+)` \| `([^`]+)` \| ([^|]+) \|""").findAll(guide.substringAfter("### 3.3 Navigazione").substringBefore("### 3.4"))
+            .map { listOf(it.groupValues[2].trim(), it.groupValues[3], it.groupValues[4], it.groupValues[5].trim()) }.toList()
+        // The fourth column says who sees the entry: the table and the navigation of the code agree on the roles too (TALITA-3).
+        val sections = Section.entries.map {
+            listOf(it.label, it.path, it.icon.name.lowercase().replace('_', '-'), if (it.visibleToParents) "Maestro e genitore" else "Solo maestro")
+        }
         assertEquals(sections, rows)
+
+        // Every icon of the code has its row in the table of 2.8 (the ones that TALITA-3 added: mail, log-in, link-2-off, lock, user-round).
+        val icons = guide.substringAfter("Icone assegnate").substringBefore("**Marchio**")
+        for (icon in Icon.entries) assertTrue(icons.contains("| `" + icon.name.lowercase().replace('_', '-') + "` |"), "the guide has no row for the icon $icon")
     }
 
     // ---- A repository that is public (criteria 35, 37) ----------------------------------------------

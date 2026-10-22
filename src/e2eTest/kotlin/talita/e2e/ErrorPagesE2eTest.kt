@@ -121,6 +121,7 @@ class ErrorPagesE2eTest {
             """<div id="bersaglio"><p>Contenuto di prima</p></div>
                <button id="guasto" type="button" hx-get="/test/errore" hx-target="#bersaglio">Guasto</button>
                <button id="bene" type="button" hx-get="/test/frammento" hx-target="#bersaglio">Bene</button>""",
+            atTop = true,
         )
         e2e.touch(page.locator("#guasto"))
         assertThat(page.messages()).hasCount(1)

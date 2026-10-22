@@ -6,7 +6,7 @@ nello stesso ticket che lo crea.
 
 Questo è il punto di partenza, preso dal perimetro di KOINE-29. Il dettaglio di ogni entità (colonne,
 vincoli, tabelle) lo fissa il ticket che la crea. TALITA-2 non introduce dati personali: nessuna
-tabella e nessun form. Lo schema comincia con TALITA-3 (account e link di accesso, poi maestri e inviti).
+tabella e nessun form. Lo schema comincia con TALITA-3 (account e link di accesso, maestri e inviti).
 
 Nessun `centro_id` e nessuna row-level security: Talità ha un solo titolare, e l'isolamento fra
 genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
@@ -17,7 +17,8 @@ genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
 | --- | --- | --- | --- |
 | Account (`account.email`) | email | accesso con magic link; per i maestri anche gli inviti. In minuscolo, senza spazi ai lati (un vincolo della tabella lo garantisce). L'account nasce al primo accesso riuscito, e ogni account è anche un genitore. Quanto si tiene e come si cancella lo dice TALITA-7. | TALITA-3 |
 | Link di accesso (`one_time_tokens`) | email, scadenza | far entrare chi ha chiesto il link. Vale 15 minuti e una volta sola: si cancella quando si usa, e uno scaduto si cancella entro un'ora | TALITA-3 |
-| Maestro | nome e cognome | testo dell'affidamento (maestri affidatari); elenco dei presenti per la struttura | TALITA-4, 6 |
+| Invito a maestro (`teacher_invitation`) | email, scadenza | far entrare un nuovo maestro: chi entra con quell'indirizzo trova l'invito e lo accetta. Si cancella quando è accettato o ritirato; quanto resta uno scaduto lo dice TALITA-7 | TALITA-3 |
+| Maestro (`teacher`) | nome e cognome | testo dell'affidamento (maestri affidatari); elenco dei presenti per la struttura. Li scrive il maestro quando accetta l'invito, anche il primo, e li corregge dal profilo; si cancellano quando il maestro è tolto | TALITA-3 (li raccoglie), 4 e 6 (li usano) |
 | Iscrizione | recapito telefonico del genitore | chiamare il genitore durante i giorni della convivenza | TALITA-5 |
 | Bambino | nome e cognome | riconoscere il bambino in iscrizione, check-in, registro ed elenco per la struttura | TALITA-5 |
 | Bambino | data di nascita | **scopo proposto, da confermare in TALITA-5**: verificare che il bambino abbia l'età prevista e distinguere due bambini con lo stesso nome | TALITA-5 |

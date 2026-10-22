@@ -2,7 +2,8 @@
 //
 // What it does (docs/design/README.md, section 5):
 // - the 404 and 500 pages show up as normal pages when they arrive from a link of the app, and
-//   when the back button leads to them;
+//   when the back button leads to them; the same for the 403 of a page that the person cannot see,
+//   while a request that does not change the page and is refused (403) shows the message «Accesso negato»;
 // - a form that comes back with its errors (422) or with a limit (429) replaces the page or the piece
 //   of page that sent it, with the fields still filled in, and the focus goes to the first wrong field
 //   or to the notice; it leaves no second entry in the history;
@@ -20,6 +21,7 @@
     network: "messaggio-rete-assente",
     slow: "messaggio-rete-lenta",
     server: "messaggio-errore-server",
+    forbidden: "messaggio-accesso-negato",
   };
 
   /** What failed: the element that made the request, the verb, whether it was a link of the app. */
@@ -42,6 +44,15 @@
     }
   }
 
+  /**
+   * The dialogs that are open are in the top layer of the page, above everything: a message that appears
+   * while one is open would stay under its backdrop, invisible. When a request fails the dialogs are closed
+   * first, so that the message is seen and the page is as the person left it.
+   */
+  function closeDialogs() {
+    document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  }
+
   function dismissAll() {
     const area = document.getElementById("messaggi");
     if (area) area.replaceChildren();
@@ -53,18 +64,22 @@
     const template = document.getElementById(TEMPLATES[kind]);
     if (!area || !template) return;
 
+    closeDialogs();
     area.querySelectorAll('[data-messaggio="' + TEMPLATES[kind] + '"]').forEach((old) => old.remove());
 
     const message = template.content.firstElementChild.cloneNode(true);
     const retryButton = message.querySelector('[data-azione="riprova"]');
     // "Riprova" only for a read: a form that was sent stays filled in and is sent again by touching its button.
-    if (request.verb === "get" && request.elt && request.elt.isConnected) {
-      retryButton.addEventListener("click", () => {
-        message.remove();
-        retry(request);
-      });
-    } else {
-      retryButton.remove();
+    // (The message of a refused request has no such button at all: to repeat it changes nothing.)
+    if (retryButton) {
+      if (request.verb === "get" && request.elt && request.elt.isConnected) {
+        retryButton.addEventListener("click", () => {
+          message.remove();
+          retry(request);
+        });
+      } else {
+        retryButton.remove();
+      }
     }
     message.querySelector('[data-azione="chiudi"]').addEventListener("click", () => message.remove());
     area.appendChild(message);
@@ -93,8 +108,9 @@
    * first wrong field (a screen reader reads its error through aria-describedby), else the first
    * notice (data-fuoco), else, if the page changed, the heading.
    */
-  function focusAfterSwap(pageChanged) {
-    const target = document.querySelector('[aria-invalid="true"]') || document.querySelector("[data-fuoco]");
+  function focusAfterSwap(pageChanged, root) {
+    const scope = root || document;
+    const target = scope.querySelector('[aria-invalid="true"]') || scope.querySelector("[data-fuoco]");
     if (target) {
       target.focus();
     } else if (pageChanged) {
@@ -134,6 +150,16 @@
         // A form sent again with its errors, or a limit: it is the answer, not a failure.
         event.detail.shouldSwap = true;
         event.detail.isError = false;
+      } else if (status === 403) {
+        if (request.boosted && request.verb === "get") {
+          // A link, or the back button, to a page that the person cannot see: the page of the 403, like any other page.
+          event.detail.shouldSwap = true;
+          event.detail.isError = false;
+        } else {
+          // Any other request (a form, a piece of a page): the page stays as it is and a message says no.
+          event.detail.shouldSwap = false;
+          showMessage("forbidden", request);
+        }
       } else if (request.boosted && (status === 404 || status === 500)) {
         // The error pages of the app replace the page like any other, with their own address and title.
         event.detail.shouldSwap = true;
@@ -202,8 +228,30 @@
 
   document.addEventListener("htmx:afterSettle", (event) => {
     const pageChanged = describe(event.detail).boosted;
-    const status = event.detail.xhr ? event.detail.xhr.status : 0;
-    if (pageChanged || status === 422 || status === 429) focusAfterSwap(pageChanged);
+    if (pageChanged) {
+      focusAfterSwap(true);
+      return;
+    }
+    // A piece of a page that was replaced (a block that every action of a page answers with): the focus goes to what is
+    // wrong in it or to its notice, and nowhere if it has neither. The target of an outerHTML swap is the old element,
+    // gone from the page: the new one has the same id.
+    const swapped = event.detail.target;
+    const root = swapped && swapped.isConnected ? swapped : swapped && swapped.id ? document.getElementById(swapped.id) : null;
+    if (root) focusAfterSwap(false, root);
+  });
+
+  // ---- Dialogs ----
+
+  // A button with data-apri="<id>" opens the dialog with that id (a native <dialog>: Esc, focus kept inside,
+  // the page behind inert, with no more code). Without JavaScript the button sends its form, which leads to a page
+  // with the same words; with it, the form is not sent.
+  document.addEventListener("click", (event) => {
+    const opener = event.target.closest("[data-apri]");
+    if (!opener) return;
+    const dialog = document.getElementById(opener.getAttribute("data-apri"));
+    if (!dialog || typeof dialog.showModal !== "function") return;
+    event.preventDefault();
+    if (!dialog.open) dialog.showModal();
   });
 
   // A form that comes back with its errors stays at the address it had: no second entry in the history.

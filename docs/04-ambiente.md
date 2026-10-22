@@ -91,8 +91,11 @@ TALITA_BOOTSTRAP_TEACHER=nome@example.org
   qui e mai dall'intestazione `Host` della richiesta, che chi attacca può falsificare. Senza, le mail
   con un link non partono.
 - `TALITA_BOOTSTRAP_TEACHER`: l'indirizzo del primo maestro. Solo se non c'è nessun maestro, all'avvio
-  l'app crea un invito per quell'indirizzo (senza mail); la persona entra da `/accedi` e lo accetta.
-  Con almeno un maestro la variabile non fa niente.
+  l'app crea un invito per quell'indirizzo (senza mail): la persona entra da `/accedi`, trova «Accetta
+  l'invito», scrive nome e cognome ed è maestro. L'invito vale 7 giorni, come ogni altro
+  (`talita.teacher.invitation-validity`): a ogni avvio, finché non c'è nessun maestro, si rinnova. Con almeno
+  un maestro la variabile non fa niente; senza variabile e senza maestri l'app parte lo stesso e il log
+  avvisa che nessuno può essere invitato. In sviluppo il profilo `dev` la imposta a `nome@example.org`.
 
 ## Build, sviluppo e test
 

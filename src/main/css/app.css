@@ -150,6 +150,18 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Le barre fisse del telefono non coprono quello che lo scorrimento porta in vista (il fuoco, un'ancora):
+       intestazione in alto (3.5rem) e navigazione in basso (4rem), più la safe area e un po' di respiro. */
+    scroll-padding-top: calc(3.5rem + env(safe-area-inset-top) + 0.5rem);
+    scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.5rem);
+  }
+
+  /* Da lg intestazione e navigazione stanno nella colonna a sinistra e non coprono il contenuto */
+  @media (min-width: 64rem) {
+    html {
+      scroll-padding-top: 0;
+      scroll-padding-bottom: 0;
+    }
   }
 
   :focus-visible {

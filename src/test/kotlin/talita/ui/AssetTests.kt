@@ -3,6 +3,7 @@ package talita.ui
 import jakarta.servlet.RequestDispatcher
 import talita.TestcontainersConfiguration
 import talita.account.MockSignIn
+import org.jooq.DSLContext
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -32,9 +33,9 @@ private fun sri384(bytes: ByteArray) = "sha384-" + Base64.getEncoder().encodeToS
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-class AssetTests(@Autowired private val mockMvc: MockMvc, @Autowired tokens: OneTimeTokenService) {
+class AssetTests(@Autowired private val mockMvc: MockMvc, @Autowired tokens: OneTimeTokenService, @Autowired dsl: DSLContext) {
 
-    private val signedInSession = MockSignIn(mockMvc, tokens).session()
+    private val signedInSession = MockSignIn(mockMvc, tokens, dsl).session(teacher = true)
 
     private fun body(url: String): ByteArray = mockMvc.get(url) { session = signedInSession }.andReturn().response.contentAsByteArray
 

@@ -335,8 +335,10 @@ testing {
                 implementation(sourceSets.test.get().output)
                 implementation("org.springframework.boot:spring-boot-starter-webmvc-test")
                 implementation("org.springframework.boot:spring-boot-testcontainers")
-                // The tests enter through the real flow, with a link from the one-time token service.
+                // The tests enter through the real flow, with a link from the one-time token service, and make
+                // the teachers that a test needs straight in the database (jOOQ).
                 implementation("org.springframework.boot:spring-boot-starter-security")
+                implementation("org.springframework.boot:spring-boot-starter-jooq")
                 implementation("org.testcontainers:testcontainers-postgresql")
                 implementation("org.jetbrains.kotlin:kotlin-test-junit5")
                 implementation("com.microsoft.playwright:playwright:$playwrightVersion")

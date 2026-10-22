@@ -336,8 +336,14 @@ in quest'ordine, ognuno con la build verde.
   query, mai un indirizzo esterno, e non un pezzo di pagina che htmx chiede); altrimenti alla home. Niente
   `?continue` nell'URL.
 - **CSRF scaduto**: un form delle pagine di accesso con il codice scaduto torna come la stessa pagina, con il
-  campo compilato, un codice nuovo e «La pagina era aperta da troppo tempo. Riprova.» (422); mai la pagina
-  «Non puoi vedere questa pagina». Per un form di chi non è più dentro: la pagina di accesso.
+  campo compilato, un codice nuovo e «La pagina era aperta da troppo tempo. Riprova.»; mai la pagina «Non puoi
+  vedere questa pagina». Per un form di chi non è più dentro: la pagina di accesso. Si fa con un **redirect**
+  (l'avviso e quello che era nel campo restano nella sessione, in memoria, e si leggono una volta) e non con un
+  `forward`: un forward rientra nei filtri di sicurezza con il controllo del CSRF già segnato come fatto, e il
+  tocco su «Entra» con un codice scaduto avrebbe fatto entrare lo stesso (lo ha mostrato un test e2e).
+- **Il tasto indietro dopo l'uscita**: htmx non legge `HX-Redirect` nella richiesta che rimette una pagina della
+  cronologia. Lì la risposta è un 401 vuoto: htmx rinuncia (`historyCacheMissLoadError`), `app.js` ricarica
+  l'indirizzo come pagina intera e la richiesta dopo va a `/accedi`.
 - **Form rimandati con errori**: 422, o 429 per i limiti; `app.js` li mette al posto della pagina o del
   pezzo, il fuoco va al primo campo sbagliato o all'avviso, e non lasciano una seconda voce nella
   cronologia. Le conferme dopo un'azione sono avvisi nella pagina e non messaggi a comparsa (regola nuova
@@ -350,3 +356,87 @@ in quest'ordine, ognuno con la build verde.
 - **Test che entrano con il flusso vero** (`MockSignIn`, `E2e.signIn`): token dal servizio, pagina di
   conferma, tocco su «Entra». Nessuna scorciatoia nel codice di produzione. Per non aspettare due ore, un
   endpoint solo dei test accorcia la sessione a un secondo: Tomcat la tratta come dopo le due ore vere.
+
+**C. Ruoli e primo maestro**
+
+- **Genitore è ogni account; maestro è un account con una riga in `teacher`** (`V3__teachers.sql`). I ruoli non
+  si escludono: un maestro che è anche genitore ha un account solo, la navigazione del maestro, e l'account
+  corrente è quello a cui TALITA-5 legherà le sue iscrizioni.
+- **Il nome del maestro lo scrive lui** quando accetta l'invito, anche il primo (obbligatori, al massimo 100
+  caratteri, accenti e apostrofi ammessi, nessun pattern: un nome che una regola non si aspetta è comunque un
+  nome). L'invito ha solo l'indirizzo: il dato viene dalla persona e la strada è una per tutti. TALITA-4 lo
+  legge, non lo chiede.
+- **Inviti senza token**: la mail porta a `/accedi`, chi entra con quell'indirizzo trova l'invito. Un invito
+  ritirato dopo l'invio non apre niente, uno scaduto nemmeno: chi entra vale come genitore, e `/invito` aperto a
+  mano porta alla home senza messaggio. Se l'invito scade o viene ritirato mentre la pagina è aperta, il tocco su
+  «Accetta l'invito» porta alla home con un avviso (non è nei criteri, ma l'ha proposto il design).
+- **Dopo l'accesso, in quest'ordine**: «Accetta l'invito» se l'indirizzo ne ha uno valido (`PostLoginDestination`,
+  in `talita.account`, realizzato da `talita.teacher`: l'accesso non conosce i maestri), poi la pagina chiesta
+  prima, poi la home.
+- **Primo maestro** da `TALITA_BOOTSTRAP_TEACHER`, all'avvio e solo se non c'è nessun maestro: un invito per
+  quell'indirizzo, senza mail, valido 7 giorni e rinnovato a ogni avvio finché non c'è nessun maestro. Non
+  scrive mai l'indirizzo nel log; senza variabile e senza maestri l'app parte e il log avvisa.
+- **Un solo elenco degli indirizzi dei maestri** (`TeacherPaths`: `/convivenza`, `/arrivi`, `/maestri` e quello
+  che c'è sotto), letto dalla configurazione di sicurezza, con un test che prova un genitore su ognuno. Per un
+  genitore rispondono 403: pagina «Non puoi vedere questa pagina» per un link, messaggio «Accesso negato» per
+  ogni altra richiesta (un form, un pezzo di pagina), mai «Riprova». `/iscrizioni` è di ogni account: il filtro
+  «il genitore vede solo i suoi» è di TALITA-5.
+- **Navigazione per ruolo** (`Section.visibleToParents`): il genitore ha Home e Iscrizioni, il maestro le
+  quattro voci; la tabella della guida dice chi vede ogni voce e un test la confronta con `Section`.
+
+**D. Maestri e inviti**
+
+- **«Maestri»** (`/maestri`) sta sotto la Convivenza (voce corrente «Convivenza», non è una voce): ci si arriva da
+  una sezione «Maestri» della pagina Convivenza (il design diceva «link dalla pagina Convivenza»; la pagina è
+  ancora il segnaposto «in preparazione» e TALITA-4 la riempie, lasciando la sezione). Maestri per nome e
+  cognome, mai per indirizzo; inviti per indirizzo, con scadenza o «Scaduto».
+- **Un invito si salva solo se la mail parte** (`InviteTeacher`): invito e mail stanno in una transazione, e se la
+  mail non parte (server giù, limite del giorno, niente `talita.public-url`) la transazione torna indietro, la
+  scadenza di un invito che c'era non cambia e la pagina lo dice. Così «Invito mandato.» è vero, e nessuno ha un
+  invito di cui nessuno gli ha detto niente. Per il limite del giorno il design non aveva un testo: si usa quello
+  della pagina di accesso. L'indirizzo invitato non va mai nel log.
+- **Togliere un maestro** (`Teachers.remove`) è una transazione che prima blocca tutte le righe di `teacher`
+  (`SELECT … ORDER BY account_id FOR UPDATE`), poi conta, poi cancella. Due maestri che si tolgono a vicenda nello
+  stesso istante sono in coda: il secondo trova un solo maestro e riceve «Serve almeno un maestro». Il test lo prova
+  con due transazioni vere per 25 giri, e provato senza il blocco fallisce. **TALITA-4 aggiunge qui, nella stessa
+  transazione e sotto lo stesso blocco, il controllo che il maestro non sia affidatario di una convivenza non
+  finita** (e il testo del dialogo che lo dice). Chi si toglie da solo arriva alla home da genitore con l'avviso
+  «Non sei più tra i maestri.» (`HX-Redirect`: cambia la navigazione, quindi si ricarica la pagina).
+- **Nessun nome, id o indirizzo in un URL**: ogni azione è un `POST` con i dati nel corpo (`maestro` = id
+  dell'account, `email`). I dialoghi hanno id `togli-0`, `ritira-0`. Un `GET` all'indirizzo di un'azione (un form senza
+  JavaScript che è tornato con un errore, e la persona lo riapre) porta a `/maestri` invece di un 405.
+- **Un blocco che ogni azione sostituisce** (`#maestri-contenuto`, `hx-swap="outerHTML"`): avviso, scheda, liste e
+  dialoghi. La pagina non si muove e il fuoco va all'avviso o al campo sbagliato; senza JavaScript la stessa azione
+  è un 303 verso la pagina con l'avviso in sessione (una volta sola) o, con errori, la pagina intera.
+- **Dialoghi nativi** (`<dialog>` aperto da `app.js` con `showModal()`, un bottone con `data-apri`), con le pagine di
+  conferma al posto loro senza JavaScript (`/maestri/togli/conferma`, `/maestri/inviti/ritira/conferma`: stesso titolo,
+  testo e verbo). **Se una richiesta fallisce con un dialogo aperto, `app.js` lo chiude prima di mostrare il
+  messaggio**: un dialogo aperto sta nel livello più alto della pagina e il messaggio, sotto lo sfondo, non si
+  vedrebbe (c'è un test e2e con la rete spenta).
+- **Il nome si corregge dal profilo** (`POST /profilo/nome`, scheda «Il tuo nome», solo maestri): stesse regole
+  dell'invito. L'indirizzo è nell'elenco unico di `TeacherPaths` (un indirizzo esatto, non un ramo), e il test che
+  prova un genitore su ogni indirizzo dei maestri lo include. Con htmx un form rimandato con errori tiene
+  l'indirizzo `/profilo` (`HX-Replace-Url`).
+- **Nessuna dipendenza nuova** in questa parte. Per i test: un `Person`/`MaestriSupport` che prepara i maestri
+  (ogni test comincia con quelli che gli servono, senza inviti, perché il database è condiviso) e tre contesti
+  piccoli con le proprietà della posta cambiate (server giù, nessun indirizzo pubblico, un solo invio al giorno).
+- **Cose che i test e2e hanno insegnato**: Playwright scrolla un elemento solo se non si vede per niente, e un
+  bottone che mostra la cima sopra la barra in basso del telefono è «in vista» ma coperto (negli e2e si centra
+  prima, come fa chi scrolla); axe non gira in una pagina senza JavaScript e resta appeso, quindi le pagine di conferma
+  si controllano con JavaScript acceso, inviando a mano il form del bottone.
+
+**Dopo la QA di D (tre difetti di layout sul telefono)**
+
+- **Il testo di una riga con azioni parte da 11 rem** (`min-w-0 flex-[1_1_11rem]`, come il mockup): con `flex-1` e basta,
+  a 360 px un indirizzo da 34 caratteri restava largo 17 px (una lettera per riga) e i bottoni restavano a destra
+  invece che sotto. Nella guida (4.3).
+- **Indirizzi e nomi vanno a capo ovunque** (`wrap-anywhere`) nei dialoghi, nella pagina di conferma, negli avvisi e nel
+  titolo di ogni pagina (`pageHead`): un nome di 100 lettere senza spazi faceva scorrere di lato il dialogo e tagliava
+  proprio quello che si chiede di confermare. `wrap-break-word` non basta dentro un flex: non abbassa la larghezza minima.
+- **`scroll-padding-top` e `scroll-padding-bottom` su `html`** (alti come intestazione e navigazione fisse, con la safe
+  area; zero da `lg`): l'avviso «Invito mandato.» prendeva il fuoco sotto l'intestazione. Chiude anche il dubbio sul
+  fuoco coperto dalla barra in basso (WCAG 2.2, 2.4.11), per tutte le pagine; nella guida (2.4 e 3.1).
+- I test e2e di questi casi (`MaestriLayoutE2eTest`) li ha scritti la QA e riproducevano i difetti prima della correzione.
+- **Anche il nome nella riga di un maestro** ha `wrap-anywhere` (la QA lo ha trovato dopo gli altri): con `wrap-break-word` una
+  parola di 24 lettere passava sotto «Togli» sul telefono e una di 100 usciva dalla riga. Controllati gli altri nomi e
+  indirizzi delle pagine «Maestri», profilo e «Controlla la posta»: avevano già `wrap-anywhere`.

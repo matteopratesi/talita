@@ -41,6 +41,7 @@ class CurrentAccountFilter(private val accounts: Accounts) : OncePerRequestFilte
         chain.doFilter(request, response)
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun authoritiesOf(account: CurrentAccount): Collection<GrantedAuthority> = emptyList()
+    /** The roles of the request: every account is a parent (no authority needed); a teacher has `ROLE_TEACHER`. */
+    private fun authoritiesOf(account: CurrentAccount): Collection<GrantedAuthority> =
+        if (account.isTeacher) listOf(AccountAuthentication.teacherAuthority()) else emptyList()
 }

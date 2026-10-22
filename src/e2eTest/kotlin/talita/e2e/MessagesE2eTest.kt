@@ -30,6 +30,7 @@ class MessagesE2eTest {
         e2e.page.addToContent(
             """<div id="bersaglio"><p>Contenuto di prima</p></div>
                <button id="carica" type="button" hx-get="/test/errore" hx-target="#bersaglio">Carica</button>""",
+            atTop = true,
         )
         e2e.touch(e2e.page.locator("#carica"))
         assertThat(e2e.page.messages().filter(textFilter(server.title))).hasCount(1)
@@ -153,7 +154,7 @@ class MessagesE2eTest {
         val page = e2e.page
         // The profile page has a form, so it has the CSRF code that a form of the app needs.
         e2e.open("/profilo")
-        val csrf = page.locator("input[name=_csrf]").inputValue()
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
         // A form of the app is boosted by htmx; the address answers 405 to a POST, which is a failure.
         page.addToContent("""<form method="post" action="/test/errore"><input type="hidden" name="_csrf" value="$csrf"><button id="invia" type="submit">Invia</button></form>""")
 

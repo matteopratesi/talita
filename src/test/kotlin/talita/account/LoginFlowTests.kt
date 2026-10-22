@@ -45,7 +45,7 @@ class LoginFlowTests(
     @Autowired private val quota: MailQuota,
 ) {
 
-    private val signIn = MockSignIn(mockMvc, tokens)
+    private val signIn = MockSignIn(mockMvc, tokens, dsl)
 
     private fun browser() = MockBrowser(mockMvc)
 
@@ -559,7 +559,7 @@ class LoginFlowTests(
     @Test
     fun `t3 c21 the profile shows the address with which the person is inside and the way out`() {
         val address = Addresses.unique("profilo")
-        val session = signIn.session(address)
+        val session = signIn.session(address, teacher = true)
 
         for (path in listOf("/", "/convivenza", "/iscrizioni", "/arrivi", "/profilo")) {
             val html = body(mockMvc.get(path) { this.session = session }.andReturn())
@@ -576,8 +576,8 @@ class LoginFlowTests(
         // The pill of the profile is the current entry on the profile page, and only there.
         assertTrue(Regex("""<a href="/profilo" aria-current="page"""").containsMatchIn(profile))
         assertFalse(Regex("""<a href="/profilo" aria-current""").containsMatchIn(body(mockMvc.get("/") { this.session = session }.andReturn())))
-        // The initials: the first letter of the address, in capital.
-        assertTrue(Regex(""">${address.take(1).uppercase()}</span>""").containsMatchIn(profile))
+        // The initials: those of name and surname of a teacher (the helper makes Elisa Conti), in capital.
+        assertTrue(Regex(""">EC</span>""").containsMatchIn(profile))
     }
 
     @Test

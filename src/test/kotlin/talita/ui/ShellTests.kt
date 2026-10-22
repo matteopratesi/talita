@@ -4,7 +4,10 @@ import gg.jte.TemplateEngine
 import gg.jte.output.StringOutput
 import jakarta.servlet.RequestDispatcher
 import talita.TestcontainersConfiguration
+import talita.account.CurrentAccount
 import talita.account.MockSignIn
+import talita.account.TeacherName
+import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
@@ -33,9 +36,11 @@ class ShellTests(
     @Autowired private val navigation: Navigation,
     @Autowired private val engine: TemplateEngine,
     @Autowired tokens: OneTimeTokenService,
+    @Autowired dsl: DSLContext,
 ) {
 
-    private val signedInSession = MockSignIn(mockMvc, tokens).session()
+    // A teacher: the pages of the shell are those of the four sections (a parent has two, see RolesTests).
+    private val signedInSession = MockSignIn(mockMvc, tokens, dsl).session(teacher = true)
 
     private fun html(path: String): String = mockMvc.get(path) { session = signedInSession }.andReturn().response.contentAsString
 
@@ -122,13 +127,19 @@ class ShellTests(
     }
 
     @Test
-    fun `the navigation is a list built on every request, in order, with at most one current entry`() {
-        assertEquals(listOf("Home", "Convivenza", "Iscrizioni", "Arrivi"), navigation.items(null).map { it.label })
-        assertEquals(listOf("/", "/convivenza", "/iscrizioni", "/arrivi"), navigation.items(null).map { it.href })
-        assertEquals(emptyList(), navigation.items(null).filter { it.current })
-        assertEquals(listOf("Iscrizioni"), navigation.items(Section.ISCRIZIONI).filter { it.current }.map { it.label })
-        // A new list every time, so that the login can filter it by role and scope.
-        assertFalse(navigation.items(null) === navigation.items(null))
+    fun `the navigation is a list built on every request, in order, with at most one current entry, and the role decides which entries`() {
+        val teacher = CurrentAccount(1, "maestra", TeacherName("Elisa", "Conti"))
+        val parent = CurrentAccount(2, "genitore")
+
+        assertEquals(listOf("Home", "Convivenza", "Iscrizioni", "Arrivi"), navigation.items(null, teacher).map { it.label })
+        assertEquals(listOf("/", "/convivenza", "/iscrizioni", "/arrivi"), navigation.items(null, teacher).map { it.href })
+        assertEquals(emptyList(), navigation.items(null, teacher).filter { it.current })
+        assertEquals(listOf("Iscrizioni"), navigation.items(Section.ISCRIZIONI, teacher).filter { it.current }.map { it.label })
+        // A parent has two entries, a person with no account none of the sections of the teachers.
+        assertEquals(listOf("Home", "Iscrizioni"), navigation.items(null, parent).map { it.label })
+        assertEquals(listOf("Home", "Iscrizioni"), navigation.items(null, null).map { it.label })
+        // A new list every time, so that the role of this moment is the one that counts.
+        assertFalse(navigation.items(null, teacher) === navigation.items(null, teacher))
     }
 
     @Test
@@ -176,7 +187,7 @@ class ShellTests(
         val html = html("/")
 
         assertTrue(Regex("""<a href="/profilo"[^>]*class="group ml-auto""").containsMatchIn(html))
-        assertTrue(Regex("""<span aria-hidden="true" class="grid size-8 [^"]*">[A-Z]</span>\s*<span class="max-\[20rem\]:sr-only">Profilo</span>""").containsMatchIn(html), html)
+        assertTrue(Regex("""<span aria-hidden="true" class="grid size-8 [^"]*">[A-Z]{2}</span>\s*<span class="max-\[20rem\]:sr-only">Profilo</span>""").containsMatchIn(html), html)
         assertEquals(1, Regex("""href="/profilo"""").findAll(html).count())
         // On the page of the profile the pill is the current entry, and it is not on any other.
         assertTrue(Regex("""<a href="/profilo" aria-current="page"""").containsMatchIn(html("/profilo")))
