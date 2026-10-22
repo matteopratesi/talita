@@ -424,3 +424,16 @@ in quest'ordine, ognuno con la build verde.
   bottone che mostra la cima sopra la barra in basso del telefono è «in vista» ma coperto (negli e2e si centra
   prima, come fa chi scrolla); axe non gira in una pagina senza JavaScript e resta appeso, quindi le pagine di conferma
   si controllano con JavaScript acceso, inviando a mano il form del bottone.
+
+**Dopo la QA di D (tre difetti di layout sul telefono)**
+
+- **Il testo di una riga con azioni parte da 11 rem** (`min-w-0 flex-[1_1_11rem]`, come il mockup): con `flex-1` e basta,
+  a 360 px un indirizzo da 34 caratteri restava largo 17 px (una lettera per riga) e i bottoni restavano a destra
+  invece che sotto. Nella guida (4.3).
+- **Indirizzi e nomi vanno a capo ovunque** (`wrap-anywhere`) nei dialoghi, nella pagina di conferma, negli avvisi e nel
+  titolo di ogni pagina (`pageHead`): un nome di 100 lettere senza spazi faceva scorrere di lato il dialogo e tagliava
+  proprio quello che si chiede di confermare. `wrap-break-word` non basta dentro un flex: non abbassa la larghezza minima.
+- **`scroll-padding-top` e `scroll-padding-bottom` su `html`** (alti come intestazione e navigazione fisse, con la safe
+  area; zero da `lg`): l'avviso «Invito mandato.» prendeva il fuoco sotto l'intestazione. Chiude anche il dubbio sul
+  fuoco coperto dalla barra in basso (WCAG 2.2, 2.4.11), per tutte le pagine; nella guida (2.4 e 3.1).
+- I test e2e di questi casi (`MaestriLayoutE2eTest`) li ha scritti la QA e riproducevano i difetti prima della correzione.

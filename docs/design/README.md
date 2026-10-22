@@ -312,6 +312,18 @@ Da copiare in `src/main/css/app.css` (il percorso dei template va adattato se ca
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Le barre fisse del telefono non coprono quello che lo scorrimento porta in vista (il fuoco, un'ancora):
+       intestazione in alto (3.5rem) e navigazione in basso (4rem), più la safe area e un po' di respiro. */
+    scroll-padding-top: calc(3.5rem + env(safe-area-inset-top) + 0.5rem);
+    scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.5rem);
+  }
+
+  /* Da lg intestazione e navigazione stanno nella colonna a sinistra e non coprono il contenuto */
+  @media (min-width: 64rem) {
+    html {
+      scroll-padding-top: 0;
+      scroll-padding-bottom: 0;
+    }
   }
 
   :focus-visible {
@@ -510,6 +522,11 @@ Desktop (da 1024 px):
 │ (256 px)     │                       └───────────────┘ │
 └──────────────┴─────────────────────────────────────────┘
 ```
+
+**Il fuoco non resta sotto le barre.** Sul telefono l'intestazione sta in alto (56 px) e la navigazione in basso
+(64 px), entrambe fisse: quando lo scorrimento porta in vista un elemento (il fuoco che va a un avviso o a un campo, un'ancora), il browser lo mette al bordo dello schermo e le barre lo coprirebbero (WCAG 2.2, 2.4.11). Per questo `html` ha
+`scroll-padding-top` e `scroll-padding-bottom` alti come le barre, con la safe area e mezzo rem di respiro (2.4); da
+`lg`, dove le barre stanno nella colonna a sinistra, sono a zero. Vale per ogni pagina, non solo per «Maestri».
 
 Un solo HTML per i due layout: cambiano solo le classi `lg:`. Chi non è dentro (pagine di accesso e di errore) ha un guscio senza navigazione né profilo, vedi 3.5.
 
@@ -904,9 +921,16 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
   destra: sul telefono ruberebbe spazio al testo.
 - Righe non cliccabili (per esempio un elenco di sola lettura): stesso `li`, senza link e senza freccia.
 - Righe con azioni (l'elenco dei maestri, gli inviti): il contenuto sta in un `div` (non un link) con
-  `flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3`; i bottoni di testo (4.1, `min-h-11`) vanno a
-  capo sotto il testo se non c'è spazio, con `-ml-3` sul telefono perché il loro testo si allinei a quello della
-  riga. Un `form` per bottone, con il suo codice CSRF; l'azione che ha conseguenze apre un dialogo (4.8).
+  `flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3`. Il blocco del testo ha **`min-w-0
+  flex-[1_1_11rem]`**: parte da 11 rem e cresce, e se accanto non c'è posto per quella larghezza i bottoni vanno a
+  capo sotto di lui, invece di stringerlo (con `flex-1` e basta un indirizzo da 34 caratteri restava largo 17 px, una
+  lettera per riga). I bottoni di testo (4.1, `min-h-11`) hanno `-ml-3` sul telefono perché il loro testo si allinei a
+  quello della riga e, da 640 px, `sm:ml-0 sm:shrink-0`: stanno a destra senza stringersi. Un `form` per bottone, con
+  il suo codice CSRF; l'azione che ha conseguenze apre un dialogo (4.8).
+- Indirizzi e nomi sono testo di chi li ha scritti e non hanno spazi dove andare a capo (un indirizzo, un nome di
+  100 lettere): `wrap-anywhere` (`overflow-wrap: anywhere`) sul testo che li contiene, non `wrap-break-word`, che non
+  restringe la larghezza minima del blocco dentro un flex. Vale in questa lista, nei dialoghi (4.8), negli avvisi (4.6)
+  e nel titolo della pagina (`pageHead`).
 - Lista vuota: si mostra lo stato vuoto (4.9), mai una lista senza righe.
 - Liste lunghe: ricerca in cima; la paginazione o il "Mostra altre" li decide il ticket della
   schermata.
@@ -957,7 +981,7 @@ Un messaggio che resta nella pagina finché la situazione non cambia.
 ```html
 <div class="flex items-start gap-3 rounded-xl bg-brand-soft p-4">
   <svg class="size-6 shrink-0 text-brand" aria-hidden="true">…info…</svg>
-  <p>Le iscrizioni chiudono il 30 novembre 2026.</p>
+  <p class="min-w-0 wrap-anywhere">Le iscrizioni chiudono il 30 novembre 2026.</p>
 </div>
 ```
 
@@ -1020,8 +1044,8 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
 ```html
 <dialog id="conferma-ritiro" aria-labelledby="conferma-titolo" aria-describedby="conferma-testo"
         class="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl bg-surface px-gutter pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ink shadow-xl backdrop:bg-ink/50 motion-safe:animate-sheet-in sm:m-auto sm:max-w-md sm:rounded-2xl sm:p-6">
-  <h2 id="conferma-titolo" class="text-xl font-semibold tracking-tight">Ritirare l’iscrizione?</h2>
-  <p id="conferma-testo" class="mt-2 text-ink-muted">L’iscrizione di Marta Bianchi alla convivenza di settembre 2027 risulterà ritirata. Resta nell’elenco, con lo stato «Ritirata».</p>
+  <h2 id="conferma-titolo" class="text-xl font-semibold tracking-tight wrap-anywhere">Ritirare l’iscrizione?</h2>
+  <p id="conferma-testo" class="mt-2 text-ink-muted wrap-anywhere">L’iscrizione di Marta Bianchi alla convivenza di settembre 2027 risulterà ritirata. Resta nell’elenco, con lo stato «Ritirata».</p>
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
     <button type="submit" form="form-ritiro" class="… primario … w-full sm:w-auto">Ritira l’iscrizione</button>
     <form method="dialog" class="contents"><button autofocus class="… secondario … w-full sm:w-auto">Annulla</button></form>
@@ -1034,6 +1058,8 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
 - Sul telefono sale dal basso a tutta larghezza; da 640 px compare al centro, largo al massimo
   448 px.
 - Il fuoco iniziale va su "Annulla" (`autofocus`).
+- Titolo e testo hanno `wrap-anywhere`: un indirizzo o un nome lungo, senza spazi, va a capo dentro il dialogo e non
+  lo fa scorrere di lato (taglierebbe proprio quello che si chiede di confermare).
 - Titolo = la domanda con il verbo. Testo = cosa succede, con numeri, nomi e data, e cosa resta.
   Bottone = lo stesso verbo del titolo. Mai "Sei sicuro?", mai "OK" o "Sì".
 - Il bottone è primario se l'azione si può rimediare (ritiro: l'iscrizione resta nell'elenco), di pericolo se
