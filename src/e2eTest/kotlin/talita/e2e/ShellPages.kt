@@ -75,6 +75,14 @@ internal fun Page.waitForSettledContent() {
     waitUntil("document.querySelector('main').getAnimations().every(a => a.playState === 'finished')")
 }
 
+/**
+ * Waits until the entrance animation of the open messages is over (they fade in, and the colors that axe reads while it runs are
+ * those of a half transparent message): with no message open there is nothing to wait for.
+ */
+internal fun Page.waitForSettledMessages() {
+    waitUntil("Array.from(document.querySelectorAll('#messaggi [role=alert]')).every(m => m.getAnimations().every(a => a.playState === 'finished'))")
+}
+
 // The Playwright API says "maybe null"; in a test a missing value is a failure with a message.
 internal fun Locator.box(): BoundingBox = requireNotNull(boundingBox()) { "the element has no box: $this" }
 
