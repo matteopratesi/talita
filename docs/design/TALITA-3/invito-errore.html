@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Accetta l’invito · Talità</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-3: dati e testi sintetici, nessuna risorsa esterna. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="home-genitore.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="profilo-genitore.html"><span class="profile-pill__initials" aria-hidden="true">N</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="home-genitore.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="iscrizioni-genitore.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container container--narrow">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Accetta l’invito</h1>
+      <p class="lead">Ti hanno invitato a organizzare la convivenza come maestro. Il tuo nome compare nell’elenco dei maestri e nei documenti della convivenza.</p>
+    </div>
+    <div class="mb-5"><div class="alert alert--danger" role="alert" tabindex="-1" data-fuoco><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg><div><p>Controlla i 2 campi segnati in rosso.</p></div></div></div>
+    <form class="card" method="post" action="home-maestro-invito-accettato.html" novalidate>
+      <div class="field">
+        <label class="label" for="nome">Nome</label>
+        <input class="input" id="nome" name="nome" type="text" autocomplete="given-name" autocapitalize="words" aria-describedby="nome-errore" aria-invalid="true">
+        <p class="error" id="nome-errore"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>Scrivi il nome.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="cognome">Cognome</label>
+        <input class="input" id="cognome" name="cognome" type="text" autocomplete="family-name" autocapitalize="words" aria-describedby="cognome-errore" aria-invalid="true">
+        <p class="error" id="cognome-errore"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>Scrivi il cognome.</p>
+      </div>
+      <div class="form-actions"><div class="actions"><button class="btn btn--primary btn--block" type="submit">Accetta l’invito</button><a class="btn btn--secondary btn--block" href="home-genitore-invito.html">Più tardi</a></div></div>
+    </form>
+    <p class="hint mt-4">Se non ti aspettavi questo invito, tocca «Più tardi»: non cambia niente.</p>
+  </div>
+</main>
+<div class="toasts" aria-live="polite"><div class="toast" id="rete-assente" role="alert"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="toast__icon"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg><div><p class="toast__title">Nessuna connessione</p><p class="toast__text">Controlla di avere campo o il Wi-Fi e riprova.</p></div><a class="toast__close" href="#" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a></div></div>
+
+</body>
+</html>
