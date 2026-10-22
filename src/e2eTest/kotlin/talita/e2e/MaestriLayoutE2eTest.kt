@@ -101,6 +101,37 @@ class MaestriLayoutE2eTest {
         assertAccessible(page, "Maestri with an invitation (${e2e.profile.label})")
     }
 
+    // ---- c40: the row of a teacher with a name in one long word ----------------------------------------------------------------
+
+    /**
+     * A name made of one long word (a real one of 24 letters, or the 100 that the form allows) must break inside the column of the
+     * name: not run under «Togli» (the column is about 178 px wide on a phone) and not go out of the row, where the list cuts it.
+     */
+    @E2eTest
+    fun `c40 the name of a teacher in one long word stays in its column, off the button Togli and inside the row`(e2e: E2e) {
+        val page = e2e.page
+        for (first in listOf("Wolfeschlegelsteinhausen", "Bartolomea".repeat(10))) {
+            e2e.onlyTeachers(others = listOf(Triple(Addresses.unique("e2e-parola-lunga"), first, "Rossi")))
+            e2e.open("/maestri")
+            page.waitForSettledContent()
+            val where = "'${first.take(24)}' (${first.length} letters)"
+
+            val row = page.row("$first Rossi")
+            val name = row.getByText("$first Rossi", Locator.GetByTextOptions().setExact(true))
+            val rowBox = row.box()
+            val nameBox = name.box()
+            val button = row.buttonNamed("Togli").box()
+
+            assertTrue(nameBox.x + nameBox.width <= rowBox.x + rowBox.width + 1, "$where: the name ends at ${nameBox.x + nameBox.width} px and the row at ${rowBox.x + rowBox.width}")
+            assertTrue(!name.contentIsWiderThanTheBox(), "$where: the text of the name is wider than its box")
+            val sideBySide = nameBox.x < button.x + button.width && button.x < nameBox.x + nameBox.width
+            val sameHeight = nameBox.y < button.y + button.height && button.y < nameBox.y + nameBox.height
+            assertTrue(!(sideBySide && sameHeight), "$where: the name (x ${nameBox.x}, ${nameBox.width} px wide) is under «Togli» (x ${button.x})")
+            assertEquals(0, page.sidewaysScroll(), "$where: the page scrolls sideways")
+        }
+        assertAccessible(page, "Maestri with a long name (${e2e.profile.label})")
+    }
+
     // ---- c43 and c45: the dialogs with a long address or name ------------------------------------------------------------------
 
     /**
