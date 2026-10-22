@@ -219,6 +219,22 @@ class ProjectFilesTests {
     }
 
     @Test
+    fun `t14 c20 the entries of the decision log go from the oldest to the newest`() {
+        val log = read("docs/05-decisioni.md")
+
+        // The line 3 of the log promises it: "dalla più vecchia alla più recente".
+        assertTrue(log.contains("dalla più vecchia alla più recente"))
+        val dates = entryDates(log)
+        assertTrue(dates.size >= 7, "the log has only ${dates.size} entries")
+        assertTrue(datesNeverDescend(dates), "the entries are not in order of date: $dates")
+
+        // The rule itself: equal dates are fine, a date that goes back is not.
+        assertTrue(datesNeverDescend(listOf("2026-10-19", "2026-10-19", "2026-10-21", "2026-11-02")))
+        assertFalse(datesNeverDescend(listOf("2026-10-21", "2026-10-19")))
+        assertFalse(datesNeverDescend(listOf("2026-10-19", "2026-10-21", "2026-10-20")))
+    }
+
+    @Test
     fun `t2 c21 the design guide is the one of Talita and its navigation table is the one of the code`() {
         val guide = read("docs/design/README.md")
 
@@ -274,6 +290,13 @@ class ProjectFilesTests {
     }
 
     // ---- Support ------------------------------------------------------------------------------------
+
+    /** The dates of the headings `## AAAA-MM-GG: ...` of the decision log, in the order they appear. */
+    private fun entryDates(log: String): List<String> =
+        Regex("""(?m)^## (\d{4}-\d{2}-\d{2})\b""").findAll(log).map { it.groupValues[1] }.toList()
+
+    /** ISO dates compare as text. */
+    private fun datesNeverDescend(dates: List<String>): Boolean = dates.zipWithNext().all { (before, after) -> before <= after }
 
     /** Files under docs/, as paths relative to docs/ (the mockups of the origin are html and css). */
     private fun docsFiles(): List<String> = Files.walk(root.resolve("docs")).use { stream ->
