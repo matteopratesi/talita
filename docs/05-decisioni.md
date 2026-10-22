@@ -7,6 +7,92 @@ Le prime voci sono ereditate da Koinè, l'applicazione da cui Talità nasce: rip
 l'origine (registro delle decisioni di Koinè, commit `23ea63d`). I rimandi «KOINE-N» sono ai
 ticket di Koinè.
 
+## 2026-10-19: design system (KOINE-11)
+
+Origine: registro delle decisioni di Koinè, voce «design system (KOINE-11)». Guida completa in
+`docs/design/README.md`, mockup di origine in `docs/design/KOINE-11/`.
+
+- **Font Inter 4.1** (OFL 1.1), servito dall'app in due sottoinsiemi woff2 (latino circa 48 KB,
+  latino esteso solo quando serve): aspetto da app, ottima leggibilità a schermo, cifre tabulari,
+  copre i nomi stranieri. Variante `cv08` accesa per distinguere I da l. Scartati Atkinson
+  Hyperlegible Next (aspetto istituzionale) e i font di sistema.
+- **Icone Lucide** (ISC), SVG inline nei template: nessun file in più da scaricare.
+- **Colori come token semantici** con la palette di Tailwind spenta: blu profondo per le azioni,
+  neutri caldi, contrasti verificati (testo principale oltre AAA).
+- **Due layout**: telefono con navigazione in basso, desktop da 1024 px con navigazione a sinistra.
+  Testo base a 17 px, bottoni alti 48 px.
+- **Navigazione**: in Koinè quattro voci approvate il 19/10/2026; in Talità le voci sono quelle di
+  TALITA-2 (sopra).
+
+## 2026-10-19: spike JTE (KOINE-11), si resta su JTE
+
+Origine: registro delle decisioni di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
+4.1.1, Gradle 9.8.1, JDK 25 (toolchain) e Kotlin 2.3.21: **JTE 3.2.4 funziona, senza workaround**.
+Thymeleaf non serve.
+
+- **Versioni**: plugin `gg.jte.gradle` 3.2.4 e `gg.jte:jte-spring-boot-starter-4` 3.2.4 (stessa
+  versione, richiesto da JTE). Lo starter è compilato contro Boot 4.0.2 ma gira su 4.1.1 senza
+  toccare l'autoconfigurazione.
+- **`generate()` al posto di `precompile()`**: il plugin scrive sorgenti Java in
+  `build/generated-sources/jte` e li compila `compileJava` come tutto il resto, quindi le classi dei
+  template finiscono nel `bootJar` (casid/jte#438 non si presenta). Lo verifica
+  `scripts/smoke-test-jar.sh`: il jar avviato da una cartella fuori dal repo, senza profili,
+  risponde 200 su `/` con la pagina del template. Lo stesso script gira in CI.
+- **Template Java, modelli Kotlin**: i template sono `.jte` (non `.kte`, che fissa il compilatore
+  Kotlin a 2.2.20) e leggono i modelli Kotlin dai getter (`page.getTitle()`). Una proprietà
+  inesistente fa fallire `compileJava`.
+- **Profili**: senza profili i template sono quelli precompilati; il profilo `dev`, impostato da
+  `bootRun`, accende la modalità sviluppo e ricarica i `.jte` da `src/main/jte` a ogni richiesta.
+  Le due modalità non convivono.
+- **Pacchetto `ui`**: layout, navigazione, pagine di errore e supporto htmx. In Koinè era un modulo
+  condiviso di Modulith; in Talità è un pacchetto (`talita.ui`) senza regole di confine.
+
+## 2026-10-19: asset, e2e e guscio (KOINE-11)
+
+Origine: registro delle decisioni di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
+sviluppando il guscio, oltre a quelle del design.
+
+- **Tailwind 4.3.3 standalone, senza Node**: il binario si scarica una volta nella cache di Gradle,
+  fuori da `build/`. Versione e SHA-256 stanno solo in `build.gradle.kts` (mai scaricati insieme al
+  binario) e si verificano prima di ogni uso: se non corrispondono, la build si ferma senza
+  eseguirlo. Solo `linux-x64` per ora.
+- **htmx 2.0.11 vendorizzato**, con licenza (0BSD) e fonte accanto; `AssetTests` ne confronta
+  l'hash con l'SRI pubblicato da htmx.org. Il WebJar è scartato: il suo `latest` è la 4.
+- **Font Inter 4.1** in due sottoinsiemi woff2 prodotti con fonttools (comandi e hash in
+  `static/fonts/README.txt`). La catena delle risorse di Spring calcola l'impronta del CSS *prima*
+  di riscrivere gli indirizzi dei font: nel CSS c'è una riga `/*! fonts: … */` con l'inizio degli
+  hash, e un test fallisce se non è aggiornata.
+- **Cache di un anno** sui file con l'impronta (`max-age=31536000, public`).
+- **Icone Lucide 1.59.0** in un solo template (`components/icon.jte`) scelto con un enum: ogni
+  tracciato è scritto una volta, un test controlla che nessuna icona dell'enum manchi.
+- **Playwright Java 1.63.0 + axe-core 4.14.0** (stessa versione, richiesta dal pacchetto). Ciclo di
+  vita gestito in un'estensione JUnit propria (`@E2eTest` gira in telefono e desktop, traccia e
+  screenshot su fallimento). Solo Chromium; il task `playwrightInstall` lo scarica e Playwright non
+  ne scarica altri.
+- **«Vale l'ultimo tocco» solo fra i cambi di pagina**, in `app.js`: un `hx-sync` sul `body`
+  legherebbe fra loro tutte le richieste della pagina. Anche la richiesta di un indietro o di un
+  avanti è un cambio di pagina.
+- **Indietro**: se il ripristino dal server risponde 404 o 500, `app.js` ricarica la pagina; senza
+  rete la pagina resta com'è, compare il messaggio e l'indirizzo torna a quello della pagina che si
+  vede.
+- **Barra di caricamento senza lampeggio** e **etichette della navigazione a 320 px**: margine
+  laterale della navigazione `px-1` e nessun margine nell'etichetta, così le voci sono larghe 78 px
+  e l'etichetta si legge intera.
+- **htmx scrive in `sessionStorage`** il percorso corrente anche con `historyCacheSize: 0`: `app.js`
+  toglie quella chiave dopo ogni cambio di pagina. Le copie delle pagine non vengono salvate.
+- **Pagine di errore**: un `ErrorController` nostro sostituisce quello di Spring Boot. 5xx mostra
+  «Qualcosa non ha funzionato», ogni altro errore del client «Pagina non trovata». «Riprova» c'è
+  solo per una lettura (GET) e solo verso un indirizzo di quest'app (mai `//host`).
+- **Errori htmx** in `app.js`: 404 e 500 di un cambio di pagina si mostrano come pagine; altri
+  errori, rete assente e tempo scaduto (20 s) lasciano la pagina com'è e mostrano un messaggio.
+
+## 2026-10-19: un solo ticket, sviluppo subito (KOINE-11)
+
+Origine: registro delle decisioni di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
+branch e una PR e le parti come passi in ordine, perché le parti servono solo insieme (il guscio si
+verifica solo con gli e2e) e il QA controlla tutti i criteri in una volta. Per TALITA-2 vale la
+stessa scelta.
+
 ## 2026-10-21: nascita di Talità (KOINE-29)
 
 Esito dell'intervista a Matteo sulla convivenza dei bambini, approvato da lui il 21/10/2026.
@@ -129,89 +215,3 @@ unico invece dei tre proposti dall'analisi).
 - **Test ereditati**: gli stessi e2e di Koinè (guscio, layout, responsive, cronologia, caricamento,
   messaggi, errori, accessibilità con axe), su telefono e desktop; cambiano etichette, percorsi e
   testi attesi.
-
-## 2026-10-19: design system (KOINE-11)
-
-Origine: registro delle decisioni di Koinè, voce «design system (KOINE-11)». Guida completa in
-`docs/design/README.md`, mockup di origine in `docs/design/KOINE-11/`.
-
-- **Font Inter 4.1** (OFL 1.1), servito dall'app in due sottoinsiemi woff2 (latino circa 48 KB,
-  latino esteso solo quando serve): aspetto da app, ottima leggibilità a schermo, cifre tabulari,
-  copre i nomi stranieri. Variante `cv08` accesa per distinguere I da l. Scartati Atkinson
-  Hyperlegible Next (aspetto istituzionale) e i font di sistema.
-- **Icone Lucide** (ISC), SVG inline nei template: nessun file in più da scaricare.
-- **Colori come token semantici** con la palette di Tailwind spenta: blu profondo per le azioni,
-  neutri caldi, contrasti verificati (testo principale oltre AAA).
-- **Due layout**: telefono con navigazione in basso, desktop da 1024 px con navigazione a sinistra.
-  Testo base a 17 px, bottoni alti 48 px.
-- **Navigazione**: in Koinè quattro voci approvate il 19/10/2026; in Talità le voci sono quelle di
-  TALITA-2 (sopra).
-
-## 2026-10-19: spike JTE (KOINE-11), si resta su JTE
-
-Origine: registro delle decisioni di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
-4.1.1, Gradle 9.8.1, JDK 25 (toolchain) e Kotlin 2.3.21: **JTE 3.2.4 funziona, senza workaround**.
-Thymeleaf non serve.
-
-- **Versioni**: plugin `gg.jte.gradle` 3.2.4 e `gg.jte:jte-spring-boot-starter-4` 3.2.4 (stessa
-  versione, richiesto da JTE). Lo starter è compilato contro Boot 4.0.2 ma gira su 4.1.1 senza
-  toccare l'autoconfigurazione.
-- **`generate()` al posto di `precompile()`**: il plugin scrive sorgenti Java in
-  `build/generated-sources/jte` e li compila `compileJava` come tutto il resto, quindi le classi dei
-  template finiscono nel `bootJar` (casid/jte#438 non si presenta). Lo verifica
-  `scripts/smoke-test-jar.sh`: il jar avviato da una cartella fuori dal repo, senza profili,
-  risponde 200 su `/` con la pagina del template. Lo stesso script gira in CI.
-- **Template Java, modelli Kotlin**: i template sono `.jte` (non `.kte`, che fissa il compilatore
-  Kotlin a 2.2.20) e leggono i modelli Kotlin dai getter (`page.getTitle()`). Una proprietà
-  inesistente fa fallire `compileJava`.
-- **Profili**: senza profili i template sono quelli precompilati; il profilo `dev`, impostato da
-  `bootRun`, accende la modalità sviluppo e ricarica i `.jte` da `src/main/jte` a ogni richiesta.
-  Le due modalità non convivono.
-- **Pacchetto `ui`**: layout, navigazione, pagine di errore e supporto htmx. In Koinè era un modulo
-  condiviso di Modulith; in Talità è un pacchetto (`talita.ui`) senza regole di confine.
-
-## 2026-10-19: asset, e2e e guscio (KOINE-11)
-
-Origine: registro delle decisioni di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
-sviluppando il guscio, oltre a quelle del design.
-
-- **Tailwind 4.3.3 standalone, senza Node**: il binario si scarica una volta nella cache di Gradle,
-  fuori da `build/`. Versione e SHA-256 stanno solo in `build.gradle.kts` (mai scaricati insieme al
-  binario) e si verificano prima di ogni uso: se non corrispondono, la build si ferma senza
-  eseguirlo. Solo `linux-x64` per ora.
-- **htmx 2.0.11 vendorizzato**, con licenza (0BSD) e fonte accanto; `AssetTests` ne confronta
-  l'hash con l'SRI pubblicato da htmx.org. Il WebJar è scartato: il suo `latest` è la 4.
-- **Font Inter 4.1** in due sottoinsiemi woff2 prodotti con fonttools (comandi e hash in
-  `static/fonts/README.txt`). La catena delle risorse di Spring calcola l'impronta del CSS *prima*
-  di riscrivere gli indirizzi dei font: nel CSS c'è una riga `/*! fonts: … */` con l'inizio degli
-  hash, e un test fallisce se non è aggiornata.
-- **Cache di un anno** sui file con l'impronta (`max-age=31536000, public`).
-- **Icone Lucide 1.59.0** in un solo template (`components/icon.jte`) scelto con un enum: ogni
-  tracciato è scritto una volta, un test controlla che nessuna icona dell'enum manchi.
-- **Playwright Java 1.63.0 + axe-core 4.14.0** (stessa versione, richiesta dal pacchetto). Ciclo di
-  vita gestito in un'estensione JUnit propria (`@E2eTest` gira in telefono e desktop, traccia e
-  screenshot su fallimento). Solo Chromium; il task `playwrightInstall` lo scarica e Playwright non
-  ne scarica altri.
-- **«Vale l'ultimo tocco» solo fra i cambi di pagina**, in `app.js`: un `hx-sync` sul `body`
-  legherebbe fra loro tutte le richieste della pagina. Anche la richiesta di un indietro o di un
-  avanti è un cambio di pagina.
-- **Indietro**: se il ripristino dal server risponde 404 o 500, `app.js` ricarica la pagina; senza
-  rete la pagina resta com'è, compare il messaggio e l'indirizzo torna a quello della pagina che si
-  vede.
-- **Barra di caricamento senza lampeggio** e **etichette della navigazione a 320 px**: margine
-  laterale della navigazione `px-1` e nessun margine nell'etichetta, così le voci sono larghe 78 px
-  e l'etichetta si legge intera.
-- **htmx scrive in `sessionStorage`** il percorso corrente anche con `historyCacheSize: 0`: `app.js`
-  toglie quella chiave dopo ogni cambio di pagina. Le copie delle pagine non vengono salvate.
-- **Pagine di errore**: un `ErrorController` nostro sostituisce quello di Spring Boot. 5xx mostra
-  «Qualcosa non ha funzionato», ogni altro errore del client «Pagina non trovata». «Riprova» c'è
-  solo per una lettura (GET) e solo verso un indirizzo di quest'app (mai `//host`).
-- **Errori htmx** in `app.js`: 404 e 500 di un cambio di pagina si mostrano come pagine; altri
-  errori, rete assente e tempo scaduto (20 s) lasciano la pagina com'è e mostrano un messaggio.
-
-## 2026-10-19: un solo ticket, sviluppo subito (KOINE-11)
-
-Origine: registro delle decisioni di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
-branch e una PR e le parti come passi in ordine, perché le parti servono solo insieme (il guscio si
-verifica solo con gli e2e) e il QA controlla tutti i criteri in una volta. Per TALITA-2 vale la
-stessa scelta.
