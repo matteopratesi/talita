@@ -1,8 +1,27 @@
 # The datasource comes from compose.yaml in development, from Testcontainers in tests
 # and from SPRING_DATASOURCE_* environment variables on the server.
+#
+# The mail server (SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD)
+# and the sender (TALITA_MAIL_FROM) come from the environment as well, see docs/04-ambiente.md.
+# No host, user, password or address is written here: without a host the application starts
+# anyway, without mail, and says so in the log.
 spring:
   application:
     name: talita
+  mail:
+    properties:
+      mail:
+        smtp:
+          # The connection to the mail server is always encrypted; only the dev profile and the
+          # tests, which talk to a local Mailpit that has no certificate, switch this off.
+          starttls:
+            enable: true
+            required: true
+          # Milliseconds. Without these three a silent server would hold the request for ever; with
+          # them the sending fails in about 10 seconds, before the 20 of htmx.
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   web:
     resources:
       chain:
@@ -16,6 +35,13 @@ spring:
         cachecontrol:
           max-age: 365d
           cache-public: true
+
+management:
+  health:
+    mail:
+      # A mail server that is down must not turn the health of the application DOWN: the application
+      # works, and only the sending of links fails (the person is told so).
+      enabled: false
 
 gg:
   jte:

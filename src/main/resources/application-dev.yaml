@@ -4,6 +4,17 @@ server:
   port: 8081
 
 spring:
+  mail:
+    # The Mailpit of compose.yaml: it catches every mail and shows it at http://localhost:8026.
+    # Ports 1026 and 8026, not the usual 1025 and 8025, which belong to another project on the same PC.
+    host: 127.0.0.1
+    port: 1026
+    properties:
+      mail:
+        smtp:
+          starttls:
+            enable: false
+            required: false
   web:
     resources:
       # The CSS is served straight from build/, where `./gradlew tailwindWatch` rewrites it
@@ -13,6 +24,12 @@ spring:
         - classpath:/static/
       chain:
         cache: false
+
+talita:
+  # The links in the mails start with this address (in production TALITA_PUBLIC_URL).
+  public-url: http://localhost:8081
+  mail:
+    from: nome@example.org
 
 gg:
   jte:

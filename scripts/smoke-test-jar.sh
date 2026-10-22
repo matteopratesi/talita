@@ -82,6 +82,18 @@ if ! grep -q "Ti diamo il benvenuto" "$workdir/home.html" || ! grep -q "<title>T
   exit 1
 fi
 
+# No profile and no spring.mail.host: the application starts without mail (health UP) and the log says so.
+health="$(curl -s "http://127.0.0.1:$app_port/actuator/health" || true)"
+if ! grep -q '"status":"UP"' <<<"$health"; then
+  echo "GET /actuator/health did not answer UP: $health" >&2
+  exit 1
+fi
+if ! grep -q "Mail is not configured" "$workdir/app.log"; then
+  echo "The log does not warn that the mail is not configured:" >&2
+  tail -n 40 "$workdir/app.log" >&2
+  exit 1
+fi
+
 # The static files that the page points to are in the jar too, with their fingerprint in the URL.
 for pattern in '/css/app-[0-9a-f]*\.css' '/js/htmx\.min-[0-9a-f]*\.js' '/js/app-[0-9a-f]*\.js' '/fonts/inter-latin-[0-9a-f]*\.woff2'; do
   asset="$(grep -o "$pattern" "$workdir/home.html" | head -n 1 || true)"

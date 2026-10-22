@@ -54,7 +54,7 @@ Il codice è generato dall'IA: gli errori devono emergere in build o nei test, n
 - UI server-side: template JTE 3.2.4 (`.jte`, compilati e tipizzati) + htmx 2.0.11 + Tailwind 4.3.3 con il binario standalone, senza Node né npm. Niente SPA. JS, CSS e font serviti dall'app, mai da CDN.
 - Spring Security 7 con one-time token login (magic link): la mail la manda l'app, i token stanno in `JdbcOneTimeTokenService` (TALITA-3).
 - Test: JUnit 6 + Testcontainers 2 su Postgres vero, e2e con Playwright 1.63.0 (Chromium, telefono e desktop) e axe-core 4.14.0.
-- Docker Compose per lo sviluppo; destinazione del deploy Oracle Cloud Always Free (Oracle A1, ARM) in una regione UE, con backup cifrati fuori sede (TALITA-8). Il binario di Tailwind ha il checksum solo per `linux-x64`: la build per ARM si decide in TALITA-8.
+- Docker Compose per lo sviluppo (Postgres e Mailpit, che prende la posta; mai un server di posta vero in sviluppo e nei test); destinazione del deploy Oracle Cloud Always Free (Oracle A1, ARM) in una regione UE, con backup cifrati fuori sede (TALITA-8). Il binario di Tailwind ha il checksum solo per `linux-x64`: la build per ARM si decide in TALITA-8.
 
 Kotlin passa alla 2.4 insieme a Spring Boot 4.2. Prima di ogni aggiornamento, controlla le versioni gestite dal BOM di Boot.
 
