@@ -1,7 +1,7 @@
-# Local development only: test credentials, synthetic data, port bound to localhost.
+# Local development only: test credentials, synthetic data, ports bound to localhost.
 # Spring Boot starts this file on bootRun (spring-boot-docker-compose).
-# Host port 5433 (not 5432) so that this database and the one of another project on the same PC
-# do not collide; the dev profile runs the app on 8081 for the same reason.
+# Host ports 5433, 1026 and 8026 (not 5432, 1025 and 8025) so that these services and the ones of
+# another project on the same PC do not collide; the dev profile runs the app on 8081 for the same reason.
 services:
   postgres:
     image: postgres:18
@@ -15,6 +15,26 @@ services:
       - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U talita -d talita"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The mail server of development: it accepts every mail and keeps it, it sends nothing out (no
+  # relay is configured). The mails are read at http://localhost:8026. Same version as the tests
+  # (MailpitContainer).
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    environment:
+      # Mailpit would otherwise ask GitHub, on every start, whether there is a newer version...
+      MP_DISABLE_VERSION_CHECK: "true"
+      # ...and look up in the DNS the name of whoever sends the mail: five seconds for every mail where
+      # the network does not answer for the address of the Docker bridge.
+      MP_SMTP_DISABLE_RDNS: "true"
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
       timeout: 3s
       retries: 10

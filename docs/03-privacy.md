@@ -5,8 +5,9 @@ quello che si sa, quello che si prevede di fare e quello che resta da verificare
 competente prima del rilascio. Le parti da verificare sono segnate come tali.
 
 Gli scopi di ogni dato personale sono in `docs/02-modello-dati.md`, le regole di lavoro in
-`CLAUDE.md`. Di quello che segue, TALITA-2 (il repo e il guscio) non tocca nessun dato personale: le
-misure e i tempi diventano veri con i ticket indicati.
+`CLAUDE.md`. TALITA-2 (il repo e il guscio) non tocca nessun dato personale; con TALITA-3 nascono gli
+account (indirizzi email) e le misure dell'accesso descritte sotto. Le altre misure e i tempi diventano
+veri con i ticket indicati.
 
 ## Titolare e interessati
 
@@ -46,6 +47,10 @@ far verificare.
   pare quella strada non c'è, da verificare**. L'ipotesi più semplice è chiedere al genitore il consenso esplicito anche per
   questo, insieme all'iscrizione e non solo per le segnalazioni. Si decide con il testo
   dell'informativa (TALITA-5).
+- **Account dei genitori** (l'indirizzo email con cui si entra, che nasce al primo accesso riuscito e
+  non ha altro dentro): è il servizio chiesto dal genitore, che senza un accesso non può iscrivere i
+  figli. Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b); da verificare. L'accesso non
+  dipende dalla convivenza: il genitore entra sempre, e dal suo account esercita i diritti (sotto).
 - **Account dei maestri** (inviti e accesso): ipotesi di legittimo interesse del titolare
   a organizzare la convivenza con i maestri che partecipano; da verificare.
 
@@ -57,18 +62,39 @@ CLAUDE.md). Niente analytics, CDN, font o script esterni: lo garantisce anche un
 | Fornitore | Cosa riceve | Note |
 | --- | --- | --- |
 | Hosting: Oracle Cloud Always Free, regione UE | Tutti i dati dell'app, nel database | Senza Pay As You Go: nessun costo possibile. Matteo, come titolare, accetta l'accordo sul trattamento dei dati (art. 28) quando apre l'account (TALITA-9). |
-| Invio email: Mailjet (Parigi, piano gratuito) | Indirizzo email del destinatario e testo del messaggio (il magic link, gli inviti) | Stessa cosa per l'accordo (TALITA-9). |
+| Invio email: Mailjet (Parigi, piano gratuito) | Indirizzo email del destinatario e testo del messaggio (il magic link, gli inviti) | Stessa cosa per l'accordo (TALITA-9). **Senza tracciamento di aperture e clic**: ogni mail porta le intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`, e il tracciamento si spegne anche nell'account (TALITA-9). Solo testo, senza immagini né link rimandati da Mailjet. |
 | Backup cifrati fuori sede | Una copia del database, **cifrata prima di lasciare la macchina**, con la chiave che resta al titolare | Fornitore da scegliere in TALITA-8. |
 
 Non ricevono dati personali degli interessati: il dominio e il servizio DNS (conoscono solo il nome
 del sito), GitHub e la CI (solo codice e dati sintetici) e Jira (nei ticket mai dati personali).
+**Mailpit**, che in sviluppo e nei test prende la posta al posto di Mailjet, gira solo in locale e non
+inoltra niente: non è un fornitore.
 
 ## Misure
 
 Previste dal progetto, con il ticket in cui diventano vere:
 
 - **Accesso per persona** con magic link, senza password condivise (TALITA-3). Due ruoli: il
-  maestro vede tutta la convivenza, il genitore solo i suoi figli (TALITA-3 e TALITA-5, con test).
+  maestro vede tutta la convivenza, il genitore solo i suoi figli (TALITA-3 e TALITA-5, con test). Come
+  funziona l'accesso, in concreto (TALITA-3):
+  - **Il link** vale 15 minuti e si usa una sola volta. Aprirlo non fa entrare: la pagina chiede un tocco
+    su «Entra» (un POST con codice CSRF), perché i programmi di posta aprono i link per guardarli. Un link
+    usato sparisce dalla tabella subito, uno scaduto entro un'ora.
+  - **La stessa risposta per ogni indirizzo**: chi scrive un indirizzo con un account e chi ne scrive uno
+    senza vedono la stessa pagina, con lo stesso stato e lo stesso testo. Il link nasce in un solo punto,
+    con la validazione dell'indirizzo e i limiti: 3 link ogni 15 minuti per indirizzo e 150 mail ogni 24
+    ore in tutto (sotto la quota gratuita di Mailjet), contati in memoria.
+  - **L'indirizzo del link** viene da `TALITA_PUBLIC_URL` e mai dall'intestazione `Host`, che chi attacca
+    può falsificare.
+  - **La sessione** sta in memoria (si perde al riavvio) e finisce dopo due ore senza usarla. Il cookie
+    porta solo l'id di sessione, è `HttpOnly`, `SameSite=Lax` e `Secure` in HTTPS, e l'id cambia a ogni
+    accesso. Le pagine di chi è dentro non si tengono nel browser (`Cache-Control: no-store`).
+  - **Content-Security-Policy** su ogni risposta (solo risorse dell'app, niente script né stili in linea,
+    nessun frame), `Referrer-Policy: same-origin`, `X-Content-Type-Options: nosniff`.
+  - **Il log**, a livello INFO e oltre, non contiene indirizzi email, token né link: un errore di invio si
+    scrive con il tipo dell'eccezione e basta.
+  - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi: se servono (per
+    esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
   luogo di nascita; nessun documento caricato, nessuna firma.
 - **Segnalazioni** in una tabella separata, visibili solo ai maestri, con ogni lettura registrata
@@ -90,7 +116,9 @@ Tempi di TALITA-7:
 - **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole.
 
 Ancora da fissare (TALITA-7): per quanto tempo si tengono email e recapito dei genitori, gli account
-dei maestri e i dati di chi non torna l'anno dopo.
+senza iscrizioni (nascono al primo accesso, anche di chi poi non iscrive nessuno), gli account dei
+maestri, gli inviti scaduti e i dati di chi non torna l'anno dopo. I link di accesso non servono qui: si
+cancellano quando si usano o entro un'ora dalla scadenza.
 
 ## Informativa e consenso: contenuto minimo
 

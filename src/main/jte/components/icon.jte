@@ -13,4 +13,11 @@
 @elseif(icon == Icon.ROTATE_CW)<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
 @elseif(icon == Icon.WIFI_OFF)<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>
 @elseif(icon == Icon.CLOCK)<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-@elseif(icon == Icon.X)<path d="M18 6 6 18"/><path d="m6 6 12 12"/>@endif</svg>
+@elseif(icon == Icon.X)<path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+@elseif(icon == Icon.MAIL)<path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/>
+@elseif(icon == Icon.LOG_IN)<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+@elseif(icon == Icon.LOG_OUT)<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+@elseif(icon == Icon.LINK_2_OFF)<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><line x1="8" x2="12" y1="12" y2="12"/><line x1="2" x2="22" y1="2" y2="22"/>
+@elseif(icon == Icon.CIRCLE_CHECK)<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>
+@elseif(icon == Icon.CIRCLE_ALERT)<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>
+@elseif(icon == Icon.LOADER_CIRCLE)<path d="M21 12a9 9 0 1 1-6.219-8.56"/>@endif</svg>

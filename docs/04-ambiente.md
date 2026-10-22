@@ -34,20 +34,75 @@ Così Koinè e Talità girano insieme sullo stesso PC senza scontrarsi:
 | Cosa | Talità | Koinè |
 |---|---|---|
 | Postgres di `compose.yaml` (solo su `127.0.0.1`) | **5433** | 5432 |
+| Mailpit di `compose.yaml`, SMTP (solo su `127.0.0.1`) | **1026** | 1025 |
+| Mailpit di `compose.yaml`, pagina web (solo su `127.0.0.1`) | **8026** | 8025 |
 | App con il profilo `dev` (`bootRun`) | **8081** | 8080 |
 
 Database, utente e password di sviluppo sono `talita` (solo dati sintetici). Il volume di compose è
-diverso da quello di Koinè, perché il nome del progetto compose è quello della cartella.
+diverso da quello di Koinè, perché il nome del progetto compose è quello della cartella. Le porte
+1025 e 8025 restano all'altro progetto: dentro il container Mailpit usa le sue solite, e `compose.yaml`
+le pubblica come 1026 e 8026.
+
+## Posta
+
+Talità manda due tipi di mail (il link per entrare e l'invito a un maestro), solo testo, con un
+server SMTP configurabile. Mai un servizio vero in sviluppo e nei test.
+
+- **Sviluppo**: `./gradlew bootRun` avvia anche **Mailpit** (`compose.yaml`, immagine con la versione
+  esatta, la stessa dei test). Il profilo `dev` gli manda tutta la posta e non esce niente verso
+  server veri. Le mail si leggono su <http://localhost:8026>. Il profilo `dev` imposta anche il
+  mittente, l'indirizzo pubblico (`http://localhost:8081`, da cui partono i link) e il primo maestro
+  (`nome@example.org`): per entrare, si chiede il link a `/accedi` con quell'indirizzo e si apre la
+  mail in Mailpit.
+- **Test**: ogni test, unitario o e2e, che manda una mail la manda a un Mailpit di Testcontainers
+  (`MailpitContainer`, stessa versione di `compose.yaml`) e ne legge destinatario, oggetto e testo
+  dall'API HTTP (`Mailbox`). Gli indirizzi dei test li costruisce `Addresses`: nei file tracciati
+  l'unico indirizzo ammesso è `nome@example.org`.
+- **Produzione**: Mailjet (`in-v3.mailjet.com`, porta 587, STARTTLS obbligatorio), con mittente sul
+  dominio di Talità e il tracciamento di aperture e clic spento (le intestazioni
+  `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0` ci sono già su ogni mail). Account, dominio e
+  valori veri arrivano con TALITA-9. Qui c'è solo il segnaposto: nel repo non c'è nessun host, utente,
+  password o mittente.
+- **Senza posta l'app parte lo stesso**: senza `SPRING_MAIL_HOST` (come nello smoke test) il log
+  avvisa che la posta non è configurata e chi chiede un link vede che l'invio non è riuscito. La posta
+  non fa parte di `/actuator/health`: un server di posta fermo non rende «giù» l'app.
+- **Limiti** (valori nella configurazione, contatori solo in memoria): al massimo 150 mail ogni 24
+  ore, link e inviti insieme (`talita.mail.daily-limit`: il piano gratuito di Mailjet ne manda 200).
+
+## Variabili d'ambiente
+
+Quelle che il server deve impostare (TALITA-8 le mette al loro posto; qui i nomi e un valore
+d'esempio, mai quelli veri):
+
+```
+SPRING_MAIL_HOST=in-v3.mailjet.com
+SPRING_MAIL_PORT=587
+SPRING_MAIL_USERNAME=chiave-pubblica-di-mailjet
+SPRING_MAIL_PASSWORD=chiave-segreta-di-mailjet
+TALITA_MAIL_FROM=nome@example.org
+TALITA_PUBLIC_URL=https://talita.example.org
+TALITA_BOOTSTRAP_TEACHER=nome@example.org
+```
+
+- `SPRING_MAIL_*`: il server SMTP. Con STARTTLS obbligatorio e timeout di 10 secondi
+  (`application.yaml`); nome e password sono quelli dell'account Mailjet.
+- `TALITA_MAIL_FROM`: il mittente, sul dominio di Talità (il nome mostrato è «Talità»).
+- `TALITA_PUBLIC_URL`: l'indirizzo del sito, senza barra finale. I link delle mail partono sempre da
+  qui e mai dall'intestazione `Host` della richiesta, che chi attacca può falsificare. Senza, le mail
+  con un link non partono.
+- `TALITA_BOOTSTRAP_TEACHER`: l'indirizzo del primo maestro. Solo se non c'è nessun maestro, all'avvio
+  l'app crea un invito per quell'indirizzo (senza mail); la persona entra da `/accedi` e lo accetta.
+  Con almeno un maestro la variabile non fa niente.
 
 ## Build, sviluppo e test
 
 - **Build completa**: `./gradlew build` (migrazioni, generazione jOOQ, template JTE, CSS di Tailwind,
   test unitari ed e2e). Poi `scripts/smoke-test-jar.sh`: avvia il jar come in produzione, senza
-  profili e con un Postgres usa e getta, e controlla `GET /`, il CSS, htmx, `app.js` e i font.
+  profili, senza posta e con un Postgres usa e getta, e controlla `GET /`, il CSS, htmx, `app.js` e i font.
   Avvia il jar con il `java` del PATH, che deve essere il JDK 25 (il jar è compilato per la 25):
   sul PC di Matteo il `java` di sistema è più vecchio, quindi
   `JAVA=~/.gradle/jdks/<jdk 25>/bin/java scripts/smoke-test-jar.sh`; in CI c'è già il 25.
-- **Sviluppo**: `./gradlew bootRun` (profilo `dev`, Postgres di `compose.yaml`; i template `.jte`
+- **Sviluppo**: `./gradlew bootRun` (profilo `dev`, Postgres e Mailpit di `compose.yaml`; i template `.jte`
   si ricaricano da `src/main/jte` a ogni richiesta, i file Kotlin richiedono il riavvio) e, in un
   secondo terminale, `./gradlew tailwindWatch` (rigenera il CSS quando cambia un template o
   `src/main/css/app.css`). Poi <http://localhost:8081>.

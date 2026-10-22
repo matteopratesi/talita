@@ -1,0 +1,14 @@
+@param String href
+@param String label
+@param String variant = "primary"
+@param String width = "auto"
+<%-- A link that looks like a button (design guide 4.1). Same variants and widths as button.jte. --%>
+!{String look = variant.equals("secondary")
+    ? "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted"
+    : "bg-brand text-white hover:bg-brand-strong active:bg-brand-strong";
+String span = switch (width) {
+    case "full" -> " w-full";
+    case "phone" -> " w-full sm:w-auto";
+    default -> "";
+};}
+<a href="${href}" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold transition-colors duration-150 select-none disabled:cursor-wait disabled:opacity-70 ${look}${span}">${label}</a>

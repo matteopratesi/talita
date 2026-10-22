@@ -182,7 +182,7 @@ class ShellDesignE2eTest {
                 window.scrollTo(0, 600);
             }""",
         )
-        page.waitForFunction("window.scrollY >= 600")
+        page.waitUntil("window.scrollY >= 600")
         assertEquals(0.0, page.locator("header").box().y, "the header scrolled away")
     }
 
@@ -219,7 +219,7 @@ class ShellDesignE2eTest {
         val page = e2e.page
         for (shellPage in shellPages) {
             e2e.open(shellPage.path)
-            val brand = page.locator("header a")
+            val brand = page.locator("header a[href='/']")
             assertThat(brand).hasAttribute("href", "/")
             assertThat(brand).containsText("Talità")
             assertEquals(0, page.locator("header [aria-current]").count(), "${shellPage.name}: the brand is marked as current")
@@ -242,16 +242,18 @@ class ShellDesignE2eTest {
         page.keyboard().press("Enter")
         assertEquals("contenuto", page.evaluate("document.activeElement.id"), "the focus did not move to the content")
 
-        // Brand, then the entries of the navigation, in order, with a visible ring.
+        // Brand, the profile, then the entries of the navigation, in order, with a visible ring.
         page.navigate(e2e.url("/convivenza"))
         page.keyboard().press("Tab") // skip link
         page.keyboard().press("Tab") // brand
         assertEquals("Talità", (page.evaluate("document.activeElement.textContent") as String).trim())
+        page.keyboard().press("Tab") // the pill of the profile
+        assertEquals("Profilo", (page.evaluate("document.activeElement.getAttribute('href') === '/profilo' ? 'Profilo' : ''") as String))
         for (label in navigationLabels) {
             page.keyboard().press("Tab")
             assertEquals(label, (page.evaluate("document.activeElement.textContent") as String).trim())
             // The ring fades from the color of the text to the blue of the focus in 150 ms (transition-colors).
-            page.waitForFunction(
+            page.waitUntil(
                 "(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + ' ' + s.outlineWidth + ' ' + s.outlineColor })() === 'solid 3px rgb(42, 75, 160)'",
             )
         }
@@ -270,7 +272,7 @@ class ShellDesignE2eTest {
         assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertEquals("still-here", page.evaluate("window.__marker"), "the page was reloaded")
         // A screen reader announces the new title: the focus goes to the h1, without a ring.
-        page.waitForFunction("document.activeElement.tagName === 'H1'")
+        page.waitUntil("document.activeElement.tagName === 'H1'")
         assertEquals("none", page.evaluate("getComputedStyle(document.activeElement).outlineStyle"))
     }
 

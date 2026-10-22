@@ -90,7 +90,7 @@ class NavigationE2eTest {
         page.route("**/convivenza") { route -> held.set(route) }
         e2e.touch(page.navLink("Convivenza"))
 
-        page.waitForFunction("$indicatorOpacity === '1'")
+        page.waitUntil("$indicatorOpacity === '1'")
         // Until the content arrives, the old one stays (a little dimmed) and so does the address.
         page.waitForTimeout(1000.0)
         assertNotNull(held.get(), "the request never left")
@@ -101,7 +101,7 @@ class NavigationE2eTest {
         held.get().resume()
 
         assertThat(page.locator("h1")).hasText("Convivenza")
-        page.waitForFunction("$indicatorOpacity === '0'")
+        page.waitUntil("$indicatorOpacity === '0'")
     }
 
     @E2eTest
@@ -117,7 +117,7 @@ class NavigationE2eTest {
         assertThat(page.messages()).containsText("Controlla di avere campo o il Wi-Fi e riprova.")
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
         assertEquals(e2e.url("/"), page.url())
-        page.waitForFunction("getComputedStyle(document.getElementById('caricamento')).opacity === '0'")
+        page.waitUntil("getComputedStyle(document.getElementById('caricamento')).opacity === '0'")
 
         // "Riprova" repeats the request: still offline, so the message is back, not doubled.
         page.messages().getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, com.microsoft.playwright.Locator.GetByRoleOptions().setName("Riprova")).click()
@@ -153,7 +153,7 @@ class NavigationE2eTest {
         val held = AtomicReference<Route>()
         page.route("**/convivenza") { route -> held.set(route) }
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("document.querySelector('a.htmx-request') !== null")
+        page.waitUntil("document.querySelector('a.htmx-request') !== null")
         e2e.touch(page.navLink("Iscrizioni"))
 
         assertThat(page).hasURL(e2e.url("/iscrizioni"))

@@ -18,4 +18,11 @@ enum class Icon {
     WIFI_OFF,
     CLOCK,
     X,
+    MAIL,
+    LOG_IN,
+    LOG_OUT,
+    LINK_2_OFF,
+    CIRCLE_CHECK,
+    CIRCLE_ALERT,
+    LOADER_CIRCLE,
 }

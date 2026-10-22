@@ -2,6 +2,8 @@ package talita.ui
 
 import jakarta.servlet.RequestDispatcher
 import talita.TestcontainersConfiguration
+import talita.account.MockSignIn
+import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -30,26 +32,41 @@ private fun sri384(bytes: ByteArray) = "sha384-" + Base64.getEncoder().encodeToS
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-class AssetTests(@Autowired private val mockMvc: MockMvc) {
+class AssetTests(@Autowired private val mockMvc: MockMvc, @Autowired tokens: OneTimeTokenService) {
 
-    private fun body(url: String): ByteArray = mockMvc.get(url).andReturn().response.contentAsByteArray
+    private val signedInSession = MockSignIn(mockMvc, tokens).session()
+
+    private fun body(url: String): ByteArray = mockMvc.get(url) { session = signedInSession }.andReturn().response.contentAsByteArray
 
     private fun text(url: String): String = String(body(url), Charsets.UTF_8)
 
     private fun errorPage(status: Int): String = mockMvc.get("/error") {
+        session = signedInSession
         requestAttr(RequestDispatcher.ERROR_STATUS_CODE, status)
         requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
     }.andReturn().response.contentAsString
 
-    /** Every page of the shell: the home, the sections, the page not found and the error page. */
+    /** Every page of the shell: the home, the sections, the profile, the page not found and the error page. */
     private fun shellPages(): Map<String, String> = mapOf(
         "/" to text("/"),
         "/convivenza" to text("/convivenza"),
         "/iscrizioni" to text("/iscrizioni"),
         "/arrivi" to text("/arrivi"),
+        "/profilo" to text("/profilo"),
         "404" to errorPage(404),
         "500" to errorPage(500),
-    )
+    ) + publicPages()
+
+    /** The pages that anyone can open, seen by someone who is not inside: the access pages and the error pages. */
+    private fun publicPages(): Map<String, String> = listOf(
+        "/accedi", "/accedi/controlla-la-posta", "/accedi/conferma?token=0b8b3d7e-0000-4000-8000-000000000000", "/accedi/link-scaduto",
+    ).associateWith { mockMvc.get(it).andReturn().response.contentAsString } +
+        mapOf("404 without access" to errorPageWithoutAccess(404), "500 without access" to errorPageWithoutAccess(500))
+
+    private fun errorPageWithoutAccess(status: Int): String = mockMvc.get("/error") {
+        requestAttr(RequestDispatcher.ERROR_STATUS_CODE, status)
+        requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
+    }.andReturn().response.contentAsString
 
     /** URLs of the static files that the page loads: its `<link>` and `<script>` elements. */
     private fun assetUrls(html: String): List<String> =

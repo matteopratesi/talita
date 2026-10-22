@@ -4,6 +4,8 @@ import gg.jte.TemplateEngine
 import gg.jte.output.StringOutput
 import gg.jte.springframework.boot.autoconfigure.JteProperties
 import talita.TestcontainersConfiguration
+import talita.account.MockSignIn
+import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -48,7 +50,10 @@ class TemplateEngineTests(
     @Autowired private val jte: JteProperties,
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val assets: Assets,
+    @Autowired tokens: OneTimeTokenService,
 ) {
+
+    private val signedInSession = MockSignIn(mockMvc, tokens).session()
 
     @Test
     fun `c01 every template has its compiled class on the classpath`() {
@@ -81,7 +86,7 @@ class TemplateEngineTests(
         engine.render(
             "pages/placeholder.jte",
             mapOf(
-                "shell" to Shell(title = "<b>x</b><script>", assets = assets, navigation = navigation),
+                "shell" to Shell(title = "<b>x</b><script>", assets = assets, navigation = navigation, profile = ProfileLink(initials = "<s>", current = false)),
                 "page" to PlaceholderPage(title = "<i>y</i>", text = "<em>z</em>"),
             ),
             output,
@@ -93,6 +98,7 @@ class TemplateEngineTests(
             "<u>n</u>" to "&lt;u&gt;n&lt;/u&gt;",
             "<i>y</i>" to "&lt;i&gt;y&lt;/i&gt;",
             "<em>z</em>" to "&lt;em&gt;z&lt;/em&gt;",
+            "<s>" to "&lt;s&gt;",
         )) {
             assertTrue(html.contains(escaped), "$markup is not escaped:\n$html")
             assertFalse(html.contains(markup), "$markup arrived as markup")
@@ -108,7 +114,7 @@ class TemplateEngineTests(
 
     @Test
     fun `c06 the page is UTF-8 and accented text arrives intact`() {
-        mockMvc.get("/").andExpect {
+        mockMvc.get("/") { session = signedInSession }.andExpect {
             status { isOk() }
             content { contentType("text/html;charset=UTF-8") }
             content { string(containsString("<title>Talità</title>")) }

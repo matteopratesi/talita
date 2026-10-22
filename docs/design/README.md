@@ -8,6 +8,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/KOINE-11/` è il mockup di origine, copiato da Koinè e non più modificato, tranne alcune righe di `componenti.html` (nomi di parrocchia e indirizzo email di esempio, sostituiti con «Parrocchia di esempio» e `nome@example.org` perché il repo è pubblico): componenti e guscio valgono ancora, testi, voci e marchio no. Si apre `index.html` nel browser, senza server e senza rete. Se il mockup e questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-3/` sono i mockup del login, dei ruoli e dei maestri (TALITA-3, Grace Kerning): 42 pagine statiche con tutti gli stati e dati sintetici, che si aprono allo stesso modo da `index.html`. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -432,7 +434,7 @@ Icone assegnate (nomi di Lucide):
 | Elimina | `trash-2` |
 | Cerca | `search` |
 | Esporta | `download` |
-| Esci (TALITA-3) | `log-out` |
+| Esci | `log-out` |
 | Riprova | `rotate-cw` |
 | Chiudi | `x` |
 | Apri un elemento di lista | `chevron-right` |
@@ -446,6 +448,9 @@ Icone assegnate (nomi di Lucide):
 | Pagina non trovata | `compass` |
 | Permesso negato (TALITA-3) | `lock` |
 | Attesa dentro un bottone | `loader-circle` |
+| Controlla la posta, la mail del link | `mail` |
+| Conferma dell'accesso | `log-in` |
+| Il link non vale più | `link-2-off` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -477,7 +482,7 @@ Telefono (sotto 1024 px):
 
 ```
 ┌──────────────────────────────┐  ← barra di caricamento (4 px, solo durante le richieste)
-│ [T] Talità                   │  intestazione, 56 px, resta in alto
+│ [T] Talità          (EC) Profilo │  intestazione, 56 px, resta in alto
 ├──────────────────────────────┤
 │ Titolo della pagina (h1)     │
 │                              │  contenuto, colonna unica
@@ -505,7 +510,7 @@ Desktop (da 1024 px):
 └──────────────┴─────────────────────────────────────────┘
 ```
 
-Un solo HTML per i due layout: cambiano solo le classi `lg:`.
+Un solo HTML per i due layout: cambiano solo le classi `lg:`. Chi non è dentro (pagine di accesso e di errore) ha un guscio senza navigazione né profilo, vedi 3.5.
 
 ### 3.2 Markup del layout
 
@@ -540,6 +545,7 @@ pagina; `<hash>` è l'impronta messa dalla catena delle risorse.
       <!-- marchio, vedi 2.8 -->
       Talità
     </a>
+    <!-- la pillola «Profilo», vedi 3.6 -->
   </header>
 
   <nav aria-label="Navigazione principale" class="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-safe px-1 lg:top-16 lg:right-auto lg:w-64 lg:border-t-0 lg:border-r lg:px-3 lg:py-4">
@@ -592,7 +598,7 @@ Note:
 | 3 | Iscrizioni | `/iscrizioni` | `users-round` | elenco e inserimento dal modulo cartaceo |
 | 4 | Arrivi | `/arrivi` | `clipboard-check` | check-in e stampe |
 
-Perché quattro: restano sotto il limite di cinque, e con quattro ogni voce è larga almeno 78 px anche su uno schermo da 320 px (74 bastano a "Convivenza" a 13 px), quindi si legge intera anche con il testo ingrandito. Il profilo con "Esci" arriva con il login (TALITA-3) in alto a destra nell'intestazione, come nelle app di posta.
+Perché quattro: restano sotto il limite di cinque, e con quattro ogni voce è larga almeno 78 px anche su uno schermo da 320 px (74 bastano a "Convivenza" a 13 px), quindi si legge intera anche con il testo ingrandito. Il profilo con "Esci" sta in alto a destra nell'intestazione, come nelle app di posta (3.6).
 
 Regole:
 
@@ -636,6 +642,48 @@ Cosa si vede:
 `<title>`: nome della pagina, punto in mezzo, Talità. Esempi: `Convivenza · Talità`,
 `Pagina non trovata · Talità`. La home ha solo `Talità`. Lo stesso testo dell'`h1` quando
 l'`h1` è il nome della pagina.
+
+### 3.5 Guscio senza accesso
+
+Le pagine che chiunque può aprire (accesso, «Controlla la posta», conferma del link, «Il link non
+vale più», 404 e 500 per chi non è dentro) hanno lo stesso guscio senza navigazione e senza profilo:
+
+| | Senza accesso | Con accesso |
+|---|---|---|
+| Intestazione | solo il marchio «Talità», **non** un link (porterebbe a `/accedi`, cioè qui) | marchio (link alla home) e, a destra, «Profilo» |
+| Navigazione | nessuna | quella della persona |
+| Contenuto | colonna centrata, larga al massimo 448 px (`mx-auto w-full max-w-md`) | come sopra, 768 px |
+| Messaggi a comparsa | in basso, senza la navigazione sotto (`bottom-no-nav`) | sopra la navigazione (`bottom-above-nav`) |
+
+Classi dell'intestazione senza accesso: `sticky top-0 z-40 flex min-h-14 items-center gap-2 border-b border-line bg-surface pt-safe px-gutter short:static lg:px-10`, a tutta larghezza anche su desktop (non c'è la colonna a sinistra); il marchio è un `<p class="inline-flex min-h-11 items-center gap-2 text-lg font-bold tracking-tight text-ink">`. `main`: `block px-gutter pt-6 pb-no-nav transition-opacity duration-150 motion-safe:animate-enter nav-busy:opacity-60 nav-busy:delay-300 lg:px-10 lg:pt-16 lg:pb-16`, senza `lg:ml-64`. Due utility nel CSS: `pb-no-nav` (`calc(2.5rem + env(safe-area-inset-bottom))`) e `bottom-no-nav` (`calc(env(safe-area-inset-bottom) + 0.75rem)`).
+
+Le pagine di errore per chi non ha accesso (404 e 500 sono pubbliche) hanno i testi di 4.11, ma «Vai alla home» diventa «Vai all’accesso» (link a `/accedi`). «Riprova» della 500 resta, solo per le letture.
+
+### 3.6 Profilo nell'intestazione
+
+Chi è dentro ha, a destra dell'intestazione, la pillola «Profilo»: un cerchio con le iniziali e la
+parola. La parola c'è sempre, perché un cerchio da solo non dice che si tocca; sotto i 320 px resta
+il cerchio e il nome «Profilo» lo legge il lettore di schermo. Nei 256 px dell'intestazione del desktop
+restano pochi pixel liberi fra marchio e pillola: non si allarga nessuno dei due. Da qui, due tocchi
+arrivano a «Esci» da ogni pagina (la pillola, poi il bottone).
+
+Iniziali: la prima lettera dell'indirizzo con cui si è entrati, in maiuscolo (il maestro con nome: le
+due lettere di nome e cognome). Sulla pagina del profilo la pillola è la voce corrente
+(`aria-current="page"`), come le voci della navigazione.
+
+```html
+<a href="/profilo" aria-current="page" class="group ml-auto inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong bg-surface py-1 pr-3 pl-1 text-sm font-semibold text-ink transition-colors duration-150 hover:bg-surface-muted active:bg-surface-muted busy:bg-surface-muted aria-[current=page]:border-brand aria-[current=page]:bg-brand-soft aria-[current=page]:text-brand max-[20rem]:pr-1">
+  <span aria-hidden="true" class="grid size-8 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand group-aria-[current=page]:bg-surface">N</span>
+  <span class="max-[20rem]:sr-only">Profilo</span>
+</a>
+```
+
+La pagina «Profilo» (`/profilo`) è una scheda (4.4) «Il tuo accesso» con l'indirizzo email
+(`wrap-anywhere`), il bottone secondario «Esci» con `log-out` (un `POST /esci` con il codice CSRF, senza
+dialogo: si rientra in un minuto con un nuovo link) e la nota «Se usi un telefono o un computer di altri,
+esci quando hai finito.». Dopo «Esci» si arriva a `/accedi` con l'avviso di conferma «Accesso chiuso. Per
+rientrare, chiedi un nuovo link.», una volta sola. Le pagine di chi è dentro hanno `Cache-Control: no-store`:
+il tasto indietro non le mostra più dopo l'uscita.
 
 ## 4. Componenti
 
@@ -803,7 +851,10 @@ Un messaggio che resta nella pagina finché la situazione non cambia.
 | Errore | `bg-danger-soft` | `circle-alert`, `text-danger` |
 
 Testo in `text-ink`. Se l'avviso compare dopo un'azione (per esempio un form rimandato con errori),
-ha `role="alert"`; una conferma ha `role="status"`.
+ha `role="alert"` (errore e attenzione); una conferma ha `role="status"`; un'informazione che c'è
+sempre non ha ruolo. Gli avvisi che seguono un'azione hanno anche `tabindex="-1"` e `data-fuoco`: dopo
+che la pagina è stata sostituita, il fuoco va al primo campo sbagliato, e se non c'è all'avviso (5). Nel
+codice è `components/alert.jte` (`variant`, `live`).
 
 ### 4.7 Messaggi a comparsa
 
@@ -837,6 +888,11 @@ a destra su desktop.
 - "Riprova" c'è solo se la richiesta fallita era una lettura (GET) e ripete quella richiesta. Per
   un invio (POST) non c'è: il form resta compilato e basta toccare di nuovo il bottone.
 - Il messaggio non copre la navigazione e non sposta il contenuto.
+- **Le conferme dopo un'azione sono avvisi nella pagina** (4.6, `circle-check`, `role="status"`), non
+  messaggi a comparsa: arrivano dopo un redirect o dentro un pezzo sostituito, restano finché la persona
+  non cambia pagina e ricevono il fuoco (`data-fuoco`), così il lettore di schermo le annuncia. I messaggi
+  a comparsa restano per ciò che riguarda tutta la pagina: rete assente o lenta, errore del server, accesso
+  negato.
 
 ### 4.8 Dialogo di conferma
 
@@ -936,6 +992,20 @@ Mai codici di errore, nomi di eccezioni, stack trace o parole come "server" e "d
   qualsiasi, con il suo indirizzo e il suo titolo (criteri 25 e 26);
 - doppio tocco o tocco su un'altra voce mentre si aspetta: vale l'ultimo tocco, senza errori.
 
+**Form rimandato con errori** (un indirizzo sbagliato, un limite, una pagina scaduta): il server
+risponde con la pagina del form, **422** (errori) o **429** (limiti), e `app.js` la mette al posto di
+quella che c'è come per una risposta 200, senza il messaggio «Qualcosa non ha funzionato». I campi
+restano compilati. Il fuoco va al primo campo con `aria-invalid="true"`; se non c'è, al primo elemento con
+`data-fuoco` (l'avviso); se non c'è nemmeno quello e la pagina è cambiata, all'`h1`. L'errore di un campo lo
+legge il lettore di schermo grazie ad `aria-describedby`. Il form rimandato non lascia un'altra voce nella
+cronologia. Vale per ogni form con `hx-boost` e per ogni `hx-post` con un suo `hx-target`.
+
+**Accesso mancante o scaduto** su una richiesta di htmx (un cambio di pagina o un pezzo di pagina): il
+server risponde con l'intestazione `HX-Redirect: /accedi` (non un 302, che htmx seguirebbe dentro il pezzo, e
+non un 401, che sarebbe un errore). Il browser ricarica la pagina intera: mai la pagina di accesso dentro quella
+vecchia, mai «Qualcosa non ha funzionato». Se la sessione era scaduta per inattività (due ore) la pagina di
+accesso lo dice una volta sola.
+
 **Richiesta che non cambia pagina** (un pezzo della pagina, per esempio una riga dopo una
 modifica):
 
@@ -1014,6 +1084,8 @@ Un errore dice cosa fare, non solo cosa non va. Senza colpe e senza codici.
 | Errore 500 | Qualcosa non ha funzionato. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. |
 | Network error | Nessuna connessione. Controlla di avere campo o il Wi-Fi e riprova. |
 | Accesso negato | Non puoi vedere questa pagina. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. |
+| Codice CSRF scaduto | La pagina era aperta da troppo tempo. Riprova. |
+| Invio della mail fallito | Non siamo riusciti a mandare il link. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. |
 
 ### Conferme
 
@@ -1070,8 +1142,10 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
   sole.
 - Corsivo, maiuscolo, sottolineature decorative, ombre sulle schede.
 - Font, icone, script o stili da CDN o da servizi esterni.
-- `<script>` inline, attributi `on*=`, `hx-on`, `style=""`: la Content-Security-Policy li
-  bloccherà (TALITA-3).
+- `<script>` inline, attributi `on*=`, `hx-on`, `style=""`: la Content-Security-Policy li blocca
+  (`default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none';
+  frame-ancestors 'none'; form-action 'self'`, senza `unsafe-inline` né `unsafe-eval`), e un test e2e
+  fallisce se la console del browser segnala una violazione.
 - Testi tecnici rivolti alle persone (codici, eccezioni, nomi di tabelle).
 - Le parole «Koinè», «Centro», «comunità» e «fratelli» nei testi fissi: sono di un altro progetto.
 - Voci o schermate fuori dal perimetro di Talità, quello scritto in `CLAUDE.md`.

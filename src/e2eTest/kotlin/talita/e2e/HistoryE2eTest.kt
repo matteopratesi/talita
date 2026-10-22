@@ -21,7 +21,7 @@ class HistoryE2eTest {
 
     /** Waits until htmx is done with the page: no request in flight, nothing settling. */
     private fun Page.settled() {
-        waitForFunction("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
+        waitUntil("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
     }
 
     /** What criterion 22 asks, and a little more: no copy of the pages in any browser memory. */
@@ -102,7 +102,7 @@ class HistoryE2eTest {
         page.route("**/convivenza") { route -> if (requests.incrementAndGet() == 1) first.set(route) else route.resume() }
 
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("document.querySelector('a.htmx-request') !== null")
+        page.waitUntil("document.querySelector('a.htmx-request') !== null")
         e2e.touch(page.navLink("Convivenza"))
 
         assertThat(page).hasURL(e2e.url("/convivenza"))
@@ -260,7 +260,7 @@ class HistoryE2eTest {
         page.route("**/convivenza") { held.set(it) }
 
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("document.querySelector('a.htmx-request') !== null")
+        page.waitUntil("document.querySelector('a.htmx-request') !== null")
         e2e.touch(page.locator("#carica"))
         assertThat(page.locator("#f")).hasText("Frammento caricato")
         runCatching { held.get()?.resume() }
@@ -278,9 +278,9 @@ class HistoryE2eTest {
         page.route("**/iscrizioni") { held += it }
 
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("document.querySelector('a.htmx-request') !== null")
+        page.waitUntil("document.querySelector('a.htmx-request') !== null")
         e2e.touch(page.navLink("Iscrizioni"))
-        page.waitForFunction("document.querySelector('a.htmx-request')?.getAttribute('href') === '/iscrizioni'")
+        page.waitUntil("document.querySelector('a.htmx-request')?.getAttribute('href') === '/iscrizioni'")
         e2e.touch(page.navLink("Arrivi"))
 
         assertThat(page).hasURL(e2e.url("/arrivi"))

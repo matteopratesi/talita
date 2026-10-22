@@ -72,7 +72,7 @@ class ShellResponsiveE2eTest {
             // The header is not sticky in landscape: it scrolls away with the page.
             page.navigate(e2e.url("/"))
             page.evaluate("document.querySelector('main > div').append(Object.assign(document.createElement('div'), {style: 'height: 1500px'})); window.scrollTo(0, 400)")
-            page.waitForFunction("window.scrollY >= 400")
+            page.waitUntil("window.scrollY >= 400")
             assertTrue(page.locator("header").box().y < 0, "${width}x$height: the header stays on top in landscape")
         }
     }
@@ -144,7 +144,8 @@ class ShellResponsiveE2eTest {
             val page = e2e.newPage { setViewportSize(width, 800) }
             for (path in paths) {
                 page.navigate(e2e.url(path))
-                page.addStyleTag(Page.AddStyleTagOptions().setContent("html { font-size: $percent%; }"))
+                // Through the CSSOM: the Content-Security-Policy does not let a <style> element be added.
+                page.evaluate("document.documentElement.style.fontSize = '$percent%'")
                 page.waitForSettledContent()
                 assertUsable(page, "${width}px, text at $percent% $path")
             }
@@ -176,7 +177,7 @@ class ShellResponsiveE2eTest {
 
             // The header starts below the notch.
             assertEquals("47px", page.evaluate("getComputedStyle(document.querySelector('header')).paddingTop"), where)
-            assertTrue(page.locator("header a").box().y >= 47, "$where: the brand is inside the notch")
+            assertTrue(page.locator("header a[href='/']").box().y >= 47, "$where: the brand is inside the notch")
             // The navigation ends at the bottom of the screen, with the home bar below its entries.
             val nav = page.mainNavigation().box()
             assertEquals(844.0, nav.y + nav.height, "$where: the navigation does not reach the bottom")
@@ -191,7 +192,7 @@ class ShellResponsiveE2eTest {
         page.context().setOffline(true)
         page.navLink("Iscrizioni").tap()
         page.waitForSelector("#messaggi [role=alert]")
-        page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
+        page.waitUntil("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
         val message = page.messages().box()
         val nav = page.mainNavigation().box()
         assertTrue(message.y + message.height <= nav.y, "the message ($message) is on the navigation ($nav)")
@@ -208,7 +209,7 @@ class ShellResponsiveE2eTest {
 
             assertEquals("47px", page.evaluate("getComputedStyle(document.querySelector('main')).paddingLeft"), where)
             assertEquals("47px", page.evaluate("getComputedStyle(document.querySelector('main')).paddingRight"), where)
-            assertTrue(page.locator("header a").box().x >= 47, "$where: the brand is inside the notch")
+            assertTrue(page.locator("header a[href='/']").box().x >= 47, "$where: the brand is inside the notch")
             val nav = page.mainNavigation().box()
             assertEquals(390.0, nav.y + nav.height, "$where: the navigation does not reach the bottom")
             assertEquals("21px", page.evaluate("getComputedStyle(document.querySelector('nav')).paddingBottom"), where)

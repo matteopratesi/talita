@@ -1,0 +1,6 @@
+# Configurazione di CodeRabbit per questo repo.
+# I mockup statici del design (docs/design/TALITA-<n>/) non si rivedono: sono pagine HTML d'esempio,
+# controllate a parte, e da soli fanno superare a una PR il limite di file della review.
+reviews:
+  path_filters:
+    - "!docs/design/TALITA-*/**"

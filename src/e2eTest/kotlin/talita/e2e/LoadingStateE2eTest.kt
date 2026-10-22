@@ -47,7 +47,7 @@ class LoadingStateE2eTest {
         page.route("**/convivenza") { held.set(it) }
 
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         // The bar: 4 px, on the top edge, as wide as the screen, in the blue of the actions.
         val barBox = page.locator("#caricamento").box()
@@ -57,7 +57,7 @@ class LoadingStateE2eTest {
         assertEquals("rgb(42, 75, 160)", page.evaluate("getComputedStyle(document.querySelector('#caricamento > div')).backgroundColor"))
         assertEquals("true", page.locator("#caricamento").getAttribute("aria-hidden"), "the bar is not hidden from screen readers")
         // The content before the change is dimmed to 60% (it is still the old page), the touched entry is darker.
-        page.waitForFunction("parseFloat(getComputedStyle(document.querySelector('main')).opacity) === 0.6")
+        page.waitUntil("parseFloat(getComputedStyle(document.querySelector('main')).opacity) === 0.6")
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
         assertEquals("rgb(239, 237, 232)", page.evaluate("getComputedStyle(document.querySelector('nav a[href=\"/convivenza\"]')).backgroundColor"))
         // It never blocks the page: no layer over the content catches the touches.
@@ -65,7 +65,7 @@ class LoadingStateE2eTest {
 
         held.get().resume()
         assertThat(page.locator("h1")).hasText("Convivenza")
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 0")
         page.waitForSettledContent()
         assertEquals(1.0, (page.evaluate("parseFloat(getComputedStyle(document.querySelector('main')).opacity)") as Number).toDouble())
         assertEquals(0, page.locator(".htmx-request").count())
@@ -122,7 +122,7 @@ class LoadingStateE2eTest {
         page.route("**/convivenza") { held.set(it) }
 
         page.navLink("Convivenza").tap()
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         assertEquals(360.0, page.locator("#caricamento > div").box().width, "the bar is not full width")
         assertEquals(0, (page.evaluate("document.querySelector('#caricamento > div').getAnimations().length") as Number).toInt(), "the bar is moving")
@@ -140,7 +140,7 @@ class LoadingStateE2eTest {
         page.route("**/convivenza") { held.set(it) }
 
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 1")
 
         assertEquals("progress", page.evaluate("getComputedStyle(document.querySelector('#caricamento > div')).animationName"))
         held.get().resume()
@@ -158,13 +158,13 @@ class LoadingStateE2eTest {
 
         e2e.touch(page.locator("#carica"))
         assertThat(page.messages()).hasCount(1)
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 0")
         assertEquals(0, page.locator(".htmx-request").count())
 
         e2e.browserContext.setOffline(true)
         e2e.touch(page.navLink("Iscrizioni"))
-        page.waitForFunction("document.querySelectorAll('#messaggi [role=alert]').length === 2")
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
+        page.waitUntil("document.querySelectorAll('#messaggi [role=alert]').length === 2")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 0")
         assertEquals(0, page.locator(".htmx-request").count())
     }
 
@@ -212,13 +212,13 @@ class LoadingStateE2eTest {
         page.route("**/test/frammento") { held.set(it) }
 
         e2e.touch(page.locator("#carica"))
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 1")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 1")
         // The content is dimmed only for a change of page or a form that is sent, not for a part of the page.
         assertEquals("1", page.evaluate("getComputedStyle(document.querySelector('main')).opacity"))
         assertThat(page.locator("#f")).hasText("prima")
 
         held.get().resume()
         assertThat(page.locator("#f")).hasText("Frammento caricato")
-        page.waitForFunction("parseFloat(getComputedStyle($bar).opacity) === 0")
+        page.waitUntil("parseFloat(getComputedStyle($bar).opacity) === 0")
     }
 }

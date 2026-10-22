@@ -6,7 +6,7 @@ nello stesso ticket che lo crea.
 
 Questo è il punto di partenza, preso dal perimetro di KOINE-29. Il dettaglio di ogni entità (colonne,
 vincoli, tabelle) lo fissa il ticket che la crea. TALITA-2 non introduce dati personali: nessuna
-tabella e nessun form. Lo schema comincia con TALITA-3.
+tabella e nessun form. Lo schema comincia con TALITA-3 (account e link di accesso, poi maestri e inviti).
 
 Nessun `centro_id` e nessuna row-level security: Talità ha un solo titolare, e l'isolamento fra
 genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
@@ -15,7 +15,8 @@ genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
 
 | Entità | Dato | Scopo | Ticket |
 | --- | --- | --- | --- |
-| Account | email | accesso con magic link; per i maestri anche gli inviti | TALITA-3 |
+| Account (`account.email`) | email | accesso con magic link; per i maestri anche gli inviti. In minuscolo, senza spazi ai lati (un vincolo della tabella lo garantisce). L'account nasce al primo accesso riuscito, e ogni account è anche un genitore. Quanto si tiene e come si cancella lo dice TALITA-7. | TALITA-3 |
+| Link di accesso (`one_time_tokens`) | email, scadenza | far entrare chi ha chiesto il link. Vale 15 minuti e una volta sola: si cancella quando si usa, e uno scaduto si cancella entro un'ora | TALITA-3 |
 | Maestro | nome e cognome | testo dell'affidamento (maestri affidatari); elenco dei presenti per la struttura | TALITA-4, 6 |
 | Iscrizione | recapito telefonico del genitore | chiamare il genitore durante i giorni della convivenza | TALITA-5 |
 | Bambino | nome e cognome | riconoscere il bambino in iscrizione, check-in, registro ed elenco per la struttura | TALITA-5 |
@@ -31,6 +32,12 @@ genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
 Conservazione (TALITA-7): segnalazioni cancellate un mese dopo la fine della convivenza; manleva e
 registro tenuti un anno; dati dei bambini tenuti per l'anno dopo, e il genitore li può cancellare
 quando vuole. I tempi e le loro ragioni stanno in `docs/03-privacy.md`.
+
+Di sessione, contatori dei limiti (3 link ogni 15 minuti per indirizzo, 150 mail al giorno) e
+indirizzo mostrato in «Controlla la posta» resta traccia solo in memoria, e il cookie porta solo
+l'id di sessione. **Non si raccolgono**: ultimo accesso, indirizzo IP, browser, registro degli accessi,
+chi ha invitato chi. Se servono (per esempio a TALITA-7 per gli account inattivi) li aggiunge quel
+ticket, con il suo scopo.
 
 ## Da decidere
 

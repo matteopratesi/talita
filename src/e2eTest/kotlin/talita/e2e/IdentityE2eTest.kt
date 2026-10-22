@@ -34,7 +34,7 @@ class IdentityE2eTest {
 
         assertThat(page).hasTitle("Talità")
         val header = page.locator("header")
-        assertThat(header).hasText("Talità")
+        assertThat(header.locator("a[href='/']")).hasText("Talità")
 
         // The mark: the blue square with a white T, drawn like the favicon.
         val mark = header.locator("svg")

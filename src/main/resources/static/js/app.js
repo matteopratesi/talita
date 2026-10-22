@@ -3,6 +3,9 @@
 // What it does (docs/design/README.md, section 5):
 // - the 404 and 500 pages show up as normal pages when they arrive from a link of the app, and
 //   when the back button leads to them;
+// - a form that comes back with its errors (422) or with a limit (429) replaces the page or the piece
+//   of page that sent it, with the fields still filled in, and the focus goes to the first wrong field
+//   or to the notice; it leaves no second entry in the history;
 // - a request that does not change the page and gets a 5xx, a missing network or no answer in
 //   time leaves the page as it is and shows a pop-up message (texts are in the layout, as <template>);
 //   the same for the back button without network;
@@ -85,6 +88,20 @@
     if (heading) heading.focus({ preventScroll: true });
   }
 
+  /**
+   * After a page or a piece of it has been replaced, the focus goes where the person must look: the
+   * first wrong field (a screen reader reads its error through aria-describedby), else the first
+   * notice (data-fuoco), else, if the page changed, the heading.
+   */
+  function focusAfterSwap(pageChanged) {
+    const target = document.querySelector('[aria-invalid="true"]') || document.querySelector("[data-fuoco]");
+    if (target) {
+      target.focus();
+    } else if (pageChanged) {
+      focusHeading();
+    }
+  }
+
   // ---- A page change in flight: the last touch wins ----
 
   // Only the page changes (what replaces the whole body, and the requests of the back and forward
@@ -113,7 +130,11 @@
     const request = describe(event.detail);
 
     if (status >= 400) {
-      if (request.boosted && (status === 404 || status === 500)) {
+      if (status === 422 || status === 429) {
+        // A form sent again with its errors, or a limit: it is the answer, not a failure.
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+      } else if (request.boosted && (status === 404 || status === 500)) {
         // The error pages of the app replace the page like any other, with their own address and title.
         event.detail.shouldSwap = true;
         event.detail.isError = false;
@@ -180,7 +201,15 @@
   // ---- After a change of page ----
 
   document.addEventListener("htmx:afterSettle", (event) => {
-    if (describe(event.detail).boosted) focusHeading();
+    const pageChanged = describe(event.detail).boosted;
+    const status = event.detail.xhr ? event.detail.xhr.status : 0;
+    if (pageChanged || status === 422 || status === 429) focusAfterSwap(pageChanged);
+  });
+
+  // A form that comes back with its errors stays at the address it had: no second entry in the history.
+  document.addEventListener("htmx:beforeHistoryUpdate", (event) => {
+    const status = event.detail.xhr ? event.detail.xhr.status : 0;
+    if (status === 422 || status === 429) event.detail.history.type = "replace";
   });
   document.addEventListener("htmx:historyRestore", focusHeading);
 

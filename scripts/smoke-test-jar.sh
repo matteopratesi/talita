@@ -2,10 +2,11 @@
 # Smoke test of the production jar (from KOINE-11, criterion 3).
 #
 # Starts the jar produced by `./gradlew bootJar` with `java -jar`, from a folder outside the
-# repository, without profiles and with a throwaway Postgres, then checks that `GET /` answers
-# 200 with the page rendered by the precompiled template. It proves that the template classes
-# (see https://github.com/casid/jte/issues/438) and the static files (CSS built by Tailwind, htmx,
-# fonts) really end up in the jar.
+# repository, without profiles, without a mail server and with a throwaway Postgres, then checks
+# that `GET /` (which asks for a login) leads to `/accedi`, and that `/accedi` answers 200 with the
+# page rendered by the precompiled template. It proves that the template classes (see
+# https://github.com/casid/jte/issues/438) and the static files (CSS built by Tailwind, htmx, fonts)
+# really end up in the jar, that the migrations ran, and that the application starts without mail.
 #
 # Needs Docker (Postgres) and curl. JAVA can point to a specific `java` binary.
 set -euo pipefail
@@ -57,6 +58,7 @@ SERVER_PORT="$app_port" \
   "$java_bin" -jar "$jar" >"$workdir/app.log" 2>&1 &
 app_pid=$!
 
+# GET / asks for a login: it leads to the access page (a 302, which curl does not follow here).
 status=""
 for _ in $(seq 1 90); do
   if ! kill -0 "$app_pid" 2>/dev/null; then
@@ -64,29 +66,48 @@ for _ in $(seq 1 90); do
     tail -n 40 "$workdir/app.log" >&2
     exit 1
   fi
-  status="$(curl -s -o "$workdir/home.html" -w '%{http_code}' "http://127.0.0.1:$app_port/" || true)"
-  if [[ "$status" == "200" ]]; then break; fi
+  status="$(curl -s -o /dev/null -D "$workdir/root.headers" -w '%{http_code}' "http://127.0.0.1:$app_port/" || true)"
+  if [[ "$status" == "302" ]]; then break; fi
   sleep 1
 done
 
-if [[ "$status" != "200" ]]; then
-  echo "GET / answered '$status' instead of 200:" >&2
+if [[ "$status" != "302" ]] || ! tr -d '\r' <"$workdir/root.headers" | grep -qi '^location: .*/accedi$'; then
+  echo "GET / answered '$status' instead of a redirect to /accedi:" >&2
+  cat "$workdir/root.headers" >&2 || true
   tail -n 40 "$workdir/app.log" >&2
   exit 1
 fi
 
-# The heading of the home and its title: a jar of another project would not pass.
-if ! grep -q "Ti diamo il benvenuto" "$workdir/home.html" || ! grep -q "<title>Talità</title>" "$workdir/home.html"; then
-  echo "GET / answered 200 but the page was not rendered by the template:" >&2
-  head -c 600 "$workdir/home.html" >&2
+# The access page: 200, with its title and its heading (a jar of another project would not pass).
+status="$(curl -s -o "$workdir/accedi.html" -w '%{http_code}' "http://127.0.0.1:$app_port/accedi" || true)"
+if [[ "$status" != "200" ]]; then
+  echo "GET /accedi answered '$status' instead of 200:" >&2
+  tail -n 40 "$workdir/app.log" >&2
+  exit 1
+fi
+if ! grep -q "<title>Accedi · Talità</title>" "$workdir/accedi.html" || ! grep -q "Accedi a Talità" "$workdir/accedi.html"; then
+  echo "GET /accedi answered 200 but the page was not rendered by the template:" >&2
+  head -c 600 "$workdir/accedi.html" >&2
+  exit 1
+fi
+
+# No profile and no spring.mail.host: the application starts without mail (health UP) and the log says so.
+health="$(curl -s "http://127.0.0.1:$app_port/actuator/health" || true)"
+if ! grep -q '"status":"UP"' <<<"$health"; then
+  echo "GET /actuator/health did not answer UP: $health" >&2
+  exit 1
+fi
+if ! grep -q "Mail is not configured" "$workdir/app.log"; then
+  echo "The log does not warn that the mail is not configured:" >&2
+  tail -n 40 "$workdir/app.log" >&2
   exit 1
 fi
 
 # The static files that the page points to are in the jar too, with their fingerprint in the URL.
 for pattern in '/css/app-[0-9a-f]*\.css' '/js/htmx\.min-[0-9a-f]*\.js' '/js/app-[0-9a-f]*\.js' '/fonts/inter-latin-[0-9a-f]*\.woff2'; do
-  asset="$(grep -o "$pattern" "$workdir/home.html" | head -n 1 || true)"
+  asset="$(grep -o "$pattern" "$workdir/accedi.html" | head -n 1 || true)"
   if [[ -z "$asset" ]]; then
-    echo "The home page does not reference a file like $pattern" >&2
+    echo "The access page does not reference a file like $pattern" >&2
     exit 1
   fi
   asset_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$app_port$asset")"
@@ -96,4 +117,4 @@ for pattern in '/css/app-[0-9a-f]*\.css' '/js/htmx\.min-[0-9a-f]*\.js' '/js/app-
   fi
 done
 
-echo "OK: GET / answers 200 with the page rendered by the precompiled template, and its static files are served."
+echo "OK: GET / leads to /accedi, which answers 200 with the page rendered by the precompiled template, and its static files are served."

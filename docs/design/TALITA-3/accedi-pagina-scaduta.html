@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Accedi · Talità</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-3: dati e testi sintetici, nessuna risorsa esterna. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--public"><span class="wordmark wordmark--static"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></span></header>
+
+<main id="contenuto" tabindex="-1" class="main--public">
+  <div class="container container--narrow">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Accedi a Talità</h1>
+      <p class="lead">Ti mandiamo un link per entrare, senza password. Se è la prima volta, va bene lo stesso: non devi creare niente.</p>
+    </div>
+    <div class="mb-5"><div class="alert alert--warning" role="alert" tabindex="-1" data-fuoco><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div><p>La pagina era aperta da troppo tempo. Riprova.</p></div></div></div>
+    <form class="card" method="post" action="accedi.html" novalidate>
+      <div class="field">
+        <label class="label" for="email">Indirizzo email</label>
+        <p class="hint" id="email-aiuto">Usa sempre lo stesso indirizzo: è il tuo accesso a Talità.</p>
+        <input class="input" id="email" name="email" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" aria-describedby="email-aiuto" value="nome@example.org">
+      </div>
+      <div class="form-actions"><button class="btn btn--primary btn--wide" type="submit">Ricevi il link</button></div>
+    </form>
+  </div>
+</main>
+<div class="toasts toasts--no-nav" aria-live="polite"><div class="toast" id="rete-assente" role="alert"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="toast__icon"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg><div><p class="toast__title">Nessuna connessione</p><p class="toast__text">Controlla di avere campo o il Wi-Fi e riprova.</p></div><a class="toast__close" href="#" aria-label="Chiudi"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a></div></div>
+
+</body>
+</html>
