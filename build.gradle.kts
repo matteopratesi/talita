@@ -186,12 +186,20 @@ fun sha256(file: File): String {
     return digest.digest().joinToString("") { "%02x".format(it) }
 }
 
+// How long the whole download may take. The timeouts of the HTTP client below cover the connection
+// and the wait for the headers, not a server that sends the headers and part of the body and then
+// stops: only a limit on the task ends that. 110 MB in 15 minutes is about 1 Mbit/s; on a slower
+// line the file can be copied by hand into the cache (docs/04-ambiente.md).
+val tailwindDownloadTimeout = Duration.ofMinutes(15)
+
 // Checks the cached binary against the checksum in this file, downloading it first when missing.
 // Declares no outputs on purpose: it runs every time, so a binary altered in the cache is caught
 // before anything executes it. With the binary in the cache it does not use the network.
+// The limit of time is on this task only: tailwindWatch runs until it is stopped.
 val downloadTailwind = tasks.register("downloadTailwind") {
     group = "build setup"
     description = "Downloads the Tailwind CSS standalone binary into the cache and verifies its SHA-256."
+    timeout.set(tailwindDownloadTimeout)
 
     doLast {
         val platform = tailwindPlatform()
@@ -202,36 +210,46 @@ val downloadTailwind = tasks.register("downloadTailwind") {
             val url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v$tailwindVersion/tailwindcss-$platform"
             logger.lifecycle("Downloading $url")
             val partial = File(binary.path + ".part")
-            val failure = try {
+            try {
                 tailwindCacheDir.mkdirs()
-                // Without timeouts an unreachable or silent GitHub would block the build forever. A timeout
-                // is an IOException (HttpTimeoutException), so it ends in the "cannot download" error below.
-                val client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(30))
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .build()
-                val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(2)).build()
-                val status = client.send(request, HttpResponse.BodyHandlers.ofFile(partial.toPath())).statusCode()
-                if (status == 200) null else "HTTP $status"
-            } catch (e: java.io.IOException) {
-                e.message ?: e.javaClass.simpleName
-            }
-            if (failure != null) {
+                // The download opens the file without truncating it: a `.part` left by a build that was
+                // killed (no `finally` runs then) would keep its tail. Start from nothing.
                 partial.delete()
-                throw GradleException(
-                    "Tailwind CSS: cannot download $url ($failure). " +
-                        "The first build needs the network; with the binary in $tailwindCacheDir it does not.",
-                )
-            }
-            val downloaded = sha256(partial)
-            if (downloaded != expected) {
+                val failure = try {
+                    // Without timeouts an unreachable or silent GitHub would block the build forever. A timeout
+                    // is an IOException (HttpTimeoutException), so it ends in the "cannot download" error below.
+                    // They do not cover a server that stops halfway through the body: that is the limit of the task.
+                    // The client is not closed: close() waits for the exchanges to end, and a stuck one never does.
+                    val client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(30))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build()
+                    val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(2)).build()
+                    val status = client.send(request, HttpResponse.BodyHandlers.ofFile(partial.toPath())).statusCode()
+                    if (status == 200) null else "HTTP $status"
+                } catch (e: java.io.IOException) {
+                    e.message ?: e.javaClass.simpleName
+                }
+                if (failure != null) {
+                    throw GradleException(
+                        "Tailwind CSS: cannot download $url ($failure). " +
+                            "The first build needs the network; with the binary in $tailwindCacheDir it does not.",
+                    )
+                }
+                val downloaded = sha256(partial)
+                if (downloaded != expected) {
+                    throw GradleException(
+                        "Tailwind CSS: the file downloaded from $url has SHA-256 $downloaded, expected $expected. " +
+                            "It was not run.",
+                    )
+                }
+                Files.move(partial.toPath(), binary.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            } finally {
+                // Whatever ends the download leaves no `.part`: a failure, a wrong checksum, or the limit of
+                // time of the task, which interrupts this thread (an InterruptedException that must not be
+                // caught: the task has to fail). After the move there is nothing left to delete.
                 partial.delete()
-                throw GradleException(
-                    "Tailwind CSS: the file downloaded from $url has SHA-256 $downloaded, expected $expected. " +
-                        "It was not run.",
-                )
             }
-            Files.move(partial.toPath(), binary.toPath(), StandardCopyOption.ATOMIC_MOVE)
         }
 
         val actual = sha256(binary)
