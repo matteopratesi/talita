@@ -43,9 +43,31 @@ internal fun Page.addToContent(html: String) {
     )
 }
 
+/**
+ * Waits until [expression] is true in the page, looking again every 30 ms. Not `Page.waitForFunction`:
+ * Playwright runs the expression of that one with `eval` inside the page, and the Content-Security-Policy
+ * of the app (no `unsafe-eval`) forbids it. `evaluate` goes through the debugging protocol of the browser,
+ * which the policy does not touch. A page that changes while it is asked is asked again.
+ */
+internal fun Page.waitUntil(expression: String, timeoutMs: Long = 10_000) {
+    val deadline = System.nanoTime() + timeoutMs * 1_000_000
+    var failure: String? = null
+    while (System.nanoTime() < deadline) {
+        try {
+            if (evaluate("!!($expression)") == true) return
+            failure = null
+        } catch (error: com.microsoft.playwright.PlaywrightException) {
+            // The page was being replaced (the context of the script is gone): try again on the new one.
+            failure = error.message?.lineSequence()?.firstOrNull()
+        }
+        Thread.sleep(30)
+    }
+    throw AssertionError("Timeout of $timeoutMs ms waiting for: $expression" + (failure?.let { " (last error: $it)" } ?: ""))
+}
+
 /** Waits until the entrance animation of the content is over, so colors and positions are final. */
 internal fun Page.waitForSettledContent() {
-    waitForFunction("document.querySelector('main').getAnimations().every(a => a.playState === 'finished')")
+    waitUntil("document.querySelector('main').getAnimations().every(a => a.playState === 'finished')")
 }
 
 // The Playwright API says "maybe null"; in a test a missing value is a failure with a message.

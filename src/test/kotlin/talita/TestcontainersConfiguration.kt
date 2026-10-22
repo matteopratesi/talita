@@ -62,6 +62,8 @@ class MailpitContextCustomizerFactory : ContextCustomizerFactory {
     }
 }
 
+private const val INLINED_TEST_PROPERTIES = "Inlined Test Properties"
+
 private object MailpitContextCustomizer : ContextCustomizer {
 
     override fun customizeContext(context: ConfigurableApplicationContext, mergedConfig: MergedContextConfiguration) {
@@ -74,6 +76,10 @@ private object MailpitContextCustomizer : ContextCustomizer {
             "talita.mail.from" to Addresses.of("talita"),
             "talita.public-url" to TestcontainersConfiguration.PUBLIC_URL,
         )
-        context.environment.propertySources.addFirst(MapPropertySource("mailpit", properties))
+        // Before everything but the properties that a test sets on its own (`@SpringBootTest(properties = ...)`),
+        // which can replace the mail port or the public address to try a mail that fails.
+        val sources = context.environment.propertySources
+        val source = MapPropertySource("mailpit", properties)
+        if (sources.contains(INLINED_TEST_PROPERTIES)) sources.addAfter(INLINED_TEST_PROPERTIES, source) else sources.addFirst(source)
     }
 }

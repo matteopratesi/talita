@@ -36,6 +36,19 @@ spring:
           max-age: 365d
           cache-public: true
 
+server:
+  servlet:
+    session:
+      # Sessions live in memory (they do not survive a restart) and end after two hours of no use:
+      # the person enters again with a new link. The cookie carries only the id of the session.
+      timeout: 2h
+      # Only the cookie: never `;jsessionid=` in an address (it would be in the history, in a mail, in a log).
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        same-site: lax
+        # `Secure` is added by Tomcat when the request arrives by HTTPS (TALITA-8 sets up the proxy).
+
 management:
   health:
     mail:

@@ -19,7 +19,7 @@ Il contesto, le regole e il flusso di lavoro sono in [`CLAUDE.md`](CLAUDE.md); i
 
 ```bash
 ./gradlew build            # migrazioni, jOOQ, template, CSS, test unitari ed e2e (telefono e desktop)
-scripts/smoke-test-jar.sh  # avvia il jar come in produzione e controlla la home
+scripts/smoke-test-jar.sh  # avvia il jar come in produzione e controlla la pagina di accesso
 ```
 
 Lo smoke test avvia il jar con il `java` del PATH, che deve essere il JDK 25: se non lo è, `JAVA=<percorso di un java 25> scripts/smoke-test-jar.sh` (la toolchain di Gradle ne tiene uno in `~/.gradle/jdks/`).
@@ -32,10 +32,11 @@ In due terminali:
 
 ```bash
 ./gradlew tailwindWatch   # ricompila il CSS a ogni modifica di un template
-./gradlew bootRun         # avvia Postgres da compose.yaml (porta 5433) e l'app sulla porta 8081
+./gradlew bootRun         # avvia Postgres e Mailpit da compose.yaml (porte 5433, 1026 e 8026) e l'app sulla porta 8081
 ```
 
 Poi <http://localhost:8081>. Il profilo `dev` ricarica i template senza riavviare. Solo dati sintetici.
+Si entra con un link che arriva per mail: in sviluppo la posta la prende Mailpit, che si legge su <http://localhost:8026> (il primo maestro è `nome@example.org`, vedi `docs/04-ambiente.md`).
 
 ## Licenza
 

@@ -7,8 +7,9 @@ import java.time.ZoneId
 
 /**
  * The clock of the tests: the real one, plus an offset that a test can move forward to let a link
- * or an invitation expire without waiting. A test that moves it puts it back with [reset] when it
- * is done (`try`/`finally`), because the application context, and so the clock, is shared.
+ * or an invitation expire without waiting. It only goes forward and is never put back: the clock is
+ * shared by every test of the application context, and what they wrote with it (a mail counted for
+ * the daily limit, a link that expires) is dated by it, so going back would revive it.
  */
 class MutableClock(private val zone: ZoneId) : Clock() {
 
@@ -23,9 +24,5 @@ class MutableClock(private val zone: ZoneId) : Clock() {
 
     fun advance(by: Duration) {
         offset = offset.plus(by)
-    }
-
-    fun reset() {
-        offset = Duration.ZERO
     }
 }

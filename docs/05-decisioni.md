@@ -263,3 +263,90 @@ agentico, la build, la CI e due test. Una PR sola.
 - **Registro in ordine di data.** Le quattro voci del 19/10 passano prima di quelle del 21/10, come
   dice la prima riga del registro, e un test controlla che le date delle intestazioni non scendano
   mai.
+
+## 2026-10-22: scelte di TALITA-3
+
+Login con magic link, ruoli e maestri. Analisi e design approvati da Matteo il 22/10/2026 con tutte le
+raccomandazioni delle domande aperte. **Il ticket non si spezza**: un branch e una PR, con le parti
+A (posta), B (accesso con il link), C (ruoli e primo maestro) e D (maestri e inviti) fatte come commit
+in quest'ordine, ognuno con la build verde.
+
+**Valori approvati**
+
+- Il link vale **15 minuti** e si usa una volta sola (i 5 di Spring sono pochi per chi passa
+  dall'app di posta con poco campo).
+- La sessione sta **in memoria** e finisce dopo **2 ore** di inattività; si perde al riavvio. Se ai
+  maestri non basta, si apre un ticket per tenerli dentro qualche giorno sul loro telefono.
+- Limiti, in configurazione e contati in memoria: **3 link ogni 15 minuti per indirizzo** e **150 mail
+  ogni 24 ore** in tutto (link e inviti; Mailjet gratuito ne manda 200). Per indirizzo e non per IP: alla
+  convivenza i maestri escono dallo stesso Wi-Fi.
+- **Il genitore entra sempre**, anche senza una convivenza aperta: è ogni account, e dal suo account
+  esercita i diritti (`docs/03-privacy.md`). TALITA-3 non dipende da TALITA-4.
+- La conservazione di account, inviti scaduti e link resta a TALITA-7.
+
+**A. Posta**
+
+- **Un solo punto di uscita, `Mailer`**, sincrono: chi chiede un link sa subito se la mail non è partita.
+  Solo testo, mittente «Talità», intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`,
+  timeout SMTP di 10 secondi (prima dei 20 di htmx), STARTTLS obbligatorio (lo spengono solo `dev` e i
+  test). L'app parte anche senza `spring.mail.host` e lo dice nel log; la posta non fa parte di
+  `/actuator/health`. Il log non ha mai indirizzo, testo o link di una mail: un errore si scrive con il tipo
+  dell'eccezione, perché il messaggio di JavaMail nomina spesso il destinatario.
+- **Mailpit** con tag esatto (`v1.31.4`, uscito il 3/10/2026, oltre le due settimane), su `127.0.0.1` con
+  le porte 1026 e 8026 (1025 e 8025 restano all'altro progetto, come 5433 e 8081). Due variabili che
+  servono davvero: `MP_DISABLE_VERSION_CHECK` (non chiama GitHub a ogni avvio) e `MP_SMTP_DISABLE_RDNS`:
+  senza, Mailpit cerca nel DNS il nome di chi manda e, dove la rete non risponde per l'indirizzo del bridge
+  di Docker, **ogni mail aspetta 5 secondi** (misurato: 5 secondi senza, 17 millisecondi con). Nei test
+  gira un solo Mailpit di Testcontainers per tutta l'esecuzione (`MailpitContainer`); ogni test usa i suoi
+  indirizzi (`Addresses`), quindi se ne condivide uno.
+- **Le proprietà della posta nei test arrivano da un `ContextCustomizer`**, non da un bean
+  (`DynamicPropertyRegistrar`): Spring Boot crea il sender solo se `spring.mail.host` esiste mentre si
+  leggono le classi di configurazione, prima di qualunque bean. I test possono sostituire una proprietà con
+  `@SpringBootTest(properties = ...)` per provare una mail che non parte.
+- **Un solo orologio** (`Clock`), che i test spostano in avanti per far scadere un link o contare le 24 ore
+  senza aspettare. Va solo avanti e non si rimette a posto: è condiviso da tutti i test del contesto, e
+  quello che hanno scritto (una mail contata, un link) è datato da lui.
+- **Indirizzi dei test**: nei file tracciati l'unico indirizzo ammesso è `nome@example.org`
+  (`t2 c37`), quindi gli altri si costruiscono a pezzi in `Addresses`.
+
+**B. Accesso con il link**
+
+- **Aprire il link non fa entrare**: la pagina chiede un tocco su «Entra» (un `POST` con codice CSRF).
+  I programmi di posta e le anteprime aprono i link per guardarli, e con un `GET` che consuma il link
+  la persona lo troverebbe già usato.
+- **Stessa risposta per ogni indirizzo valido**, con o senza account: 303 verso «Controlla la posta», che
+  ripete l'indirizzo appena scritto (dalla sessione, letto una volta sola, mai nell'URL). L'account nasce
+  al primo accesso riuscito, quando Spring ha già consumato il link: un link mai usato non crea niente.
+- **I link nascono in un solo punto, `LoginLinks`** (validazione, limite per indirizzo, token, mail, e se
+  la mail non parte il token si butta e la richiesta non conta). L'indirizzo predefinito di Spring
+  (`/ott/generate`) è spento con un resolver che non risolve mai niente: non genera né manda. L'indirizzo
+  del link viene da `talita.public-url` e mai da `Host` o `X-Forwarded-Host`.
+- **Tabella dei link riscritta** (`V2__accounts.sql`): lo script di Spring usa `varchar_ignorecase`, che
+  Postgres non ha, e un `username` da 50 caratteri. Qui 254, così gli indirizzi lunghi entrano. La pulizia
+  dei link scaduti è quella di Spring, ogni ora; un link usato esce subito.
+- **La sessione tiene solo id e indirizzo**; a ogni richiesta `CurrentAccountFilter` legge l'account dal
+  database e costruisce l'autenticazione di quella richiesta (non si salva in sessione). Così un ruolo che
+  cambia vale al tocco dopo, e un account cancellato esce. È l'unico modo per avere l'account corrente:
+  `CurrentAccount` come parametro di un metodo del controller, o `CurrentAccounts` per il guscio.
+- **Elenco unico degli indirizzi pubblici** (`PublicPaths`) e un test che lo controlla: `/accedi/**`,
+  `/actuator/health`, la pagina d'errore e i file statici (con la cache di sempre). Chiunque apra un altro
+  indirizzo, anche uno che non esiste, va a `/accedi`. Una richiesta di htmx senza accesso riceve
+  `HX-Redirect`, non un 302 né un 401: la pagina di accesso non finisce dentro un pezzo di pagina.
+- **Dopo l'accesso**: alla pagina chiesta prima, se il link si apre nello stesso browser (solo percorso e
+  query, mai un indirizzo esterno, e non un pezzo di pagina che htmx chiede); altrimenti alla home. Niente
+  `?continue` nell'URL.
+- **CSRF scaduto**: un form delle pagine di accesso con il codice scaduto torna come la stessa pagina, con il
+  campo compilato, un codice nuovo e «La pagina era aperta da troppo tempo. Riprova.» (422); mai la pagina
+  «Non puoi vedere questa pagina». Per un form di chi non è più dentro: la pagina di accesso.
+- **Form rimandati con errori**: 422, o 429 per i limiti; `app.js` li mette al posto della pagina o del
+  pezzo, il fuoco va al primo campo sbagliato o all'avviso, e non lasciano una seconda voce nella
+  cronologia. Le conferme dopo un'azione sono avvisi nella pagina e non messaggi a comparsa (regola nuova
+  di 4.7 della guida).
+- **Content-Security-Policy** su ogni risposta, senza `unsafe-inline` né `unsafe-eval`; un test e2e fallisce
+  se la console del browser segnala una violazione. Il cookie di sessione è `HttpOnly` e `SameSite=Lax`,
+  `Secure` quando la richiesta arriva in HTTPS (dietro un proxy lo deciderà TALITA-8: un test lo prova con
+  `X-Forwarded-Proto` e le due proprietà di Tomcat che serviranno), e la sessione non passa mai da un
+  `;jsessionid=` nell'indirizzo.
+- **Test che entrano con il flusso vero** (`MockSignIn`, `E2e.signIn`): token dal servizio, pagina di
+  conferma, tocco su «Entra». Nessuna scorciatoia nel codice di produzione. Per non aspettare due ore, un
+  endpoint solo dei test accorcia la sessione a un secondo: Tomcat la tratta come dopo le due ore vere.

@@ -75,7 +75,7 @@ class HistoryRecoveryE2eTest {
         val held = AtomicReference<Route>()
         page.route("**/convivenza") { held.set(it) }
         e2e.touch(page.navLink("Convivenza"))
-        page.waitForFunction("document.querySelector('a.htmx-request') !== null")
+        page.waitUntil("document.querySelector('a.htmx-request') !== null")
 
         page.goBack()
         assertThat(page).hasURL(e2e.url("/"))
@@ -114,7 +114,7 @@ class HistoryRecoveryE2eTest {
         e2e.touch(page.locator("#carica"))
 
         assertThat(page.locator("#f")).hasText("Frammento caricato")
-        page.waitForFunction("document.querySelectorAll('.htmx-request').length === 0")
+        page.waitUntil("document.querySelectorAll('.htmx-request').length === 0")
         assertEquals("0", page.evaluate("getComputedStyle(document.getElementById('caricamento')).opacity"))
     }
 }

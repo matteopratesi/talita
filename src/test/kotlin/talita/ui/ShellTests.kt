@@ -4,7 +4,10 @@ import gg.jte.TemplateEngine
 import gg.jte.output.StringOutput
 import jakarta.servlet.RequestDispatcher
 import talita.TestcontainersConfiguration
+import talita.account.MockSignIn
 import org.junit.jupiter.api.Test
+import org.springframework.security.authentication.ott.OneTimeTokenService
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -18,7 +21,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** The pages of the shell as the server renders them: titles, texts, current entry, error pages. */
+/**
+ * The pages of the shell as the server renders them: titles, texts, current entry, error pages. The
+ * person is inside (see [MockSignIn]) unless the test says otherwise.
+ */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,9 +32,12 @@ class ShellTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val navigation: Navigation,
     @Autowired private val engine: TemplateEngine,
+    @Autowired tokens: OneTimeTokenService,
 ) {
 
-    private fun html(path: String): String = mockMvc.get(path).andReturn().response.contentAsString
+    private val signedInSession = MockSignIn(mockMvc, tokens).session()
+
+    private fun html(path: String): String = mockMvc.get(path) { session = signedInSession }.andReturn().response.contentAsString
 
     private fun heading(html: String) = Regex("""<h1[^>]*>(.*?)</h1>""", RegexOption.DOT_MATCHES_ALL).find(html)?.groupValues?.get(1)?.trim()
 
@@ -42,6 +51,7 @@ class ShellTests(
 
     private fun error(status: Int, configure: org.springframework.test.web.servlet.MockHttpServletRequestDsl.() -> Unit = {}): MvcResult =
         mockMvc.get("/error") {
+            session = signedInSession
             requestAttr(RequestDispatcher.ERROR_STATUS_CODE, status)
             configure()
         }.andReturn()
@@ -137,8 +147,48 @@ class ShellTests(
     }
 
     @Test
+    fun `t3 c07 the error pages for someone without access have no navigation and lead to the access page`() {
+        for (status in listOf(404, 500)) {
+            val html = mockMvc.get("/error") {
+                requestAttr(RequestDispatcher.ERROR_STATUS_CODE, status)
+                requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/accedi/qualcosa")
+            }.andReturn().response.contentAsString
+
+            assertFalse(html.contains("<nav"), "$status has a navigation")
+            assertFalse(html.contains("""href="/profilo""""), "$status has the profile")
+            assertTrue(html.contains("""<a href="/accedi" """), "$status does not lead to the access page")
+            assertTrue(html.contains(">Vai all’accesso</a>"), "$status")
+            assertFalse(html.contains("Vai alla home"), "$status")
+            // The mark is there, and it is not a link.
+            assertTrue(html.contains("""<path d="M10.5 9h11M16 9v14""""))
+            assertFalse(Regex("""<a href="/"[^>]*>\s*<svg""").containsMatchIn(html), "$status")
+        }
+        // «Riprova» of the 500 stays, for a read.
+        val withRetry = mockMvc.get("/error") {
+            requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 500)
+            requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/accedi/qualcosa")
+        }.andReturn().response.contentAsString
+        assertTrue(retryLink.containsMatchIn(withRetry))
+    }
+
+    @Test
+    fun `t3 c21 the header of someone who is inside has the mark and the profile pill with the initial, and the pages of the shell have no other profile`() {
+        val html = html("/")
+
+        assertTrue(Regex("""<a href="/profilo"[^>]*class="group ml-auto""").containsMatchIn(html))
+        assertTrue(Regex("""<span aria-hidden="true" class="grid size-8 [^"]*">[A-Z]</span>\s*<span class="max-\[20rem\]:sr-only">Profilo</span>""").containsMatchIn(html), html)
+        assertEquals(1, Regex("""href="/profilo"""").findAll(html).count())
+        // On the page of the profile the pill is the current entry, and it is not on any other.
+        assertTrue(Regex("""<a href="/profilo" aria-current="page"""").containsMatchIn(html("/profilo")))
+        assertEquals(listOf("/"), currentEntries(html))
+        val profile = html("/profilo")
+        assertEquals(listOf("/profilo"), currentEntries(profile), "only the pill is the current one on the profile page")
+        assertFalse(Regex("""<nav[\s\S]*?</nav>""").find(profile)!!.value.contains("aria-current"), "an entry of the navigation is current on the profile page")
+    }
+
+    @Test
     fun `an address that nobody asked for, opened by hand on the error path, is a page that does not exist`() {
-        val result = mockMvc.get("/error").andReturn()
+        val result = mockMvc.get("/error") { session = signedInSession }.andReturn()
 
         assertEquals(404, result.response.status)
         assertEquals("Pagina non trovata", heading(result.response.contentAsString))
@@ -178,6 +228,8 @@ class ShellTests(
     @Test
     fun `there is no try again after something other than a read, nor towards another host`() {
         val afterPost = mockMvc.post("/error") {
+            session = signedInSession
+            with(csrf())
             requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 500)
             requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/convivenza")
         }.andReturn().response.contentAsString

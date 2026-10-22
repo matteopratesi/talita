@@ -141,7 +141,7 @@ class HistoryConsistencyE2eTest {
     }
 
     private fun assertNothingKept(page: Page, step: String) {
-        page.waitForFunction("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
+        page.waitUntil("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
         assertEquals(0, (page.evaluate("localStorage.length") as Number).toInt(), "$step: localStorage is not empty")
         assertEquals(emptyList<String>(), page.evaluate("Object.keys(sessionStorage)") as List<*>, "$step: sessionStorage is not empty")
     }
@@ -181,7 +181,7 @@ class HistoryConsistencyE2eTest {
         e2e.browserContext.setOffline(true)
         page.goBack()
         assertThat(page.messages()).hasCount(1)
-        page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
+        page.waitUntil("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
 
         val violations = AxeBuilder(page).analyze().violations
             .filter { it.impact == "serious" || it.impact == "critical" }

@@ -36,13 +36,13 @@ class TalitaApplicationTests(
     }
 
     @Test
-    fun `there is a single migration, V1 extensions, and it installs only unaccent`() {
+    fun `the migrations are V1 extensions and V2 accounts, and the only extension is unaccent`() {
         val applied = dsl.resultQuery("select version, script from flyway_schema_history where success order by installed_rank")
             .fetch { it.get(0, String::class.java) to it.get(1, String::class.java) }
-        assertEquals(listOf("1" to "V1__extensions.sql"), applied)
+        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql"), applied)
 
-        val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").map { it.filename }
-        assertEquals(listOf("V1__extensions.sql"), files)
+        val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").mapNotNull { it.filename }.sorted()
+        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql"), files)
 
         val installed = dsl.resultQuery("select extname from pg_extension").fetch(0, String::class.java)
         assertTrue("unaccent" in installed, "installed: $installed")

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import talita.Addresses
 import talita.PostgresConfiguration
+import talita.account.MockBrowser
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -51,6 +52,17 @@ class NoMailTests(
 
         assertTrue(output.all.contains("Mail not sent: no mail server configured."))
         assertTrue(!output.all.contains(to), "the log carries the address of the recipient")
+    }
+
+    @Test
+    fun `t3 c15 without a mail server a person who asks for a link is told that it did not leave, and the log does not name the address`(output: CapturedOutput) {
+        val address = Addresses.unique("senza-server")
+
+        val result = MockBrowser(mockMvc).submit("/accedi", "/accedi", mapOf("email" to address))
+
+        assertEquals(422, result.response.status)
+        assertTrue(result.response.contentAsString.contains("Non siamo riusciti a mandare il link. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza."))
+        assertTrue(!output.all.contains(address))
     }
 
     @Test

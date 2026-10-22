@@ -79,7 +79,7 @@ class MessagesE2eTest {
         val content = page.locator("main > div").box()
 
         lostConnection(e2e)
-        page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
+        page.waitUntil("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
 
         val message = page.messages().box()
         val nav = page.mainNavigation().box()
@@ -104,7 +104,7 @@ class MessagesE2eTest {
         val page = e2e.page
         e2e.open("/")
         lostConnection(e2e)
-        page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
+        page.waitUntil("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
 
         for (button in page.messages().locator("button").all()) {
             val box = button.box()
@@ -151,17 +151,19 @@ class MessagesE2eTest {
     @E2eTest
     fun `trying again after a form was sent offers no Riprova`(e2e: E2e) {
         val page = e2e.page
-        e2e.open("/")
+        // The profile page has a form, so it has the CSRF code that a form of the app needs.
+        e2e.open("/profilo")
+        val csrf = page.locator("input[name=_csrf]").inputValue()
         // A form of the app is boosted by htmx; the address answers 405 to a POST, which is a failure.
-        page.addToContent("""<form method="post" action="/test/errore"><button id="invia" type="submit">Invia</button></form>""")
+        page.addToContent("""<form method="post" action="/test/errore"><input type="hidden" name="_csrf" value="$csrf"><button id="invia" type="submit">Invia</button></form>""")
 
         e2e.touch(page.locator("#invia"))
 
         assertThat(page.messages().filter(textFilter(server.title))).hasCount(1)
         assertEquals(0, page.messages().locator("[data-azione=riprova]").count(), "a form must not be sent again with a tap on Riprova")
         assertEquals(1, page.messages().locator("[data-azione=chiudi]").count())
-        assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
-        assertEquals(e2e.url("/"), page.url())
+        assertThat(page.locator("h1")).hasText("Profilo")
+        assertEquals(e2e.url("/profilo"), page.url())
     }
 
     @E2eTest
@@ -176,7 +178,7 @@ class MessagesE2eTest {
 
         e2e.touch(page.locator("#carica"))
 
-        page.waitForFunction("window.__responseErrors === 1")
+        page.waitUntil("window.__responseErrors === 1")
         assertThat(page.messages()).hasCount(0)
         assertThat(page.locator("#bersaglio")).hasText("Contenuto di prima")
     }
@@ -189,7 +191,7 @@ class MessagesE2eTest {
             page.unrouteAll()
             e2e.open("/")
             kind(e2e)
-            page.waitForFunction("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
+            page.waitUntil("document.querySelector('#messaggi [role=alert]').getAnimations().length === 0")
 
             val results = AxeBuilder(page).analyze()
             val violations = results.violations

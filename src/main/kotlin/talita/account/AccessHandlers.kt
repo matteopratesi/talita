@@ -1,0 +1,228 @@
+package talita.account
+
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.AuthenticationException
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.web.access.AccessDeniedHandler
+import org.springframework.security.web.authentication.AuthenticationFailureHandler
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.csrf.CsrfException
+import org.springframework.security.web.savedrequest.DefaultSavedRequest
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache
+import org.springframework.security.web.savedrequest.RequestCache
+import org.springframework.security.web.util.matcher.RequestMatcher
+import talita.ui.Alert
+import talita.ui.AlertVariant.INFO
+import talita.ui.AlertVariant.WARNING
+import talita.ui.AlertVariant.SUCCESS
+import talita.ui.Flash
+
+/** The request comes from htmx (a page change by link or form, or a piece of a page). */
+internal fun HttpServletRequest.isHtmx(): Boolean = getHeader("HX-Request") == "true"
+
+/** The request comes from htmx and is not a page change: it wants a piece of a page. */
+internal fun HttpServletRequest.isHtmxFragment(): Boolean =
+    isHtmx() && getHeader("HX-Boosted") != "true" && getHeader("HX-History-Restore-Request") != "true"
+
+/** A redirect after a POST: 303, so that the browser (and htmx) ask for the next page with a GET. */
+internal fun HttpServletResponse.redirectSeeOther(location: String) {
+    status = HttpStatus.SEE_OTHER.value()
+    setHeader(HttpHeaders.LOCATION, location)
+}
+
+/** Who is making the request is a person who is inside (not anonymous). */
+private fun Authentication?.isSignedIn(): Boolean =
+    this != null && isAuthenticated && !AuthenticationTrustResolverImpl().isAnonymous(this)
+
+/**
+ * Where a person without access goes: to `/accedi`.
+ *
+ * A request from htmx gets the answer `HX-Redirect`, and not a 302 or a 401: the browser then loads
+ * the page of access as a whole page, and never puts it inside the old page or shows "Qualcosa non ha
+ * funzionato" (criterion 23). The one exception is the request of the back button (`HX-History-Restore-Request`),
+ * where htmx does not read `HX-Redirect`: there a 401 makes htmx give up and app.js reload the address. If the browser carries the cookie of a session that the server no
+ * longer knows (more than two hours without touching anything, or a restart), the person is told that
+ * the access closed on its own: a person who never was inside is not.
+ */
+class LoginEntryPoint : AuthenticationEntryPoint {
+
+    override fun commence(request: HttpServletRequest, response: HttpServletResponse, authException: AuthenticationException) {
+        goToLogin(request, response)
+    }
+
+    fun goToLogin(request: HttpServletRequest, response: HttpServletResponse) {
+        if (request.getHeader("HX-History-Restore-Request") == "true") {
+            // The back button asks the server for a page that is not kept (nothing of a person who is inside is):
+            // htmx does not read `HX-Redirect` on this request, but treats an error as "I cannot restore it", and
+            // app.js then loads the address as a whole page, which the next request sends to the access page.
+            response.status = HttpStatus.UNAUTHORIZED.value()
+            return
+        }
+        val sessionExpired = request.requestedSessionId != null && !request.isRequestedSessionIdValid
+        if (sessionExpired) {
+            Flash.put(request, Alert(INFO, INACTIVITY_NOTICE))
+        }
+        if (request.isHtmx()) {
+            response.status = HttpStatus.OK.value()
+            response.setHeader("HX-Redirect", LOGIN_PATH)
+        } else {
+            response.sendRedirect(LOGIN_PATH)
+        }
+    }
+
+    companion object {
+        const val LOGIN_PATH = "/accedi"
+        const val INACTIVITY_NOTICE = "Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link."
+    }
+}
+
+/** The notice of a form that was open for too long (a CSRF code that the session no longer knows). */
+internal const val PAGE_EXPIRED = "La pagina era aperta da troppo tempo. Riprova."
+
+/** The two forms of the access pages: the one that asks for the link and the one that confirms it. */
+private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma")
+
+/**
+ * What happens when the request is refused to someone who is inside, and when the CSRF code of a
+ * form does not match.
+ *
+ * - A form of the access pages (public, [ACCESS_FORMS]) whose code expired (a page left open for hours): the same
+ *   page again (a redirect, not a forward: a forward goes through the security filters a second time, with
+ *   the CSRF check already marked as done), with the field still filled in, a new code and an invitation to
+ *   try again. Never "Non puoi vedere questa pagina".
+ * - Any other form without the code, from someone who is not inside any more: the access page, as
+ *   for any request without access.
+ * - The same with a person who is inside (two tabs, a form from before the login): the page is
+ *   reloaded (htmx) or the person goes to the home.
+ * - Anything else is a 403, which the error page shows (or, for a request that does not change the
+ *   page, the message "Accesso negato").
+ */
+class AccessHandler(private val entryPoint: LoginEntryPoint) : AccessDeniedHandler {
+
+    override fun handle(request: HttpServletRequest, response: HttpServletResponse, accessDeniedException: AccessDeniedException) {
+        if (accessDeniedException is CsrfException) {
+            handleCsrf(request, response)
+            return
+        }
+        response.sendError(HttpStatus.FORBIDDEN.value())
+    }
+
+    private fun handleCsrf(request: HttpServletRequest, response: HttpServletResponse) {
+        val path = PublicPaths.pathOf(request)
+        when {
+            path in ACCESS_FORMS -> backToAccessForm(path, request, response)
+
+            !SecurityContextHolder.getContext().authentication.isSignedIn() -> entryPoint.goToLogin(request, response)
+
+            request.isHtmx() -> {
+                response.status = HttpStatus.OK.value()
+                response.setHeader("HX-Refresh", "true")
+            }
+
+            else -> response.redirectSeeOther("/")
+        }
+    }
+}
+
+/**
+ * The form of access whose CSRF code expired comes back as itself: a redirect to the page, which finds
+ * in the session the notice and, for the first form, what was written in the field (read once, in memory).
+ * The session is a new one if the old one is gone, and so is the code in the form.
+ */
+private fun backToAccessForm(path: String, request: HttpServletRequest, response: HttpServletResponse) {
+    Flash.put(request, Alert(WARNING, PAGE_EXPIRED))
+    if (path == "/accedi") {
+        TypedAddress.keep(request, request.getParameter("email"))
+        response.redirectSeeOther("/accedi")
+        return
+    }
+    val token = request.getParameter("token")?.trim().orEmpty()
+    // The link is in the address, as it was when the page was opened: it is still good.
+    response.redirectSeeOther(if (token.isEmpty()) "/accedi" else "/accedi/conferma?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8))
+}
+
+/**
+ * After a login: back to the page that the person asked for before being sent to the access page,
+ * if the link was opened in the same browser; otherwise the home. Only an address of Talità, never
+ * one that comes from the outside, and nothing in the URL.
+ */
+class LoginSuccessHandler(private val requestCache: RequestCache) : AuthenticationSuccessHandler {
+
+    override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
+        val target = destination(request, response)
+        requestCache.removeRequest(request, response)
+        response.redirectSeeOther(target)
+    }
+
+    private fun destination(request: HttpServletRequest, response: HttpServletResponse): String {
+        val saved = requestCache.getRequest(request, response) as? DefaultSavedRequest ?: return "/"
+        val path = (saved.requestURI ?: return "/").removePrefix(saved.contextPath.orEmpty())
+        val query = saved.queryString?.let { "?$it" }.orEmpty()
+        val local = path.startsWith("/") && !path.startsWith("//") && !path.contains('\\') && !PublicPaths.matches(path)
+        return if (local) path + query else "/"
+    }
+}
+
+/**
+ * A link that does not work (used, expired, invented): "Il link non vale più". If in this browser
+ * the person is already inside (the link was used a moment ago, a double tap), the home.
+ */
+class LoginFailureHandler : AuthenticationFailureHandler {
+
+    private val sessions = HttpSessionSecurityContextRepository()
+
+    override fun onAuthenticationFailure(request: HttpServletRequest, response: HttpServletResponse, exception: AuthenticationException) {
+        // The filter has already emptied the context of this request; the session still has it.
+        val inside = request.getSession(false) != null && sessions.loadDeferredContext(request).get().authentication.isSignedIn()
+        response.redirectSeeOther(if (inside) "/" else "/accedi/link-scaduto")
+    }
+}
+
+/** After "Esci": the access page, with the confirmation, once. The session is new: the old one is over. */
+class LogoutRedirect : LogoutSuccessHandler {
+
+    private val log = LoggerFactory.getLogger(LogoutRedirect::class.java)
+
+    override fun onLogoutSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication?) {
+        Flash.put(request, Alert(SUCCESS, SIGNED_OUT_NOTICE))
+        log.debug("Signed out.")
+        response.redirectSeeOther(LoginEntryPoint.LOGIN_PATH)
+    }
+
+    companion object {
+        const val SIGNED_OUT_NOTICE = "Accesso chiuso. Per rientrare, chiedi un nuovo link."
+    }
+}
+
+/**
+ * Which requests are kept to bring the person back after the login: a page that was asked for
+ * (GET, for HTML), not a file, not a piece of page that htmx asks for.
+ */
+internal class ReturnablePage : RequestMatcher {
+    override fun matches(request: HttpServletRequest): Boolean =
+        request.method == "GET" &&
+            !request.isHtmxFragment() &&
+            !PublicPaths.matches(PublicPaths.pathOf(request)) &&
+            (request.getHeader(HttpHeaders.ACCEPT) ?: "").let { it.isEmpty() || it.contains("text/html") || it.contains("*/*") }
+}
+
+/**
+ * The cache that keeps the page that was asked for. Nothing of it goes in the address: the way back
+ * is in the session, and [LoginSuccessHandler] reads it (the default `?continue` parameter, which
+ * lets Spring replay the request, is never in an address of ours, so it never does).
+ */
+internal fun requestCache(): HttpSessionRequestCache = HttpSessionRequestCache().apply {
+    setRequestMatcher(ReturnablePage())
+}
