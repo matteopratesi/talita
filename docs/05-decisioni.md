@@ -215,3 +215,51 @@ unico invece dei tre proposti dall'analisi).
 - **Test ereditati**: gli stessi e2e di Koinè (guscio, layout, responsive, cronologia, caricamento,
   messaggi, errori, accessibilità con axe), su telefono e desktop; cambiano etichette, percorsi e
   testi attesi.
+
+## 2026-10-22: scelte di TALITA-14
+
+Rifiniture dopo TALITA-2, nate dai commenti della QA. Il ticket non tocca l'app: cambia il flusso
+agentico, la build, la CI e due test. Una PR sola.
+
+- **Review di CodeRabbit a mano.** Sul repo pubblico, finché ha meno di 10 stelle, CodeRabbit non
+  rivede da solo: la skill `/avanza` mette la PR pronta dopo il QA e chiede subito la review con un
+  commento `@coderabbitai review`, e lo stesso per un secondo giro dopo le correzioni (rivede solo i
+  commit nuovi). Mai un terzo giro senza Matteo. L'esito si legge dalla **descrizione** dello status
+  `CodeRabbit` sul commit di testa («Review completed»), non dallo stato: anche «Review skipped…» ha
+  stato `success` e `gh pr checks` lo mostra come `pass`. Lo status è per commit, quindi dopo un
+  push la review va chiesta di nuovo. Rate limit: si aspetta e si richiede. Nessun esito in 30
+  minuti: lo si dice a Matteo invece di chiedergli l'ok al merge. `CLAUDE.md`, developer e QA non
+  dicono più che la review è una e automatica.
+- **Prova di `/avanza` senza chiave: già fatta.** Da una sessione in `~/dev/talita` ha preso il
+  primo ticket in To Do di TALITA e non quelli di Koinè né di altri progetti (commento 10849 del
+  ticket). Il ticket di prova è TALITA-14 stesso.
+- **Download di Tailwind fermo a metà.** I timeout del client HTTP coprono la connessione e l'attesa
+  delle intestazioni, non un server che manda una parte del corpo e poi tace. Il task
+  `downloadTailwind` ha un limite di 15 minuti (solo lui: `tailwindWatch` gira finché lo si ferma) e
+  il job di CI ha `timeout-minutes: 30` per qualunque altro passo appeso. Il limite è sul tempo
+  totale, non sull'inattività: un controllo «nessun byte da N secondi» vuol dire più codice nello
+  script di build per un caso raro; se 15 minuti si rivelano stretti (110 MB sotto circa 1 Mbit/s
+  non ci stanno), si apre un ticket, e intanto il file si copia a mano nella cache
+  (`docs/04-ambiente.md`). Il file `.part` si toglie in un `finally` e prima di scaricare;
+  l'interruzione del limite non si cattura, perché il task deve fallire; il client non si chiude,
+  perché `close()` aspetta scambi che non finiscono.
+- **Bot di GitHub ammessi nel controllo degli indirizzi** (decisione di Matteo, 22/10/2026).
+  `scripts/check-commit-emails.sh` accetta anche `<id>+<login>[bot]@users.noreply.github.com`, solo
+  in questa forma: con l'id, `[bot]` subito prima della `@`, dominio esatto. Il controllo serve a
+  non far finire nella storia pubblica la mail personale o quella di lavoro (regola 2 di
+  `CLAUDE.md`); l'indirizzo di un bot è pubblico e non è di nessuna persona, e rifiutarlo farebbe
+  fallire la CI il giorno in cui un bot aggiunge un commit a una PR. Chi può scrivere sul branch lo
+  decidono i permessi di GitHub. I fork non cambiano: un indirizzo che non sia un noreply si
+  rifiuta, perché lo script non può distinguere la mail di Matteo da un'altra senza scriverla nel
+  repo. Un test esegue lo script vero su repo temporanei.
+- **Regola sul nome del ticket di origine** (`NoLeftoversTests`). Il caso di `Disabled(` con il nome
+  in un'altra stringa della riga si chiude: l'eccezione vale solo dentro la stringa del motivo. Il
+  caso di una stringa con `//` prima del nome resta aperto: chiuderlo bene vuol dire riconoscere le
+  stringhe di Kotlin (anche raw e con template), YAML, shell, JTE, JS, CSS e SQL in una regola che
+  lavora per righe, e contare le virgolette ne chiuderebbe solo una parte, con errori suoi. Sta
+  scritto nel KDoc come limite noto e un test lo fissa, così chi un giorno lo chiude lo aggiorna
+  sapendolo. La regola protegge da un residuo copiato per sbaglio, non da chi lo nasconde apposta:
+  per quello c'è la review.
+- **Registro in ordine di data.** Le quattro voci del 19/10 passano prima di quelle del 21/10, come
+  dice la prima riga del registro, e un test controlla che le date delle intestazioni non scendano
+  mai.

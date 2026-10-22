@@ -312,8 +312,22 @@ class ProjectFilesTests {
         // The line 3 of the log promises it: "dalla più vecchia alla più recente".
         assertTrue(log.contains("dalla più vecchia alla più recente"))
         val dates = entryDates(log)
-        assertTrue(dates.size >= 7, "the log has only ${dates.size} entries")
+        assertTrue(dates.size >= 8, "the log has only ${dates.size} entries")
         assertTrue(datesNeverDescend(dates), "the entries are not in order of date: $dates")
+
+        // The four of 19/10 come before the three of 21/10, and the entry of this ticket is the last one,
+        // with the choices of points 1, 3, 4 and 5 (the point 2 was tried before and is said in a line).
+        assertEquals(listOf("2026-10-19", "2026-10-21", "2026-10-22"), dates.distinct())
+        assertEquals(4, dates.count { it == "2026-10-19" })
+        assertEquals(3, dates.count { it == "2026-10-21" })
+        val last = log.substringAfterLast("\n## ")
+        assertTrue(last.startsWith("2026-10-22: scelte di TALITA-14\n"), "the last entry is not the one of TALITA-14")
+        for (choice in listOf(
+            "**Review di CodeRabbit a mano.**", "**Prova di `/avanza` senza chiave: già fatta.**", "**Download di Tailwind fermo a metà.**",
+            "**Bot di GitHub ammessi nel controllo degli indirizzi**", "**Regola sul nome del ticket di origine**",
+        )) {
+            assertTrue(last.contains(choice), "the entry of TALITA-14 misses $choice")
+        }
 
         // The rule itself: equal dates are fine, a date that goes back is not.
         assertTrue(datesNeverDescend(listOf("2026-10-19", "2026-10-19", "2026-10-21", "2026-11-02")))
