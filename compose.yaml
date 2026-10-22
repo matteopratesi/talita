@@ -25,8 +25,11 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.4
     environment:
-      # Mailpit would otherwise ask GitHub, on every start, whether there is a newer version.
+      # Mailpit would otherwise ask GitHub, on every start, whether there is a newer version...
       MP_DISABLE_VERSION_CHECK: "true"
+      # ...and look up in the DNS the name of whoever sends the mail: five seconds for every mail where
+      # the network does not answer for the address of the Docker bridge.
+      MP_SMTP_DISABLE_RDNS: "true"
     ports:
       - "127.0.0.1:1026:1025"
       - "127.0.0.1:8026:8025"

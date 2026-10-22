@@ -21,8 +21,11 @@ object MailpitContainer {
 
     private val container: GenericContainer<*> = GenericContainer(DockerImageName.parse(IMAGE))
         .withExposedPorts(SMTP_PORT, HTTP_PORT)
-        // Mailpit would otherwise ask GitHub whether there is a newer version.
+        // Mailpit would otherwise ask GitHub whether there is a newer version...
         .withEnv("MP_DISABLE_VERSION_CHECK", "true")
+        // ...and look up in the DNS the name of whoever sends the mail, which costs five seconds for every mail
+        // where the network does not answer for the address of the Docker bridge.
+        .withEnv("MP_SMTP_DISABLE_RDNS", "true")
         .waitingFor(Wait.forHttp("/readyz").forPort(HTTP_PORT).withStartupTimeout(Duration.ofSeconds(60)))
         .also { it.start() }
 

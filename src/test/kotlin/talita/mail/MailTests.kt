@@ -88,6 +88,17 @@ class MailTests(
     }
 
     @Test
+    fun `t3 c02 a mail takes a moment, not seconds, to reach the Mailpit of the tests`() {
+        val started = System.nanoTime()
+        assertEquals(MailResult.SENT, mailer.send(testMail(Addresses.unique("veloce"))))
+        val seconds = Duration.ofNanos(System.nanoTime() - started).toMillis() / 1000.0
+
+        // Mailpit looks up the name of the sender in the network before it answers, unless it is told not to
+        // (MP_SMTP_DISABLE_RDNS): five seconds lost for every mail where the DNS does not answer.
+        assertTrue(seconds < 3, "the mail took $seconds seconds")
+    }
+
+    @Test
     fun `t3 c05 a server that accepts the connection and says nothing makes the sending fail in less than 15 seconds`() {
         ServerSocket(0, 5, InetAddress.getLoopbackAddress()).use { silent ->
             val accepted = CopyOnWriteArrayList<Socket>()
