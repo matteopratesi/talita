@@ -437,3 +437,6 @@ in quest'ordine, ognuno con la build verde.
   area; zero da `lg`): l'avviso «Invito mandato.» prendeva il fuoco sotto l'intestazione. Chiude anche il dubbio sul
   fuoco coperto dalla barra in basso (WCAG 2.2, 2.4.11), per tutte le pagine; nella guida (2.4 e 3.1).
 - I test e2e di questi casi (`MaestriLayoutE2eTest`) li ha scritti la QA e riproducevano i difetti prima della correzione.
+- **Anche il nome nella riga di un maestro** ha `wrap-anywhere` (la QA lo ha trovato dopo gli altri): con `wrap-break-word` una
+  parola di 24 lettere passava sotto «Togli» sul telefono e una di 100 usciva dalla riga. Controllati gli altri nomi e
+  indirizzi delle pagine «Maestri», profilo e «Controlla la posta»: avevano già `wrap-anywhere`.

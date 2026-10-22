@@ -900,7 +900,7 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
       <span class="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">MB</span>
       <span class="min-w-0 flex-1">
         <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span class="font-semibold wrap-break-word">Marta Bianchi</span>
+          <span class="font-semibold wrap-anywhere">Marta Bianchi</span>
           <span class="… etichetta di stato …">Confermata</span>
         </span>
         <span class="block text-sm text-ink-muted">3 giorni di presenza</span>
@@ -916,7 +916,8 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
   rounded-full bg-brand-soft text-sm font-semibold text-brand`), per le altre cose un'icona in un
   riquadro. Le iniziali non sono una foto: niente foto delle persone.
 - Titolo in `font-semibold`, dettagli in `text-sm text-ink-muted` separati da " · ".
-- I nomi non si tagliano mai con i puntini: vanno a capo.
+- I nomi non si tagliano mai con i puntini: vanno a capo, anche un nome in una sola parola di 100 lettere
+  (`wrap-anywhere` sul nome; `wrap-break-word` lascia passare la parola sotto i bottoni o fuori dalla riga).
 - L'etichetta di stato sta accanto al titolo (va a capo se non c'è spazio), non in colonna a
   destra: sul telefono ruberebbe spazio al testo.
 - Righe non cliccabili (per esempio un elenco di sola lettura): stesso `li`, senza link e senza freccia.
