@@ -8,10 +8,11 @@ import kotlin.test.assertTrue
 /**
  * axe-core looks at the page as it is now and finds nothing «serious» or «critical» (criterion 49).
  * It also makes sure that the contrast was really checked, not left among the «incomplete» results.
- * Waits for the entrance animation first, so that colors are the final ones.
+ * Waits for the entrance animation of the content and of the open messages first, so that colors are the final ones.
  */
 internal fun assertAccessible(page: Page, what: String) {
     page.waitForSettledContent()
+    page.waitForSettledMessages()
     val results = AxeBuilder(page).analyze()
     assertTrue(
         results.passes.any { it.id == "color-contrast" },
