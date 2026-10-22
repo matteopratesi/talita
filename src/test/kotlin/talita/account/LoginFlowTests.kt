@@ -21,6 +21,9 @@ import talita.jooq.tables.references.ONE_TIME_TOKENS
 import talita.mail.MailQuota
 import talita.mail.Mailbox
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -354,6 +357,43 @@ class LoginFlowTests(
         assertEquals("/", location(browser().confirm(links[1])))
         assertEquals("/accedi/link-scaduto", location(browser().confirm(links[0])))
         assertEquals("/accedi/link-scaduto", location(browser().confirm(links[1])))
+    }
+
+    /**
+     * The same link confirmed by two browsers at the same moment (CVE-2026-22751, `JdbcOneTimeTokenService`, fixed in Spring Security
+     * 7.0.5): both have the page of the link and a valid CSRF code, both send the tap together. One lets in, the other finds a link that
+     * is already used, and the person has one account. If this ever fails it is a defect of the code, not of the test.
+     */
+    @Test
+    fun `t3 c14 the same link confirmed by two browsers at the same moment lets in one only, with one account`() {
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            repeat(15) { round ->
+                val address = Addresses.unique("insieme-$round")
+                val token = signIn.link(address)
+                val browsers = listOf(browser(), browser())
+                val csrfs = browsers.map { MockBrowser.csrfIn(body(it.get("/accedi/conferma?token=$token")))!! }
+                val ready = CountDownLatch(2)
+                val start = CountDownLatch(1)
+
+                val answers = browsers.indices.map { index ->
+                    pool.submit<String?> {
+                        ready.countDown()
+                        start.await()
+                        location(browsers[index].post("/accedi/conferma", mapOf("token" to token), csrfs[index]))
+                    }
+                }
+                assertTrue(ready.await(10, TimeUnit.SECONDS))
+                start.countDown()
+                val locations = answers.map { it.get(30, TimeUnit.SECONDS) }
+
+                assertEquals(listOf("/", "/accedi/link-scaduto"), locations.sortedBy { it }, "round $round: $locations")
+                assertEquals(1, accountCount(address), "round $round: accounts of the address")
+                assertEquals(0, dsl.fetchCount(ONE_TIME_TOKENS, ONE_TIME_TOKENS.USERNAME.eq(address)), "round $round: the link is still in the table")
+            }
+        } finally {
+            pool.shutdownNow()
+        }
     }
 
     @Test
