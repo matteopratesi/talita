@@ -35,7 +35,7 @@
             <span aria-hidden="true" class="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">${teacher.getInitials()}</span>
             <span class="min-w-0 flex-[1_1_11rem]">
               <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span class="font-semibold wrap-break-word">${teacher.getName()}</span>
+                <span class="font-semibold wrap-anywhere">${teacher.getName()}</span>
                 @if(teacher.getYou())
                   <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-ink-muted">Sei tu</span>
                 @endif
