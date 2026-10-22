@@ -6,7 +6,7 @@ import talita.account.CurrentAccounts
 /**
  * Builds the [Shell] of a page. The person who is inside is not passed in: the factory asks
  * [CurrentAccounts], so no controller can forget it (a person without access gets the shell without
- * navigation and without profile).
+ * navigation and without profile, and the navigation of a parent and that of a teacher differ).
  */
 @Component
 class ShellFactory(
@@ -26,7 +26,7 @@ class ShellFactory(
         return Shell(
             title = if (page == null) "Talità" else "$page · Talità",
             assets = assets,
-            navigation = if (account == null) emptyList() else navigation.items(current),
+            navigation = if (account == null) emptyList() else navigation.items(current, account),
             profile = account?.let { ProfileLink(it.initials, onProfile) },
         )
     }

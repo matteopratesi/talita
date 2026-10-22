@@ -22,14 +22,15 @@ import java.util.stream.Stream
  * experimental and tied to JUnit 5.
  *
  * The page is already inside the app (the real flow of the link, see [E2e.signIn]) unless the test is
- * about what someone without access sees: then `signedIn = false`. Whatever the test does, it fails if
+ * about what someone without access sees: then `signedIn = false`. A teacher, unless `teacher = false`: a
+ * parent has two entries in the navigation instead of four. Whatever the test does, it fails if
  * the console of a page complains of the Content-Security-Policy.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 @TestTemplate
 @ExtendWith(E2eExtension::class)
-annotation class E2eTest(val profiles: Array<Profile> = [Profile.PHONE, Profile.DESKTOP], val signedIn: Boolean = true)
+annotation class E2eTest(val profiles: Array<Profile> = [Profile.PHONE, Profile.DESKTOP], val signedIn: Boolean = true, val teacher: Boolean = true)
 
 class E2eExtension : TestTemplateInvocationContextProvider {
 
@@ -39,18 +40,18 @@ class E2eExtension : TestTemplateInvocationContextProvider {
     override fun provideTestTemplateInvocationContexts(context: ExtensionContext): Stream<TestTemplateInvocationContext> =
         Stream.of(*context.requiredTestMethod.getAnnotation(E2eTest::class.java).profiles)
             .map<TestTemplateInvocationContext> {
-                ProfileInvocation(context.requiredTestMethod.name, it, context.requiredTestMethod.getAnnotation(E2eTest::class.java).signedIn)
+                context.requiredTestMethod.getAnnotation(E2eTest::class.java).let { test -> ProfileInvocation(context.requiredTestMethod.name, it, test.signedIn, test.teacher) }
             }
 }
 
-private class ProfileInvocation(private val test: String, private val profile: Profile, private val signedIn: Boolean) : TestTemplateInvocationContext {
+private class ProfileInvocation(private val test: String, private val profile: Profile, private val signedIn: Boolean, private val teacher: Boolean) : TestTemplateInvocationContext {
     override fun getDisplayName(invocationIndex: Int): String = "$test [${profile.label}]"
 
-    override fun getAdditionalExtensions() = listOf(PageLifecycle(profile, signedIn))
+    override fun getAdditionalExtensions() = listOf(PageLifecycle(profile, signedIn, teacher))
 }
 
 /** Opens the page before the test; on failure it saves the trace and a screenshot of the page. */
-private class PageLifecycle(private val profile: Profile, private val signedIn: Boolean) : BeforeEachCallback, AfterEachCallback, ParameterResolver {
+private class PageLifecycle(private val profile: Profile, private val signedIn: Boolean, private val teacher: Boolean) : BeforeEachCallback, AfterEachCallback, ParameterResolver {
 
     private val namespace = ExtensionContext.Namespace.create(PageLifecycle::class.java)
 
@@ -63,8 +64,9 @@ private class PageLifecycle(private val profile: Profile, private val signedIn: 
         page.setDefaultTimeout(10_000.0)
         val e2e = E2e(page, browserContext, profile, "http://localhost:$port", application)
         e2e.watchCsp(page)
+        e2e.teacher = teacher
         context.getStore(namespace).put("e2e", e2e)
-        if (signedIn) e2e.signIn()
+        if (signedIn) e2e.signIn(teacher = teacher)
     }
 
     override fun afterEach(context: ExtensionContext) {

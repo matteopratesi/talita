@@ -1,5 +1,6 @@
 package talita.account
 
+import org.jooq.DSLContext
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -14,14 +15,21 @@ import java.time.Duration
  * link comes from the service of the one-time tokens (as [LoginLinks] makes it, without the mail), the
  * page of the link is opened, and the tap on "Entra" is sent with the CSRF code that the page carries.
  * What comes back is the session of the person, to put in the next requests.
+ *
+ * A teacher is a teacher before entering (see [TestAccounts]): the invitation that made them one is
+ * old news for the test.
  */
-class MockSignIn(private val mockMvc: MockMvc, private val tokens: OneTimeTokenService) {
+class MockSignIn(private val mockMvc: MockMvc, private val tokens: OneTimeTokenService, private val dsl: DSLContext) {
 
     /** A new link for [email]. */
     fun link(email: String): String = tokens.generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue
 
-    /** Enters as [email] and returns the session. The account is born here, as for anyone at the first login. */
-    fun session(email: String = Addresses.unique("persona")): MockHttpSession {
+    /**
+     * Enters as [email] and returns the session. The account is born here, as for anyone at the first
+     * login; with [teacher] it is a teacher already.
+     */
+    fun session(email: String = Addresses.unique("persona"), teacher: Boolean = false): MockHttpSession {
+        if (teacher) TestAccounts.makeTeacher(dsl, email)
         val token = link(email)
         val page = mockMvc.get("/accedi/conferma") { param("token", token) }.andReturn()
         val csrf = Regex("""name="_csrf" value="([^"]+)"""").find(page.response.contentAsString)?.groupValues?.get(1)

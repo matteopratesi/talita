@@ -16,12 +16,12 @@ enum class AlertVariant(val icon: Icon) {
     ;
 
     /**
-     * What a screen reader announces: errors and warnings interrupt (`alert`), a confirmation is
-     * said when there is a pause (`status`). An information that is always there says nothing.
+     * What a screen reader announces when the notice follows an action (`live`, see `alert.jte`): errors and
+     * warnings interrupt (`alert`), a confirmation or an information is said when there is a pause
+     * (`status`). A notice that is always there, whatever the person does, is not `live` and says nothing.
      */
-    val role: String? get() = when (this) {
-        INFO -> null
-        SUCCESS -> "status"
+    val role: String get() = when (this) {
+        INFO, SUCCESS -> "status"
         WARNING, DANGER -> "alert"
     }
 }

@@ -51,10 +51,13 @@ private fun Authentication?.isSignedIn(): Boolean =
  *
  * A request from htmx gets the answer `HX-Redirect`, and not a 302 or a 401: the browser then loads
  * the page of access as a whole page, and never puts it inside the old page or shows "Qualcosa non ha
- * funzionato" (criterion 23). The one exception is the request of the back button (`HX-History-Restore-Request`),
- * where htmx does not read `HX-Redirect`: there a 401 makes htmx give up and app.js reload the address. If the browser carries the cookie of a session that the server no
- * longer knows (more than two hours without touching anything, or a restart), the person is told that
- * the access closed on its own: a person who never was inside is not.
+ * funzionato" (criterion 23). The one exception is the request of the back button
+ * (`HX-History-Restore-Request`), where htmx does not read `HX-Redirect`: there a 401 makes htmx give up
+ * and app.js load the address as a whole page.
+ *
+ * If the browser carries the cookie of a session that the server no longer knows (more than two hours
+ * without touching anything, or a restart), the person is told that the access closed on its own: a
+ * person who never was inside is not.
  */
 class LoginEntryPoint : AuthenticationEntryPoint {
 
@@ -154,14 +157,29 @@ private fun backToAccessForm(path: String, request: HttpServletRequest, response
 }
 
 /**
- * After a login: back to the page that the person asked for before being sent to the access page,
- * if the link was opened in the same browser; otherwise the home. Only an address of Talità, never
- * one that comes from the outside, and nothing in the URL.
+ * A place that is more urgent than the page the person asked for: whoever enters with an address that
+ * has an invitation goes to «Accetta l'invito» (`talita.teacher`). Returns the path, or null when it has
+ * nothing to say about this person. The first that answers wins.
  */
-class LoginSuccessHandler(private val requestCache: RequestCache) : AuthenticationSuccessHandler {
+fun interface PostLoginDestination {
+    fun forNewLogin(email: String): String?
+}
+
+/**
+ * After a login: where [destinations] say, if one of them does (an invitation to accept); else back to the
+ * page that the person asked for before being sent to the access page, if the link was opened in the same
+ * browser; else the home. Only an address of Talità, never one that comes from the outside, and nothing
+ * in the URL.
+ */
+class LoginSuccessHandler(
+    private val requestCache: RequestCache,
+    private val destinations: List<PostLoginDestination> = emptyList(),
+) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
-        val target = destination(request, response)
+        val email = (authentication.principal as? AccountUserDetails)?.username
+        val urgent = email?.let { address -> destinations.firstNotNullOfOrNull { it.forNewLogin(address) } }
+        val target = urgent ?: destination(request, response)
         requestCache.removeRequest(request, response)
         response.redirectSeeOther(target)
     }

@@ -74,5 +74,6 @@
   @template.components.toast(id = "messaggio-rete-assente", icon = Icon.WIFI_OFF, title = "Nessuna connessione", text = "Controlla di avere campo o il Wi-Fi e riprova.")
   @template.components.toast(id = "messaggio-rete-lenta", icon = Icon.CLOCK, title = "La connessione è troppo lenta", text = "Talità non ha risposto in tempo. Riprova quando hai più campo.")
   @template.components.toast(id = "messaggio-errore-server", icon = Icon.TRIANGLE_ALERT, title = "Qualcosa non ha funzionato", text = "Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza.")
+  @template.components.toast(id = "messaggio-accesso-negato", icon = Icon.LOCK, title = "Accesso negato", text = "Non hai il permesso di farlo. Se pensi di doverlo fare, chiedi a chi organizza la convivenza.", retry = false)
 </body>
 </html>

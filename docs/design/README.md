@@ -446,7 +446,7 @@ Icone assegnate (nomi di Lucide):
 | Connessione troppo lenta | `clock` |
 | Sezione in preparazione | `hourglass` |
 | Pagina non trovata | `compass` |
-| Permesso negato (TALITA-3) | `lock` |
+| Permesso negato | `lock` |
 | Attesa dentro un bottone | `loader-circle` |
 | Controlla la posta, la mail del link | `mail` |
 | Conferma dell'accesso | `log-in` |
@@ -589,16 +589,25 @@ Note:
 
 ### 3.3 Navigazione
 
-**Voci** (TALITA-2, vista del maestro; le voci del genitore le decide TALITA-3):
+**Voci** (TALITA-2 le quattro del maestro, TALITA-3 le voci del genitore):
 
-| Ordine | Etichetta | URL | Icona | Cosa ci sarà |
-|---|---|---|---|---|
-| 1 | Home | `/` | `house` | pagina iniziale |
-| 2 | Convivenza | `/convivenza` | `calendar-days` | configurazione, maestri, pagina informativa per i genitori |
-| 3 | Iscrizioni | `/iscrizioni` | `users-round` | elenco e inserimento dal modulo cartaceo |
-| 4 | Arrivi | `/arrivi` | `clipboard-check` | check-in e stampe |
+| Ordine | Etichetta | URL | Icona | Chi la vede | Cosa ci sarà |
+|---|---|---|---|---|---|
+| 1 | Home | `/` | `house` | Maestro e genitore | pagina iniziale |
+| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | configurazione, maestri, pagina informativa per i genitori |
+| 3 | Iscrizioni | `/iscrizioni` | `users-round` | Maestro e genitore | per il maestro elenco e inserimento dal modulo cartaceo; per il genitore le iscrizioni dei suoi figli |
+| 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | check-in e stampe |
 
-Perché quattro: restano sotto il limite di cinque, e con quattro ogni voce è larga almeno 78 px anche su uno schermo da 320 px (74 bastano a "Convivenza" a 13 px), quindi si legge intera anche con il testo ingrandito. Il profilo con "Esci" sta in alto a destra nell'intestazione, come nelle app di posta (3.6).
+Il maestro ha le quattro voci. Il **genitore ne ha due**, Home e Iscrizioni: ognuna occupa metà barra
+(le `<li>` hanno già `flex-1`), con etichette e icone di sempre, e non scatta mai la regola «più di
+cinque voci → Altro». Chi è maestro e genitore (un solo account) vede la navigazione del maestro.
+«Maestri» non è una voce: ci si arriva dalla Convivenza e ha corrente «Convivenza». Il profilo,
+«Accetta l’invito» e le pagine di errore non hanno nessuna voce corrente. Le voci arrivano al template
+filtrate per ruolo, con il ruolo letto dal database a ogni richiesta: dopo un invito accettato, o dopo
+che un maestro viene tolto, il tocco successivo mostra già la navigazione giusta. Gli indirizzi dei soli
+maestri (`/convivenza`, `/arrivi`, `/maestri` e quelli sotto) rispondono 403 a un genitore (4.11).
+
+Perché quattro per il maestro: restano sotto il limite di cinque, e con quattro ogni voce è larga almeno 78 px anche su uno schermo da 320 px (74 bastano a "Convivenza" a 13 px), quindi si legge intera anche con il testo ingrandito. Il profilo con "Esci" sta in alto a destra nell'intestazione, come nelle app di posta (3.6).
 
 Regole:
 
@@ -607,7 +616,7 @@ Regole:
   altre come lista. Su desktop si possono mostrare tutte.
 - Solo sezioni del perimetro di Talità: la convivenza, le iscrizioni, gli arrivi.
 - Le voci arrivano al template come lista costruita a ogni richiesta (etichetta, URL, icona,
-  corrente sì/no), non scritte nel template: TALITA-3 le filtrerà per ruolo (maestro o genitore).
+  corrente sì/no), non scritte nel template e filtrate per ruolo (maestro o genitore).
 - La voce corrente è quella della sezione in cui si trova la pagina (anche nelle pagine interne:
   la pagina di una singola iscrizione ha corrente "Iscrizioni"). Nelle pagine di errore nessuna voce è
   corrente.
@@ -684,6 +693,47 @@ dialogo: si rientra in un minuto con un nuovo link) e la nota «Se usi un telefo
 esci quando hai finito.». Dopo «Esci» si arriva a `/accedi` con l'avviso di conferma «Accesso chiuso. Per
 rientrare, chiedi un nuovo link.», una volta sola. Le pagine di chi è dentro hanno `Cache-Control: no-store`:
 il tasto indietro non le mostra più dopo l'uscita.
+
+### 3.7 Home e «Iscrizioni» per ruolo, e «Accetta l’invito»
+
+**Home** (`/`). Il titolo è sempre «Ti diamo il benvenuto». Il maestro ha il testo di sempre; il genitore ha
+questo, e nell'elenco solo le iscrizioni:
+
+| Elemento | Maestro | Genitore |
+|---|---|---|
+| Introduzione | Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla. | Qui iscrivi i tuoi figli alla convivenza e controlli le loro iscrizioni. |
+| Avviso informativo | **Talità è in costruzione.** Le sezioni arriveranno una alla volta. | **Talità è in costruzione.** Le iscrizioni arriveranno presto. |
+| Titolo della sezione (h2) | Sezioni | Cosa trovi qui |
+| Righe della lista | Convivenza, Iscrizioni, Arrivi | Iscrizioni · Le iscrizioni dei tuoi figli. |
+
+L'avviso «in costruzione» è provvisorio e sparisce quando le sezioni esistono.
+
+**Avviso dell'invito**, sulla home di chi ha un invito valido e non l'ha accettato, **sopra** l'avviso «in
+costruzione», finché l'invito non viene accettato, ritirato o scade. Avviso informativo (`role="status"`) con
+un bottone di testo sotto, dentro lo stesso riquadro: «Ti hanno invitato come maestro. L’invito vale fino al
+29 ottobre 2026.» (la data è quella di scadenza, nel formato della guida) e il bottone di testo «Accetta
+l’invito» (link a `/invito`). Se l'invito non vale più mentre la pagina era aperta, la persona arriva alla home
+con un avviso di attenzione: «L’invito non vale più. Se serve, chiedi a un maestro di mandartene un altro.»
+
+**Iscrizioni «in preparazione»**: come sempre (pagina con `hourglass` e titolo «In preparazione»); cambia solo
+il testo. Genitore: «Qui troverai le iscrizioni dei tuoi figli.» Maestro: «Qui troverai i bambini iscritti e
+potrai inserire le iscrizioni arrivate sul modulo cartaceo.»
+
+**Accetta l’invito** (`/invito`, scheda del browser `Accetta l’invito · Talità`): guscio con la navigazione del
+genitore e nessuna voce corrente, colonna `max-w-md`. Titolo e introduzione («Ti hanno invitato a organizzare la
+convivenza come maestro. Il tuo nome compare nell’elenco dei maestri e nei documenti della convivenza.»), una
+scheda con due campi, **Nome** (`autocomplete="given-name" autocapitalize="words"`) e **Cognome**
+(`autocomplete="family-name" autocapitalize="words"`), il bottone primario «Accetta l’invito» (in attesa:
+«Invio…») e il secondario «Più tardi» (link alla home), e sotto la scheda «Se non ti aspettavi questo invito,
+tocca «Più tardi»: non cambia niente.» Nessun `required`, `maxlength` né `pattern`: accenti e apostrofi sono
+ammessi e gli errori sono quelli del server (`novalidate`). Errori: «Scrivi il nome.», «Scrivi il cognome.»,
+«Usa al massimo 100 caratteri.»; con due errori, in cima, un avviso di errore «Controlla i 2 campi segnati in
+rosso.» e il fuoco sul primo campo. Dopo l'accettazione: la home, con la navigazione del maestro e l'avviso di
+conferma «Invito accettato. Ora sei tra i maestri.». «Più tardi» e un `/invito` aperto da chi non ha un invito
+valido portano alla home, il secondo senza messaggio.
+
+**Profilo del maestro**: nella scheda «Il tuo accesso» c'è anche la riga «Ruolo → Maestro». Il genitore non ha
+la riga: ogni account è un genitore, non serve dirlo.
 
 ## 4. Componenti
 
@@ -972,9 +1022,17 @@ Dentro il guscio (intestazione e navigazione ci sono, nessuna voce corrente), co
 |---|---|---|---|---|
 | 404 | `compass`, `bg-brand-soft text-brand` | Pagina non trovata | L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più. | Vai alla home (primario) |
 | 500 | `triangle-alert`, `bg-warning-soft text-warning` | Qualcosa non ha funzionato | Non è colpa tua: c’è stato un problema in Talità. Riprova tra qualche minuto. Se il problema continua, avvisa chi organizza la convivenza. | Riprova (primario, solo se la richiesta era un GET: link allo stesso indirizzo), Vai alla home (secondario) |
-| 403 (TALITA-3) | `lock`, `bg-brand-soft text-brand` | Non puoi vedere questa pagina | La pagina esiste, ma il tuo accesso non comprende questi dati. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. | Vai alla home (primario) |
+| 403 | `lock`, `bg-brand-soft text-brand` | Non puoi vedere questa pagina | La pagina esiste, ma il tuo accesso non comprende questi dati. Se pensi di doverla vedere, chiedi a chi organizza la convivenza. | Vai alla home (primario) |
 
 Mai codici di errore, nomi di eccezioni, stack trace o parole come "server" e "database".
+
+**Messaggio «Accesso negato»**: per una richiesta che non cambia pagina e viene rifiutata (un form, un pezzo di
+pagina), la pagina resta com'è e compare un messaggio a comparsa (4.7), modello nel layout come gli altri, con
+`lock`: titolo «Accesso negato», testo «Non hai il permesso di farlo. Se pensi di doverlo fare, chiedi a chi
+organizza la convivenza.» Mai «Riprova»: ripetere non cambia niente. Una 403 a un **link** (un `GET` con
+`hx-boost`, e il tasto indietro) sostituisce invece il `body` con la pagina 403, con il suo indirizzo e il suo
+titolo, come 404 e 500. Senza JavaScript la pagina 403 arriva dal server con gli stessi testi. Il CSRF scaduto non è
+una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
 
 ## 5. htmx: cosa vede chi usa Talità
 
@@ -1012,6 +1070,8 @@ modifica):
 - si aggiorna solo quel pezzo; il resto resta com'è, compresa la posizione di scorrimento;
 - se va male (5xx), il pezzo **non** viene sostituito e compare il messaggio "Qualcosa non ha
   funzionato" (criterio 28).
+- se è rifiutato (403), il pezzo non viene sostituito e compare il messaggio «Accesso negato» (4.11), senza
+  «Riprova».
 
 **Rete assente o lenta** (qualsiasi richiesta):
 

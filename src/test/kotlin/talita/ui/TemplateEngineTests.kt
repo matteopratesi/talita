@@ -5,6 +5,7 @@ import gg.jte.output.StringOutput
 import gg.jte.springframework.boot.autoconfigure.JteProperties
 import talita.TestcontainersConfiguration
 import talita.account.MockSignIn
+import org.jooq.DSLContext
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
@@ -51,9 +52,10 @@ class TemplateEngineTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val assets: Assets,
     @Autowired tokens: OneTimeTokenService,
+    @Autowired dsl: DSLContext,
 ) {
 
-    private val signedInSession = MockSignIn(mockMvc, tokens).session()
+    private val signedInSession = MockSignIn(mockMvc, tokens, dsl).session(teacher = true)
 
     @Test
     fun `c01 every template has its compiled class on the classpath`() {

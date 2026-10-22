@@ -2,7 +2,8 @@
 //
 // What it does (docs/design/README.md, section 5):
 // - the 404 and 500 pages show up as normal pages when they arrive from a link of the app, and
-//   when the back button leads to them;
+//   when the back button leads to them; the same for the 403 of a page that the person cannot see,
+//   while a request that does not change the page and is refused (403) shows the message «Accesso negato»;
 // - a form that comes back with its errors (422) or with a limit (429) replaces the page or the piece
 //   of page that sent it, with the fields still filled in, and the focus goes to the first wrong field
 //   or to the notice; it leaves no second entry in the history;
@@ -20,6 +21,7 @@
     network: "messaggio-rete-assente",
     slow: "messaggio-rete-lenta",
     server: "messaggio-errore-server",
+    forbidden: "messaggio-accesso-negato",
   };
 
   /** What failed: the element that made the request, the verb, whether it was a link of the app. */
@@ -58,13 +60,16 @@
     const message = template.content.firstElementChild.cloneNode(true);
     const retryButton = message.querySelector('[data-azione="riprova"]');
     // "Riprova" only for a read: a form that was sent stays filled in and is sent again by touching its button.
-    if (request.verb === "get" && request.elt && request.elt.isConnected) {
-      retryButton.addEventListener("click", () => {
-        message.remove();
-        retry(request);
-      });
-    } else {
-      retryButton.remove();
+    // (The message of a refused request has no such button at all: to repeat it changes nothing.)
+    if (retryButton) {
+      if (request.verb === "get" && request.elt && request.elt.isConnected) {
+        retryButton.addEventListener("click", () => {
+          message.remove();
+          retry(request);
+        });
+      } else {
+        retryButton.remove();
+      }
     }
     message.querySelector('[data-azione="chiudi"]').addEventListener("click", () => message.remove());
     area.appendChild(message);
@@ -134,6 +139,16 @@
         // A form sent again with its errors, or a limit: it is the answer, not a failure.
         event.detail.shouldSwap = true;
         event.detail.isError = false;
+      } else if (status === 403) {
+        if (request.boosted && request.verb === "get") {
+          // A link, or the back button, to a page that the person cannot see: the page of the 403, like any other page.
+          event.detail.shouldSwap = true;
+          event.detail.isError = false;
+        } else {
+          // Any other request (a form, a piece of a page): the page stays as it is and a message says no.
+          event.detail.shouldSwap = false;
+          showMessage("forbidden", request);
+        }
       } else if (request.boosted && (status === 404 || status === 500)) {
         // The error pages of the app replace the page like any other, with their own address and title.
         event.detail.shouldSwap = true;

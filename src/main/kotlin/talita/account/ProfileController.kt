@@ -10,7 +10,8 @@ import talita.ui.ShellFactory
 import jakarta.servlet.http.HttpServletRequest
 
 /** Model of the profile page: what the person sees about their own access. */
-data class ProfilePage(val email: String)
+/** [role] is «Maestro» for a teacher; a parent has no row (every account is a parent, it does not need saying). */
+data class ProfilePage(val email: String, val role: String?)
 
 /**
  * The profile, two taps from every page (the pill in the header, then "Esci"): the address with which
@@ -22,7 +23,7 @@ class ProfileController(private val shells: ShellFactory) {
     @GetMapping("/profilo")
     fun profile(account: CurrentAccount, model: Model): String {
         model.addAttribute("shell", shells.shell(page = "Profilo", current = null, onProfile = true))
-        model.addAttribute("page", ProfilePage(email = account.email))
+        model.addAttribute("page", ProfilePage(email = account.email, role = if (account.isTeacher) "Maestro" else null))
         return "pages/profile"
     }
 }

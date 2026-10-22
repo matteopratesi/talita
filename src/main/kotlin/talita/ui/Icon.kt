@@ -25,4 +25,5 @@ enum class Icon {
     CIRCLE_CHECK,
     CIRCLE_ALERT,
     LOADER_CIRCLE,
+    LOCK,
 }

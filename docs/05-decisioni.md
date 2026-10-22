@@ -336,8 +336,14 @@ in quest'ordine, ognuno con la build verde.
   query, mai un indirizzo esterno, e non un pezzo di pagina che htmx chiede); altrimenti alla home. Niente
   `?continue` nell'URL.
 - **CSRF scaduto**: un form delle pagine di accesso con il codice scaduto torna come la stessa pagina, con il
-  campo compilato, un codice nuovo e «La pagina era aperta da troppo tempo. Riprova.» (422); mai la pagina
-  «Non puoi vedere questa pagina». Per un form di chi non è più dentro: la pagina di accesso.
+  campo compilato, un codice nuovo e «La pagina era aperta da troppo tempo. Riprova.»; mai la pagina «Non puoi
+  vedere questa pagina». Per un form di chi non è più dentro: la pagina di accesso. Si fa con un **redirect**
+  (l'avviso e quello che era nel campo restano nella sessione, in memoria, e si leggono una volta) e non con un
+  `forward`: un forward rientra nei filtri di sicurezza con il controllo del CSRF già segnato come fatto, e il
+  tocco su «Entra» con un codice scaduto avrebbe fatto entrare lo stesso (lo ha mostrato un test e2e).
+- **Il tasto indietro dopo l'uscita**: htmx non legge `HX-Redirect` nella richiesta che rimette una pagina della
+  cronologia. Lì la risposta è un 401 vuoto: htmx rinuncia (`historyCacheMissLoadError`), `app.js` ricarica
+  l'indirizzo come pagina intera e la richiesta dopo va a `/accedi`.
 - **Form rimandati con errori**: 422, o 429 per i limiti; `app.js` li mette al posto della pagina o del
   pezzo, il fuoco va al primo campo sbagliato o all'avviso, e non lasciano una seconda voce nella
   cronologia. Le conferme dopo un'azione sono avvisi nella pagina e non messaggi a comparsa (regola nuova
@@ -350,3 +356,30 @@ in quest'ordine, ognuno con la build verde.
 - **Test che entrano con il flusso vero** (`MockSignIn`, `E2e.signIn`): token dal servizio, pagina di
   conferma, tocco su «Entra». Nessuna scorciatoia nel codice di produzione. Per non aspettare due ore, un
   endpoint solo dei test accorcia la sessione a un secondo: Tomcat la tratta come dopo le due ore vere.
+
+**C. Ruoli e primo maestro**
+
+- **Genitore è ogni account; maestro è un account con una riga in `teacher`** (`V3__teachers.sql`). I ruoli non
+  si escludono: un maestro che è anche genitore ha un account solo, la navigazione del maestro, e l'account
+  corrente è quello a cui TALITA-5 legherà le sue iscrizioni.
+- **Il nome del maestro lo scrive lui** quando accetta l'invito, anche il primo (obbligatori, al massimo 100
+  caratteri, accenti e apostrofi ammessi, nessun pattern: un nome che una regola non si aspetta è comunque un
+  nome). L'invito ha solo l'indirizzo: il dato viene dalla persona e la strada è una per tutti. TALITA-4 lo
+  legge, non lo chiede.
+- **Inviti senza token**: la mail porta a `/accedi`, chi entra con quell'indirizzo trova l'invito. Un invito
+  ritirato dopo l'invio non apre niente, uno scaduto nemmeno: chi entra vale come genitore, e `/invito` aperto a
+  mano porta alla home senza messaggio. Se l'invito scade o viene ritirato mentre la pagina è aperta, il tocco su
+  «Accetta l'invito» porta alla home con un avviso (non è nei criteri, ma l'ha proposto il design).
+- **Dopo l'accesso, in quest'ordine**: «Accetta l'invito» se l'indirizzo ne ha uno valido (`PostLoginDestination`,
+  in `talita.account`, realizzato da `talita.teacher`: l'accesso non conosce i maestri), poi la pagina chiesta
+  prima, poi la home.
+- **Primo maestro** da `TALITA_BOOTSTRAP_TEACHER`, all'avvio e solo se non c'è nessun maestro: un invito per
+  quell'indirizzo, senza mail, valido 7 giorni e rinnovato a ogni avvio finché non c'è nessun maestro. Non
+  scrive mai l'indirizzo nel log; senza variabile e senza maestri l'app parte e il log avvisa.
+- **Un solo elenco degli indirizzi dei maestri** (`TeacherPaths`: `/convivenza`, `/arrivi`, `/maestri` e quello
+  che c'è sotto), letto dalla configurazione di sicurezza, con un test che prova un genitore su ognuno. Per un
+  genitore rispondono 403: pagina «Non puoi vedere questa pagina» per un link, messaggio «Accesso negato» per
+  ogni altra richiesta (un form, un pezzo di pagina), mai «Riprova». `/iscrizioni` è di ogni account: il filtro
+  «il genitore vede solo i suoi» è di TALITA-5.
+- **Navigazione per ruolo** (`Section.visibleToParents`): il genitore ha Home e Iscrizioni, il maestro le
+  quattro voci; la tabella della guida dice chi vede ogni voce e un test la confronta con `Section`.

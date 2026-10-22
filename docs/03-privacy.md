@@ -93,8 +93,14 @@ Previste dal progetto, con il ticket in cui diventano vere:
     nessun frame), `Referrer-Policy: same-origin`, `X-Content-Type-Options: nosniff`.
   - **Il log**, a livello INFO e oltre, non contiene indirizzi email, token né link: un errore di invio si
     scrive con il tipo dell'eccezione e basta.
-  - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi: se servono (per
-    esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
+  - **Il ruolo si legge dal database a ogni richiesta**: un maestro tolto, o un invito accettato, vale
+    al tocco dopo, senza uscire e rientrare. Ogni account è un genitore; il maestro è un account con una riga
+    in `teacher` (nome e cognome, scritti da lui). Gli indirizzi dei soli maestri rispondono 403 a un genitore,
+    con una regola sola e un test su ognuno.
+  - **Un invito** è un indirizzo e una scadenza (7 giorni), senza token: chi entra con quell'indirizzo, con il
+    suo link, trova l'invito. Un invito ritirato o scaduto non apre niente, e chi entra vale come genitore.
+  - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi, chi ha invitato chi: se
+    servono (per esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
   luogo di nascita; nessun documento caricato, nessuna firma.
 - **Segnalazioni** in una tabella separata, visibili solo ai maestri, con ogni lettura registrata

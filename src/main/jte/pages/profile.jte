@@ -17,6 +17,12 @@
           <dt class="text-sm text-ink-muted">Indirizzo email</dt>
           <dd class="font-medium wrap-anywhere">${page.getEmail()}</dd>
         </div>
+        @if(page.getRole() != null)
+          <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
+            <dt class="text-sm text-ink-muted">Ruolo</dt>
+            <dd class="font-medium">${page.getRole()}</dd>
+          </div>
+        @endif
       </dl>
       <form method="post" action="/esci" hx-disabled-elt="find button[type=submit]" class="mt-6">
         @template.components.csrf(csrf = csrf)

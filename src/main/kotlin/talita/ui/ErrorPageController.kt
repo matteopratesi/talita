@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 data class ErrorPage(val retryHref: String?)
 
 /**
- * The error pages, inside the shell: "not found" and "something went wrong". They replace Spring
+ * The error pages, inside the shell: "not found", "you cannot see this page" (403, for a parent who opens a
+ * page of the teachers) and "something went wrong". They replace Spring
  * Boot's error page, so they are what a person sees both when opening the address directly and when
  * arriving from a link of the app. Never a code, an exception name or a stack trace.
  */
@@ -26,7 +27,10 @@ class ErrorPageController(private val shells: ShellFactory) : ErrorController {
         val status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE) as? Int ?: HttpServletResponse.SC_NOT_FOUND
         response.status = status
 
-        return if (status >= 500) {
+        return if (status == HttpServletResponse.SC_FORBIDDEN) {
+            model.addAttribute("shell", shells.shell(page = "Non puoi vedere questa pagina", current = null))
+            "pages/forbidden"
+        } else if (status >= 500) {
             model.addAttribute("shell", shells.shell(page = "Qualcosa non ha funzionato", current = null))
             model.addAttribute("page", ErrorPage(retryHref = retryHref(request)))
             "pages/error"

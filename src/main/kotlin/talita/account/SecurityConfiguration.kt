@@ -1,5 +1,6 @@
 package talita.account
 
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcTemplate
@@ -22,7 +23,8 @@ import java.time.Clock
  * Who can open what, and how a person enters: with a link that arrives by email (one-time token of
  * Spring Security), no password.
  *
- * - **Everything asks for a login**, except the list of [PublicPaths].
+ * - **Everything asks for a login**, except the list of [PublicPaths]; the addresses of [TeacherPaths]
+ *   ask for a teacher (every account is a parent, so there is nothing to ask for the others).
  * - **The link** is born only in [LoginLinks] (from `/accedi`). Spring's own address for generating
  *   tokens (`/ott/generate`) is switched off: it generates nothing and sends nothing.
  * - **Opening the link does not log in** (mail programs open links to look at them): the page asks
@@ -45,6 +47,7 @@ class SecurityConfiguration {
         http: HttpSecurity,
         tokens: OneTimeTokenService,
         accounts: Accounts,
+        destinations: ObjectProvider<PostLoginDestination>,
     ): SecurityFilterChain {
         val entryPoint = LoginEntryPoint()
         val requests = requestCache()
@@ -52,6 +55,7 @@ class SecurityConfiguration {
         http {
             authorizeHttpRequests {
                 PublicPaths.all.forEach { authorize(it, permitAll) }
+                TeacherPaths.patterns.forEach { authorize(it, hasRole("TEACHER")) }
                 authorize(anyRequest, authenticated)
             }
 
@@ -61,7 +65,7 @@ class SecurityConfiguration {
                 loginProcessingUrl = "/accedi/conferma"
                 showDefaultSubmitPage = false
                 authenticationConverter = LinkFromForm()
-                authenticationSuccessHandler = LoginSuccessHandler(requests)
+                authenticationSuccessHandler = LoginSuccessHandler(requests, destinations.orderedStream().toList())
                 authenticationFailureHandler = LoginFailureHandler()
                 // Links are made by LoginLinks and nowhere else: this one makes none and sends none.
                 generateRequestResolver = GenerateOneTimeTokenRequestResolver { null }
