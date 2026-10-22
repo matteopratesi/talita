@@ -7,6 +7,7 @@ import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.name
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -50,6 +51,83 @@ class RepositoryRulesTests {
         assertTrue(script.contains("""val tailwindVersion = "4.3.3""""))
         assertTrue(script.contains(""""linux-x64" to "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a""""))
         assertTrue(script.contains("""caches/talita-tools/tailwindcss/v${'$'}tailwindVersion"""))
+    }
+
+    // ---- A download that stops halfway (TALITA-14, criteria 8-12) -------------------------------------
+    // The stall itself (headers, some body, then silence) was tried by hand against a local server: it
+    // needs the Gradle limit to be lowered, which these tests must not do. Here the pieces that make it
+    // work are checked: the limit, the cleanup of the partial file and the way the client is left alone.
+
+    /** The text of a top-level block of the build script: from [start] to the first `}` at the start of a line. */
+    private fun block(script: String, start: String): String {
+        val from = script.indexOf(start)
+        assertTrue(from >= 0, "build.gradle.kts has no `$start`")
+        val to = script.indexOf("\n}\n", from)
+        assertTrue(to > from, "the block `$start` does not end")
+        return script.substring(from, to + 3)
+    }
+
+    @Test
+    fun `t14 c08 the download of Tailwind is limited to 15 minutes, leaves no partial file and does not catch the interruption`() {
+        val script = read("build.gradle.kts")
+        // The code of the task, without its comments (which explain the very things that must not be in the code).
+        val download = block(script, "val downloadTailwind = tasks.register(").lines().filterNot { it.trimStart().startsWith("//") }.joinToString("\n")
+
+        assertTrue(script.contains("val tailwindDownloadTimeout = Duration.ofMinutes(15)"))
+        assertTrue(download.contains("timeout.set(tailwindDownloadTimeout)"))
+        // The partial file goes away in a `finally`, so also when the limit interrupts the thread of the task...
+        assertTrue(Regex("""(?s)\} finally \{\s*partial\.delete\(\)""").containsMatchIn(download), "no finally that deletes the partial file")
+        // ...and an old one, left by a killed build, is removed before the download (which does not truncate it).
+        assertTrue(Regex("""(?s)partial\.delete\(\)\s+val failure = try""").containsMatchIn(download), "the partial file is not removed before the download")
+        // The interruption is the limit working: it must reach Gradle, not end up in the "cannot download" error.
+        assertFalse(download.contains("InterruptedException"), "the download catches the interruption")
+        assertFalse(download.contains("catch (e: Exception)") || download.contains("catch (e: Throwable)"), "the download catches more than IOException")
+        assertEquals(1, Regex("""\bcatch \(""").findAll(download).count(), "the download has a catch besides the one for IOException")
+        // The client is not closed (close() waits for the exchange that never ends) and not used as a resource.
+        assertFalse(download.contains("client.close()"))
+        assertFalse(download.contains("client.use"))
+    }
+
+    @Test
+    fun `t14 c09 the checks of the download of today are still there, and the timeouts of the client too`() {
+        val download = block(read("build.gradle.kts"), "val downloadTailwind = tasks.register(")
+
+        assertTrue(download.contains(".connectTimeout(Duration.ofSeconds(30))"))
+        assertTrue(download.contains(".timeout(Duration.ofMinutes(2))"))
+        assertTrue(download.contains("Tailwind CSS: cannot download "))
+        assertTrue(download.contains("Tailwind CSS: the file downloaded from "))
+        assertTrue(download.contains("It was not run."))
+        assertTrue(download.contains("if (!binary.exists())"), "with the binary in the cache the task must not use the network")
+    }
+
+    @Test
+    fun `t14 c10 the limit of time is only on downloadTailwind, not on tailwindWatch or the other tasks`() {
+        val script = read("build.gradle.kts")
+
+        val limits = Regex("""\btimeout\s*(\.set\(|=)""").findAll(script).count()
+        assertEquals(1, limits, "the build script sets more than one limit of time on a task")
+        assertFalse(block(script, "tasks.register<Exec>(\"tailwindWatch\")").contains("timeout"), "tailwindWatch must run until it is stopped")
+        assertFalse(block(script, "val tailwindCss = tasks.register<Exec>(\"tailwindCss\")").contains("timeout"))
+    }
+
+    @Test
+    fun `t14 c11 the build job has timeout-minutes 30 and the download task has a timeout`() {
+        val workflow = read(".github/workflows/build.yml")
+
+        val job = workflow.substringAfter("\njobs:\n").substringAfter("\n  build:\n").substringBefore("\n    steps:\n")
+        assertEquals(listOf("30"), Regex("""(?m)^    timeout-minutes: (\d+)\s*$""").findAll(job).map { it.groupValues[1] }.toList())
+        assertTrue(block(read("build.gradle.kts"), "val downloadTailwind = tasks.register(").contains("timeout.set("))
+    }
+
+    @Test
+    fun `t14 c12 the environment guide tells what happens to a download that stops and what to do on a slow line`() {
+        val cache = read("docs/04-ambiente.md").substringAfter("\n## Cache\n").substringBefore("\n## ").replace(Regex("""\s+"""), " ")
+
+        assertTrue(cache.contains("si interrompe da solo dopo 15 minuti"))
+        assertTrue(cache.contains("basta rilanciarla"))
+        assertTrue(cache.contains("si può copiare il file `tailwindcss-linux-x64`"))
+        assertTrue(cache.contains("nella cartella della cache: la build ne controlla comunque lo SHA-256"))
+        assertTrue(cache.contains("`timeout-minutes`"))
     }
 
     // ---- Two projects on the same PC ------------------------------------------------------------

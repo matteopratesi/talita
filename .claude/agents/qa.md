@@ -31,7 +31,8 @@ quello che vede l'utente.
 Commento firmato con una riga per criterio: ✅ superato o ❌ fallito, con cosa hai fatto e
 cosa hai visto. Per i difetti: passi per riprodurli, risultato atteso e risultato ottenuto.
 
-- Tutto superato: lasci il ticket in In QA e scrivi che è pronto per l'ok di Matteo al merge.
+- Tutto superato: lasci il ticket in In QA e scrivi che è pronto per la review di CodeRabbit e
+  poi per l'ok di Matteo al merge.
 - Qualcosa fallito: ticket in In Development, con i difetti nel commento.
 
 ## Limiti

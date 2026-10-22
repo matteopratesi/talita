@@ -7,6 +7,92 @@ Le prime voci sono ereditate da Koinè, l'applicazione da cui Talità nasce: rip
 l'origine (registro delle decisioni di Koinè, commit `23ea63d`). I rimandi «KOINE-N» sono ai
 ticket di Koinè.
 
+## 2026-10-19: design system (KOINE-11)
+
+Origine: registro delle decisioni di Koinè, voce «design system (KOINE-11)». Guida completa in
+`docs/design/README.md`, mockup di origine in `docs/design/KOINE-11/`.
+
+- **Font Inter 4.1** (OFL 1.1), servito dall'app in due sottoinsiemi woff2 (latino circa 48 KB,
+  latino esteso solo quando serve): aspetto da app, ottima leggibilità a schermo, cifre tabulari,
+  copre i nomi stranieri. Variante `cv08` accesa per distinguere I da l. Scartati Atkinson
+  Hyperlegible Next (aspetto istituzionale) e i font di sistema.
+- **Icone Lucide** (ISC), SVG inline nei template: nessun file in più da scaricare.
+- **Colori come token semantici** con la palette di Tailwind spenta: blu profondo per le azioni,
+  neutri caldi, contrasti verificati (testo principale oltre AAA).
+- **Due layout**: telefono con navigazione in basso, desktop da 1024 px con navigazione a sinistra.
+  Testo base a 17 px, bottoni alti 48 px.
+- **Navigazione**: in Koinè quattro voci approvate il 19/10/2026; in Talità le voci sono quelle di
+  TALITA-2 (sopra).
+
+## 2026-10-19: spike JTE (KOINE-11), si resta su JTE
+
+Origine: registro delle decisioni di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
+4.1.1, Gradle 9.8.1, JDK 25 (toolchain) e Kotlin 2.3.21: **JTE 3.2.4 funziona, senza workaround**.
+Thymeleaf non serve.
+
+- **Versioni**: plugin `gg.jte.gradle` 3.2.4 e `gg.jte:jte-spring-boot-starter-4` 3.2.4 (stessa
+  versione, richiesto da JTE). Lo starter è compilato contro Boot 4.0.2 ma gira su 4.1.1 senza
+  toccare l'autoconfigurazione.
+- **`generate()` al posto di `precompile()`**: il plugin scrive sorgenti Java in
+  `build/generated-sources/jte` e li compila `compileJava` come tutto il resto, quindi le classi dei
+  template finiscono nel `bootJar` (casid/jte#438 non si presenta). Lo verifica
+  `scripts/smoke-test-jar.sh`: il jar avviato da una cartella fuori dal repo, senza profili,
+  risponde 200 su `/` con la pagina del template. Lo stesso script gira in CI.
+- **Template Java, modelli Kotlin**: i template sono `.jte` (non `.kte`, che fissa il compilatore
+  Kotlin a 2.2.20) e leggono i modelli Kotlin dai getter (`page.getTitle()`). Una proprietà
+  inesistente fa fallire `compileJava`.
+- **Profili**: senza profili i template sono quelli precompilati; il profilo `dev`, impostato da
+  `bootRun`, accende la modalità sviluppo e ricarica i `.jte` da `src/main/jte` a ogni richiesta.
+  Le due modalità non convivono.
+- **Pacchetto `ui`**: layout, navigazione, pagine di errore e supporto htmx. In Koinè era un modulo
+  condiviso di Modulith; in Talità è un pacchetto (`talita.ui`) senza regole di confine.
+
+## 2026-10-19: asset, e2e e guscio (KOINE-11)
+
+Origine: registro delle decisioni di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
+sviluppando il guscio, oltre a quelle del design.
+
+- **Tailwind 4.3.3 standalone, senza Node**: il binario si scarica una volta nella cache di Gradle,
+  fuori da `build/`. Versione e SHA-256 stanno solo in `build.gradle.kts` (mai scaricati insieme al
+  binario) e si verificano prima di ogni uso: se non corrispondono, la build si ferma senza
+  eseguirlo. Solo `linux-x64` per ora.
+- **htmx 2.0.11 vendorizzato**, con licenza (0BSD) e fonte accanto; `AssetTests` ne confronta
+  l'hash con l'SRI pubblicato da htmx.org. Il WebJar è scartato: il suo `latest` è la 4.
+- **Font Inter 4.1** in due sottoinsiemi woff2 prodotti con fonttools (comandi e hash in
+  `static/fonts/README.txt`). La catena delle risorse di Spring calcola l'impronta del CSS *prima*
+  di riscrivere gli indirizzi dei font: nel CSS c'è una riga `/*! fonts: … */` con l'inizio degli
+  hash, e un test fallisce se non è aggiornata.
+- **Cache di un anno** sui file con l'impronta (`max-age=31536000, public`).
+- **Icone Lucide 1.59.0** in un solo template (`components/icon.jte`) scelto con un enum: ogni
+  tracciato è scritto una volta, un test controlla che nessuna icona dell'enum manchi.
+- **Playwright Java 1.63.0 + axe-core 4.14.0** (stessa versione, richiesta dal pacchetto). Ciclo di
+  vita gestito in un'estensione JUnit propria (`@E2eTest` gira in telefono e desktop, traccia e
+  screenshot su fallimento). Solo Chromium; il task `playwrightInstall` lo scarica e Playwright non
+  ne scarica altri.
+- **«Vale l'ultimo tocco» solo fra i cambi di pagina**, in `app.js`: un `hx-sync` sul `body`
+  legherebbe fra loro tutte le richieste della pagina. Anche la richiesta di un indietro o di un
+  avanti è un cambio di pagina.
+- **Indietro**: se il ripristino dal server risponde 404 o 500, `app.js` ricarica la pagina; senza
+  rete la pagina resta com'è, compare il messaggio e l'indirizzo torna a quello della pagina che si
+  vede.
+- **Barra di caricamento senza lampeggio** e **etichette della navigazione a 320 px**: margine
+  laterale della navigazione `px-1` e nessun margine nell'etichetta, così le voci sono larghe 78 px
+  e l'etichetta si legge intera.
+- **htmx scrive in `sessionStorage`** il percorso corrente anche con `historyCacheSize: 0`: `app.js`
+  toglie quella chiave dopo ogni cambio di pagina. Le copie delle pagine non vengono salvate.
+- **Pagine di errore**: un `ErrorController` nostro sostituisce quello di Spring Boot. 5xx mostra
+  «Qualcosa non ha funzionato», ogni altro errore del client «Pagina non trovata». «Riprova» c'è
+  solo per una lettura (GET) e solo verso un indirizzo di quest'app (mai `//host`).
+- **Errori htmx** in `app.js`: 404 e 500 di un cambio di pagina si mostrano come pagine; altri
+  errori, rete assente e tempo scaduto (20 s) lasciano la pagina com'è e mostrano un messaggio.
+
+## 2026-10-19: un solo ticket, sviluppo subito (KOINE-11)
+
+Origine: registro delle decisioni di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
+branch e una PR e le parti come passi in ordine, perché le parti servono solo insieme (il guscio si
+verifica solo con gli e2e) e il QA controlla tutti i criteri in una volta. Per TALITA-2 vale la
+stessa scelta.
+
 ## 2026-10-21: nascita di Talità (KOINE-29)
 
 Esito dell'intervista a Matteo sulla convivenza dei bambini, approvato da lui il 21/10/2026.
@@ -130,88 +216,50 @@ unico invece dei tre proposti dall'analisi).
   messaggi, errori, accessibilità con axe), su telefono e desktop; cambiano etichette, percorsi e
   testi attesi.
 
-## 2026-10-19: design system (KOINE-11)
+## 2026-10-22: scelte di TALITA-14
 
-Origine: registro delle decisioni di Koinè, voce «design system (KOINE-11)». Guida completa in
-`docs/design/README.md`, mockup di origine in `docs/design/KOINE-11/`.
+Rifiniture dopo TALITA-2, nate dai commenti della QA. Il ticket non tocca l'app: cambia il flusso
+agentico, la build, la CI e due test. Una PR sola.
 
-- **Font Inter 4.1** (OFL 1.1), servito dall'app in due sottoinsiemi woff2 (latino circa 48 KB,
-  latino esteso solo quando serve): aspetto da app, ottima leggibilità a schermo, cifre tabulari,
-  copre i nomi stranieri. Variante `cv08` accesa per distinguere I da l. Scartati Atkinson
-  Hyperlegible Next (aspetto istituzionale) e i font di sistema.
-- **Icone Lucide** (ISC), SVG inline nei template: nessun file in più da scaricare.
-- **Colori come token semantici** con la palette di Tailwind spenta: blu profondo per le azioni,
-  neutri caldi, contrasti verificati (testo principale oltre AAA).
-- **Due layout**: telefono con navigazione in basso, desktop da 1024 px con navigazione a sinistra.
-  Testo base a 17 px, bottoni alti 48 px.
-- **Navigazione**: in Koinè quattro voci approvate il 19/10/2026; in Talità le voci sono quelle di
-  TALITA-2 (sopra).
-
-## 2026-10-19: spike JTE (KOINE-11), si resta su JTE
-
-Origine: registro delle decisioni di Koinè, voce «spike JTE (KOINE-11)». Esito con Spring Boot
-4.1.1, Gradle 9.8.1, JDK 25 (toolchain) e Kotlin 2.3.21: **JTE 3.2.4 funziona, senza workaround**.
-Thymeleaf non serve.
-
-- **Versioni**: plugin `gg.jte.gradle` 3.2.4 e `gg.jte:jte-spring-boot-starter-4` 3.2.4 (stessa
-  versione, richiesto da JTE). Lo starter è compilato contro Boot 4.0.2 ma gira su 4.1.1 senza
-  toccare l'autoconfigurazione.
-- **`generate()` al posto di `precompile()`**: il plugin scrive sorgenti Java in
-  `build/generated-sources/jte` e li compila `compileJava` come tutto il resto, quindi le classi dei
-  template finiscono nel `bootJar` (casid/jte#438 non si presenta). Lo verifica
-  `scripts/smoke-test-jar.sh`: il jar avviato da una cartella fuori dal repo, senza profili,
-  risponde 200 su `/` con la pagina del template. Lo stesso script gira in CI.
-- **Template Java, modelli Kotlin**: i template sono `.jte` (non `.kte`, che fissa il compilatore
-  Kotlin a 2.2.20) e leggono i modelli Kotlin dai getter (`page.getTitle()`). Una proprietà
-  inesistente fa fallire `compileJava`.
-- **Profili**: senza profili i template sono quelli precompilati; il profilo `dev`, impostato da
-  `bootRun`, accende la modalità sviluppo e ricarica i `.jte` da `src/main/jte` a ogni richiesta.
-  Le due modalità non convivono.
-- **Pacchetto `ui`**: layout, navigazione, pagine di errore e supporto htmx. In Koinè era un modulo
-  condiviso di Modulith; in Talità è un pacchetto (`talita.ui`) senza regole di confine.
-
-## 2026-10-19: asset, e2e e guscio (KOINE-11)
-
-Origine: registro delle decisioni di Koinè, voce «asset, e2e e guscio (KOINE-11)». Scelte fatte
-sviluppando il guscio, oltre a quelle del design.
-
-- **Tailwind 4.3.3 standalone, senza Node**: il binario si scarica una volta nella cache di Gradle,
-  fuori da `build/`. Versione e SHA-256 stanno solo in `build.gradle.kts` (mai scaricati insieme al
-  binario) e si verificano prima di ogni uso: se non corrispondono, la build si ferma senza
-  eseguirlo. Solo `linux-x64` per ora.
-- **htmx 2.0.11 vendorizzato**, con licenza (0BSD) e fonte accanto; `AssetTests` ne confronta
-  l'hash con l'SRI pubblicato da htmx.org. Il WebJar è scartato: il suo `latest` è la 4.
-- **Font Inter 4.1** in due sottoinsiemi woff2 prodotti con fonttools (comandi e hash in
-  `static/fonts/README.txt`). La catena delle risorse di Spring calcola l'impronta del CSS *prima*
-  di riscrivere gli indirizzi dei font: nel CSS c'è una riga `/*! fonts: … */` con l'inizio degli
-  hash, e un test fallisce se non è aggiornata.
-- **Cache di un anno** sui file con l'impronta (`max-age=31536000, public`).
-- **Icone Lucide 1.59.0** in un solo template (`components/icon.jte`) scelto con un enum: ogni
-  tracciato è scritto una volta, un test controlla che nessuna icona dell'enum manchi.
-- **Playwright Java 1.63.0 + axe-core 4.14.0** (stessa versione, richiesta dal pacchetto). Ciclo di
-  vita gestito in un'estensione JUnit propria (`@E2eTest` gira in telefono e desktop, traccia e
-  screenshot su fallimento). Solo Chromium; il task `playwrightInstall` lo scarica e Playwright non
-  ne scarica altri.
-- **«Vale l'ultimo tocco» solo fra i cambi di pagina**, in `app.js`: un `hx-sync` sul `body`
-  legherebbe fra loro tutte le richieste della pagina. Anche la richiesta di un indietro o di un
-  avanti è un cambio di pagina.
-- **Indietro**: se il ripristino dal server risponde 404 o 500, `app.js` ricarica la pagina; senza
-  rete la pagina resta com'è, compare il messaggio e l'indirizzo torna a quello della pagina che si
-  vede.
-- **Barra di caricamento senza lampeggio** e **etichette della navigazione a 320 px**: margine
-  laterale della navigazione `px-1` e nessun margine nell'etichetta, così le voci sono larghe 78 px
-  e l'etichetta si legge intera.
-- **htmx scrive in `sessionStorage`** il percorso corrente anche con `historyCacheSize: 0`: `app.js`
-  toglie quella chiave dopo ogni cambio di pagina. Le copie delle pagine non vengono salvate.
-- **Pagine di errore**: un `ErrorController` nostro sostituisce quello di Spring Boot. 5xx mostra
-  «Qualcosa non ha funzionato», ogni altro errore del client «Pagina non trovata». «Riprova» c'è
-  solo per una lettura (GET) e solo verso un indirizzo di quest'app (mai `//host`).
-- **Errori htmx** in `app.js`: 404 e 500 di un cambio di pagina si mostrano come pagine; altri
-  errori, rete assente e tempo scaduto (20 s) lasciano la pagina com'è e mostrano un messaggio.
-
-## 2026-10-19: un solo ticket, sviluppo subito (KOINE-11)
-
-Origine: registro delle decisioni di Koinè. Per il guscio Matteo ha deciso un solo ticket, con un
-branch e una PR e le parti come passi in ordine, perché le parti servono solo insieme (il guscio si
-verifica solo con gli e2e) e il QA controlla tutti i criteri in una volta. Per TALITA-2 vale la
-stessa scelta.
+- **Review di CodeRabbit a mano.** Sul repo pubblico, finché ha meno di 10 stelle, CodeRabbit non
+  rivede da solo: la skill `/avanza` mette la PR pronta dopo il QA e chiede subito la review con un
+  commento `@coderabbitai review`, e lo stesso per un secondo giro dopo le correzioni (rivede solo i
+  commit nuovi). Mai un terzo giro senza Matteo. L'esito si legge dalla **descrizione** dello status
+  `CodeRabbit` sul commit di testa («Review completed»), non dallo stato: anche «Review skipped…» ha
+  stato `success` e `gh pr checks` lo mostra come `pass`. Lo status è per commit, quindi dopo un
+  push la review va chiesta di nuovo. Rate limit: si aspetta e si richiede. Nessun esito in 30
+  minuti: lo si dice a Matteo invece di chiedergli l'ok al merge. `CLAUDE.md`, developer e QA non
+  dicono più che la review è una e automatica.
+- **Prova di `/avanza` senza chiave: già fatta.** Da una sessione in `~/dev/talita` ha preso il
+  primo ticket in To Do di TALITA e non quelli di Koinè né di altri progetti (commento 10849 del
+  ticket). Il ticket di prova è TALITA-14 stesso.
+- **Download di Tailwind fermo a metà.** I timeout del client HTTP coprono la connessione e l'attesa
+  delle intestazioni, non un server che manda una parte del corpo e poi tace. Il task
+  `downloadTailwind` ha un limite di 15 minuti (solo lui: `tailwindWatch` gira finché lo si ferma) e
+  il job di CI ha `timeout-minutes: 30` per qualunque altro passo appeso. Il limite è sul tempo
+  totale, non sull'inattività: un controllo «nessun byte da N secondi» vuol dire più codice nello
+  script di build per un caso raro; se 15 minuti si rivelano stretti (110 MB sotto circa 1 Mbit/s
+  non ci stanno), si apre un ticket, e intanto il file si copia a mano nella cache
+  (`docs/04-ambiente.md`). Il file `.part` si toglie in un `finally` e prima di scaricare;
+  l'interruzione del limite non si cattura, perché il task deve fallire; il client non si chiude,
+  perché `close()` aspetta scambi che non finiscono.
+- **Bot di GitHub ammessi nel controllo degli indirizzi** (decisione di Matteo, 22/10/2026).
+  `scripts/check-commit-emails.sh` accetta anche `<id>+<login>[bot]@users.noreply.github.com`, solo
+  in questa forma: con l'id, `[bot]` subito prima della `@`, dominio esatto. Il controllo serve a
+  non far finire nella storia pubblica la mail personale o quella di lavoro (regola 2 di
+  `CLAUDE.md`); l'indirizzo di un bot è pubblico e non è di nessuna persona, e rifiutarlo farebbe
+  fallire la CI il giorno in cui un bot aggiunge un commit a una PR. Chi può scrivere sul branch lo
+  decidono i permessi di GitHub. I fork non cambiano: un indirizzo che non sia un noreply si
+  rifiuta, perché lo script non può distinguere la mail di Matteo da un'altra senza scriverla nel
+  repo. Un test esegue lo script vero su repo temporanei.
+- **Regola sul nome del ticket di origine** (`NoLeftoversTests`). Il caso di `Disabled(` con il nome
+  in un'altra stringa della riga si chiude: l'eccezione vale solo dentro la stringa del motivo. Il
+  caso di una stringa con `//` prima del nome resta aperto: chiuderlo bene vuol dire riconoscere le
+  stringhe di Kotlin (anche raw e con template), YAML, shell, JTE, JS, CSS e SQL in una regola che
+  lavora per righe, e contare le virgolette ne chiuderebbe solo una parte, con errori suoi. Sta
+  scritto nel KDoc come limite noto e un test lo fissa, così chi un giorno lo chiude lo aggiorna
+  sapendolo. La regola protegge da un residuo copiato per sbaglio, non da chi lo nasconde apposta:
+  per quello c'è la review.
+- **Registro in ordine di data.** Le quattro voci del 19/10 passano prima di quelle del 21/10, come
+  dice la prima riga del registro, e un test controlla che le date delle intestazioni non scendano
+  mai.

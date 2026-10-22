@@ -27,8 +27,8 @@ sbagliata, non decidere tu: commento firmato con il problema, ticket in To Do, t
    Esegui la build completa. I test usano Docker:
    `sg docker -c "./gradlew build"` finché la sessione non vede il gruppo `docker`.
 6. Apri la PR **in bozza** con `gh pr create --draft` verso `main`: titolo con la chiave, nel
-   corpo i criteri coperti e come provarli. Non metterla pronta: lo fa l'orchestratore dopo
-   il QA, così CodeRabbit la rivede una volta sola. Aspetta che la CI sia verde sul tuo ultimo
+   corpo i criteri coperti e come provarli. Non metterla pronta e non chiedere la review di
+   CodeRabbit: lo fa l'orchestratore dopo il QA. Aspetta che la CI sia verde sul tuo ultimo
    commit e riporta l'id del run.
 7. Commento firmato con il link alla PR e ticket in In QA.
 

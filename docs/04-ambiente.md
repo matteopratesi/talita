@@ -63,7 +63,13 @@ diverso da quello di Koinè, perché il nome del progetto compose è quello dell
   cancella. È **separato da quello di Koinè**: la prima build di Talità lo scarica di nuovo. A ogni
   build se ne confronta lo SHA-256 con quello scritto in `build.gradle.kts` (`tailwindChecksums`): se
   non corrisponde, la build si ferma senza eseguirlo. Per cambiare versione si aggiornano
-  `tailwindVersion` e il checksum dalla pagina della release.
+  `tailwindVersion` e il checksum dalla pagina della release. Un download fermo (la connessione
+  resta aperta ma non arriva più niente) si interrompe da solo dopo 15 minuti: la build fallisce
+  con «Timeout has been exceeded» sul task `downloadTailwind`, senza lasciare file a metà, e basta
+  rilanciarla. Con una connessione molto lenta (sotto circa 1 Mbit/s i 15 minuti non bastano) si
+  può copiare il file `tailwindcss-linux-x64`, preso dalla pagina della release, nella cartella
+  della cache: la build ne controlla comunque lo SHA-256. In CI il job `build` si ferma comunque
+  dopo 30 minuti (`timeout-minutes`).
 - **Chromium di Playwright** (circa 650 MB, in `~/.cache/ms-playwright`, condiviso con ogni progetto
   che usa la stessa versione di Playwright): `./gradlew playwrightInstall`, e `e2eTest` lo lancia da
   solo. Senza `--with-deps`, perché sul PC di Matteo `apt install` non funziona oggi (un pacchetto
