@@ -55,10 +55,10 @@ qualcosa: si lavora su quel branch, mai su `main`, e il developer lo riusa invec
 nuovo.
 
 La PR nasce sempre in bozza (`gh pr create --draft`) e resta in bozza durante sviluppo, QA e
-correzioni, così CodeRabbit non la rivede a ogni push. Appena il developer la apre, collegala
-al ticket come web link su Jira: prima `listJiraIssueRemoteIssueLinks` (lo stesso URL aggiunto
-due volte diventa un doppione che non si può togliere), poi `createJiraIssueRemoteIssueLink`
-con l'URL della PR e un titolo che inizia con `PR #<numero>`.
+correzioni: la review di CodeRabbit si chiede solo dopo il QA (vedi sotto). Appena il developer la
+apre, collegala al ticket come web link su Jira: prima `listJiraIssueRemoteIssueLinks` (lo stesso
+URL aggiunto due volte diventa un doppione che non si può togliere), poi
+`createJiraIssueRemoteIssueLink` con l'URL della PR e un titolo che inizia con `PR #<numero>`.
 
 ## 3. Controlla il risultato
 
@@ -77,20 +77,54 @@ chiedi.
 
 ### Review di CodeRabbit
 
-Quando il QA è superato e non ci sono altre modifiche in vista, metti la PR pronta
-(`gh pr ready <numero>`): CodeRabbit fa una sola review. Aspetta che il suo check dica
-"Review completed".
-- Se lascia commenti, rilancia il developer: corregge quelli fondati sullo stesso branch e
-  risponde agli altri spiegando perché. Se le correzioni toccano il codice, fai ripetere al QA
-  le verifiche dei criteri toccati. La CI deve tornare verde.
-- Se il check dice "rate limited", aspetta e chiedi di nuovo la review con un commento
-  `@coderabbitai review` sulla PR.
-- Se CodeRabbit non compare affatto, dillo a Matteo prima di chiedergli l'ok al merge. Se
-  rivede solo una parte di una PR grande, dillo a Matteo.
+Il repo è pubblico e ha meno di 10 stelle: CodeRabbit non rivede da solo, la review va chiesta a
+mano a ogni giro. Finché la PR è in bozza lo status dice «Review skipped: draft pull request».
+
+**Primo giro.** Quando il QA è superato e non ci sono altre modifiche in vista:
+
+1. Metti la PR pronta: `gh pr ready <numero>`.
+2. Leggi lo status (vedi sotto). Se dice «Review skipped: manual review required for this OSS
+   repository», chiedi subito la review con un commento sulla PR:
+   `gh pr comment <numero> --body "@coderabbitai review"`. Se dice ancora «Review skipped: draft
+   pull request», aspetta qualche secondo e rileggi. Se dice già «Review in progress» o «Review
+   completed» (per esempio se un giorno la review parte da sola), il commento non si scrive.
+3. Aspetta che lo status dica «Review completed».
+
+**Come si legge l'esito.** Il segnale è la descrizione dello status `CodeRabbit` sul commit di
+testa della PR, non il suo stato: anche «Review skipped…» ha stato `success`, e `gh pr checks` lo
+mostra come `pass`. Il `gh` installato (2.45) non ha `gh pr checks --json`: prendi lo SHA con
+`gh pr view <numero> --json headRefOid --jq .headRefOid` e la descrizione con
+`gh api repos/{owner}/{repo}/commits/<sha>/status --jq '.statuses[] | select(.context == "CodeRabbit") | .description'`.
+Lo status è per commit: dopo un push il nuovo commit di testa torna a «Review skipped: manual
+review required…», e la review va chiesta di nuovo.
+
+**Se lascia commenti**, rilancia il developer: corregge quelli fondati sullo stesso branch e
+risponde agli altri sulla PR spiegando perché. Se le correzioni toccano il codice, fai ripetere
+al QA le verifiche dei criteri toccati. La CI deve tornare verde. Se la review è completa e non
+ha commenti, vai avanti verso Matteo.
+
+**Secondo giro.** Con la review completata e i commit di correzione spinti dopo, quando la CI è
+di nuovo verde e il QA ha ripetuto i criteri toccati, chiedi un secondo giro con lo stesso
+commento `@coderabbitai review` (rivede solo i commit nuovi) e aspetta «Review completed» sul
+nuovo commit di testa. Niente push mentre la review è «in progress»: se capita, chiedi la review
+sul commit nuovo. Se dopo il secondo giro servono altri commit, niente terzo giro automatico: lo
+dici a Matteo.
+
+**Rate limit e silenzio.** Se CodeRabbit è in rate limit lo scrive in un commento sulla PR (lo
+status può non dirlo): aspetta il tempo indicato e chiedi di nuovo la review. Se entro 30 minuti
+dalla richiesta non c'è né «Review completed» né un commento del bot che spieghi perché, lo dici
+a Matteo invece di chiedergli l'ok al merge. Se rivede solo una parte di una PR grande, lo dici a
+Matteo.
+
+**Review conclusa.** Lo è solo se l'ultimo giro che hai chiesto ha «Review completed» e ogni
+commento di CodeRabbit ha una correzione o una risposta. Nel messaggio a Matteo scrivi quanti giri
+sono stati fatti e quali commit CodeRabbit non ha rivisto (quelli dopo l'ultimo «Review
+completed»).
 
 ## 4. Merge e chiusura
 
-Mai merge prima che la review di CodeRabbit sia conclusa e le sue correzioni applicate. Solo
+Mai merge prima che la review di CodeRabbit sia conclusa (come dice la sezione sopra) e le sue
+correzioni applicate. Solo
 quando Matteo dà l'ok al merge: `gh pr merge --squash --delete-branch`. Se il branch locale è
 ancora usato da un worktree, `gh` non cancella neanche quello remoto: cancellalo con
 `git push origin --delete <branch>`. Controlla che la CI su `main` sia verde, porta il ticket in
