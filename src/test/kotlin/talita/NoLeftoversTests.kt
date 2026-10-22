@@ -18,8 +18,11 @@ private val wholeLineComment = listOf("//", "*", "/*", "#", "<%--")
 // Where a comment starts after some code: `//` (but not in `https://`), `/*`, or a `#` after a space.
 private val commentStart = Regex("""(?<!:)//|/\*|(?<=\s)#""")
 
-// The reason of a disabled test: the string literal that is the argument of `Disabled(`, with or without `value =`.
-private val disabledReason = Regex("""Disabled\(\s*(?:value\s*=\s*)?"(?:[^"\\]|\\.)*"""")
+// The reason of a disabled test: the string literal that is the argument of the annotation `@Disabled(`, with or
+// without `value =` and with or without the qualified name (`@org.junit.jupiter.api.Disabled(`). The `@` must not
+// follow an identifier and the name must be exactly `Disabled`, so `Disabled(` in a string, in a call or at the
+// end of the name of another annotation is not the annotation.
+private val disabledReason = Regex("""(?<!\w)@(?:[A-Za-z_]\w*\.)*Disabled\(\s*(?:value\s*=\s*)?"(?:[^"\\]|\\.)*"""")
 
 /**
  * The line without the mentions of the origin ticket that are allowed. It says where a test or a
@@ -27,7 +30,9 @@ private val disabledReason = Regex("""Disabled\(\s*(?:value\s*=\s*)?"(?:[^"\\]|\
  *  - in a comment (a whole line, or what follows a line-comment or block-comment marker after some code);
  *  - in the path of the folder of the mockups, `docs/design/<origin>`;
  *  - in the reason of a disabled test: only inside the string that is the argument of
- *    `Disabled("...")`, not in the rest of the line (`@Disabled("reason") val x = "<origin>"` is found).
+ *    `@Disabled("...")`, not in the rest of the line (`@Disabled("reason") val x = "<origin>"` is found),
+ *    and only for the annotation itself: the words `Disabled("<origin>")` in a raw string, in a call or
+ *    in another annotation are not it, and the search finds the name.
  * Anywhere else (a string, a configuration value) it stays in the line, and the search finds it.
  *
  * Limits, known and on purpose:
@@ -40,8 +45,10 @@ private val disabledReason = Regex("""Disabled\(\s*(?:value\s*=\s*)?"(?:[^"\\]|\
  *    the quotes would close only the case of the double ones and bring errors of its own. The rule
  *    protects from a leftover copied by mistake, not from whoever hides it on purpose: for that
  *    there is the review.
- *  - The reason of a `Disabled` must be a plain string on the same line as `Disabled(`: one split
- *    over more lines, or a raw string, is not allowed and the search finds the name in it.
+ *  - The reason of a `Disabled` must be a plain string on the same line as `@Disabled(`: one split
+ *    over more lines, or a raw string, is not allowed and the search finds the name in it. The other
+ *    way round, the text of the annotation itself (with its `@`) inside a string looks like the
+ *    annotation, and the rule cannot tell: same limit as the comment markers, same answer.
  */
 internal fun withoutAllowedMentions(line: String): String {
     val trimmed = line.trimStart()
@@ -140,6 +147,12 @@ class NoLeftoversTests {
             """val x = "$origin"; @Disabled("reason")""",
             """@Disabled val x = "$origin"""",
             """@Disabled(reason) val x = "$origin"""",
+            // The words of the annotation without the annotation: in a raw string, in a call, in another annotation.
+            "val copy = \"\"\"Disabled(\"$origin\")\"\"\"",
+            """val copy = Disabled("$origin")""",
+            """@NotDisabled("$origin")""",
+            """@org.example.NotDisabled("$origin")""",
+            """label@Disabled("$origin")""",
         )
         for (line in forbidden) {
             assertTrue(withoutAllowedMentions(line).contains(origin), "should be found: $line")
@@ -153,6 +166,11 @@ class NoLeftoversTests {
             val line = """val s = "x $marker $origin""""
             assertFalse(withoutAllowedMentions(line).contains(origin), "the limit is gone for the marker $marker: update this test and the KDoc of withoutAllowedMentions")
         }
+        // The text of the annotation itself, with its `@`, inside a string looks like the annotation: same limit.
+        assertFalse(
+            withoutAllowedMentions("val copy = \"\"\"@Disabled(\"$origin\")\"\"\"").contains(origin),
+            "the limit is gone for the annotation inside a string: update this test and the KDoc of withoutAllowedMentions",
+        )
         // What comes before the marker is still searched.
         assertTrue(withoutAllowedMentions("""val s = "$origin // x"""").contains(origin))
         assertTrue(withoutAllowedMentions("""val s = "$origin" // x""").contains(origin))
