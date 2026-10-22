@@ -9,7 +9,7 @@
 @template.layout.shell(shell = shell, content = @`
   <div class="mx-auto w-full max-w-md">
     @template.components.pageHead(title = page.getTitle())
-    <p class="text-ink-muted">${page.getText()}</p>
+    <p class="text-ink-muted wrap-anywhere">${page.getText()}</p>
     <form method="post" action="${page.getAction()}" hx-disabled-elt="find button[type=submit]" class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
       @template.components.csrf(csrf = csrf)
       <input type="hidden" name="${page.getField()}" value="${page.getValue()}">

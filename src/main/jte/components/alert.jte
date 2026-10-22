@@ -24,10 +24,10 @@ String tone = switch (kind) {
   @template.components.icon(icon = kind.getIcon(), classes = "size-6 shrink-0 " + tone)
   @if(action != null)
     <div class="min-w-0">
-      <p>${content}</p>
+      <p class="wrap-anywhere">${content}</p>
       <div class="-mb-2 -ml-3 mt-1">${action}</div>
     </div>
   @else
-    <p>${content}</p>
+    <p class="min-w-0 wrap-anywhere">${content}</p>
   @endif
 </div>
