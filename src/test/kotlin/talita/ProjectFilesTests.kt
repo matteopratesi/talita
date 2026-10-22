@@ -67,12 +67,99 @@ class ProjectFilesTests {
         assertTrue(skill.contains("""project = TALITA AND status = "To Do" ORDER BY rank"""))
         assertTrue(skill.contains(""""In Development" porta a In Development e"""))
         assertTrue(skill.contains(""""Closed" a Closed"""))
-        // The flow of the pull requests: draft, web link without duplicates, ready after the QA, CodeRabbit, squash.
-        for (step in listOf("gh pr create --draft", "listJiraIssueRemoteIssueLinks", "createJiraIssueRemoteIssueLink", "gh pr ready", "Review completed", "gh pr merge --squash --delete-branch")) {
+        // The flow of the pull requests: draft, web link without duplicates, ready after the QA, CodeRabbit asked by hand, squash.
+        for (step in listOf("gh pr create --draft", "listJiraIssueRemoteIssueLinks", "createJiraIssueRemoteIssueLink", "gh pr ready", "@coderabbitai review", "Review completed", "gh pr merge --squash --delete-branch")) {
             assertTrue(skill.contains(step), "the skill does not mention $step")
         }
         assertTrue(skill.contains("etichetta `decisione`"))
         assertTrue(skill.contains("/avanza TALITA-"))
+    }
+
+    // ---- CodeRabbit asked by hand (TALITA-14, criteria 1-6) ------------------------------------------
+
+    /** The skill on one line per paragraph, so that a sentence wrapped at 100 columns is still found. */
+    private fun skillText(): String = read(skillPath).replace(Regex("""\s+"""), " ")
+
+    @Test
+    fun `t14 c01 the skill asks for the review with a comment as soon as the pull request is ready, unless it already started`() {
+        val skill = skillText()
+
+        assertTrue(skill.contains("`gh pr ready <numero>`"))
+        assertTrue(skill.contains("""`gh pr comment <numero> --body "@coderabbitai review"`"""))
+        assertTrue(skill.contains("meno di 10 stelle"), "it does not say why CodeRabbit does not start by itself")
+        assertTrue(skill.contains("«Review skipped: manual review required for this OSS repository»"))
+        // When the review already started (or finished) the comment is not written.
+        assertTrue(skill.contains("«Review in progress» o «Review completed»"))
+        assertTrue(skill.contains("il commento non si scrive"))
+        // The pull request of a draft says so, and the skill says to look again.
+        assertTrue(skill.contains("«Review skipped: draft pull request»"))
+    }
+
+    @Test
+    fun `t14 c02 the signal is the description of the CodeRabbit status on the head commit, read with the gh that is installed`() {
+        val skill = skillText()
+
+        assertTrue(skill.contains("descrizione dello status `CodeRabbit` sul commit di testa della PR, non il suo stato"))
+        assertTrue(skill.contains("anche «Review skipped…» ha stato `success`"))
+        assertTrue(skill.contains("`gh pr checks` lo mostra come `pass`"))
+        assertTrue(skill.contains("(2.45) non ha `gh pr checks --json`"))
+        assertTrue(skill.contains("`gh pr view <numero> --json headRefOid --jq .headRefOid`"))
+        assertTrue(skill.contains("gh api repos/{owner}/{repo}/commits/<sha>/status"))
+        // The status is per commit: a push puts the new head back to "skipped".
+        assertTrue(skill.contains("Lo status è per commit"))
+    }
+
+    @Test
+    fun `t14 c03 after the corrections the skill asks for a second round on the new commits, and for a third it asks Matteo`() {
+        val skill = skillText()
+
+        assertTrue(skill.contains("**Secondo giro.**"))
+        assertTrue(skill.contains("quando la CI è di nuovo verde e il QA ha ripetuto i criteri toccati"))
+        assertTrue(skill.contains("`@coderabbitai review` (rivede solo i commit nuovi)"))
+        assertTrue(skill.contains("aspetta «Review completed» sul nuovo commit di testa"))
+        assertTrue(skill.contains("niente terzo giro automatico: lo dici a Matteo"))
+        assertTrue(skill.contains("Niente push mentre la review è «in progress»"))
+    }
+
+    @Test
+    fun `t14 c04 the skill waits for the rate limit and tells Matteo when nothing comes within 30 minutes`() {
+        val skill = skillText()
+
+        assertTrue(skill.contains("rate limit lo scrive in un commento sulla PR (lo status può non dirlo)"))
+        assertTrue(skill.contains("aspetta il tempo indicato e chiedi di nuovo la review"))
+        assertTrue(skill.contains("entro 30 minuti dalla richiesta"))
+        assertTrue(skill.contains("né «Review completed» né un commento del bot che spieghi perché"))
+        assertTrue(skill.contains("lo dici a Matteo invece di chiedergli l'ok al merge"))
+    }
+
+    @Test
+    fun `t14 c05 the review is over only when the last round is completed and every comment has an answer, and Matteo is told the rounds`() {
+        val skill = skillText()
+
+        assertTrue(skill.contains("**Review conclusa.**"))
+        assertTrue(skill.contains("l'ultimo giro che hai chiesto ha «Review completed» e ogni commento di CodeRabbit ha una correzione o una risposta"))
+        assertTrue(skill.contains("quanti giri sono stati fatti e quali commit CodeRabbit non ha rivisto"))
+        assertTrue(skill.contains("Mai merge prima che la review di CodeRabbit sia conclusa"))
+    }
+
+    @Test
+    fun `t14 c06 CLAUDE_md, the developer and the QA no longer say that CodeRabbit reviews once or by itself`() {
+        for (file in listOf("CLAUDE.md", agentPath("developer"), agentPath("qa"), skillPath)) {
+            val text = read(file).replace(Regex("""\s+"""), " ")
+            assertFalse(text.contains("una volta sola"), "$file still says that the review is done once")
+            assertFalse(text.contains("la rivede una volta"), "$file")
+        }
+
+        val claude = read("CLAUDE.md").replace(Regex("""\s+"""), " ")
+        assertTrue(claude.contains("Dopo il QA si mette pronta (`gh pr ready`) e la review di CodeRabbit si chiede con un commento `@coderabbitai review`"))
+        assertTrue(claude.contains("non parte da sola"))
+
+        val developer = read(agentPath("developer")).replace(Regex("""\s+"""), " ")
+        assertTrue(developer.contains("Non metterla pronta e non chiedere la review di CodeRabbit: lo fa l'orchestratore dopo il QA"))
+        assertFalse(developer.contains("gh pr ready"), "the developer does not mark the pull request ready")
+
+        val qa = read(agentPath("qa")).replace(Regex("""\s+"""), " ")
+        assertTrue(qa.contains("scrivi che è pronto per la review di CodeRabbit e poi per l'ok di Matteo al merge"))
     }
 
     @Test
