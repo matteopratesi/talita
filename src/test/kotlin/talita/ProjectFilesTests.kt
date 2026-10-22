@@ -306,33 +306,45 @@ class ProjectFilesTests {
     }
 
     @Test
-    fun `t14 c20 the entries of the decision log go from the oldest to the newest`() {
+    fun `t14 c20 the entries of the decision log go from the oldest to the newest, whatever is added after them`() {
         val log = read("docs/05-decisioni.md")
 
-        // The line 3 of the log promises it: "dalla più vecchia alla più recente".
+        // The line 3 of the log promises it: "dalla più vecchia alla più recente". The whole log is checked,
+        // so an entry added tomorrow, with a later or equal date, keeps the test green; an older one does not.
         assertTrue(log.contains("dalla più vecchia alla più recente"))
-        val dates = entryDates(log)
+        val headings = entryHeadings(log)
+        val dates = headings.map { it.take(10) }
         assertTrue(dates.size >= 8, "the log has only ${dates.size} entries")
         assertTrue(datesNeverDescend(dates), "the entries are not in order of date: $dates")
 
-        // The four of 19/10 come before the three of 21/10, and the entry of this ticket is the last one,
-        // with the choices of points 1, 3, 4 and 5 (the point 2 was tried before and is said in a line).
-        assertEquals(listOf("2026-10-19", "2026-10-21", "2026-10-22"), dates.distinct())
-        assertEquals(4, dates.count { it == "2026-10-19" })
-        assertEquals(3, dates.count { it == "2026-10-21" })
-        val last = log.substringAfterLast("\n## ")
-        assertTrue(last.startsWith("2026-10-22: scelte di TALITA-14\n"), "the last entry is not the one of TALITA-14")
-        for (choice in listOf(
-            "**Review di CodeRabbit a mano.**", "**Prova di `/avanza` senza chiave: già fatta.**", "**Download di Tailwind fermo a metà.**",
-            "**Bot di GitHub ammessi nel controllo degli indirizzi**", "**Regola sul nome del ticket di origine**",
-        )) {
-            assertTrue(last.contains(choice), "the entry of TALITA-14 misses $choice")
-        }
+        // The entries that had to be moved: the four of 19/10 come before the three of 21/10, in this order.
+        // Nothing is said about the entries that come later.
+        val moved = listOf(
+            "2026-10-19: design system", "2026-10-19: spike JTE", "2026-10-19: asset, e2e e guscio", "2026-10-19: un solo ticket",
+            "2026-10-21: nascita di Talità", "2026-10-21: lo stack di ", "2026-10-21: scelte di TALITA-2",
+        )
+        val positions = moved.map { prefix -> headings.indexOfFirst { it.startsWith(prefix) }.also { assertTrue(it >= 0, "the log has no entry '$prefix'") } }
+        assertTrue(positions.zipWithNext().all { (before, after) -> before < after }, "the entries are not in the order $moved: $positions")
 
         // The rule itself: equal dates are fine, a date that goes back is not.
         assertTrue(datesNeverDescend(listOf("2026-10-19", "2026-10-19", "2026-10-21", "2026-11-02")))
         assertFalse(datesNeverDescend(listOf("2026-10-21", "2026-10-19")))
         assertFalse(datesNeverDescend(listOf("2026-10-19", "2026-10-21", "2026-10-20")))
+    }
+
+    @Test
+    fun `t14 c20 the decision log has the entry of TALITA-14 with the choices of points 1, 3, 4 and 5`() {
+        // Found by its title, wherever it is: other entries may come after it (the point 2 was tried before
+        // and is said in a line).
+        val entry = decisionEntries(read("docs/05-decisioni.md")).firstOrNull { it.lineSequence().first().contains("scelte di TALITA-14") }
+
+        assertNotNull(entry, "the log has no entry 'scelte di TALITA-14'")
+        for (choice in listOf(
+            "**Review di CodeRabbit a mano.**", "**Prova di `/avanza` senza chiave: già fatta.**", "**Download di Tailwind fermo a metà.**",
+            "**Bot di GitHub ammessi nel controllo degli indirizzi**", "**Regola sul nome del ticket di origine**",
+        )) {
+            assertTrue(entry.contains(choice), "the entry of TALITA-14 misses $choice")
+        }
     }
 
     @Test
@@ -392,9 +404,12 @@ class ProjectFilesTests {
 
     // ---- Support ------------------------------------------------------------------------------------
 
-    /** The dates of the headings `## AAAA-MM-GG: ...` of the decision log, in the order they appear. */
-    private fun entryDates(log: String): List<String> =
-        Regex("""(?m)^## (\d{4}-\d{2}-\d{2})\b""").findAll(log).map { it.groupValues[1] }.toList()
+    /** The headings `## AAAA-MM-GG: ...` of the decision log, without the `## `, in the order they appear. */
+    private fun entryHeadings(log: String): List<String> =
+        Regex("""(?m)^## (\d{4}-\d{2}-\d{2}\b.*)$""").findAll(log).map { it.groupValues[1] }.toList()
+
+    /** The entries of the decision log, each from its heading (included) to the next one. */
+    private fun decisionEntries(log: String): List<String> = log.split(Regex("""(?m)^(?=## )""")).filter { it.startsWith("## ") }
 
     /** ISO dates compare as text. */
     private fun datesNeverDescend(dates: List<String>): Boolean = dates.zipWithNext().all { (before, after) -> before <= after }
