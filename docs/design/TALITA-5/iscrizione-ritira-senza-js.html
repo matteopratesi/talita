@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Ritirare l’iscrizione? · Talità</title>
+<link rel="stylesheet" href="talita-5.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-5: dati e testi sintetici, nessuna risorsa esterna. Senza JavaScript il bottone «Ritira l’iscrizione» porta a questa pagina di conferma (stessi testi del dialogo). Vale lo stesso per «Togli le segnalazioni». -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="home-genitore.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">N</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="home-genitore.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="iscrizioni-genitore.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Ritirare l’iscrizione?</h1>
+      <p class="lead">Luca Rossi · Convivenza di settembre 2027</p>
+    </div>
+    <p class="intro">L’iscrizione di Luca Rossi alla Convivenza di settembre 2027 risulterà ritirata: la quota non è dovuta e i giorni non contano più. Le segnalazioni, se ci sono, vengono cancellate subito. Resta fra le tue iscrizioni con lo stato «Ritirata»: finché le iscrizioni sono aperte puoi rimetterla «Confermata» o «In forse».</p>
+    <form method="post" action="iscrizioni-genitore-ritirata.html">
+      <div class="actions"><button class="btn btn--primary btn--block" type="submit">Ritira l’iscrizione</button><a class="btn btn--secondary btn--block" href="iscrizioni-genitore.html">Annulla</a></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

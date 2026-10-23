@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Correggi le segnalazioni · Talità</title>
+<link rel="stylesheet" href="talita-5.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-5: dati e testi sintetici, nessuna risorsa esterna. Criteri 22, 26. Solo per le cartacee: pagina a parte; mostrando il contenuto registra una lettura, e il salvataggio ne registra un’altra. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">MB</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="convivenza-dettaglio.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg></span><span class="nav__label">Convivenza</span></a></li>
+      <li><a href="elenco-maestro.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg></span><span class="nav__label">Arrivi</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Correggi le segnalazioni</h1>
+      <p class="lead">Elena Marino · Convivenza di settembre 2027</p>
+    </div>
+    <form class="stack-3" method="post" action="dettaglio-maestro-cartacea.html" novalidate>
+      <div class="alert alert--warning"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg><div class="alert__body"><p>Questa pagina mostra le segnalazioni: la lettura è stata registrata a tuo nome.</p></div></div>
+      <section class="card child" aria-labelledby="sc-titolo">
+        <h2 class="card__title" id="sc-titolo">Segnalazioni di Elena</h2>
+            <div class="field">
+      <label class="label" for="sc-allergies">Allergie</label>
+      <p class="hint" id="sc-allergies-aiuto">Per esempio: arachidi, polline.</p>
+      <textarea class="input" id="sc-allergies" name="child.allergies" rows="2" aria-describedby="sc-allergies-aiuto">Pollini.</textarea>
+    </div>
+    <div class="field">
+      <label class="label" for="sc-intolerances">Intolleranze</label>
+      <p class="hint" id="sc-intolerances-aiuto">Per esempio: lattosio.</p>
+      <textarea class="input" id="sc-intolerances" name="child.intolerances" rows="2" aria-describedby="sc-intolerances-aiuto"></textarea>
+    </div>
+    <div class="field">
+      <label class="label" for="sc-meds">Farmaci</label>
+      <p class="hint" id="sc-meds-aiuto">Nome e quando serve, per esempio: antistaminico in caso di reazione.</p>
+      <textarea class="input" id="sc-meds" name="child.medications" rows="2" aria-describedby="sc-meds-aiuto"></textarea>
+    </div>
+      <div class="check-box">
+        <label class="choice choice--check"><input type="checkbox" name="child.healthConsent" value="true" checked aria-describedby="sc-consenso-aiuto"><span class="choice__text"><span class="choice__label">Il genitore ha dato il consenso sul modulo cartaceo</span><span class="hint" id="sc-consenso-aiuto">Spunta la casella solo se sul modulo il genitore ha firmato il consenso alle segnalazioni. Senza consenso non le salviamo.</span></span></label>
+        
+      </div>
+      </section>
+      <div class="actions"><button class="btn btn--primary btn--block" type="submit">Salva le segnalazioni</button><a class="btn btn--secondary btn--block" href="dettaglio-maestro-cartacea.html">Annulla</a></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>
