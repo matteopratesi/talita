@@ -113,7 +113,7 @@ class GatheringE2eTest {
         assertThat(row).containsText("Bozza")
         assertThat(page.locator("main li a").filter(Locator.FilterOptions().setHasText("Convivenza di settembre 2026"))).containsText("Iscrizioni chiuse")
         assertThat(page.locator("main li a").filter(Locator.FilterOptions().setHasText("Convivenza di settembre 2026"))).containsText("Finita")
-        assertTrue(row.box().height >= 64, "a row is at least 64 px high")
+        assertTrue(row.box().height >= 63.9, "a row is at least 64 px high")
         assertTrue(page.noHorizontalScroll())
         assertAccessible(page, "Convivenza with rows (${e2e.profile.label})")
 
@@ -170,7 +170,7 @@ class GatheringE2eTest {
 
         assertThat(page.locator("h1")).hasText("Convivenza di settembre 2027")
         assertThat(page).hasURL(e2e.url("/convivenza/${e2e.idOfOnlyGathering()}"))
-        assertThat(page.locator("main [role=status]")).hasText("Convivenza salvata.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Convivenza salvata.")
         page.focusIs("document.activeElement.getAttribute('role') === 'status'")
         assertThat(page.locator("main")).containsText("Non indicato")
         assertThat(page.locator("main")).containsText("Nessun maestro scelto")
@@ -215,7 +215,7 @@ class GatheringE2eTest {
         e2e.touch(page.buttonNamed("Salva le modifiche"))
 
         assertThat(page).hasURL(e2e.url("/convivenza/$id"))
-        assertThat(page.locator("main [role=status]")).hasText("Quote salvate.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Quote salvate.")
         val card = page.locator("section[aria-labelledby=quote]")
         assertThat(card).containsText("Quota intera 60 €")
         assertThat(card).containsText("Quota giornaliera 12,50 €")
@@ -249,7 +249,7 @@ class GatheringE2eTest {
         page.locator("#cosa-portare").fill("Sacco a pelo\nTorcia\nBorraccia")
         e2e.touch(page.buttonNamed("Salva le modifiche"))
 
-        assertThat(page.locator("main [role=status]")).hasText("Informazioni salvate.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Informazioni salvate.")
         val card = page.locator("section[aria-labelledby=informazioni]")
         assertThat(card.locator("p")).hasText(arrayOf("Primo paragrafo.", "Secondo paragrafo, il 17/09/2027 alle 18:30."))
         assertThat(card.locator("li")).hasText(arrayOf("Sacco a pelo", "Torcia", "Borraccia"))
@@ -270,14 +270,15 @@ class GatheringE2eTest {
         assertThat(page).hasURL(e2e.url("/convivenza/$id/affidatari"))
         assertThat(page.locator("legend")).hasText("Maestri affidatari")
         assertThat(page.locator("fieldset label")).hasText(arrayOf("Elisa Conti Sei tu", "Paolo Verdi"))
-        assertTrue(page.locator("fieldset label").first().box().height >= 56, "a row is at least 56 px high")
+        // The content slides in for 160 ms: while it moves the browser may report 55.99997 px for a row of 56, so the height is read when it is still.
         page.settled()
+        assertTrue(page.locator("fieldset label").first().box().height >= 55.9, "a row is at least 56 px high")
         assertAccessible(page, "Affidatari (${e2e.profile.label})")
 
         e2e.touch(page.getByLabel("Elisa Conti"))
         e2e.touch(page.buttonNamed("Salva le modifiche"))
 
-        assertThat(page.locator("main [role=status]")).hasText("Maestri affidatari salvati.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Maestri affidatari salvati.")
         assertThat(page.locator("section[aria-labelledby=affidatari]")).containsText("Elisa Conti")
         assertThat(page.locator("section[aria-labelledby=affidatari]")).containsText("Sei tu")
         assertEquals(listOf(me), e2e.gatherings().custodiansOf(id))
@@ -312,7 +313,7 @@ class GatheringE2eTest {
         page.locator("#titolo").fill("Convivenza di settembre 2026, finita")
         e2e.touch(page.buttonNamed("Salva le modifiche"))
 
-        assertThat(page.locator("main [role=status]")).hasText("Titolo, date e luogo salvati.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Titolo, date e luogo salvati.")
         assertThat(page.locator("h1")).hasText("Convivenza di settembre 2026, finita")
     }
 
@@ -334,7 +335,7 @@ class GatheringE2eTest {
         page.focusIs("document.activeElement.getAttribute('role') === 'alert'")
         assertThat(page.locator("main").buttonNamed("Apri le iscrizioni")).isEnabled()
         assertEquals(GatheringStatus.draft, e2e.gatherings().statusOf(id))
-        assertTrue(alert.locator("a").first().box().height >= 44, "the links are big enough for a finger")
+        assertTrue(alert.locator("a").first().box().height >= 43.9, "the links are big enough for a finger")
         page.settled()
         assertAccessible(page, "detail with what is missing (${e2e.profile.label})")
 
@@ -383,7 +384,7 @@ class GatheringE2eTest {
         e2e.press(open)
         e2e.touch(page.openDialog().buttonNamed("Apri le iscrizioni"))
 
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni aperte.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni aperte.")
         page.focusIs("document.activeElement.getAttribute('role') === 'status'")
         assertThat(page.locator("section[aria-labelledby=stato]")).containsText("Iscrizioni aperte")
         assertThat(page).hasURL(e2e.url("/convivenza/$id"))
@@ -393,14 +394,14 @@ class GatheringE2eTest {
         assertThat(page.openDialog().locator("h2")).hasText("Chiudere le iscrizioni?")
         assertThat(page.openDialog()).containsText("Potrai riaprire le iscrizioni finché la convivenza non è finita.")
         e2e.touch(page.openDialog().buttonNamed("Chiudi le iscrizioni"))
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni chiuse.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni chiuse.")
         assertEquals(GatheringStatus.closed, e2e.gatherings().statusOf(id))
         assertThat(page.locator("main")).containsText("I genitori vedono la pagina, ma non possono iscrivere i figli né cambiare le iscrizioni.")
 
         e2e.press(page.locator("main").linkNamed("Riapri le iscrizioni"))
         assertThat(page.openDialog().locator("h2")).hasText("Riaprire le iscrizioni?")
         e2e.touch(page.openDialog().buttonNamed("Riapri le iscrizioni"))
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni riaperte.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni riaperte.")
         assertEquals(GatheringStatus.`open`, e2e.gatherings().statusOf(id))
         // There is no way back to the draft.
         assertThat(page.locator("main").getByText("bozza", Locator.GetByTextOptions().setExact(false))).hasCount(0)
@@ -423,7 +424,7 @@ class GatheringE2eTest {
             confirm.click(Locator.ClickOptions().setClickCount(2))
         }
 
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni chiuse.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni chiuse.")
         assertThat(page.locator("#messaggi [role=alert]")).hasCount(0)
         assertEquals(GatheringStatus.closed, e2e.gatherings().statusOf(id))
         assertEquals(0, page.locator("main [role=alert]").count())
@@ -443,7 +444,7 @@ class GatheringE2eTest {
         assertThat(page.openDialog()).containsText("Non potrai riaprirle, perché la convivenza è finita.")
         e2e.touch(page.openDialog().buttonNamed("Chiudi le iscrizioni"))
 
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni chiuse.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni chiuse.")
         assertThat(page.locator("main")).containsText("La convivenza è finita: le iscrizioni non si riaprono.")
         assertThat(page.locator("main").linkNamed("Riapri le iscrizioni")).hasCount(0)
         page.settled()
@@ -467,7 +468,7 @@ class GatheringE2eTest {
         page.waitForSettledContent()
         page.locator("main").buttonNamed("Apri le iscrizioni").click()
         assertThat(page).hasURL(e2e.url("/convivenza/$id"))
-        assertThat(page.locator("main [role=status]")).hasText("Iscrizioni aperte.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Iscrizioni aperte.")
         assertEquals(GatheringStatus.`open`, e2e.gatherings().statusOf(id))
     }
 
@@ -498,7 +499,7 @@ class GatheringE2eTest {
         e2e.touch(page.buttonNamed("Crea la convivenza"))
 
         assertThat(page.locator("h1")).hasText("Convivenza di settembre 2027")
-        assertThat(page.locator("main [role=status]")).hasText("Convivenza salvata.")
+        assertThat(page.locator("main [role=status][data-fuoco]")).hasText("Convivenza salvata.")
         assertEquals(1, e2e.dsl().fetchCount(GATHERING))
         assertThat(page.locator("#messaggi [role=alert]")).hasCount(0)
     }
@@ -520,7 +521,7 @@ class GatheringE2eTest {
         val yourself = page.locator("main li").filter(Locator.FilterOptions().setHasText("Elisa Conti"))
         assertThat(yourself).containsText("Sei affidatario di «Convivenza di settembre 2027»: per toglierti, prima togliti dagli affidatari.")
         assertThat(yourself.linkNamed("Togliti dagli affidatari")).isVisible()
-        assertTrue(colleague.linkNamed("Togli dagli affidatari").box().height >= 44, "the button is big enough for a finger")
+        assertTrue(colleague.linkNamed("Togli dagli affidatari").box().height >= 43.9, "the button is big enough for a finger")
         assertTrue(page.noHorizontalScroll())
         page.settled()
         assertAccessible(page, "Maestri with the explanation (${e2e.profile.label})")

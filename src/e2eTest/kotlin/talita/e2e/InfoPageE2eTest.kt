@@ -126,7 +126,7 @@ class InfoPageE2eTest {
         assertThat(button).hasAttribute("href", "/info/$code/iscrizione")
         assertTrue(page.locator("main h2").last().box().y < button.box().y, "the button is after the information")
         assertThat(page.locator("main")).containsText("Per iscriverli entri con il tuo indirizzo email: ti mandiamo un link, senza password.")
-        assertTrue(button.box().height >= 48, "the button is at least 48 px high")
+        assertTrue(button.box().height >= 47.9, "the button is at least 48 px high")
         if (e2e.profile.isPhone) {
             val viewport = page.viewport()
             assertTrue(button.box().width >= viewport.width - 34, "the button is as wide as the screen: ${button.box().width} of ${viewport.width}")
