@@ -28,7 +28,8 @@ veri con i ticket indicati.
   esercita la responsabilità genitoriale, e l'iscrizione dichiara che anche l'altro genitore è
   d'accordo.
 - **Dati sanitari** (art. 9 GDPR): le segnalazioni su allergie, intolleranze e farmaci. Sono
-  facoltative, stanno in una tabella separata e le vedono solo i maestri della convivenza.
+  facoltative, stanno in una tabella separata e le vedono i maestri della convivenza, a richiesta e con ogni lettura registrata, e il genitore che le ha
+  scritte: nessun altro.
 - **Convinzioni religiose che si possono dedurre.** Partecipare a una convivenza dei bambini
   organizzata da parrocchie può far dedurre le convinzioni religiose della famiglia (art. 9 GDPR),
   anche se l'app non chiede mai la religione di nessuno.
@@ -114,8 +115,8 @@ Previste dal progetto, con il ticket in cui diventano vere:
     servono (per esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
   luogo di nascita; nessun documento caricato, nessuna firma.
-- **Segnalazioni** in una tabella separata, visibili solo ai maestri, con ogni lettura registrata
-  (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
+- **Segnalazioni** in una tabella separata, visibili ai maestri della convivenza e al genitore che le ha scritte e a nessun altro, con ogni lettura dei maestri
+  registrata (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
   - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
     un'altra classe usa le tabelle che jOOQ genera; il check-in e le cancellazioni passeranno di lì;
   - **il contenuto si vede solo a richiesta**: l'elenco e il dettaglio dei maestri non dicono nemmeno se ci sono segnalazioni; «Mostra le
@@ -126,8 +127,9 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **nessuna mail con dati dei bambini** (la conferma dell'iscrizione è la pagina «Iscrizioni», che il genitore riapre quando vuole), e il
     **log** a livello INFO e oltre non ha nomi, date di nascita, recapiti, segnalazioni né indirizzi (solo identificativi e conteggi);
   - **l'isolamento fra genitori** lo fa l'applicazione, con un componente solo (`OwnRegistrations`): l'id di un'iscrizione di un altro è, per un
-    altro genitore e per un maestro che non è il titolare, la pagina di un id che non esiste; un test prova ogni indirizzo con il titolare,
-    con un altro genitore, con un maestro e senza accesso.
+    altro genitore e, sulle pagine del genitore, per un maestro che non è il titolare, la pagina di un id che non esiste; un test prova ogni indirizzo con il
+    titolare, con un altro genitore, con un maestro e senza accesso. L'unica eccezione è il ritiro, che un maestro può fare su qualunque iscrizione
+    (TALITA-5): le pagine dei maestri sono un'altra regola, solo per i maestri, con il suo test.
 - **La pagina informativa non mostra dati personali** (TALITA-4): niente nomi dei maestri, né email o telefoni, né numeri sulle
   iscrizioni; a un indirizzo con un codice che non si indovina, mai indicizzata (`noindex` nella pagina e nell'intestazione), mai
   conservata (`Cache-Control`), senza cookie, senza script e senza nulla caricato da altri indirizzi; chi la riceve da un'app di
@@ -147,9 +149,11 @@ Tempi di TALITA-7:
 - **iscrizione e manleva** (il testo accettato, con data, ora e indirizzo) e **registro delle letture**: tenuti **un anno** (il registro, un anno dalla
   fine: domanda approvata in TALITA-5);
 - **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole (TALITA-7); i bambini delle iscrizioni dal
-  cartaceo non servono l'anno dopo e vanno via con la loro iscrizione; il recapito segue l'iscrizione.
+  cartaceo non servono l'anno dopo e vanno via con la loro iscrizione; il recapito telefonico sta nella riga dell'iscrizione e per ora ne segue i tempi (un
+  anno, come dice l'informativa breve): se debba andare via prima è da fissare con TALITA-7, qui sotto.
 
-Ancora da fissare (TALITA-7): per quanto tempo si tengono email e recapito dei genitori, gli account
+Ancora da fissare (TALITA-7): per quanto tempo si tiene l'email dei genitori, se il recapito telefonico debba andare via prima dell'iscrizione che lo
+contiene, gli account
 senza iscrizioni (nascono al primo accesso, anche di chi poi non iscrive nessuno), gli account dei
 maestri, gli inviti scaduti e i dati di chi non torna l'anno dopo. I link di accesso non servono qui: si
 cancellano quando si usano o entro un'ora dalla scadenza.
@@ -159,7 +163,8 @@ cancellano quando si usano o entro un'ora dalla scadenza.
 **Informativa a strati** (TALITA-5): una breve dentro l'iscrizione, al passo 2 «Controlla e accetta», e quella completa a `/informativa`, pubblica
 (nel guscio pubblico, senza script né cookie, `noindex`), con un collegamento che si apre in una nuova scheda per non far perdere quello che il
 genitore ha scritto. Il titolare e il recapito vengono dalla configurazione (`talita.privacy.controller-name` e `talita.privacy.contact`, in
-`docs/04-ambiente.md`): nel repo ci sono i segnaposto «Titolare di esempio» e `nome@example.org`, e l'indirizzo vero arriva con TALITA-9.
+`docs/04-ambiente.md`): non hanno un valore di default (senza, l'app non parte: un'istanza di produzione non può mostrare un titolare di esempio), i segnaposto «Titolare di esempio» e
+`nome@example.org` stanno solo nel profilo `dev` e nei test, e l'indirizzo vero arriva con TALITA-9.
 Il recapito del titolare non è più assegnato a TALITA-4.
 
 I testi devono contenere:
@@ -167,7 +172,9 @@ I testi devono contenere:
 - chi è il titolare e come contattarlo;
 - quali dati si raccolgono e a quale scopo, in parole di tutti i giorni;
 - la base su cui si trattano, e la distinzione fra l'iscrizione (necessaria) e le parti facoltative (art. 13.2.e: cosa succede se mancano);
-- **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile, e il consenso per le convinzioni religiose deducibili;
+- **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile; e il consenso per le convinzioni religiose deducibili, che è
+  un'**ipotesi di lavoro**: la casella c'è nell'iscrizione e nelle informative finché la verifica di «Prima del rilascio» (con la DPIA) non decide se
+  serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
 - per quanto tempo si conservano;
 - i diritti dell'interessato e come esercitarli, e il reclamo al Garante;
@@ -184,8 +191,9 @@ esatto che il genitore ha letto, la data e l'ora, l'account e l'indirizzo email 
 non l'identità. Il testo del modello (`affidamento-1`) è generico (non nomina luoghi né parrocchie: viene dal modulo cartaceo di oggi, che non sta
 nel repo), non esclude la responsabilità per dolo o colpa grave (art. 1229 c.c.) ed è fissato da un test, così non cambia senza una versione nuova.
 L'iscrizione dal cartaceo non ha testo da accettare: il modulo firmato resta di carta, e l'app segna solo se è arrivato (e chi l'ha inserita).
-Il modulo di carta di oggi chiede ancora il luogo di nascita e non ha una casella di consenso per le segnalazioni: Matteo valuta se allinearlo
-all'app, così l'inserimento dal cartaceo raccoglie gli stessi dati.
+L'app non raccoglie mai il luogo di nascita, nemmeno dal cartaceo: il maestro copia solo i dati del passo 1. Il modulo di carta di oggi lo chiede
+ancora e non ha una casella di consenso per le segnalazioni: è da allineare all'app prima del rilascio, e lo decide Matteo (voce in «Prima del
+rilascio»).
 
 ## Prima del rilascio
 
@@ -195,6 +203,8 @@ ancora un segnaposto):
 - **leggere i testi**: l'affidamento (`affidamento-1`), l'informativa breve, l'informativa completa e il consenso, anche per la casella sulle
   convinzioni deducibili; l'informativa completa porta oggi la cornice «testo di prova» e un termine ancora aperto (quanto si tiene
   l'indirizzo email dell'account, con TALITA-7);
+- **il modulo cartaceo** (lo decide Matteo): oggi chiede il luogo di nascita, che l'app non raccoglie, e non ha la casella di consenso alle
+  segnalazioni; va allineato all'app, oppure l'eccezione va scritta in `docs/02-modello-dati.md` e qui, prima di usare l'inserimento dal cartaceo;
 - **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`;
 - **il registro dei trattamenti**, dovuto perché ci sono dati sanitari;
 - l'indirizzo vero del titolare (TALITA-9).

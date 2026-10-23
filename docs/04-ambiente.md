@@ -100,9 +100,11 @@ TALITA_PRIVACY_CONTACT=nome@example.org
   avvisa che nessuno può essere invitato. In sviluppo il profilo `dev` la imposta a `nome@example.org`.
 - `TALITA_PRIVACY_CONTROLLER_NAME` e `TALITA_PRIVACY_CONTACT` (`talita.privacy.controller-name` e `talita.privacy.contact`): chi è il titolare
   del trattamento e a quale indirizzo scrivergli, come li dicono l'informativa breve del passo 2 dell'iscrizione e quella completa a
-  `/informativa`. Nel repo ci sono solo i segnaposto «Titolare di esempio» e `nome@example.org`; i valori veri arrivano con TALITA-9
-  (`docs/03-privacy.md`). Senza le variabili l'app parte lo stesso, con i segnaposto: un test (`./gradlew build -Prelease`) non lascia
-  uscire un rilascio con i testi ancora di prova.
+  `/informativa`. **Non hanno un valore di default e sono obbligatorie: senza, l'app non parte** (l'errore dice quali mancano), così un'istanza di
+  produzione non può dire ai genitori che il titolare è un segnaposto. I segnaposto «Titolare di esempio» e `nome@example.org` stanno solo nel profilo `dev`
+  e nei test; i valori veri arrivano con TALITA-9 (`docs/03-privacy.md`). Lo smoke test del jar prova che senza le variabili l'app non parte e che con
+  le variabili l'informativa completa nomina il titolare. Un altro test (`./gradlew build -Prelease`) non lascia uscire un rilascio con i testi ancora
+  di prova.
 
 ## Build, sviluppo e test
 

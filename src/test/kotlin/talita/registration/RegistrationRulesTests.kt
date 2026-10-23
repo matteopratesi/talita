@@ -227,4 +227,29 @@ class RegistrationRulesTests {
             assertTrue(guide.contains(part), "the guide does not say: $part")
         }
     }
+
+    // ---- The controller of the data (criteria 33, 34) --------------------------------------------------------------------------------
+
+    @Test
+    fun `t5 c33 c34 the controller of the data has no default, so a production instance cannot start with the placeholders of the notices`() {
+        fun bind(vararg settings: Pair<String, String>): PrivacySettings =
+            org.springframework.boot.context.properties.bind.Binder(org.springframework.boot.context.properties.source.MapConfigurationPropertySource(mapOf(*settings)))
+                .bindOrCreate("talita.privacy", PrivacySettings::class.java)
+        fun messages(error: Throwable): String = generateSequence(error) { it.cause }.joinToString(" | ") { it.message.orEmpty() }
+
+        for (settings in listOf(
+            emptyArray(),
+            arrayOf("talita.privacy.controller-name" to "Titolare di esempio"),
+            arrayOf("talita.privacy.contact" to "nome@example.org"),
+            arrayOf("talita.privacy.controller-name" to "  ", "talita.privacy.contact" to "nome@example.org"),
+        )) {
+            val error = kotlin.test.assertFails("the settings ${settings.toList()} are not enough") { bind(*settings) }
+            assertTrue(messages(error).contains("TALITA_PRIVACY_CONTROLLER_NAME") && messages(error).contains("TALITA_PRIVACY_CONTACT"), messages(error))
+        }
+        val bound = bind("talita.privacy.controller-name" to "Titolare di esempio", "talita.privacy.contact" to "nome@example.org")
+        assertEquals(PrivacySettings("Titolare di esempio", "nome@example.org"), bound)
+        // The dev profile says it in its own file, and the main configuration has no value of its own.
+        assertTrue(java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/application-dev.yaml")).contains("controller-name: Titolare di esempio"))
+        assertFalse(java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/application.yaml")).contains("privacy"))
+    }
 }

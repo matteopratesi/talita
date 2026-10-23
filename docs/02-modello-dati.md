@@ -32,7 +32,7 @@ genitori (ognuno vede solo i suoi figli) lo fa l'applicazione, con i suoi test.
 | Iscrizione | «manleva cartacea ricevuta» | iscrizioni inserite da un maestro per chi non usa l'app; il modulo firmato si conserva fuori dall'app (niente documenti caricati) | TALITA-5 |
 | Iscrizione | **maestro che l'ha inserita dal cartaceo** (account) | **nuovo**: rendere conto di chi ha inserito i dati di un modulo cartaceo | TALITA-5 |
 | Iscrizione | stato (confermata, in forse, ritirata) | organizzazione della convivenza | TALITA-5 |
-| Segnalazioni (`health_note`) | allergie, intolleranze, farmaci, facoltative | sicurezza del bambino durante la convivenza. Sono dati sanitari: consenso esplicito, tabella separata, solo i maestri le vedono, a richiesta e con il registro. **Cancellate subito al ritiro dell'iscrizione e alla revoca del consenso**; un mese dopo la fine della convivenza le cancella TALITA-7. Le legge e le scrive una sola classe di codice (`HealthNotes`) | TALITA-5, 7 |
+| Segnalazioni (`health_note`) | allergie, intolleranze, farmaci, facoltative | sicurezza del bambino durante la convivenza. Sono dati sanitari: consenso esplicito, tabella separata; le vedono i maestri della convivenza, a richiesta e con il registro, e il genitore che le ha scritte (le sue, senza registro), nessun altro. **Cancellate subito al ritiro dell'iscrizione e alla revoca del consenso**; un mese dopo la fine della convivenza le cancella TALITA-7. Le legge e le scrive una sola classe di codice (`HealthNotes`) | TALITA-5, 7 |
 | Segnalazioni | **data e ora del consenso, account che lo dà, oppure «consenso sul modulo cartaceo»** | **nuovo**: dimostrare il consenso esplicito | TALITA-5 |
 | Lettura delle segnalazioni (`health_note_access`) | maestro (account), iscrizione, data e ora | rendere conto di chi ha visto i dati sanitari. Non ha il testo e non dice se le segnalazioni c'erano. La crea TALITA-5 a ogni lettura e a ogni modifica fatta da un maestro; i tempi sono di TALITA-7 (un anno). Un maestro che non è più tra i maestri resta nel registro come account | TALITA-5, 7 |
 | Check-in | arrivo per giorno, quota pagata | registro della convivenza | TALITA-6 |
@@ -43,7 +43,7 @@ vede solo la sua). I maestri: tutto, tranne le segnalazioni, che vedono a richie
 
 Conservazione (TALITA-7): segnalazioni cancellate un mese dopo la fine della convivenza; iscrizioni (la manleva) e registro delle letture tenuti un
 anno; dati dei bambini degli account tenuti per l'anno dopo, e il genitore li può cancellare quando vuole; i bambini delle iscrizioni dal cartaceo
-non servono l'anno dopo e vanno via con l'iscrizione; il recapito segue l'iscrizione. I tempi e le loro ragioni stanno in `docs/03-privacy.md`.
+non servono l'anno dopo e vanno via con l'iscrizione; il recapito telefonico sta nell'iscrizione e per ora ne segue i tempi (se debba andare via prima, lo fissa TALITA-7). I tempi e le loro ragioni stanno in `docs/03-privacy.md`.
 
 Di sessione, contatori dei limiti (3 link ogni 15 minuti per indirizzo, 150 mail al giorno) e
 indirizzo mostrato in «Controlla la posta» resta traccia solo in memoria, e il cookie porta solo

@@ -592,7 +592,8 @@ iscrizioni del genitore, maestri, regole di TALITA-4 e chiusura.
 - **Segnalazioni in un blocco che si apre** (`<details>`) dentro il blocco di ogni bambino, con il consenso lì accanto, e in una pagina a parte per cambiarle; presenza a
   segmenti, senza `select`; niente scelta preselezionata tranne «Confermata».
 - **Informativa a strati**: breve al passo 2, completa a `/informativa` (nell'elenco unico delle pagine pubbliche, senza script né cookie, `noindex`).
-  Titolare e recapito da `talita.privacy.controller-name` e `.contact` (`docs/04-ambiente.md`). I testi sono quelli del design.
+  Titolare e recapito da `talita.privacy.controller-name` e `.contact` (`docs/04-ambiente.md`), **senza default: senza, l'app non parte**, così in produzione non escono i
+  segnaposto (nel profilo `dev` e nei test sì). I testi sono quelli del design.
 - **Test del rilascio** (`./gradlew build -Prelease`): fallisce finché un testo porta un segnaposto (`Informativa.markers`: la cornice «testo di prova», il termine
   ancora aperto di TALITA-7). Senza `-Prelease` il test dice che aspetta; i testi veri li legge prima una persona competente.
 

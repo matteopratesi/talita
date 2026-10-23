@@ -34,6 +34,11 @@ talita:
     teacher: nome@example.org
   mail:
     from: nome@example.org
+  privacy:
+    # The controller of the data, as the notices say it: placeholders (in production TALITA_PRIVACY_CONTROLLER_NAME and TALITA_PRIVACY_CONTACT,
+    # with no default: without them the application does not start).
+    controller-name: Titolare di esempio
+    contact: nome@example.org
 
 gg:
   jte:

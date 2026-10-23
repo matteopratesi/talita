@@ -24,6 +24,15 @@ class PostgresConfiguration {
     @Bean
     @ServiceConnection
     fun postgresContainer(): PostgreSQLContainer = PostgreSQLContainer(DockerImageName.parse("postgres:18"))
+
+    companion object {
+        /**
+         * The controller of the data, which the application has no default for (it does not start without it): the tests that start the application as in
+         * production, with only the database, say it with these two properties (`@SpringBootTest(properties = ...)`).
+         */
+        const val PRIVACY_CONTROLLER = "talita.privacy.controller-name=Titolare di esempio"
+        const val PRIVACY_CONTACT = "talita.privacy.contact=nome@example.org"
+    }
 }
 
 /**
@@ -75,6 +84,9 @@ private object MailpitContextCustomizer : ContextCustomizer {
             "spring.mail.properties.mail.smtp.starttls.required" to "false",
             "talita.mail.from" to Addresses.of("talita"),
             "talita.public-url" to TestcontainersConfiguration.PUBLIC_URL,
+            // The controller of the data has no default in the application: the tests say who it is, with the placeholders of the dev profile.
+            "talita.privacy.controller-name" to "Titolare di esempio",
+            "talita.privacy.contact" to "nome@example.org",
         )
         // Before everything but the properties that a test sets on its own (`@SpringBootTest(properties = ...)`),
         // which can replace the mail port or the public address to try a mail that fails.
