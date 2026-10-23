@@ -217,6 +217,21 @@ object RegistrationChecks {
     }
 
     /**
+     * The notes on health of a form (criteria 3 and 18), for the blocks of the registration and for the page where the parent changes them: each field is
+     * at most 1,000 characters, and notes without the consent are not kept. Null when nothing is written; the errors are by field (`allergies`,
+     * `intolerances`, `medications`, `consent`). [paper]: the consent is the one on the paper form.
+     */
+    fun notes(allergiesRaw: String, intolerancesRaw: String, medicationsRaw: String, consent: Boolean, paper: Boolean = false): Pair<Notes?, Map<String, String>> {
+        val errors = linkedMapOf<String, String>()
+        val allergies = note(allergiesRaw, "allergies", errors)
+        val intolerances = note(intolerancesRaw, "intolerances", errors)
+        val medications = note(medicationsRaw, "medications", errors)
+        val written = allergies != null || intolerances != null || medications != null
+        if (written && !consent) errors["consent"] = if (paper) CONSENT_MISSING_ON_PAPER else CONSENT_MISSING
+        return (if (written) Notes(allergies, intolerances, medications) else null) to errors
+    }
+
+    /**
      * Checks the blocks of [input] against the gathering [offer] (what the fees offer; its days), the [firstDay] and [today] for the dates of birth.
      * [withHealth]: the blocks carry the notes on health (the modification and the correction do not). [paper]: the consent is the one on the paper
      * form, and the error says so.
@@ -242,13 +257,9 @@ object RegistrationChecks {
 
             var notes: Notes? = null
             if (withHealth) {
-                val allergies = note(block.allergies, "allergies", errors)
-                val intolerances = note(block.intolerances, "intolerances", errors)
-                val medications = note(block.medications, "medications", errors)
-                if ((allergies != null || intolerances != null || medications != null) && !block.healthConsent) {
-                    errors["consent"] = if (paper) CONSENT_MISSING_ON_PAPER else CONSENT_MISSING
-                }
-                if (allergies != null || intolerances != null || medications != null) notes = Notes(allergies, intolerances, medications)
+                val (checked, noteErrors) = notes(block.allergies, block.intolerances, block.medications, block.healthConsent, paper)
+                notes = checked
+                errors += noteErrors
             }
 
             if ("firstName" !in errors && "lastName" !in errors && born != null && !seen.add(identity(first, last, born))) errors["firstName"] = TWICE

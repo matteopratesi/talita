@@ -1,15 +1,19 @@
 package talita.registration
 
+import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
+import org.jooq.Record
 import org.jooq.impl.DSL
 import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Component
 import talita.account.CurrentAccount
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
+import talita.gathering.GatheringState
 import talita.gathering.isUniqueViolation
 import talita.jooq.enums.RegistrationAttendance
+import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.REGISTRATION
@@ -38,6 +42,65 @@ sealed interface SubmitResult {
 
     /** These children (by position in the form) are already registered at this gathering. */
     data class Taken(val positions: List<Int>) : SubmitResult
+}
+
+/** What came of changing a registration (criteria 12-15, 19, 26): the same words for the parent and for the teachers. */
+sealed interface ChangeResult {
+    data object Done : ChangeResult
+
+    /** It was done already, by a tap a moment before (a withdrawal of a withdrawn registration): the same confirmation, never an error. */
+    data object AlreadyDone : ChangeResult
+
+    /** There is no such registration for this person: the page is the one of an id that does not exist. */
+    data object NotFound : ChangeResult
+
+    /** The registrations are closed, or the gathering is over: nothing was changed. [over] says which, for the words. */
+    data class NotAllowed(val over: Boolean) : ChangeResult
+
+    /** The registration is withdrawn: it has no notes to change. */
+    data object IsWithdrawn : ChangeResult
+
+    /** The new data of the child are those of another child of the same account that is already registered here. */
+    data class Taken(val name: String) : ChangeResult
+}
+
+/** A registration as the pages read it, with its child and its days. [presence] is what the child comes for. */
+data class RegistrationData(
+    val id: Long,
+    val gatheringId: Long,
+    val childId: Long,
+    val accountId: Long?,
+    val firstName: String,
+    val lastName: String,
+    val birthDate: LocalDate,
+    val phone: String,
+    val presence: Presence,
+    val status: Status,
+    val custodyText: String?,
+    val custodyVersion: String?,
+    val custodyAcceptedAt: OffsetDateTime?,
+    val custodyEmail: String?,
+    val paperFormReceived: Boolean,
+    val enteredBy: Long?,
+    val createdAt: OffsetDateTime,
+) {
+    val name: String get() = "$firstName $lastName"
+
+    /** Typed in by a teacher from the paper form: there is no account and no acceptance online. */
+    val onPaper: Boolean get() = accountId == null
+}
+
+/**
+ * Who can do what and when (rule R1 of TALITA-4, criterion 29), in one place: a draft has no registrations; with the registrations open and the last
+ * day not passed the parent registers, changes and withdraws; closed, or open after the end, the parent only looks, and only the notes on health
+ * change until the last day; after the end the parent can only take the notes away. The teachers register and correct in every state but the draft.
+ */
+object Rules {
+    fun parentCanChange(gathering: GatheringInfo): Boolean = gathering.registrationsPossibleToday
+
+    fun parentCanChangeHealth(gathering: GatheringInfo): Boolean = gathering.state != GatheringState.DRAFT && !gathering.over
+
+    fun teacherCanChange(gathering: GatheringInfo): Boolean = gathering.state != GatheringState.DRAFT
 }
 
 /**
@@ -179,6 +242,130 @@ class Registrations(
             registration
         }
         return SubmitResult.Created(ids)
+    }
+
+    // ---- Reading ----------------------------------------------------------------------------------------------------------------
+
+    private fun select(context: DSLContext, condition: Condition): List<RegistrationData> {
+        val rows = context.select(REGISTRATION.asterisk(), CHILD.FIRST_NAME, CHILD.LAST_NAME, CHILD.BIRTH_DATE)
+            .from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID))
+            .where(condition).orderBy(REGISTRATION.CREATED_AT, REGISTRATION.ID).fetch()
+        val ids = rows.map { it[REGISTRATION.ID]!! }
+        val days = if (ids.isEmpty()) emptyMap() else context.select(REGISTRATION_DAY.REGISTRATION_ID, REGISTRATION_DAY.DAY, REGISTRATION_DAY.KIND).from(REGISTRATION_DAY)
+            .where(REGISTRATION_DAY.REGISTRATION_ID.`in`(ids)).fetch().groupBy({ it[REGISTRATION_DAY.REGISTRATION_ID]!! }) { it[REGISTRATION_DAY.DAY]!! to DayKind.of(it[REGISTRATION_DAY.KIND]!!) }
+        return rows.map { row ->
+            val id = row[REGISTRATION.ID]!!
+            RegistrationData(
+                id = id,
+                gatheringId = row[REGISTRATION.GATHERING_ID]!!,
+                childId = row[REGISTRATION.CHILD_ID]!!,
+                accountId = row[REGISTRATION.ACCOUNT_ID],
+                firstName = row[CHILD.FIRST_NAME]!!,
+                lastName = row[CHILD.LAST_NAME]!!,
+                birthDate = row[CHILD.BIRTH_DATE]!!,
+                phone = row[REGISTRATION.PHONE]!!,
+                presence = if (row[REGISTRATION.ATTENDANCE] == RegistrationAttendance.all_days) Presence.ALL else Presence(false, days[id].orEmpty().toMap()),
+                status = Status.of(row[REGISTRATION.STATUS]!!),
+                custodyText = row[REGISTRATION.CUSTODY_TEXT],
+                custodyVersion = row[REGISTRATION.CUSTODY_TEXT_VERSION],
+                custodyAcceptedAt = row[REGISTRATION.CUSTODY_ACCEPTED_AT],
+                custodyEmail = row[REGISTRATION.CUSTODY_ACCEPTED_BY_EMAIL],
+                paperFormReceived = row[REGISTRATION.PAPER_FORM_RECEIVED]!!,
+                enteredBy = row[REGISTRATION.ENTERED_BY_ACCOUNT_ID],
+                createdAt = row[REGISTRATION.CREATED_AT]!!,
+            )
+        }
+    }
+
+    /** The registration with this id, whoever it belongs to: only the services and the filter [OwnRegistrations] ask for it. */
+    fun find(id: Long): RegistrationData? = select(dsl, REGISTRATION.ID.eq(id)).singleOrNull()
+
+    /** Every registration of [accountId], in every gathering, in the order they were made. */
+    fun ownedBy(accountId: Long): List<RegistrationData> = select(dsl, REGISTRATION.ACCOUNT_ID.eq(accountId))
+
+    /** The registrations of [gatheringId]: by surname and name of the child. */
+    fun ofGathering(gatheringId: Long): List<RegistrationData> =
+        select(dsl, REGISTRATION.GATHERING_ID.eq(gatheringId)).sortedWith(compareBy({ it.lastName.lowercase() }, { it.firstName.lowercase() }, { it.id }))
+
+    // ---- Changing -------------------------------------------------------------------------------------------------------------------
+
+    private fun lockRegistration(context: DSLContext, id: Long): Record? = context.selectFrom(REGISTRATION).where(REGISTRATION.ID.eq(id)).forUpdate().fetchOne()
+
+    /**
+     * The registration [id] for a change, inside the transaction of [context]: locked, and only if it is the one of [owner] (a parent; null for a teacher).
+     * The gathering is read after it, locked for sharing, so that the closing waits for the change and the change finds the closing.
+     */
+    private fun target(context: DSLContext, id: Long, owner: Long?): Pair<RegistrationData, GatheringInfo>? {
+        val locked = lockRegistration(context, id) ?: return null
+        if (owner != null && locked[REGISTRATION.ACCOUNT_ID] != owner) return null
+        val registration = select(context, REGISTRATION.ID.eq(id)).single()
+        return registration to gatherings.sharedIn(context, registration.gatheringId)!!
+    }
+
+    private fun allowed(gathering: GatheringInfo, teacher: Boolean): Boolean = if (teacher) Rules.teacherCanChange(gathering) else Rules.parentCanChange(gathering)
+
+    /**
+     * Changes the registration [id] with the data of [block] (criteria 12 and 26): name and date of birth of the child, what it comes for, the status
+     * (a withdrawn registration is put back by choosing «Confermata» or «In forse»), the phone. The acceptance is never touched. A parent ([owner])
+     * changes the phone of all their registrations at this gathering; a teacher ([owner] null) the phone of this one.
+     */
+    fun update(id: Long, owner: Long?, phone: String, block: ChildCheck): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, owner) ?: return@transactionResult ChangeResult.NotFound
+        if (!allowed(gathering, teacher = owner == null)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
+        // The data of the child may become those of another child of the same person: the other one is a child already.
+        val account = registration.accountId
+        if (account != null) {
+            val same = childOf(tx, account, null, block.firstName, block.lastName, block.birthDate!!)
+            if (same != null && same != registration.childId) return@transactionResult ChangeResult.Taken(block.name)
+        }
+        updateChild(tx, registration.childId, block)
+        val at = now()
+        val presence = block.presence!!
+        // The days go first: the key refuses an attendance of every day while a day is there.
+        writeDays(tx, id, Presence.ALL)
+        tx.update(REGISTRATION).set(REGISTRATION.ATTENDANCE, attendanceOf(presence)).set(REGISTRATION.STATUS, block.status!!.column)
+            .set(REGISTRATION.UPDATED_AT, at).where(REGISTRATION.ID.eq(id)).execute()
+        writeDays(tx, id, presence)
+        val samePhone = if (owner != null) REGISTRATION.GATHERING_ID.eq(registration.gatheringId).and(REGISTRATION.ACCOUNT_ID.eq(owner)) else REGISTRATION.ID.eq(id)
+        tx.update(REGISTRATION).set(REGISTRATION.PHONE, phone).set(REGISTRATION.UPDATED_AT, at).where(samePhone).execute()
+        ChangeResult.Done
+    }
+
+    /**
+     * Withdraws the registration [id] (criterion 14): it stays, as «Ritirata», the fee is not due and the days do not count; the notes on health are
+     * deleted at once. Withdrawing what is withdrawn already is the same confirmation, not an error.
+     */
+    fun withdraw(id: Long, owner: Long?): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, owner) ?: return@transactionResult ChangeResult.NotFound
+        if (registration.status == Status.WITHDRAWN) return@transactionResult ChangeResult.AlreadyDone
+        if (!allowed(gathering, teacher = owner == null)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
+        tx.update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.withdrawn).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
+        healthNotes.remove(tx, id)
+        ChangeResult.Done
+    }
+
+    /**
+     * The parent writes, changes or empties the notes of their registration (criterion 19): until the last day, also with the registrations closed.
+     * [notes] null takes them away. A withdrawn registration has none and gets none.
+     */
+    fun saveHealth(id: Long, owner: Long, notes: Notes?): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, owner) ?: return@transactionResult ChangeResult.NotFound
+        if (registration.status == Status.WITHDRAWN) return@transactionResult ChangeResult.IsWithdrawn
+        if (!Rules.parentCanChangeHealth(gathering)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
+        if (notes == null) healthNotes.remove(tx, id) else healthNotes.save(tx, id, notes, byAccount = owner, onPaper = false)
+        tx.update(REGISTRATION).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
+        ChangeResult.Done
+    }
+
+    /** The parent takes the notes away and with them the consent (criterion 19): always possible while they exist, even when the gathering is over. */
+    fun revokeHealth(id: Long, owner: Long): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        lockRegistration(tx, id)?.takeIf { it[REGISTRATION.ACCOUNT_ID] == owner } ?: return@transactionResult ChangeResult.NotFound
+        healthNotes.remove(tx, id)
+        ChangeResult.Done
     }
 
     // ---- The rows --------------------------------------------------------------------------------------------------------------

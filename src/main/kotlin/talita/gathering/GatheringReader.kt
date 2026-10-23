@@ -17,6 +17,9 @@ class GatheringReader(private val gatherings: Gatherings) {
     /** The gathering that is a draft or open now, or null when there is none (all closed, or none yet). */
     fun current(): GatheringInfo? = gatherings.current()?.let(::info)
 
+    /** The day of Rome, from the one clock of the application: what «today» means for the dates of a gathering. */
+    fun today(): java.time.LocalDate = gatherings.today()
+
     /** The gathering with this id, or null. */
     fun byId(id: Long): GatheringInfo? = gatherings.find(id)?.let(::info)
 

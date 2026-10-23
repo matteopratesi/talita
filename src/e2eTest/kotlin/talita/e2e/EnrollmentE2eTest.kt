@@ -3,17 +3,8 @@ package talita.e2e
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
-import com.microsoft.playwright.options.AriaRole
-import org.jooq.DSLContext
-import talita.Addresses
-import talita.account.TestAccounts
-import talita.gathering.GatheringSupport
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.REGISTRATION
-import talita.jooq.tables.references.TEACHER
-import talita.jooq.tables.references.TEACHER_INVITATION
-import java.time.Clock
-import java.time.DayOfWeek
 import java.util.regex.Pattern
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,42 +16,6 @@ import kotlin.test.assertTrue
  */
 @E2eApplication
 class EnrollmentE2eTest {
-
-    private fun E2e.dsl(): DSLContext = application.getBean(DSLContext::class.java)
-
-    private fun Page.settled() {
-        waitForLoadState()
-        waitForSettledContent()
-    }
-
-    private fun Page.noHorizontalScroll() = (evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") as Number).toInt() <= 0
-
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
-    private fun Locator.buttonNamed(name: String): Locator = getByRole(AriaRole.BUTTON, Locator.GetByRoleOptions().setName(name))
-
-    private fun Locator.linkNamed(name: String): Locator = getByRole(AriaRole.LINK, Locator.GetByRoleOptions().setName(name))
-
-    private fun E2e.press(target: Locator) {
-        target.evaluate("e => e.scrollIntoView({ block: 'center' })")
-        touch(target)
-    }
-
-    /** The teachers Marta Bianchi and Paolo Verdi, and an open gathering of three days from a Friday, a month away. Returns its public code. */
-    private fun E2e.openGathering(daily: Int? = 2500, lunch: Int? = 1000): String {
-        val dsl = dsl()
-        dsl.deleteFrom(TEACHER_INVITATION).execute()
-        dsl.deleteFrom(TEACHER).execute()
-        val support = GatheringSupport(dsl, application.getBean(Clock::class.java))
-        support.reset()
-        val marta = TestAccounts.makeTeacher(dsl, Addresses.unique("e2e-marta"), "Marta", "Bianchi")
-        val paolo = TestAccounts.makeTeacher(dsl, Addresses.unique("e2e-paolo"), "Paolo", "Verdi")
-        var friday = support.today().plusDays(30)
-        while (friday.dayOfWeek != DayOfWeek.FRIDAY || friday.plusDays(2).month != friday.month) friday = friday.plusDays(1)
-        val code = GatheringSupport.nextCode()
-        support.make(start = friday, end = friday.plusDays(2), status = GatheringStatus.`open`, daily = daily, lunchOnly = lunch, code = code, custodians = listOf(marta, paolo))
-        return code
-    }
 
     private fun Page.fillChild(index: Int, first: String, last: String, day: String, month: String, year: String) {
         locator("#b$index-nome").fill(first)
@@ -79,7 +34,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c01 c05 the blocks come and go, the days appear with Alcuni giorni and the quota changes at once, and the page is accessible`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
 
         e2e.open("/info/$code/iscrizione")
 
@@ -136,7 +91,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c01 c03 c18 a form with errors stays at step 1 with the focus on the first wrong field, and the notes on health open with their consent`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
         e2e.open("/info/$code/iscrizione")
         page.settled()
 
@@ -180,7 +135,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c06 c07 c33 step 2 shows the recap, the notice and the text, asks for the three boxes and saves nothing before the confirmation, then it registers`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
 
         page.toStepTwo(e2e, code)
 
@@ -217,7 +172,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c06 the first step comes back with what was written from «Modifica i dati» and from «Indietro»`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
         page.toStepTwo(e2e, code)
 
         e2e.press(page.locator("main").buttonNamed("Modifica i dati"))
@@ -237,7 +192,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c10 without a network the second step stays as it is, with the boxes ticked and no Riprova, and touching again registers`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
         page.toStepTwo(e2e, code)
         page.locator("#accetto").check()
         page.locator("#altro-genitore").check()
@@ -260,7 +215,7 @@ class EnrollmentE2eTest {
     @E2eTest(teacher = false)
     fun `c09 when the registrations close while the second step is open the page says so and nothing is saved`(e2e: E2e) {
         val page = e2e.page
-        val code = e2e.openGathering()
+        val code = e2e.openGathering().code
         page.toStepTwo(e2e, code)
         page.locator("#accetto").check()
         page.locator("#altro-genitore").check()

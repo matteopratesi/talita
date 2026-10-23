@@ -16,6 +16,7 @@
      id: for `hx-disabled-elt` of a form with other buttons. formaction: where this button sends the form, when it is not the one of the form (the «Indietro» of step 2). --%>
 !{String look = switch (variant) {
     case "secondary" -> "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted";
+    case "danger" -> "bg-danger text-white hover:bg-danger-strong active:bg-danger-strong";
     case "text" -> "text-brand hover:bg-brand-soft active:bg-brand-soft";
     default -> "bg-brand text-white hover:bg-brand-strong active:bg-brand-strong";
 };

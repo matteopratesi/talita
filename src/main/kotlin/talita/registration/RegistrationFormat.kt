@@ -25,6 +25,11 @@ object RegistrationFormat {
     /** `12 giugno 2027 alle 21:30`, the hour of Rome. */
     fun moment(at: OffsetDateTime): String = time.format(at)
 
+    private val dayOnly = DateTimeFormatter.ofPattern("d MMMM uuuu", locale).withZone(ClockConfiguration.ZONE)
+
+    /** `12 giugno 2027`: the day of a moment, in Rome. */
+    fun day(at: OffsetDateTime): String = dayOnly.format(at)
+
     /** The first letter in capitals: `venerdì` becomes `Venerdì`. */
     fun capital(text: String): String = text.replaceFirstChar { it.uppercase() }
 

@@ -33,7 +33,8 @@ class RolesE2eTest {
         }
         assertThat(page.locator("h1")).hasText("Ti diamo il benvenuto")
         assertThat(page.locator("main")).containsText("Qui iscrivi i tuoi figli alla convivenza e controlli le loro iscrizioni.")
-        assertThat(page.locator("main")).containsText("Talità è in costruzione. Le iscrizioni arriveranno presto.")
+        // A parent who has registered nobody is told how to (TALITA-5): the link of the teachers.
+        assertThat(page.locator("main")).containsText("Non hai ancora iscritto nessun bambino. Per farlo, apri il link che ti hanno mandato i maestri.")
         assertThat(page.locator("main h2")).hasText("Cosa trovi qui")
         assertEquals(1, page.locator("main ul a").count(), "the list of the home of a parent has only the registrations")
         assertThat(page.locator("main ul a")).containsText("Le iscrizioni dei tuoi figli.")
@@ -43,7 +44,8 @@ class RolesE2eTest {
 
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
         assertThat(page.locator("h1")).hasText("Iscrizioni")
-        assertThat(page.locator("main")).containsText("Qui troverai le iscrizioni dei tuoi figli.")
+        assertThat(page.locator("main h2")).hasText("Nessuna iscrizione")
+        assertThat(page.locator("main")).containsText("Quando iscrivi un bambino, lo trovi qui con i giorni, la quota e lo stato. Per iscriverlo apri il link che ti hanno mandato i maestri.")
         assertThat(page.locator("nav a[aria-current=page]")).hasText("Iscrizioni")
         assertAccessible(page, "registrations of a parent (${e2e.profile.label})")
     }

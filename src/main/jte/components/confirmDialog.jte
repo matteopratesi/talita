@@ -12,7 +12,7 @@
     <form method="post" action="${dialog.getAction()}" hx-post="${dialog.getTarget() != null ? dialog.getAction() : null}" hx-target="${dialog.getTarget()}" hx-swap="${dialog.getTarget() != null ? "outerHTML" : null}" hx-disabled-elt="find button[type=submit]" class="contents">
       @template.components.csrf(csrf = csrf)
       <input type="hidden" name="${dialog.getField()}" value="${dialog.getValue()}">
-      @template.components.button(label = dialog.getConfirmLabel(), busyLabel = dialog.getBusyLabel())
+      @template.components.button(label = dialog.getConfirmLabel(), busyLabel = dialog.getBusyLabel(), variant = dialog.getDanger() ? "danger" : "primary")
     </form>
     <form method="dialog" class="contents">
       <button autofocus class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-5 text-base font-semibold text-ink transition-colors duration-150 select-none hover:bg-surface-muted active:bg-surface-muted sm:w-auto">Annulla</button>

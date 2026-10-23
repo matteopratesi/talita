@@ -60,7 +60,7 @@ class RolesTests(
             assertEquals(200, status(path, session), path)
             assertEquals(listOf("Home", "Convivenza", "Iscrizioni", "Arrivi"), navigation(html(path, session)), path)
         }
-        assertEquals("Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo.", Regex("""<p class="mt-2 max-w-sm text-ink-muted">(.*?)</p>""").find(html("/iscrizioni", session))?.groupValues?.get(1))
+        assertEquals("Iscrizioni", Regex("""<h1[^>]*>(.*?)</h1>""").find(html("/iscrizioni", session))?.groupValues?.get(1))
         // The home of the teacher: the three sections of the list, the welcome of always.
         val home = html("/", session)
         assertTrue(home.contains("Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla."))
@@ -78,7 +78,9 @@ class RolesTests(
         assertEquals("Talità", title(home))
         assertEquals("Ti diamo il benvenuto", heading(home))
         assertTrue(home.contains("Qui iscrivi i tuoi figli alla convivenza e controlli le loro iscrizioni."))
-        assertTrue(home.contains("<strong>Talità è in costruzione.</strong> Le iscrizioni arriveranno presto."))
+        // A parent who has registered nobody is told how to: the link of the teachers (TALITA-5). The home no longer says «in costruzione» to a parent.
+        assertTrue(home.contains("Non hai ancora iscritto nessun bambino. Per farlo, apri il link che ti hanno mandato i maestri."))
+        assertFalse(home.contains("in costruzione"))
         assertTrue(home.contains(">Cosa trovi qui</h2>"))
         // The list has only the registrations, with the line for a parent.
         assertEquals(listOf("/iscrizioni"), Regex("""<a href="(/[a-z]+)" class="flex min-h-16""").findAll(home).map { it.groupValues[1] }.toList())
@@ -88,7 +90,8 @@ class RolesTests(
         val registrations = html("/iscrizioni", session)
         assertEquals("Iscrizioni · Talità", title(registrations))
         assertEquals("Iscrizioni", heading(registrations))
-        assertTrue(registrations.contains("Qui troverai le iscrizioni dei tuoi figli."))
+        assertTrue(registrations.contains(">Nessuna iscrizione</h2>"))
+        assertTrue(registrations.contains("Quando iscrivi un bambino, lo trovi qui con i giorni, la quota e lo stato. Per iscriverlo apri il link che ti hanno mandato i maestri."))
         assertFalse(registrations.contains("modulo cartaceo"))
         assertEquals(listOf("Home", "Iscrizioni"), navigation(registrations))
         assertTrue(Regex("""<a href="/iscrizioni" aria-current="page"""").containsMatchIn(registrations))

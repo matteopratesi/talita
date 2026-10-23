@@ -154,6 +154,21 @@ internal class RegistrationTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService
         dsl.select(REGISTRATION_DAY.DAY, REGISTRATION_DAY.KIND).from(REGISTRATION_DAY).where(REGISTRATION_DAY.REGISTRATION_ID.eq(registration))
             .fetch().associate { it[REGISTRATION_DAY.DAY]!! to it[REGISTRATION_DAY.KIND]!!.literal }
 
+    /** The id of the registration of the child with this first name at the gathering. */
+    fun idOf(gathering: Long, firstName: String): Long =
+        dsl.select(REGISTRATION.ID).from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID))
+            .where(REGISTRATION.GATHERING_ID.eq(gathering)).and(CHILD.FIRST_NAME.eq(firstName)).fetchSingle(REGISTRATION.ID)!!
+
+    /** The gathering ended three days ago (a gathering over, in the state it was in). */
+    fun makeOver(gathering: Long) {
+        val today = kit.gatherings.today()
+        dsl.update(GATHERING).set(GATHERING.START_DATE, today.minusDays(5)).set(GATHERING.END_DATE, today.minusDays(3)).where(GATHERING.ID.eq(gathering)).execute()
+    }
+
+    fun setState(gathering: Long, status: GatheringStatus) {
+        dsl.update(GATHERING).set(GATHERING.STATUS, status).where(GATHERING.ID.eq(gathering)).execute()
+    }
+
     fun setStatus(registration: Long, status: RegistrationStatus) {
         dsl.update(REGISTRATION).set(REGISTRATION.STATUS, status).where(REGISTRATION.ID.eq(registration)).execute()
     }
