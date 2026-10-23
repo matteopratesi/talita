@@ -1,15 +1,23 @@
 package talita.e2e
 
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import talita.Addresses
 import talita.account.TestAccounts
+import talita.gathering.GatheringSupport
+import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
+import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.TEACHER
 import talita.registration.Notes
+import java.time.Clock
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.regex.Pattern
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -269,5 +277,312 @@ class TeacherRegistrationsE2eTest {
         e2e.open("/convivenza/${gathering.id}/affidatari")
         assertThat(page.locator("main")).containsText("Le iscrizioni già fatte conservano i nomi che hanno accettato.")
         assertAccessible(page, "custodians (${e2e.profile.label})")
+    }
+
+    // ---- What the QA of TALITA-5 added (criteria 20-26, 29, 30, 38): the notes behind the button, the register, the states, 320 px ----------
+
+    @E2eTest
+    fun `c21 c22 the pages have no trace of the notes until the button is touched, with or without notes they say the same, and the answer that carries them must not be stored`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val id = e2e.rows().register(gathering.id, e2e.parent(), "Anna", "Rossi", notes = Notes("Arachidi-QA", "Lattosio-QA", "Antistaminico-QA"))
+        val paper = e2e.rows().register(gathering.id, null, "Elena", "Marino", enteredBy = gathering.martaId, notes = Notes("Polline-QA", null, null), notesOnPaper = true)
+        val without = e2e.rows().register(gathering.id, e2e.parent(), "Zoe", "Zani")
+        val secrets = listOf("Arachidi-QA", "Lattosio-QA", "Antistaminico-QA", "Polline-QA")
+
+        // The HTML, not only what is seen: a hidden element would not show in the text of the page.
+        for (path in listOf("/iscrizioni", "/iscrizioni/$id", "/iscrizioni/$paper", "/iscrizioni/$id/correggi", "/iscrizioni/$paper/correggi", "/iscrizioni/$id/ritira", "/convivenza/${gathering.id}")) {
+            e2e.open(path)
+            page.settled()
+            val html = page.content()
+            for (secret in secrets) assertFalse(html.contains(secret), "$path has $secret before the button")
+        }
+        // A registration with notes and one without are the same card, before the button.
+        e2e.open("/iscrizioni/$id")
+        val withNotes = page.locator("#segnalazioni").innerText()
+        e2e.open("/iscrizioni/$without")
+        assertEquals(withNotes, page.locator("#segnalazioni").innerText())
+
+        e2e.open("/iscrizioni/$id")
+        page.settled()
+        val answer = page.waitForResponse({ it.url().endsWith("/iscrizioni/$id/mostra-segnalazioni") }) {
+            e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        }
+        assertEquals(200, answer.status())
+        assertTrue(answer.headers()["cache-control"].orEmpty().contains("no-store"), "the answer with the notes is not stored: ${answer.headers()["cache-control"]}")
+        assertThat(page.locator("#segnalazioni")).containsText("Arachidi-QA")
+        assertThat(page.locator("#segnalazioni")).containsText("Lattosio-QA")
+        assertThat(page.locator("#segnalazioni")).containsText("Antistaminico-QA")
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE_ACCESS))
+        e2e.press(page.locator("#segnalazioni").linkNamed("Nascondi le segnalazioni"))
+        page.settled()
+        for (secret in secrets) assertFalse(page.content().contains(secret), "the page of «Nascondi» has $secret")
+
+        // The notes shown, then another page, then back: the page is asked again (a second reading, if the button is touched), and the browser kept no copy.
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        assertThat(page.locator("#segnalazioni")).containsText("Arachidi-QA")
+        e2e.touch(page.navLink("Arrivi"))
+        assertThat(page.locator("h1")).hasText("Arrivi")
+        page.goBack()
+        assertThat(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni")).isVisible()
+        page.settled()
+        for (secret in secrets) assertFalse(page.content().contains(secret), "the page after the back has $secret")
+        val stored = page.evaluate("JSON.stringify(localStorage) + JSON.stringify(sessionStorage)") as String
+        for (secret in secrets) assertFalse(stored.contains(secret), "the browser keeps $secret")
+        assertEquals(2, e2e.dsl().fetchCount(HEALTH_NOTE_ACCESS))
+    }
+
+    @E2eTest
+    fun `c28 a teacher who is also a parent registers from the form of the parents, finds the child in the list of the teachers, and only the pages of the teachers write a reading`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        e2e.open("/info/${gathering.code}/iscrizione")
+        page.settled()
+        page.locator("#telefono").fill("333 123 4567")
+        page.fillBlock(0, "Luca", "Rossi", "4", "4", "2016")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        e2e.press(page.locator("summary:has-text('Allergie, intolleranze, farmaci')"))
+        page.locator("#b0-allergie").fill("Arachidi-QA")
+        page.locator("#b0-consenso").check()
+        e2e.press(page.locator("main").buttonNamed("Controlla e accetta"))
+        page.locator("#accetto").check()
+        page.locator("#altro-genitore").check()
+        page.locator("#convinzioni").check()
+        e2e.press(page.locator("main").buttonNamed("Accetta e iscrivi"))
+
+        // The answer is the list of the teachers, with the notice on top, and the child is there like the others.
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        assertThat(page.locator("main [role=status]")).containsText("Iscrizione fatta.")
+        assertThat(page.locator("section[aria-labelledby=in-breve]")).containsText(Pattern.compile("Confermate\\s*1"))
+        assertThat(page.locator("main li a")).hasCount(1)
+        assertThat(page.locator("main li a").first()).containsText("Luca Rossi")
+        assertThat(page.locator("main li a").first()).containsText("Accettata online")
+        assertAccessible(page, "list of the teachers after their own registration (${e2e.profile.label})")
+        val id = e2e.dsl().select(REGISTRATION.ID).from(REGISTRATION).fetchSingle(REGISTRATION.ID)!!
+
+        // Their own page of the notes, as a parent: the notes are in the fields and no reading is written.
+        e2e.open("/iscrizioni/$id/segnalazioni")
+        assertThat(page.locator("#b0-allergie")).hasValue("Arachidi-QA")
+        assertEquals(0, e2e.dsl().fetchCount(HEALTH_NOTE_ACCESS))
+        // The page of the teachers: the button writes the reading.
+        e2e.open("/iscrizioni/$id")
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        assertThat(page.locator("#segnalazioni")).containsText("Arachidi-QA")
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE_ACCESS))
+        assertThat(page.locator("#letture")).containsText("Sei tu")
+    }
+
+    @E2eTest
+    fun `c22 the register of the readings lists every reader, the latest first, with Sei tu only on the own ones, and says when a teacher is not one any more`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val id = e2e.rows().register(gathering.id, e2e.parent(), "Anna", "Rossi", notes = Notes("Arachidi", null, null))
+        val now = OffsetDateTime.now()
+        fun reading(teacher: Long, daysAgo: Long) {
+            e2e.dsl().insertInto(HEALTH_NOTE_ACCESS).set(HEALTH_NOTE_ACCESS.REGISTRATION_ID, id).set(HEALTH_NOTE_ACCESS.TEACHER_ACCOUNT_ID, teacher)
+                .set(HEALTH_NOTE_ACCESS.ACCESSED_AT, now.minusDays(daysAgo)).execute()
+        }
+        reading(gathering.martaId, 3)
+        reading(gathering.paoloId, 1)
+
+        e2e.open("/iscrizioni/$id")
+        page.settled()
+        assertThat(page.locator("#letture li")).hasCount(2)
+        assertThat(page.locator("#letture li").first()).containsText("Paolo Verdi")
+        assertThat(page.locator("#letture li").last()).containsText("Marta Bianchi")
+        assertThat(page.locator("#letture")).not().containsText("Sei tu")
+        assertThat(page.locator("#letture")).not().containsText("Arachidi")
+
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        assertThat(page.locator("#letture li")).hasCount(3)
+        assertThat(page.locator("#letture li").first()).containsText("Elisa Conti")
+        assertThat(page.locator("#letture li").first()).containsText("Sei tu")
+        assertThat(page.locator("#letture li").nth(1)).containsText("Paolo Verdi")
+        assertThat(page.locator("#letture li").nth(1)).not().containsText("Sei tu")
+        assertThat(page.locator("#letture li").last()).containsText("Marta Bianchi")
+        assertAccessible(page, "detail with three readings (${e2e.profile.label})")
+
+        // Marta is no longer among the teachers: her readings stay, with the words that say so.
+        e2e.dsl().deleteFrom(TEACHER).where(TEACHER.ACCOUNT_ID.eq(gathering.martaId)).execute()
+        e2e.open("/iscrizioni/$id")
+        page.settled()
+        assertThat(page.locator("#letture li")).hasCount(3)
+        assertThat(page.locator("#letture li").last()).containsText("Un maestro che non è più tra i maestri")
+        assertThat(page.locator("#letture")).not().containsText("Marta Bianchi")
+        assertAccessible(page, "detail with a reader who left (${e2e.profile.label})")
+    }
+
+    @E2eTest
+    fun `c25 c29 a teacher types in a paper form with the registrations closed and when the gathering is over, not in a draft, and marks the manleva received and not received`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        e2e.dsl().update(GATHERING).set(GATHERING.STATUS, GatheringStatus.closed).execute()
+
+        e2e.open("/iscrizioni/nuova?convivenza=${gathering.id}")
+        page.settled()
+        assertThat(page.locator("main")).containsText("Le iscrizioni sono chiuse: i genitori non possono più iscriversi, ma tu puoi inserire un modulo di carta.")
+        page.locator("#telefono").fill("333 987 6543")
+        page.fillBlock(0, "Elena", "Marino", "1", "10", "2016")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        page.locator("input[name=paperReceived]").check()
+        e2e.press(page.locator("main").buttonNamed("Inserisci l’iscrizione"))
+        assertThat(page.locator("[role=status]")).containsText("Iscrizione inserita.")
+        assertThat(page.locator("main")).containsText("Ricevuto")
+        assertThat(page.locator("main")).not().containsText("Da ricevere")
+
+        e2e.press(page.locator("main").buttonNamed("Segna come da ricevere"))
+        assertThat(page.locator("[role=status]")).containsText("Manleva segnata come da ricevere.")
+        assertThat(page.locator("main")).containsText("Da ricevere")
+        e2e.press(page.locator("main").buttonNamed("Segna come ricevuta"))
+        assertThat(page.locator("[role=status]")).containsText("Manleva segnata come ricevuta.")
+        assertThat(page.locator("main").buttonNamed("Segna come da ricevere")).isVisible()
+
+        // The gathering is over: the form is there with the same words, and a form can still be typed in.
+        e2e.dsl().update(GATHERING).set(GATHERING.START_DATE, e2e.today().minusDays(9)).set(GATHERING.END_DATE, e2e.today().minusDays(7)).execute()
+        e2e.open("/iscrizioni/nuova?convivenza=${gathering.id}")
+        page.settled()
+        assertThat(page.locator("main")).containsText("Le iscrizioni sono chiuse: i genitori non possono più iscriversi, ma tu puoi inserire un modulo di carta.")
+        page.locator("#telefono").fill("333 000 1234")
+        page.fillBlock(0, "Marco", "Bianchi", "5", "5", "2015")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        e2e.press(page.locator("main").buttonNamed("Inserisci l’iscrizione"))
+        assertThat(page.locator("[role=status]")).containsText("Iscrizione inserita.")
+        assertEquals(2, e2e.dsl().fetchCount(REGISTRATION))
+
+        // In a draft there is nothing to type in, and nothing to correct: the page that does not exist.
+        val first = e2e.dsl().select(REGISTRATION.ID).from(REGISTRATION).orderBy(REGISTRATION.ID).limit(1).fetchSingle(REGISTRATION.ID)!!
+        e2e.dsl().update(GATHERING).set(GATHERING.STATUS, GatheringStatus.draft).execute()
+        for (path in listOf("/iscrizioni/nuova?convivenza=${gathering.id}", "/iscrizioni/$first/correggi")) {
+            assertEquals(404, e2e.open(path).status(), path)
+            assertThat(page.locator("h1")).hasText("Pagina non trovata")
+        }
+    }
+
+    @E2eTest
+    fun `c20 the list says what to do with no gathering, with only a draft and with no registration, the card of the gathering says the same, and none has a violation of axe`(e2e: E2e) {
+        val page = e2e.page
+        TestAccounts.makeTeacher(e2e.dsl(), checkNotNull(e2e.signedInAs), "Elisa", "Conti")
+        val support = GatheringSupport(e2e.dsl(), e2e.application.getBean(Clock::class.java))
+        support.reset()
+
+        e2e.open("/iscrizioni")
+        page.settled()
+        assertThat(page.locator("main h2")).hasText("Nessuna convivenza in programma")
+        assertThat(page.locator("main")).containsText("Le iscrizioni arrivano dopo che hai creato la convivenza e aperto le iscrizioni.")
+        assertThat(page.locator("main").linkNamed("Crea la convivenza")).isVisible()
+        assertAccessible(page, "list with no gathering (${e2e.profile.label})")
+
+        val id = support.make(status = GatheringStatus.draft)
+        e2e.open("/iscrizioni")
+        page.settled()
+        assertThat(page.locator("main")).containsText("La convivenza «Convivenza di settembre 2027» è ancora in bozza: le iscrizioni si fanno dopo l’apertura, anche quelle di carta. Apri le iscrizioni dalla pagina della convivenza.")
+        assertThat(page.locator("main").linkNamed("Vai alla convivenza")).isVisible()
+        assertThat(page.locator("main").linkNamed("Inserisci un’iscrizione")).hasCount(0)
+        assertAccessible(page, "list with only a draft (${e2e.profile.label})")
+        e2e.open("/convivenza/$id")
+        page.settled()
+        assertThat(page.locator("section[aria-labelledby=iscrizioni]")).containsText("Le iscrizioni arrivano dopo l’apertura: finché la convivenza è in bozza non ce ne sono, nemmeno da carta.")
+        assertThat(page.locator("section[aria-labelledby=iscrizioni] a")).hasCount(0)
+        assertAccessible(page, "detail of a draft with the card of the registrations (${e2e.profile.label})")
+
+        e2e.dsl().update(GATHERING).set(GATHERING.STATUS, GatheringStatus.`open`).execute()
+        e2e.open("/iscrizioni")
+        page.settled()
+        assertThat(page.locator("main h2")).hasText("Nessuna iscrizione")
+        assertThat(page.locator("main")).containsText("Quando i genitori iscrivono i bambini, li trovi qui. Se un genitore ha compilato il modulo di carta, puoi inserirlo tu.")
+        assertThat(page.locator("main").linkNamed("Inserisci un’iscrizione")).isVisible()
+        assertAccessible(page, "list with no registration (${e2e.profile.label})")
+    }
+
+    @E2eTest
+    fun `c30 when the teachers change the fee the parent and the list see the new amounts`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val address = Addresses.unique("e2e-genitore-quota")
+        val parentPage = e2e.newPage(signedIn = false, teacher = false)
+        e2e.signIn(parentPage, address, teacher = false)
+        e2e.rows().register(gathering.id, e2e.accountId(address), "Luca", "Rossi")
+        parentPage.navigate(e2e.url("/iscrizioni"))
+        parentPage.settled()
+        assertThat(parentPage.locator("article")).hasText(Pattern.compile(".*Quota\\s*60\\s*€.*", Pattern.DOTALL))
+
+        e2e.open("/convivenza/${gathering.id}/quote")
+        page.settled()
+        page.locator("#quota-intera").fill("70")
+        e2e.press(page.locator("main").buttonNamed("Salva le modifiche"))
+        assertThat(page.locator("main [role=status][data-fuoco]")).containsText("Quote salvate.")
+
+        parentPage.navigate(e2e.url("/iscrizioni"))
+        parentPage.settled()
+        assertThat(parentPage.locator("article")).hasText(Pattern.compile(".*Quota\\s*70\\s*€.*", Pattern.DOTALL))
+        assertThat(parentPage.locator("main")).containsText(Pattern.compile("Totale\\s*70\\s*€"))
+        e2e.open("/iscrizioni")
+        page.settled()
+        assertThat(page.locator("section[aria-labelledby=in-breve]")).containsText(Pattern.compile("Quota delle confermate\\s*70\\s*€"))
+        assertThat(page.locator("main li a").first()).containsText("70")
+    }
+
+    @E2eTest(profiles = [Profile.PHONE])
+    fun `c38 the pages of the teachers with the longest names and words do not scroll sideways at 320 and have no violation of axe`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val long = "Lunghissimo".repeat(9)
+        val longNotes = Notes("Allergia".repeat(100), "Intolleranza".repeat(80), "Farmaco".repeat(100))
+        val online = e2e.rows().register(gathering.id, e2e.parent(), long, long, phone = "+39 333 123 4567 890", notes = longNotes, days = mapOf(gathering.friday to "full", gathering.sunday to "lunch"))
+        e2e.rows().register(gathering.id, e2e.parent(), long, long)
+        val paper = e2e.rows().register(gathering.id, null, "Elena", long, enteredBy = gathering.martaId, notes = longNotes, notesOnPaper = true)
+        page.setViewportSize(320, 640)
+
+        for (path in listOf(
+            "/iscrizioni", "/iscrizioni/$online", "/iscrizioni/$paper", "/iscrizioni/$online/correggi", "/iscrizioni/$paper/correggi", "/iscrizioni/$paper/correggi-segnalazioni",
+            "/iscrizioni/$online/ritira", "/iscrizioni/nuova?convivenza=${gathering.id}", "/convivenza/${gathering.id}", "/convivenza/${gathering.id}/quote",
+            "/convivenza/${gathering.id}/date", "/convivenza/${gathering.id}/affidatari",
+        )) {
+            e2e.open(path)
+            page.settled()
+            assertTrue(page.noHorizontalScroll(), "$path scrolls sideways at 320")
+            assertAccessible(page, "$path at 320")
+        }
+
+        // The notes shown, with the longest words, and the open text of the acceptance.
+        e2e.open("/iscrizioni/$online")
+        page.settled()
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        assertThat(page.locator("#segnalazioni")).containsText("Lettura registrata a tuo nome")
+        e2e.press(page.locator("summary:has-text('Testo accettato')"))
+        assertTrue(page.noHorizontalScroll(), "the detail with the notes and the text scrolls sideways at 320")
+        assertAccessible(page, "detail with the notes shown and the text open at 320")
+
+        // The form of the paper registrations with every error at once.
+        e2e.open("/iscrizioni/nuova?convivenza=${gathering.id}")
+        page.settled()
+        page.locator("#telefono").fill("1")
+        page.fillBlock(0, long.repeat(2), "", "40", "13", "99")
+        e2e.press(page.locator("main").buttonNamed("Inserisci l’iscrizione"))
+        assertThat(page.locator("#telefono-errore")).isVisible()
+        assertTrue(page.noHorizontalScroll(), "the paper form with its errors scrolls sideways at 320")
+        assertAccessible(page, "paper form with every error at 320")
+    }
+
+    @org.junit.jupiter.api.Disabled("QA TALITA-5, difetto D1 (criterio 5, design A 1/2 punto 10): anche nel modulo del cartaceo la richiesta che aggiorna la quota manda al server le segnalazioni, perché htmx aggiunge ai POST tutti i campi del form e hx-include non toglie niente; da riattivare quando il developer lo corregge")
+    @E2eTest
+    fun `c05 c25 the request that updates the quota of the paper form does not carry the notes on health`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val bodies = java.util.concurrent.CopyOnWriteArrayList<String>()
+        page.onRequest { if (it.method() == "POST" && it.url().endsWith("/quota")) bodies += it.postData().orEmpty() }
+        e2e.open("/iscrizioni/nuova?convivenza=${gathering.id}")
+        page.settled()
+        e2e.press(page.locator("summary:has-text('Allergie, intolleranze, farmaci')"))
+        page.locator("#b0-allergie").fill("SEGRETO-ALLERGIA")
+
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        assertThat(page.locator("#quota-0")).hasText(Pattern.compile("Quota\\s*60\\s*€"))
+
+        assertTrue(bodies.isNotEmpty(), "the page asked the server for the quota")
+        for (body in bodies) {
+            assertTrue(!body.contains("SEGRETO") && !body.contains("allergies") && !body.contains("medications"), "the request carries the notes: $body")
+        }
     }
 }

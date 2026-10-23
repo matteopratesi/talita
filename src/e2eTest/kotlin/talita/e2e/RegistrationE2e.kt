@@ -80,3 +80,12 @@ internal fun Page.openDialog(): Locator = locator("dialog[open]")
 internal fun Page.waitForSettledDialog() {
     waitUntil("document.querySelector('dialog[open]') && document.querySelector('dialog[open]').getAnimations().every(a => a.playState === 'finished')")
 }
+
+/** Writes the name, the surname and the date of birth of block [index] of a form of registration. */
+internal fun Page.fillBlock(index: Int, first: String, last: String, day: String, month: String, year: String) {
+    locator("#b$index-nome").fill(first)
+    locator("#b$index-cognome").fill(last)
+    locator("#b$index-giorno").fill(day)
+    locator("#b$index-mese").fill(month)
+    locator("#b$index-anno").fill(year)
+}

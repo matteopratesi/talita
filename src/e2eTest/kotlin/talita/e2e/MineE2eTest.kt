@@ -1,16 +1,21 @@
 package talita.e2e
 
+import com.microsoft.playwright.Locator
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import com.microsoft.playwright.options.FormData
+import com.microsoft.playwright.options.RequestOptions
 import talita.Addresses
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.HEALTH_NOTE
+import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.REGISTRATION
 import talita.registration.Notes
 import java.time.LocalDate
 import java.util.regex.Pattern
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -283,5 +288,159 @@ class MineE2eTest {
         assertAccessible(page, "home of a parent with registrations (${e2e.profile.label})")
         e2e.touch(page.locator("main section").first().locator("a").first())
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
+    }
+
+    // ---- What the QA of TALITA-5 added (criteria 11, 16, 17, 27, 38): two people at once, and the longest words at 320 px ---------------------
+
+    @E2eTest(teacher = false)
+    fun `c11 c16 c17 two parents see only their own cards, the id of the other is the page that does not exist, and the teachers see the same child twice as a possible duplicate`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.openGathering()
+        val a = e2e.accountId(checkNotNull(e2e.signedInAs))
+        val aLuca = e2e.rows().register(gathering.id, a, "Luca", "Rossi", phone = "333 111 0001", notes = Notes("Arachidi-QA", null, null))
+        e2e.rows().register(gathering.id, a, "Anna", "Rossi", annaBirth, phone = "333 111 0001")
+        // A twin of Luca, with another name: not a duplicate.
+        e2e.rows().register(gathering.id, a, "Marco", "Rossi", LocalDate.of(2016, 4, 4), phone = "333 111 0001")
+        val emailB = Addresses.unique("e2e-genitore-b")
+        val pageB = e2e.newPage(signedIn = false, teacher = false)
+        e2e.signIn(pageB, emailB, teacher = false)
+        val b = e2e.accountId(emailB)
+        val bLuca = e2e.rows().register(gathering.id, b, "Luca", "Rossi", phone = "333 222 0002")
+
+        // A sees theirs, with no word about B and no trace of the notes in the page.
+        e2e.open("/iscrizioni")
+        page.settled()
+        assertThat(page.locator("article")).hasCount(3)
+        assertThat(page.locator("main")).not().containsText("333 222 0002")
+        assertThat(page.locator("main")).not().containsText("doppione")
+        assertFalse(page.content().contains("Arachidi-QA"), "the notes are not in the page of the cards")
+
+        // B sees theirs, and nothing of A.
+        pageB.navigate(e2e.url("/iscrizioni"))
+        pageB.settled()
+        assertThat(pageB.locator("article")).hasCount(1)
+        assertThat(pageB.locator("main")).containsText("Luca Rossi")
+        assertThat(pageB.locator("main")).containsText("333 222 0002")
+        assertThat(pageB.locator("main")).not().containsText("333 111 0001")
+        assertThat(pageB.locator("main")).not().containsText("Anna")
+        assertThat(pageB.locator("main")).not().containsText("Marco")
+        assertThat(pageB.locator("main")).not().containsText("doppione")
+        assertThat(pageB.locator("main")).not().containsText("Scritte")
+        assertAccessible(pageB, "registrations of the second parent (${e2e.profile.label})")
+
+        // The id of a registration of A is, for B, the page of an id that does not exist: the same words, and nothing changes.
+        val nothing = requireNotNull(pageB.navigate(e2e.url("/iscrizioni/99999999/modifica")))
+        assertEquals(404, nothing.status())
+        val nothingSaid = pageB.locator("main").innerText()
+        for (path in listOf("/iscrizioni/$aLuca/modifica", "/iscrizioni/$aLuca/segnalazioni", "/iscrizioni/$aLuca/ritira", "/iscrizioni/$aLuca/segnalazioni/togli")) {
+            val response = requireNotNull(pageB.navigate(e2e.url(path)))
+            assertEquals(404, response.status(), path)
+            assertEquals(nothingSaid, pageB.locator("main").innerText(), path)
+        }
+        pageB.navigate(e2e.url("/iscrizioni/$bLuca/segnalazioni"))
+        val token = pageB.locator("input[name=_csrf]").first().inputValue()
+        for (path in listOf("/iscrizioni/$aLuca/ritira", "/iscrizioni/$aLuca/segnalazioni/togli", "/iscrizioni/$aLuca/segnalazioni", "/iscrizioni/$aLuca/modifica")) {
+            val answer = pageB.request().post(e2e.url(path), RequestOptions.create().setForm(FormData.create().set("_csrf", token).set("from", "confirmed")))
+            assertEquals(404, answer.status(), path)
+        }
+        assertEquals(RegistrationStatus.confirmed, e2e.dsl().select(REGISTRATION.STATUS).from(REGISTRATION).where(REGISTRATION.ID.eq(aLuca)).fetchSingle(REGISTRATION.STATUS))
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE), "the notes of A are still there")
+
+        // The teachers see all four, the same child twice with the label and the link from one to the other, the twin without.
+        val teacher = e2e.newPage(signedIn = true, teacher = true)
+        teacher.navigate(e2e.url("/iscrizioni"))
+        teacher.settled()
+        assertThat(teacher.locator("main li a")).hasCount(4)
+        assertThat(teacher.locator("main li a").filter(Locator.FilterOptions().setHasText("Possibile doppione"))).hasCount(2)
+        assertThat(teacher.locator("main li a").filter(Locator.FilterOptions().setHasText("Marco Rossi"))).not().containsText("Possibile doppione")
+        teacher.navigate(e2e.url("/iscrizioni/$aLuca"))
+        teacher.settled()
+        assertThat(teacher.locator("main")).containsText("Possibile doppione. C’è un’altra iscrizione con lo stesso nome e la stessa data di nascita. Se è lo stesso bambino, ritirane una.")
+        assertAccessible(teacher, "detail of a possible duplicate (${e2e.profile.label})")
+        e2e.touch(teacher.locator("main").locator("a:has-text('Apri l’altra iscrizione')"))
+        assertThat(teacher).hasURL(e2e.url("/iscrizioni/$bLuca"))
+        assertThat(teacher.locator("main")).containsText("Possibile doppione.")
+        assertThat(teacher.locator("main a:has-text('Apri l’altra iscrizione')")).hasAttribute("href", "/iscrizioni/$aLuca")
+        assertThat(teacher.locator("main")).containsText("333 222 0002")
+
+        // Nothing of this reached the parents: A still sees no label.
+        e2e.open("/iscrizioni")
+        assertThat(page.locator("main")).not().containsText("doppione")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c27 a parent who asks for a page of the teachers, even for their own registration, sees the page that says no and the buttons of the teachers change nothing`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.openGathering()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        val id = e2e.rows().register(gathering.id, me, "Luca", "Rossi", notes = Notes("Arachidi-QA", null, null))
+
+        for (path in listOf("/iscrizioni/$id", "/iscrizioni/$id/correggi", "/iscrizioni/$id/correggi-segnalazioni", "/iscrizioni/nuova?convivenza=${gathering.id}")) {
+            val response = e2e.open(path)
+            assertEquals(403, response.status(), path)
+            assertThat(page.locator("h1")).hasText("Non puoi vedere questa pagina")
+            assertThat(page.locator("main")).containsText("La pagina esiste, ma il tuo accesso non comprende questi dati.")
+            assertFalse(page.content().contains("Arachidi-QA"), path)
+        }
+        assertAccessible(page, "the page that says no (${e2e.profile.label})")
+
+        e2e.open("/iscrizioni/$id/segnalazioni")
+        val token = page.locator("input[name=_csrf]").first().inputValue()
+        for (path in listOf("/iscrizioni/$id/mostra-segnalazioni", "/iscrizioni/$id/manleva", "/iscrizioni/$id/correggi", "/iscrizioni/$id/correggi-segnalazioni", "/iscrizioni/nuova")) {
+            val answer = page.request().post(e2e.url(path), RequestOptions.create().setForm(FormData.create().set("_csrf", token).set("convivenza", gathering.id.toString()).set("phone", "333 000 0000")))
+            assertEquals(403, answer.status(), path)
+            assertFalse(answer.text().contains("Arachidi-QA"), path)
+        }
+        assertEquals(0, e2e.dsl().fetchCount(HEALTH_NOTE_ACCESS), "nothing was read")
+        assertEquals(1, e2e.dsl().fetchCount(REGISTRATION), "nothing was typed in")
+        assertEquals("333 123 4567", e2e.dsl().select(REGISTRATION.PHONE).from(REGISTRATION).fetchSingle(REGISTRATION.PHONE))
+    }
+
+    @E2eTest(profiles = [Profile.PHONE], teacher = false)
+    fun `c38 the pages of the parent with the longest names and words do not scroll sideways at 320 and have no violation of axe`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.openGathering()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        val long = "Lunghissimo".repeat(9)
+        val id = e2e.rows().register(
+            gathering.id, me, long, long, phone = "+39 333 123 4567 890", days = mapOf(gathering.friday to "full", gathering.sunday to "lunch"),
+            notes = Notes("Allergia".repeat(100), "Intolleranza".repeat(80), "Farmaco".repeat(100)),
+        )
+        page.setViewportSize(320, 640)
+
+        for (path in listOf(
+            "/", "/iscrizioni", "/info/${gathering.code}/iscrizione", "/iscrizioni/$id/modifica", "/iscrizioni/$id/segnalazioni", "/iscrizioni/$id/ritira",
+            "/iscrizioni/$id/segnalazioni/togli", "/informativa",
+        )) {
+            e2e.open(path)
+            page.settled()
+            assertTrue(page.noHorizontalScroll(), "$path scrolls sideways at 320")
+            assertAccessible(page, "$path at 320")
+        }
+
+        // The dialogs with the long name in them.
+        e2e.open("/iscrizioni")
+        page.settled()
+        e2e.press(page.locator("main").linkNamed("Ritira l’iscrizione di $long $long"))
+        page.waitForSettledDialog()
+        assertTrue(page.noHorizontalScroll(), "the dialog of the withdrawal scrolls sideways at 320")
+        assertAccessible(page, "dialog of the withdrawal at 320")
+        page.keyboard().press("Escape")
+
+        // The two steps of a new registration, with the longest names that are allowed.
+        e2e.open("/info/${gathering.code}/iscrizione")
+        page.settled()
+        page.locator("#telefono").fill("+39 333 123 4567 890")
+        page.fillBlock(0, "Nome".repeat(25), "Cognome".repeat(14), "4", "4", "2016")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        e2e.press(page.locator("main").buttonNamed("Controlla e accetta"))
+        assertThat(page.locator("h1")).hasText("Controlla e accetta")
+        page.settled()
+        assertTrue(page.noHorizontalScroll(), "the second step scrolls sideways at 320")
+        assertAccessible(page, "second step with the longest names at 320")
+        e2e.press(page.locator("main").buttonNamed("Accetta e iscrivi"))
+        assertThat(page.locator("#accetto-errore")).isVisible()
+        assertTrue(page.noHorizontalScroll(), "the second step with its errors scrolls sideways at 320")
+        assertAccessible(page, "second step with errors and the longest names at 320")
     }
 }
