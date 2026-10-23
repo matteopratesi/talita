@@ -544,3 +544,7 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
   3,9 fogli anche con ogni foglio pieno (misurato), quindi due non si possono avere senza cambiare la grandezza del testo; la guida (4.12) ora dice
   quattro. Il test e2e controlla che i fogli non siano più di quelli che il contenuto riempie (il PDF sta in una cartella temporanea, mai nel repo).
 - **Il recapito del titolare** non sta sulla pagina: `docs/03-privacy.md` lo assegna all'informativa di TALITA-5 (domanda 6 approvata).
+
+## 2026-10-23: il repo resta pubblico (TALITA-5)
+
+Talità resta un repo pubblico, con licenza AGPL-3.0, come deciso in TALITA-2. Matteo l'ha confermato dopo essersi chiesto se lo scheletro in comune con Koinè fosse un rischio: con Koinè Talità condivide solo lo scheletro tecnico (lo stack, il guscio e il design system), mentre le funzioni sono diverse. Le regole di un repo pubblico (dati sintetici, niente nomi veri né indirizzi, controlli di build sui file) restano quelle di `CLAUDE.md`.
