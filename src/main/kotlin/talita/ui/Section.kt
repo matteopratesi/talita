@@ -11,7 +11,7 @@ package talita.ui
  * parent (`TeacherPaths`), so the navigation and the rule say the same thing.
  *
  * @property summary the line under the section in the list of the home page of a teacher
- * @property placeholder the sentence of the "in preparation" page of a teacher, until the section exists
+ * @property placeholder the sentence of the "in preparation" page of a teacher, until the section exists (none for the gathering, which exists)
  * @property visibleToParents whether the entry is in the navigation of a parent
  * @property parentSummary the line under the section in the home of a parent
  * @property parentPlaceholder the sentence of the "in preparation" page of a parent
@@ -30,7 +30,6 @@ enum class Section(
     CONVIVENZA(
         "Convivenza", "/convivenza", Icon.CALENDAR_DAYS, visibleToParents = false,
         summary = "Le date, i maestri e le informazioni per i genitori.",
-        placeholder = "Qui troverai le date, i maestri e la pagina con le informazioni per i genitori.",
     ),
     ISCRIZIONI(
         "Iscrizioni", "/iscrizioni", Icon.USERS_ROUND, visibleToParents = true,
