@@ -32,7 +32,25 @@ data class OfferView(
     val dayRows: List<DayRow>,
     val lunchOnly: Boolean,
     val lunchHelp: String,
-)
+) {
+    /**
+     * The names of the fields that a request for the quota carries (`hx-params`): the presence and the days of each block in [indexes], the fields in
+     * [more] and the CSRF code; and, only when there are two blocks or more, the name and the surname of each one, because the card «Quota» of the first
+     * step has a line for every child with their name (design A 1/2, 4). htmx adds to a POST every field of the form around the element, so without this
+     * list the date of birth, the phone and the notes on health of the children, and the name of a single child, would travel at every touch (criterion 5).
+     */
+    fun quotaFields(indexes: List<Int>, more: List<String> = emptyList()): String =
+        (
+            indexes.flatMap { i ->
+                listOf("children[$i].presence") + dayRows.map { "children[$i].day.${it.key}" } + if (indexes.size > 1) listOf("children[$i].firstName", "children[$i].lastName") else emptyList()
+            } + more + CSRF_FIELD
+        ).joinToString(",")
+
+    companion object {
+        /** The name of the field of the CSRF code of every form (`components/csrf.jte` writes `CsrfToken.getParameterName()`, which is this one). */
+        const val CSRF_FIELD = "_csrf"
+    }
+}
 
 /** A block of a child for a form: what the person typed, the error under each field, the quota that is due now and what the block does. */
 data class ChildView(
@@ -92,7 +110,10 @@ data class FirstStepPage(
     val cancelHref: String,
     /** The page has a phone that comes already written («Iscrivi un altro figlio»): the help says it is the same for all of them. */
     val phoneKnown: Boolean = false,
-)
+) {
+    /** What a request for the quota carries: the days of every block, because the total adds them up. */
+    val quotaFields: String get() = offer.quotaFields(children.map { it.index })
+}
 
 /** What the second step says of a child: the words of the recap. */
 data class RecapChild(val name: String, val status: String, val statusTone: String, val birth: String, val presence: String, val health: String, val quota: String)

@@ -5,12 +5,14 @@
 @import talita.ui.Icon
 @param ChildView child
 @param OfferView offer
-@param String formId
 @param String quotaAction
+@param String quotaFields
 <%-- «Quando viene?» (criteria 1, 4, 5; design A 1/2, 4): what the fees offer and nothing else. «Tutti i giorni» or «Alcuni giorni», and under «Alcuni giorni» a
      segment of choices for each day, shown by CSS (`:has()`), so that it also works without JavaScript. Nothing is chosen before the person chooses: the
      presence decides the fee. The fee of the child is a line that the server writes (htmx replaces its inside, never the line: it is a live region). With only
-     the full fee there is nothing to choose: the sentence is read only and the value goes in a hidden field. --%>
+     the full fee there is nothing to choose: the sentence is read only and the value goes in a hidden field.
+     The request for the fee carries only the fields in `quotaFields` (`hx-params`): htmx adds to a POST every field of the form around the element, and the
+     name, the date of birth, the phone and the notes on health must not travel at every touch (criterion 5, design A 1/2, 10). --%>
 !{String p = "children[" + child.getIndex() + "].";
 String id = "b" + child.getIndex();
 String error = child.getErrors().get("presence");
@@ -24,7 +26,7 @@ String selected = child.getPresence();}
     <p id="quota-${child.getIndex()}" aria-live="polite" class="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 rounded-xl bg-brand-soft px-4 py-3 busy:opacity-60 empty:hidden">@if(child.getQuota() != null)<span>Quota</span><strong class="font-bold">${child.getQuota()}</strong>@endif</p>
   </div>
 @else
-  <fieldset class="group min-w-0" aria-describedby="${error != null ? id + "-quando-errore" : null}" hx-post="${quotaAction}" hx-trigger="change" hx-swap="none" hx-include="${"#" + formId + " [data-quota], #" + formId + " [name='_csrf']"}" hx-sync="closest form:replace">
+  <fieldset class="group min-w-0" aria-describedby="${error != null ? id + "-quando-errore" : null}" hx-post="${quotaAction}" hx-trigger="change" hx-swap="none" hx-params="${quotaFields}" hx-sync="closest form:replace">
     <legend class="font-semibold">Quando viene?</legend>
     @if(error != null)
       <p id="${id}-quando-errore" class="mt-1.5 flex items-start gap-1.5 text-sm font-medium text-danger">

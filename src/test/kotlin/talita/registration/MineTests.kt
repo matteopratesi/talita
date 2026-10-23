@@ -223,6 +223,17 @@ class MineTests(
     }
 
     @Test
+    fun `t5 c05 c12 the request for the quota of the modification carries only the days of the block`() {
+        val setup = kit.start()
+        val parent = kit.parent()
+        val (luca) = registered(parent, setup, kit.child(0, "Luca", more = arrayOf("allergies" to "Arachidi", "healthConsent" to "true")))
+
+        val html = parent.get("/iscrizioni/$luca/modifica").body()
+
+        assertEquals(setOf("children[0].presence", "children[0].day.fri", "children[0].day.sat", "children[0].day.sun", "_csrf"), kit.quotaRequestFields(html, 1))
+    }
+
+    @Test
     fun `t5 c12 the quota of the modification changes with the days, as a piece`() {
         val setup = kit.start()
         val parent = kit.parent()

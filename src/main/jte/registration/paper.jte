@@ -46,7 +46,7 @@
             </p>
           @endif
         </div>
-        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), formId = "modulo", quotaAction = page.getQuotaAction(), withHealth = page.getInserting(), paper = true)
+        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), quotaAction = page.getQuotaAction(), quotaFields = page.getQuotaFields(), withHealth = page.getInserting(), paper = true)
         @if(page.getPaper())
           <fieldset>
             <legend class="font-semibold">Manleva</legend>

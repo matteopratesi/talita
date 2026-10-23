@@ -40,7 +40,7 @@
         @endif
       </div>
       <div class="mt-4">
-        @template.registration.childFields(child = child, offer = page.getOffer(), formId = "iscrizione", quotaAction = page.getQuotaAction())
+        @template.registration.childFields(child = child, offer = page.getOffer(), quotaAction = page.getQuotaAction(), quotaFields = page.getQuotaFields())
       </div>
     </section>
   @endfor

@@ -36,7 +36,7 @@
             </p>
           @endif
         </div>
-        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), formId = "modifica", quotaAction = page.getQuotaAction(), withHealth = false)
+        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), quotaAction = page.getQuotaAction(), quotaFields = page.getQuotaFields(), withHealth = false)
       </div>
     </section>
     <div class="flex flex-col gap-3 pt-3 sm:flex-row-reverse sm:justify-start">

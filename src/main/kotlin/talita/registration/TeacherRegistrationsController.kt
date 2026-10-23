@@ -112,7 +112,10 @@ data class PaperPage(
     /** For a correction of a paper registration: whether it has notes (the link says «Aggiungi» or the notice says to show them first). */
     val hasNotes: Boolean,
     val id: Long?,
-)
+) {
+    /** What a request for the quota carries: the days of the block, the gathering when the form is for a new registration, and nothing else. */
+    val quotaFields: String get() = offer.quotaFields(listOf(child.index), if (inserting) listOf("convivenza") else emptyList())
+}
 
 /**
  * The registrations as the teachers see them (criteria 20-28): the list of a gathering with the counts, the detail with the notes that are shown only on

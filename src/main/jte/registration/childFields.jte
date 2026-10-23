@@ -3,8 +3,8 @@
 @import talita.ui.Icon
 @param ChildView child
 @param OfferView offer
-@param String formId
 @param String quotaAction
+@param String quotaFields
 @param boolean withHealth = true
 @param boolean paper = false
 <%-- The fields of a child (design A 1/2, 3-5): name, surname, date of birth in three fields, when the child comes with the quota that is due, the
@@ -24,7 +24,7 @@ String statusError = child.getErrors().get("status");}
   <div class="grid gap-5 sm:grid-cols-2">
     <div class="space-y-1.5">
       <label for="${id}-nome" class="block font-semibold">Nome</label>
-      <input id="${id}-nome" name="${p}firstName" type="text" value="${child.getFirstName()}" autocomplete="off" autocapitalize="words" data-quota data-fuoco="${child.getFocus() ? "" : null}" aria-describedby="${firstError != null ? id + "-nome-errore" : null}" aria-invalid="${firstError != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+      <input id="${id}-nome" name="${p}firstName" type="text" value="${child.getFirstName()}" autocomplete="off" autocapitalize="words" data-fuoco="${child.getFocus() ? "" : null}" aria-describedby="${firstError != null ? id + "-nome-errore" : null}" aria-invalid="${firstError != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
       @if(firstError != null)
         <p id="${id}-nome-errore" class="flex items-start gap-1.5 text-sm font-medium text-danger">
           @template.components.icon(icon = Icon.CIRCLE_ALERT, classes = "mt-0.5 size-4 shrink-0")
@@ -34,7 +34,7 @@ String statusError = child.getErrors().get("status");}
     </div>
     <div class="space-y-1.5">
       <label for="${id}-cognome" class="block font-semibold">Cognome</label>
-      <input id="${id}-cognome" name="${p}lastName" type="text" value="${child.getLastName()}" autocomplete="off" autocapitalize="words" data-quota aria-describedby="${lastError != null ? id + "-cognome-errore" : null}" aria-invalid="${lastError != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+      <input id="${id}-cognome" name="${p}lastName" type="text" value="${child.getLastName()}" autocomplete="off" autocapitalize="words" aria-describedby="${lastError != null ? id + "-cognome-errore" : null}" aria-invalid="${lastError != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
       @if(lastError != null)
         <p id="${id}-cognome-errore" class="flex items-start gap-1.5 text-sm font-medium text-danger">
           @template.components.icon(icon = Icon.CIRCLE_ALERT, classes = "mt-0.5 size-4 shrink-0")
@@ -69,7 +69,7 @@ String statusError = child.getErrors().get("status");}
     @endif
   </fieldset>
 
-  @template.registration.presenceChoice(child = child, offer = offer, formId = formId, quotaAction = quotaAction)
+  @template.registration.presenceChoice(child = child, offer = offer, quotaAction = quotaAction, quotaFields = quotaFields)
 
   <fieldset aria-describedby="${statusError != null ? id + "-stato-errore" : null}">
     <legend class="font-semibold">Stato dell’iscrizione</legend>

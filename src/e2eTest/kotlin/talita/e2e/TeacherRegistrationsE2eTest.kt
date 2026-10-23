@@ -565,7 +565,6 @@ class TeacherRegistrationsE2eTest {
         assertAccessible(page, "paper form with every error at 320")
     }
 
-    @org.junit.jupiter.api.Disabled("QA TALITA-5, difetto D1 (criterio 5, design A 1/2 punto 10): anche nel modulo del cartaceo la richiesta che aggiorna la quota manda al server le segnalazioni, perché htmx aggiunge ai POST tutti i campi del form e hx-include non toglie niente; da riattivare quando il developer lo corregge")
     @E2eTest
     fun `c05 c25 the request that updates the quota of the paper form does not carry the notes on health`(e2e: E2e) {
         val page = e2e.page
@@ -574,6 +573,8 @@ class TeacherRegistrationsE2eTest {
         page.onRequest { if (it.method() == "POST" && it.url().endsWith("/quota")) bodies += it.postData().orEmpty() }
         e2e.open("/iscrizioni/nuova?convivenza=${gathering.id}")
         page.settled()
+        page.locator("#telefono").fill("333 999 0000")
+        page.fillBlock(0, "Elena", "Marino", "4", "4", "2016")
         e2e.press(page.locator("summary:has-text('Allergie, intolleranze, farmaci')"))
         page.locator("#b0-allergie").fill("SEGRETO-ALLERGIA")
 
@@ -583,6 +584,8 @@ class TeacherRegistrationsE2eTest {
         assertTrue(bodies.isNotEmpty(), "the page asked the server for the quota")
         for (body in bodies) {
             assertTrue(!body.contains("SEGRETO") && !body.contains("allergies") && !body.contains("medications"), "the request carries the notes: $body")
+            assertTrue(listOf("firstName", "lastName", "birth", "phone", "status", "Elena", "Marino", "333+999").none { body.contains(it) }, "the request carries the child or the phone: $body")
+            assertTrue(body.contains("presence=all_days") && body.contains("convivenza=") && body.contains("_csrf="), "the request carries what the quota needs: $body")
         }
     }
 }

@@ -399,6 +399,17 @@ class TeacherRegistrationTests(
     // ---- The corrections (criterion 26) ---------------------------------------------------------------------------------------------------
 
     @Test
+    fun `t5 c05 c25 c26 the request for the quota of the paper form and of the correction carries only the days of the block`() {
+        val setup = kit.start()
+        val id = rows.register(setup.id, null, "Elena", "Marino", enteredBy = setup.martaId, notes = Notes("Arachidi", null, null), notesOnPaper = true)
+
+        val days = setOf("children[0].presence", "children[0].day.fri", "children[0].day.sat", "children[0].day.sun", "_csrf")
+        // The paper form says which gathering it is for in a field that the quota needs; the correction does not have it.
+        assertEquals(days + "convivenza", kit.quotaRequestFields(setup.marta.get("/iscrizioni/nuova?convivenza=${setup.id}").body(), 1))
+        assertEquals(days, kit.quotaRequestFields(setup.marta.get("/iscrizioni/$id/correggi").body(), 1))
+    }
+
+    @Test
     fun `t5 c26 a teacher corrects the days, the state, the phone and the data of an online registration and never the acceptance`() {
         val setup = kit.start()
         val owner = kit.parent("genitore-correzioni")

@@ -1,6 +1,8 @@
 package talita.registration
 
 import org.jooq.DSLContext
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
@@ -111,6 +113,30 @@ internal class RegistrationTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService
             if (other) put("otherParent", "true")
             if (religion) put("religionConsent", "true")
         }
+
+    /**
+     * The request for the quota of a page, read from its HTML (criterion 5, design A 1/2, 10): each fieldset of the days says with `hx-params` which fields
+     * travel with a touch, and they must be exactly the ones marked `data-quota` and the CSRF code, so that nothing of the child (date of birth, phone,
+     * status, notes on health) goes to the server at every touch. The name and the surname go only with two blocks or more, for the lines of the card
+     * «Quota»; with one block nothing of the name travels. [blocks] is how many fieldsets the page must have. Returns the names that travel.
+     */
+    fun quotaRequestFields(html: String, blocks: Int): Set<String> {
+        val fieldsets = Regex("""<fieldset\b[^>]*\bhx-post="[^"]*/quota"[^>]*>""").findAll(html).map { it.value }.toList()
+        org.junit.jupiter.api.Assertions.assertEquals(blocks, fieldsets.size, "a fieldset of the days for each block")
+        assertTrue(Regex("""<input type="hidden" name="_csrf" """).containsMatchIn(html), "the CSRF code of the forms is called _csrf")
+        val marked = Regex("""<input\b[^>]*\bdata-quota\b[^>]*>""").findAll(html).map { Regex("""\bname="([^"]+)"""").find(it.value)!!.groupValues[1] }.toSet() + "_csrf" +
+            if (blocks > 1) (0 until blocks).flatMap { listOf("children[$it].firstName", "children[$it].lastName") } else emptyList()
+        var travelling = emptySet<String>()
+        for (tag in fieldsets) {
+            assertFalse(tag.contains("hx-include"), "hx-include adds fields, it takes none away: $tag")
+            val listed = Regex("""\bhx-params="([^"]*)"""").find(tag)?.groupValues?.get(1)?.split(',')?.toSet()
+            org.junit.jupiter.api.Assertions.assertEquals(marked, listed, "the fields that travel are the ones of the days: $tag")
+            travelling = listed.orEmpty()
+        }
+        val ofTheChild = Regex("""birth|status|allergies|intolerances|medications|phone|consent|Consent""" + if (blocks > 1) "" else "|firstName|lastName")
+        assertTrue(travelling.none { ofTheChild.containsMatchIn(it) }, "something of the child travels: $travelling")
+        return travelling
+    }
 
     /** The fingerprint of the text that step 2 shows, read from its page. */
     fun hashIn(html: String): String = checkNotNull(Regex("""name="textHash" value="([0-9a-f]{64})"""").find(html)?.groupValues?.get(1)) { "the page has no fingerprint of the text" }

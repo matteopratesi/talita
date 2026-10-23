@@ -103,7 +103,10 @@ data class EditPage(
     val quotaAction: String,
     val submit: String,
     val busy: String,
-)
+) {
+    /** What a request for the quota carries: the days of the block and nothing else. */
+    val quotaFields: String get() = offer.quotaFields(listOf(child.index))
+}
 
 /**
  * What the page of the notes on health of a registration shows: the parent's («Segnalazioni») and the one where a teacher corrects the notes of a paper

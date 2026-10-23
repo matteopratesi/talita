@@ -584,7 +584,8 @@ iscrizioni del genitore, maestri, regole di TALITA-4 e chiusura.
   riga dell'account): il doppio tocco, anche nello stesso istante, fa un'iscrizione per figlio e la seconda risposta è la stessa conferma.
 - **La quota dovuta non si salva** e la calcola una funzione sola (`Quota`, regola R5): tutti i giorni è la quota intera, alcuni giorni la giornaliera o la
   quota del pranzo per giorno, e i tre giorni «giornata» scelti uno per uno valgono tutti i giorni. Una quota non prevista non compare fra le scelte e il server la
-  rifiuta. Con JavaScript si aggiorna con htmx (`hx-swap="none"` e pezzi fuori banda, solo i campi della presenza, mai le segnalazioni); senza JavaScript si
+  rifiuta. Con JavaScript si aggiorna con htmx (`hx-swap="none"` e pezzi fuori banda). La richiesta porta solo i campi della presenza (con `hx-params` e l'elenco esatto, perché htmx 2 aggiunge a ogni POST tutti
+  i campi del form): non la data di nascita, il telefono né le segnalazioni, e il nome del bambino solo con due bambini o più, per le righe della card «Quota»; senza JavaScript si
   vede al passo 2.
 - **Telefono** con `type="tel"` e senza `inputmode="numeric"` (la tastiera numerica di iOS non ha il «+»). Si salva con uno spazio per ogni separatore (solo le cifre e un «+»
   iniziale se non stanno in 20 caratteri).

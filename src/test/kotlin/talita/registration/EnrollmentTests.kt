@@ -401,13 +401,25 @@ class EnrollmentTests(
     }
 
     @Test
-    fun `t5 c05 the quota line is a live region that the pieces fill, and the fieldset asks only for the fields of the days`() {
+    fun `t5 c05 the quota line is a live region that the pieces fill, and the request for it carries only the fields of the days`() {
         val setup = kit.start()
-        val html = kit.parent().get(setup.form).body()
+        val parent = kit.parent()
+        val html = parent.get(setup.form).body()
 
         assertTrue(html.contains("""<p id="quota-0" aria-live="polite" class="mt-3 flex"""))
-        assertTrue(Regex("""<fieldset class="group min-w-0" hx-post="${Regex.escape(setup.form)}/quota" hx-trigger="change" hx-swap="none" hx-include="#iscrizione \[data-quota\], #iscrizione \[name=&#39;_csrf&#39;\]" hx-sync="closest form:replace">""").containsMatchIn(html))
+        assertTrue(Regex("""<fieldset class="group min-w-0" hx-post="${Regex.escape(setup.form)}/quota" hx-trigger="change" hx-swap="none" hx-params="[^"]+" hx-sync="closest form:replace">""").containsMatchIn(html))
         assertFalse(Regex("""<textarea[^>]*data-quota""").containsMatchIn(html), "the notes on health do not travel at every touch")
+        // htmx adds to a POST every field of the form, so the request is closed by name: the presence and the days of the block, and the CSRF code.
+        assertEquals(setOf("children[0].presence", "children[0].day.fri", "children[0].day.sat", "children[0].day.sun", "_csrf"), kit.quotaRequestFields(html, 1))
+        // With two blocks every block lists the days of both, because the total adds them up, and their names, which are the labels of its lines.
+        val two = blocks(parent, setup, kit.form(kit.child(0)), "aggiungi").body()
+        assertEquals(
+            setOf(
+                "children[0].presence", "children[0].day.fri", "children[0].day.sat", "children[0].day.sun", "children[0].firstName", "children[0].lastName",
+                "children[1].presence", "children[1].day.fri", "children[1].day.sat", "children[1].day.sun", "children[1].firstName", "children[1].lastName", "_csrf",
+            ),
+            kit.quotaRequestFields(two, 2),
+        )
     }
 
     @Test
