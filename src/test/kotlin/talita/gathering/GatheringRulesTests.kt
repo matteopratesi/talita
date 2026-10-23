@@ -200,10 +200,12 @@ class GatheringRulesTests {
         for (text in listOf("Scrivi a nome@example.org per informazioni", Addresses.of("mario.rossi+prova"), "chiedi a marta" + "@" + "esempio.it")) {
             assertEquals(PublicText.Findings(email = true, phone = false, iban = false), PublicText.check(text), text)
         }
-        for (text in listOf("Chiama il 3331234567", "tel. 333 123 4567", "tel. 333.123.4567", "333-123-4567", "+39 333 1234567", "+39333123456", "012345678")) {
+        for (text in listOf("Chiama il 3331234567", "tel. 333 123 4567", "tel. 333.123.4567", "333-123-4567", "+39 333 1234567", "+39333123456", "012345678",
+            // Round brackets around the area code, with or without spaces: they do not break the run of digits.
+            "+39 (02) 12345678", "(02) 1234 5678", "+39(02)12345678", "Segreteria: (02)12345678")) {
             assertEquals(PublicText.Findings(email = false, phone = true, iban = false), PublicText.check(text), text)
         }
-        for (text in listOf("17/09/2027 alle 18:30", "dalle 9.30", "60 €", "dal 17.09.2027 al 19.09.2027", "17-09-2027", "tra le 9 e le 10", "3 giorni, 2 notti", "Ci vediamo il 17 settembre alle 18:00 davanti alla casa", "12345678", "classi 2, 3 e 4", "ore 18.30–20.00")) {
+        for (text in listOf("17/09/2027 alle 18:30", "dalle 9.30", "60 €", "dal 17.09.2027 al 19.09.2027", "17-09-2027", "tra le 9 e le 10", "3 giorni, 2 notti", "Ci vediamo il 17 settembre alle 18:00 davanti alla casa", "12345678", "classi 2, 3 e 4", "ore 18.30–20.00", "17/09/2027 (18:30)", "dal 17 (venerdì) al 19 (domenica)", "il 17 (ore 18) e il 18 (ore 9)")) {
             assertEquals(PublicText.Findings(email = false, phone = false, iban = false), PublicText.check(text), text)
         }
         assertEquals(PublicText.Findings(email = true, phone = true, iban = false), PublicText.check("nome@example.org oppure 333 1234567"))
