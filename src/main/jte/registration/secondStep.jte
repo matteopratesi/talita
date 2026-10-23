@@ -23,6 +23,8 @@
   <p class="mt-4 max-w-prose">Rileggi i dati, leggi il testo dell’affidamento e spunta le caselle. Per correggere tocca «Modifica i dati»: il tasto indietro del telefono esce dall’iscrizione e quello che hai scritto si perde. Quando tocchi «Accetta e iscrivi» l’iscrizione è fatta.</p>
 
   <form id="conferma" method="post" action="${page.getConfirmAction()}" novalidate hx-disabled-elt="#conferma-invia" class="mt-5 space-y-3">
+    <%-- The default button of the form (Enter on a box): «Accetta e iscrivi», not «Modifica i dati», which comes first in the page. See firstStep.jte. --%>
+    <button type="submit" tabindex="-1" aria-hidden="true" class="sr-only"></button>
     @template.components.csrf(csrf = csrf)
     @for(kotlin.Pair<String, String> field : page.getHidden())
       <input type="hidden" name="${field.getFirst()}" value="${field.getSecond()}">

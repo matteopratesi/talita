@@ -422,6 +422,32 @@ class EnrollmentTests(
         )
     }
 
+    /** The first submit button of the form [id] of a page: the one that a press of Enter in a field clicks. */
+    private fun firstSubmitButton(html: String, id: String): String {
+        val form = checkNotNull(Regex("""<form id="$id"[\s\S]*?</form>""").find(html)) { "no form $id" }.value
+        return checkNotNull(Regex("""<button type="submit"[^>]*>""").find(form)) { "no submit button in $id" }.value
+    }
+
+    @Test
+    fun `t5 c01 c06 the first submit button of each step is the one that goes on, so Enter never adds or takes away a block or goes back`() {
+        val setup = kit.start()
+        val parent = kit.parent()
+
+        // Step 1 with two blocks («Togli» in each) and with a single block («Aggiungi un figlio»): always the same first button.
+        val two = blocks(parent, setup, kit.form(kit.child(0)), "aggiungi").body()
+        assertTrue(two.contains("""name="azione" value="togli:0""""), "the page has the buttons that Enter must not reach")
+        val one = parent.get(setup.form).body()
+        assertTrue(one.contains("""name="azione" value="aggiungi""""))
+        for (html in listOf(two, one)) {
+            val first = firstSubmitButton(html, "iscrizione")
+            assertEquals("""<button type="submit" tabindex="-1" aria-hidden="true" class="sr-only">""", first)
+        }
+        // Step 2: «Modifica i dati» comes before «Accetta e iscrivi» in the page, and Enter on a box must not go back.
+        val step2 = parent.submit(setup.form, setup.form, kit.form(kit.child(0))).body()
+        assertTrue(step2.contains("""formaction="${setup.form}/indietro""""), "the page has the button that Enter must not reach")
+        assertEquals("""<button type="submit" tabindex="-1" aria-hidden="true" class="sr-only">""", firstSubmitButton(step2, "conferma"))
+    }
+
     @Test
     fun `t5 c05 the quota of a form is zero for a free gathering and a quota that is not offered is refused`() {
         val setup = kit.start(full = 0, daily = 0, lunch = 0)

@@ -176,6 +176,44 @@ class EnrollmentE2eTest {
     }
 
     @E2eTest(teacher = false)
+    fun `c01 c06 Enter in a field of the first step goes to step 2 and never adds or takes away a block, and Enter on a box of step 2 accepts and does not go back`(e2e: E2e) {
+        val page = e2e.page
+        val code = e2e.openGathering().code
+        e2e.open("/info/$code/iscrizione")
+        page.settled()
+        page.locator("#telefono").fill("333 123 4567")
+        page.fillChild(0, "Luca", "Rossi", "4", "4", "2016")
+        page.choose("children[0].presence", "all_days")
+
+        // One block: the first button of the page is «Aggiungi un figlio», and Enter must not click it.
+        page.locator("#telefono").press("Enter")
+        assertThat(page.locator("h1")).hasText("Controlla e accetta")
+        assertThat(page.locator("main")).containsText("Luca Rossi")
+        assertEquals(0, e2e.dsl().fetchCount(REGISTRATION))
+
+        // Two blocks: the first button is «Togli il bambino 1», and Enter in the second block must not take the first away with what is written in it.
+        e2e.press(page.locator("main").buttonNamed("Modifica i dati"))
+        assertThat(page.locator("main")).containsText("Passo 1 di 2 · I dati")
+        e2e.press(page.locator("main").buttonNamed("Aggiungi un figlio"))
+        assertThat(page.locator("#b1-nome")).isVisible()
+        page.fillChild(1, "Anna", "Rossi", "9", "1", "2019")
+        page.choose("children[1].presence", "all_days")
+        page.locator("#b1-nome").press("Enter")
+        assertThat(page.locator("h1")).hasText("Controlla e accetta")
+        assertThat(page.locator("main")).containsText("Luca Rossi")
+        assertThat(page.locator("main")).containsText("Anna Rossi")
+        assertEquals(0, e2e.dsl().fetchCount(REGISTRATION))
+
+        // Step 2: «Modifica i dati» comes first in the page, and Enter on a box must not go back; with the three boxes ticked it is the acceptance.
+        page.locator("#accetto").check()
+        page.locator("#altro-genitore").check()
+        page.locator("#convinzioni").check()
+        page.locator("#accetto").press("Enter")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertEquals(2, e2e.dsl().fetchCount(REGISTRATION))
+    }
+
+    @E2eTest(teacher = false)
     fun `c06 the first step comes back with what was written from «Modifica i dati» and from «Indietro»`(e2e: E2e) {
         val page = e2e.page
         val code = e2e.openGathering().code

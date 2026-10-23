@@ -22,6 +22,9 @@
   <p class="mt-4 max-w-prose">Scrivi i dati dei bambini che vuoi iscrivere. Al passo 2 ricontrolli tutto e accetti l’affidamento: finché non accetti, non salviamo niente.</p>
 
   <form id="iscrizione" method="post" action="${page.getFormAction()}" novalidate hx-disabled-elt="#iscrizione-avanti" class="mt-5 space-y-3">
+    <%-- The default button of the form: Enter in a field clicks the first submit button in the order of the page, and that would be one of the blocks («Aggiungi», «Togli»).
+         This one comes first and does what «Controlla e accetta» does. It is out of the tab order and of the accessibility tree, and not display:none, which some browsers skip. --%>
+    <button type="submit" tabindex="-1" aria-hidden="true" class="sr-only"></button>
     @template.components.csrf(csrf = csrf)
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="telefono-titolo">
       <h2 id="telefono-titolo" class="text-lg font-semibold">Il tuo telefono</h2>
