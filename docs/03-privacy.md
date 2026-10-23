@@ -16,8 +16,9 @@ veri con i ticket indicati.
   (vedi sotto), che trattano i dati per suo conto.
 - **Interessati**:
   - i **genitori** che iscrivono i figli: email, recapito telefonico, accettazione dell'affidamento
-    con data e ora;
-  - i **bambini**, che sono minori: nome e cognome, data di nascita (da confermare), giorni di
+    con data e ora (il testo esatto, e l'indirizzo email di quel momento); anche i genitori **senza account**, che hanno
+    compilato il modulo cartaceo, per il recapito che i maestri copiano dal modulo (il consenso alle segnalazioni resta sulla carta);
+  - i **bambini**, che sono minori: nome e cognome, data di nascita, giorni di
     presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, arrivi e quota pagata;
   - i **maestri**: email dell'account, nome e cognome.
 
@@ -34,8 +35,8 @@ veri con i ticket indicati.
 
 ## Base giuridica (impostazione di lavoro, da verificare)
 
-Non è una valutazione legale: è l'ipotesi con cui si scrivono informativa e consenso in TALITA-5, da
-far verificare.
+Non è una valutazione legale: è l'ipotesi con cui TALITA-5 ha scritto informativa e consenso, da far
+verificare prima del rilascio (sotto).
 
 - **Iscrizione e organizzazione della convivenza** (dati comuni di genitori, bambini e maestri): è
   il servizio chiesto dal genitore con l'iscrizione. Ipotesi: esecuzione della richiesta
@@ -44,9 +45,12 @@ far verificare.
   dall'iscrizione, facoltativo e revocabile. Senza consenso la segnalazione non si raccoglie.
 - **Convinzioni religiose che si possono dedurre**: in Koinè la base è l'art. 9.2.d, che vale per un
   ente religioso e per i suoi membri. Talità ha come titolare una persona fisica, quindi **a quanto
-  pare quella strada non c'è, da verificare**. L'ipotesi più semplice è chiedere al genitore il consenso esplicito anche per
-  questo, insieme all'iscrizione e non solo per le segnalazioni. Si decide con il testo
-  dell'informativa (TALITA-5).
+  pare quella strada non c'è, da verificare** (l'art. 9.2.d non si usa). TALITA-5 ha scelto l'ipotesi più semplice: una **terza casella** al
+  passo 2 dell'iscrizione, separata dall'affidamento, con il consenso esplicito del genitore, conservata insieme all'accettazione (e,
+  per il cartaceo, una frase sul modulo di carta, che l'app non registra). **Un consenso che condiziona l'iscrizione è proprio il punto da far
+  verificare**, con la DPIA: se non serve, la casella si toglie (il resto non cambia).
+- **Iscrizione, figli, recapito e accettazione dell'affidamento**: esecuzione della richiesta del genitore (art. 6.1.b); per le
+  segnalazioni il consenso esplicito (art. 9.2.a), che non condiziona l'iscrizione (art. 7.4).
 - **Account dei genitori** (l'indirizzo email con cui si entra, che nasce al primo accesso riuscito e
   non ha altro dentro): è il servizio chiesto dal genitore, che senza un accesso non può iscrivere i
   figli. Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b); da verificare. L'accesso non
@@ -111,7 +115,19 @@ Previste dal progetto, con il ticket in cui diventano vere:
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
   luogo di nascita; nessun documento caricato, nessuna firma.
 - **Segnalazioni** in una tabella separata, visibili solo ai maestri, con ogni lettura registrata
-  (TALITA-5 e TALITA-7).
+  (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
+  - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
+    un'altra classe usa le tabelle che jOOQ genera; il check-in e le cancellazioni passeranno di lì;
+  - **il contenuto si vede solo a richiesta**: l'elenco e il dettaglio dei maestri non dicono nemmeno se ci sono segnalazioni; «Mostra le
+    segnalazioni» scrive la lettura (maestro, iscrizione, data e ora) **prima** di rispondere, nella stessa transazione, e se non riesce a
+    scriverla non si vede niente. Ogni risposta con segnalazioni e ogni modifica fatta da un maestro è una riga del registro; le letture del
+    genitore titolare non si registrano. Il registro non ha il testo;
+  - **cancellate subito** al ritiro dell'iscrizione e quando il genitore le toglie (revoca del consenso), anche a convivenza finita;
+  - **nessuna mail con dati dei bambini** (la conferma dell'iscrizione è la pagina «Iscrizioni», che il genitore riapre quando vuole), e il
+    **log** a livello INFO e oltre non ha nomi, date di nascita, recapiti, segnalazioni né indirizzi (solo identificativi e conteggi);
+  - **l'isolamento fra genitori** lo fa l'applicazione, con un componente solo (`OwnRegistrations`): l'id di un'iscrizione di un altro è, per un
+    altro genitore e per un maestro che non è il titolare, la pagina di un id che non esiste; un test prova ogni indirizzo con il titolare,
+    con un altro genitore, con un maestro e senza accesso.
 - **La pagina informativa non mostra dati personali** (TALITA-4): niente nomi dei maestri, né email o telefoni, né numeri sulle
   iscrizioni; a un indirizzo con un codice che non si indovina, mai indicizzata (`noindex` nella pagina e nell'intestazione), mai
   conservata (`Cache-Control`), senza cookie, senza script e senza nulla caricato da altri indirizzi; chi la riceve da un'app di
@@ -128,30 +144,60 @@ Tempi di TALITA-7:
 
 - **segnalazioni**: cancellate in automatico **un mese dopo la fine** della convivenza, con ogni
   lettura registrata;
-- **manleva e registro**: tenuti **un anno**;
-- **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole.
+- **iscrizione e manleva** (il testo accettato, con data, ora e indirizzo) e **registro delle letture**: tenuti **un anno** (il registro, un anno dalla
+  fine: domanda approvata in TALITA-5);
+- **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole (TALITA-7); i bambini delle iscrizioni dal
+  cartaceo non servono l'anno dopo e vanno via con la loro iscrizione; il recapito segue l'iscrizione.
 
 Ancora da fissare (TALITA-7): per quanto tempo si tengono email e recapito dei genitori, gli account
 senza iscrizioni (nascono al primo accesso, anche di chi poi non iscrive nessuno), gli account dei
 maestri, gli inviti scaduti e i dati di chi non torna l'anno dopo. I link di accesso non servono qui: si
 cancellano quando si usano o entro un'ora dalla scadenza.
 
-## Informativa e consenso: contenuto minimo
+## Informativa e consenso
 
-I testi che vede il genitore arrivano con TALITA-5. Qui si scrive solo cosa devono contenere:
+**Informativa a strati** (TALITA-5): una breve dentro l'iscrizione, al passo 2 «Controlla e accetta», e quella completa a `/informativa`, pubblica
+(nel guscio pubblico, senza script né cookie, `noindex`), con un collegamento che si apre in una nuova scheda per non far perdere quello che il
+genitore ha scritto. Il titolare e il recapito vengono dalla configurazione (`talita.privacy.controller-name` e `talita.privacy.contact`, in
+`docs/04-ambiente.md`): nel repo ci sono i segnaposto «Titolare di esempio» e `nome@example.org`, e l'indirizzo vero arriva con TALITA-9.
+Il recapito del titolare non è più assegnato a TALITA-4.
+
+I testi devono contenere:
 
 - chi è il titolare e come contattarlo;
 - quali dati si raccolgono e a quale scopo, in parole di tutti i giorni;
-- la base su cui si trattano, e la distinzione fra l'iscrizione (necessaria) e le parti facoltative;
-- **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile, e il
-  consenso per le convinzioni religiose deducibili (ipotesi sopra);
+- la base su cui si trattano, e la distinzione fra l'iscrizione (necessaria) e le parti facoltative (art. 13.2.e: cosa succede se mancano);
+- **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile, e il consenso per le convinzioni religiose deducibili;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
 - per quanto tempo si conservano;
-- i diritti dell'interessato e come esercitarli;
-- che l'accettazione dell'affidamento comprende la dichiarazione che anche l'altro genitore è
-  d'accordo, e che data e ora si registrano.
+- i diritti dell'interessato e come esercitarli, e il reclamo al Garante;
+- che l'accettazione dell'affidamento comprende la dichiarazione che anche l'altro genitore è d'accordo (o che la responsabilità genitoriale è
+  di uno solo), che data e ora si registrano, e che la dichiarazione **non sostituisce** il loro accordo.
 
-Un'informativa **breve** sta dentro l'iscrizione; quella completa si apre da lì.
+**Consenso alle segnalazioni**: una casella separata dall'affidamento, accanto ai campi, **non spuntata**, con il testo che dice che sono facoltative
+e cosa succede se mancano; senza il consenso niente si salva; si salva con data e ora e account di chi lo dà (o «consenso sul modulo cartaceo»).
+È revocabile dalla pagina «Iscrizioni» con un tocco e un dialogo, e la revoca cancella subito segnalazioni e consenso. L'iscrizione non dipende
+dal consenso (art. 7.4).
+
+**Manleva**: l'accettazione online è una **firma elettronica semplice**, valutata liberamente dal giudice (da verificare). Si conservano il testo
+esatto che il genitore ha letto, la data e l'ora, l'account e l'indirizzo email di quel momento; l'indirizzo prova il controllo della casella,
+non l'identità. Il testo del modello (`affidamento-1`) è generico (non nomina luoghi né parrocchie: viene dal modulo cartaceo di oggi, che non sta
+nel repo), non esclude la responsabilità per dolo o colpa grave (art. 1229 c.c.) ed è fissato da un test, così non cambia senza una versione nuova.
+L'iscrizione dal cartaceo non ha testo da accettare: il modulo firmato resta di carta, e l'app segna solo se è arrivato (e chi l'ha inserita).
+Il modulo di carta di oggi chiede ancora il luogo di nascita e non ha una casella di consenso per le segnalazioni: Matteo valuta se allinearlo
+all'app, così l'inserimento dal cartaceo raccoglie gli stessi dati.
+
+## Prima del rilascio
+
+Da fare con una persona competente, e da chiudere prima di dare il link ai genitori (la build con `-Prelease` non passa finché un testo porta
+ancora un segnaposto):
+
+- **leggere i testi**: l'affidamento (`affidamento-1`), l'informativa breve, l'informativa completa e il consenso, anche per la casella sulle
+  convinzioni deducibili; l'informativa completa porta oggi la cornice «testo di prova» e un termine ancora aperto (quanto si tiene
+  l'indirizzo email dell'account, con TALITA-7);
+- **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`;
+- **il registro dei trattamenti**, dovuto perché ci sono dati sanitari;
+- l'indirizzo vero del titolare (TALITA-9).
 
 ## Diritti degli interessati
 
@@ -160,15 +206,14 @@ reclamo all'autorità di controllo.
 
 Il genitore li esercita **dal suo account**, per i dati suoi e dei suoi figli:
 
-- corregge l'iscrizione finché le iscrizioni sono aperte; dopo, lo chiede a un maestro;
+- corregge l'iscrizione finché le iscrizioni sono aperte (e cambia le segnalazioni fino all'ultimo giorno); dopo, lo chiede a un maestro;
 - cancella i dati dei figli quando vuole (TALITA-7);
 - revoca il consenso alle segnalazioni, che vengono tolte.
 
 Per quello che l'app non permette di fare da sé, scrive al titolare, che risponde entro un mese. Il
-recapito di contatto del titolare **non sta sulla pagina informativa** (che non mostra dati personali,
-nemmeno quelli di chi organizza): sta nell'informativa dell'iscrizione, che scrive TALITA-5. L'indirizzo lo
-sceglie Matteo con TALITA-9: uno sul dominio di Talità richiede un servizio che riceva posta, oggi non
-elencato fra i fornitori.
+recapito di contatto del titolare **non sta sulla pagina informativa dei genitori** (`/info/{codice}`, che non mostra dati personali,
+nemmeno quelli di chi organizza): sta nell'informativa dell'iscrizione e in quella completa (`/informativa`), da `talita.privacy.contact`.
+L'indirizzo lo sceglie Matteo con TALITA-9: uno sul dominio di Talità richiede un servizio che riceva posta, oggi non elencato fra i fornitori.
 
 ## DPIA: da valutare
 

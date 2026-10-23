@@ -198,4 +198,33 @@ class RegistrationRulesTests {
         assertNotNull(CustodyText.model)
         assertFalse(CustodyText.model.contains("[Segnaposto") || CustodyText.model.contains("[TESTO DI PROVA"), "the model has a placeholder that nobody filled")
     }
+
+    // ---- The documents (criterion 37) --------------------------------------------------------------------------------------------
+
+    private fun doc(path: String): String = java.nio.file.Files.readString(java.nio.file.Path.of(path)).replace(Regex("""\s+"""), " ")
+
+    @Test
+    fun `t5 c37 the documents have what the ticket decided`() {
+        val data = doc("docs/02-modello-dati.md")
+        for (part in listOf(
+            "indirizzo email di chi accetta", "maestro che l'ha inserita dal cartaceo", "data e ora del consenso", "health_note_access", "`V5__registration.sql`",
+            "**confermata** (era «proposta»)", "**La quota dovuta non si salva**", "nome del genitore che accetta",
+        )) {
+            assertTrue(data.contains(part), "docs/02 does not say: $part")
+        }
+        assertFalse(data.contains("Nome del genitore che accetta l'affidamento (TALITA-5)"), "the question of the parent's name is closed")
+        val privacy = doc("docs/03-privacy.md")
+        for (part in listOf("Informativa a strati", "Consenso alle segnalazioni", "firma elettronica semplice", "## Prima del rilascio", "la DPIA", "registro dei trattamenti", "una sola classe del codice")) {
+            assertTrue(privacy.contains(part), "docs/03 does not say: $part")
+        }
+        val environment = doc("docs/04-ambiente.md")
+        assertTrue(environment.contains("TALITA_PRIVACY_CONTROLLER_NAME") && environment.contains("TALITA_PRIVACY_CONTACT") && environment.contains("-Prelease"))
+        val decisions = doc("docs/05-decisioni.md")
+        assertTrue(decisions.contains("## 2026-10-23: scelte di TALITA-5") && decisions.contains("## 2026-10-23: il repo resta pubblico (TALITA-5)"))
+        assertTrue(decisions.indexOf("il repo resta pubblico (TALITA-5)") < decisions.indexOf("scelte di TALITA-5"), "the entry about the public repo comes before the one of the ticket")
+        val guide = doc("docs/design/README.md")
+        for (part in listOf("### 4.15 Passi", "### 4.16 Quota che si aggiorna", "### 4.17 Sezione che si apre", "### 4.18 Testo lungo e cornice del testo di prova", "### 4.19 Azioni di una scheda", "Scelta a segmenti")) {
+            assertTrue(guide.contains(part), "the guide does not say: $part")
+        }
+    }
 }

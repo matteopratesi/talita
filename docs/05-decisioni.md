@@ -548,3 +548,107 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
 ## 2026-10-23: il repo resta pubblico (TALITA-5)
 
 Talità resta un repo pubblico, con licenza AGPL-3.0, come deciso in TALITA-2. Matteo l'ha confermato dopo essersi chiesto se lo scheletro in comune con Koinè fosse un rischio: con Koinè Talità condivide solo lo scheletro tecnico (lo stack, il guscio e il design system), mentre le funzioni sono diverse. Le regole di un repo pubblico (dati sintetici, niente nomi veri né indirizzi, controlli di build sui file) restano quelle di `CLAUDE.md`.
+
+## 2026-10-23: scelte di TALITA-5
+
+Iscrizione dei figli, che è anche la manleva. Analisi e design approvati da Matteo il 22/10/2026 con le raccomandazioni delle domande aperte.
+**Il ticket non si spezza**: un branch e una PR, con cinque passi fatti come commit in quest'ordine: schema e regole, iscrizione dal genitore,
+iscrizioni del genitore, maestri, regole di TALITA-4 e chiusura.
+
+**Valori approvati**
+
+- **Testo dell'affidamento**: viene dal modulo cartaceo di oggi (dato da Matteo come modello vuoto) ma è **generico, senza luoghi né parrocchie**: il
+  modulo non va nel repo. Versione `affidamento-1`; l'ultimo paragrafo è la dichiarazione sull'altro genitore («oppure di esercitare da solo/a la
+  responsabilità genitoriale»), che prima del rilascio conferma una persona competente insieme al resto (`docs/03-privacy.md`). Il modulo di carta
+  chiede ancora il luogo di nascita e non ha una casella di consenso per le segnalazioni: Matteo valuta se allinearlo all'app.
+- **Registro delle letture** tenuto un anno; **niente mail di conferma** (la conferma è la pagina «Iscrizioni», e a Mailjet non arrivano nomi di
+  bambini); **un solo recapito**; **due genitori con account diversi**: ognuno vede solo quello che ha iscritto lui, i maestri vedono il possibile doppione e
+  ne ritirano una; **data di nascita confermata**; la **cartacea reclamata** non si collega all'account; la home non mostra la convivenza a chi non ha
+  iscrizioni; **niente nome del genitore** (chi accetta è l'account, con l'indirizzo); la **casella sulle convinzioni deducibili** resta, da verificare con la DPIA.
+- **Segnalazioni mai su un foglio stampato**, e la parrocchia del bambino non si raccoglie.
+- **Un solo ticket e una PR** (il limite di CodeRabbit sono 100 file: i mockup di `docs/design/TALITA-5/` non contano, sono esclusi da `.coderabbit.yaml`).
+
+**A. Iscrizione dal genitore**
+
+- **Pacchetto `talita.registration`**, template in `src/main/jte/registration/`, modello del testo in `src/main/resources/registration/`. La migrazione
+  `V5__registration.sql` ha figli, iscrizioni, giorni, segnalazioni e registro, con i vincoli provati sul database (accettazione tutta o niente, il cartaceo
+  senza accettazione e con il maestro che l'ha inserito, i giorni solo per un'iscrizione «alcuni giorni» con una chiave composta, una sola iscrizione per
+  bambino e convivenza). Nessuna cascata verso `child` e `account`: le cancellazioni sono di TALITA-7.
+- **Due passi senza bozza sul server**: il passo 2 è la risposta al POST del passo 1 (200, non un redirect, `HX-Push-Url: false`), i dati viaggiano nei
+  campi nascosti, e «Accetta e iscrivi» rifà tutto sul server (controlli, quota, testo, impronta): mai ci si fida dei campi nascosti. Salvare una bozza
+  avrebbe tenuto nomi di bambini e segnalazioni fuori dalle loro tabelle. Il tasto indietro del telefono esce dall'iscrizione, e la pagina lo dice.
+- **Impronta del testo mostrato** (SHA-256, nel campo `textHash`): se cambiano affidatari, titolo, date, luogo o il bambino, la conferma risponde 409 con il testo
+  nuovo, le caselle da spuntare di nuovo e l'avviso. Si conserva il testo risultante, intero, non il modello; un test fissa l'impronta di ogni versione.
+- **Chiusura e conferma insieme**: la conferma legge la convivenza con `select … for share` e la chiusura la prende `for update`, quindi o l'iscrizione esiste
+  prima della chiusura o non esiste (due transazioni vere in un test, nei due versi). Le iscrizioni di un account si fanno una alla volta (`for update` sulla
+  riga dell'account): il doppio tocco, anche nello stesso istante, fa un'iscrizione per figlio e la seconda risposta è la stessa conferma.
+- **La quota dovuta non si salva** e la calcola una funzione sola (`Quota`, regola R5): tutti i giorni è la quota intera, alcuni giorni la giornaliera o la
+  quota del pranzo per giorno, e i tre giorni «giornata» scelti uno per uno valgono tutti i giorni. Una quota non prevista non compare fra le scelte e il server la
+  rifiuta. Con JavaScript si aggiorna con htmx (`hx-swap="none"` e pezzi fuori banda, solo i campi della presenza, mai le segnalazioni); senza JavaScript si
+  vede al passo 2.
+- **Telefono** con `type="tel"` e senza `inputmode="numeric"` (la tastiera numerica di iOS non ha il «+»). Si salva con uno spazio per ogni separatore (solo le cifre e un «+»
+  iniziale se non stanno in 20 caratteri).
+- **Segnalazioni in un blocco che si apre** (`<details>`) dentro il blocco di ogni bambino, con il consenso lì accanto, e in una pagina a parte per cambiarle; presenza a
+  segmenti, senza `select`; niente scelta preselezionata tranne «Confermata».
+- **Informativa a strati**: breve al passo 2, completa a `/informativa` (nell'elenco unico delle pagine pubbliche, senza script né cookie, `noindex`).
+  Titolare e recapito da `talita.privacy.controller-name` e `.contact` (`docs/04-ambiente.md`). I testi sono quelli del design.
+- **Test del rilascio** (`./gradlew build -Prelease`): fallisce finché un testo porta un segnaposto (`Informativa.markers`: la cornice «testo di prova», il termine
+  ancora aperto di TALITA-7). Senza `-Prelease` il test dice che aspetta; i testi veri li legge prima una persona competente.
+
+**B. Le iscrizioni del genitore**
+
+- **Il genitore non ha una pagina di dettaglio**: la scheda nell'elenco è il dettaglio, e ogni azione ha la sua pagina o il suo dialogo; ogni azione finisce con un 303
+  verso `/iscrizioni` e un avviso. «Ritirare» (si può rimediare: bottone primario) e «togliere le segnalazioni» (cancella: bottone di pericolo) sono due verbi e due dialoghi.
+- **Il filtro «solo le sue»** è un componente solo, `OwnRegistrations`, per ogni indirizzo con un id (lettura, modifica, ritiro, segnalazioni; GET e POST): per un altro
+  genitore e per un maestro che non è il titolare l'id è «inesistente» (404) e non cambia niente. Un test prova ogni indirizzo con il titolare, un altro genitore, un maestro e
+  senza accesso, e un altro controlla che ogni indirizzo passi dal filtro. L'unica eccezione è il ritiro (`/iscrizioni/{id}/ritira`), che un maestro fa su qualunque iscrizione.
+- **`/iscrizioni` è dei due ruoli**: per un maestro è l'elenco (C), per un genitore le sue schede. Gli indirizzi dei soli maestri sono nell'elenco unico di
+  `TeacherPaths` (con una regola sul numero dell'id, `{id:[0-9]+}`), con il suo test; quelli del genitore con un id no, perché li usa il genitore.
+- **Regole R1 in un posto solo** (`Rules`): bozza nessuna iscrizione; aperte e fine non passata, il genitore iscrive, modifica e ritira; chiuse, vede e cambia solo le
+  segnalazioni (fino all'ultimo giorno); finita, vede e può solo togliere le segnalazioni; i maestri inseriscono e correggono in ogni stato tranne la bozza. «Finita» è
+  il giorno di Roma, dal `Clock`. Una modifica chiesta a mano quando non si può risponde 409 con la stessa pagina e un avviso, e non cambia niente.
+- **Il ritiro non toglie la scheda**: resta «Ritirata», con la quota non dovuta e i giorni che non contano più (R3); le segnalazioni si cancellano subito. «Rimetti l'iscrizione»
+  la riporta «Confermata» o «In forse» con l'accettazione di allora; le segnalazioni si riscrivono.
+- **Il recapito è uno per convivenza**: cambiarlo dalla modifica lo cambia per tutte le iscrizioni di quel genitore a quella convivenza.
+
+**C. Maestri**
+
+- **L'elenco è fatto per scorrere**: una riga per bambino con stato, manleva, doppione e quota, per cognome e nome, i conteggi in cima, e niente sulla salute, nemmeno «ha
+  segnalazioni». **Nel dettaglio le segnalazioni vengono prima della manleva** (scostamento dall'analisi: in un'emergenza si cerca il telefono e le segnalazioni).
+- **«Mostra le segnalazioni» è un POST** che scrive la lettura e poi risponde, nella stessa transazione: se non riesce a scriverla non si vede niente (500, mai il contenuto;
+  un test lo prova con un vincolo che fa fallire la scrittura). Con htmx la risposta è la scheda e, fuori banda, la scheda delle letture; senza JavaScript la pagina
+  intera. Il telefono è un link `tel:`. Un maestro che non è più tra i maestri compare come «un maestro che non è più tra i maestri».
+- **Una classe sola** (`HealthNotes`) usa le tabelle delle segnalazioni e del registro, e un test fallisce se un'altra le usa (TALITA-6 passerà di lì).
+- **Inserire e correggere sono due moduli**: il cartaceo ha «Manleva cartacea ricevuta» e il consenso «sul modulo cartaceo»; la correzione non tocca mai l'accettazione
+  online né le segnalazioni delle iscrizioni online. Le segnalazioni di una cartacea si correggono da una pagina a parte che le mostra (e quindi scrive una lettura;
+  salvare ne scrive un'altra). Per «Aggiungere» a una cartacea senza segnalazioni la pagina è vuota e non legge niente.
+- **Possibile doppione**: stesso nome, cognome (`unaccent`, minuscole, senza spazi ai bordi) e data di nascita fra due iscrizioni non ritirate; è un aiuto, non un blocco, e i
+  gemelli con nomi diversi no.
+- **Un maestro che è anche genitore** iscrive i suoi figli dal modulo del genitore (account suo, accettazione online); li ritrova nell'elenco dei maestri, e le letture delle loro
+  segnalazioni si registrano dalle pagine dei maestri, non da quella del genitore.
+
+**D. Regole di TALITA-4 con le iscrizioni**
+
+- **R2, quote**: il modulo delle quote dice quante iscrizioni non ritirate ricalcola; una quota usata (giornaliera, solo pranzo) non si svuota, e l'errore dice quante la usano e
+  di scrivere 0. **R3, giorni**: aggiungere giorni si può (chi viene «tutti i giorni» viene anche quello); togliere un giorno scelto da un'iscrizione non ritirata, o compreso in
+  «tutti i giorni», si rifiuta con una frase per giorno sotto il campo che lo perde. **R4, affidatari**: il testo accettato resta quello conservato, e il modulo lo dice. Il conteggio
+  sta in `talita.registration` e lo chiede `talita.gathering` attraverso un'interfaccia (`RegistrationUsage`), senza dipendenze circolari; i conteggi si fanno nella transazione che
+  cambia, sotto il lock della convivenza.
+- **Scheda «Iscrizioni» nel dettaglio della convivenza**: solo conteggi, mai nomi, con il collegamento all'elenco (anche delle convivenze più vecchie); in bozza una frase che dice
+  che non ce ne sono, nemmeno da carta.
+
+**Scelte dove il design non diceva niente**
+
+- **Le due regole d'accordo del testo** (`{b:suo|loro}` per i bambini, `{a:lo/la|li}` per gli affidatari) sono mie, per il modello di Matteo: «li/lo/la autorizzo» è riferito ai
+  maestri, «loro/suo bene» ai bambini; il sesso non si chiede, quindi al singolare «lo/la» e «nato/a». I bambini sono elencati con `;` e «e» davanti all'ultimo. Per una convivenza
+  di un giorno il testo dice «dal 18 settembre 2027 al 18 settembre 2027» (il modello non cambia).
+- **La dichiarazione sull'altro genitore è l'ultimo paragrafo del modello**: nella pagina è la seconda casella (con le parole di Matteo) e nel testo conservato è l'ultima riga.
+- **`childId` nascosto** nei blocchi che vengono da «I tuoi figli», così correggere un nome o una data non fa un altro bambino.
+- **Presenza `lunch`** per una convivenza di un giorno («Solo pranzo»): è un'iscrizione «alcuni giorni» con quel giorno a pranzo. Con la sola quota intera non c'è niente da scegliere e il
+  valore va in un campo nascosto.
+- **I bottoni dei blocchi mandano il loro `name="azione"` e il valore** (htmx lo include da solo): niente `hx-vals`. Gli importi di queste pagine hanno lo spazio non separabile
+  prima di «€» (il formattatore di TALITA-4 usa uno spazio normale, e le sue pagine non cambiano).
+- **Stato non valido** (a mano): l'errore sotto lo stato è «Scegli «Confermata» o «In forse».» (il design non aveva il testo).
+- **Test**: `RegistrationTestKit` e `RegistrationRows` preparano maestri, convivenza e iscrizioni (anche direttamente in tabella, per i test che non riguardano il farle); la prima
+  convivenza parte da un venerdì a un mese di distanza con i tre giorni nello stesso mese, così le frasi sui giorni non dipendono da quando gira il test. Il database è condiviso:
+  `GatheringSupport.reset()` cancella prima le iscrizioni.

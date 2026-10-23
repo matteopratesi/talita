@@ -755,11 +755,11 @@ questo, e nell'elenco solo le iscrizioni:
 | Elemento | Maestro | Genitore |
 |---|---|---|
 | Introduzione | Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla. | Qui iscrivi i tuoi figli alla convivenza e controlli le loro iscrizioni. |
-| Avviso informativo | **Talità è in costruzione.** Le sezioni arriveranno una alla volta. | **Talità è in costruzione.** Le iscrizioni arriveranno presto. |
-| Titolo della sezione (h2) | Sezioni | Cosa trovi qui |
+| Avviso informativo | **Talità è in costruzione.** Le sezioni arriveranno una alla volta. | Senza iscrizioni: **Non hai ancora iscritto nessun bambino. Per farlo, apri il link che ti hanno mandato i maestri.** Con iscrizioni: la sezione «Le tue iscrizioni» (sotto) |
+| Titolo della sezione (h2) | Sezioni | Le tue iscrizioni (se ci sono) · Cosa trovi qui |
 | Righe della lista | Convivenza, Iscrizioni, Arrivi | Iscrizioni · Le iscrizioni dei tuoi figli. |
 
-L'avviso «in costruzione» è provvisorio e sparisce quando le sezioni esistono.
+L'avviso «in costruzione» del maestro è provvisorio e sparisce quando le sezioni esistono; quello del genitore è sparito con TALITA-5. «Le tue iscrizioni» ha una riga di lista per convivenza in cui il genitore ha iscritto qualcuno (`listLink`, icona `calendar-days`, titolo, **`2 bambini · 95 €`** o **`Nessuna iscrizione attiva`**, le etichette dello stato e la freccia verso `/iscrizioni`). Chi non ha iscrizioni non vede nessuna convivenza: il codice dei maestri è la chiave.
 
 **Avviso dell'invito**, sulla home di chi ha un invito valido e non l'ha accettato, **sopra** l'avviso «in
 costruzione», finché l'invito non viene accettato, ritirato o scade. Avviso informativo (`role="status"`) con
@@ -768,9 +768,7 @@ un bottone di testo sotto, dentro lo stesso riquadro: «Ti hanno invitato come m
 l’invito» (link a `/invito`). Se l'invito non vale più mentre la pagina era aperta, la persona arriva alla home
 con un avviso di attenzione: «L’invito non vale più. Se serve, chiedi a un maestro di mandartene un altro.»
 
-**Iscrizioni «in preparazione»**: come sempre (pagina con `hourglass` e titolo «In preparazione»); cambia solo
-il testo. Genitore: «Qui troverai le iscrizioni dei tuoi figli.» Maestro: «Qui troverai i bambini iscritti e
-potrai inserire le iscrizioni arrivate sul modulo cartaceo.»
+**Iscrizioni** (`/iscrizioni`, TALITA-5): per il genitore le schede dei suoi figli, per il maestro l'elenco della convivenza (nessuna pagina «in preparazione» resta, a parte «Arrivi»). Senza iscrizioni il genitore vede lo stato vuoto «Nessuna iscrizione» (4.9).
 
 **Accetta l’invito** (`/invito`, scheda del browser `Accetta l’invito · Talità`): guscio con la navigazione del
 genitore e nessuna voce corrente, colonna `max-w-md`. Titolo e introduzione («Ti hanno invitato a organizzare la
@@ -902,7 +900,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
   segnati in rosso." e il fuoco va al primo campo sbagliato.
 - `type`, `inputmode` e `autocomplete` giusti per ogni campo: la tastiera del telefono cambia di
   conseguenza (`type="email"`, `type="tel"`, `inputmode="numeric"`).
-- **Data di nascita** (tre campi, regola di Koinè approvata da Matteo il 19/10/2026; in Talità la data di nascita del bambino è un dato da confermare in TALITA-5, e lì si decide anche il campo): Giorno,
+- **Data di nascita** (tre campi, regola di Koinè approvata da Matteo il 19/10/2026; in Talità la data di nascita del bambino è un dato confermato in TALITA-5, con il suo scopo in `docs/02-modello-dati.md`): Giorno,
   Mese e Anno dentro un `fieldset` con `legend`, tutti con
   `inputmode="numeric"` e larghi `w-18`, `w-18`, `w-26`; per una data di nascita è molto più facile
   scrivere 4 4 2016 che scorrere un calendario di dieci anni. Le date degli eventi (convivenze)
@@ -927,6 +925,47 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 
 - **Area di testo** (`components/textAreaField.jte`): le stesse classi del campo, con `min-h-48` (9 righe) per un testo lungo e `min-h-36` (6 righe) per un elenco, `resize-y`, `py-3`. Gli a capo che la persona scrive si conservano.
 - **Scelta multipla** (più caselle, dove le radio non servono: «Maestri affidatari»): un `fieldset` con `legend`, e le caselle in una lista con bordo, `min-h-14` per riga, `size-6 accent-brand`, il nome che va a capo (`wrap-anywhere`) e, se serve, un'etichetta («Sei tu»). L'errore sta sotto l'elenco, `aria-describedby` sul `fieldset` e `aria-invalid="true"` sulla **prima casella**, così `app.js` le dà il fuoco.
+
+- **Radio e caselle con testo di aiuto** (TALITA-5, «Quando viene?», «Stato dell'iscrizione»): la riga intera è il bersaglio (`min-h-12`), il controllo è `size-6 accent-brand` e il testo di aiuto sta dentro l'etichetta, sotto il nome. Le scelte di una pagina non sono mai spuntate prima che la persona scelga, a parte quelle che il testo dice («Confermata»).
+
+```html
+<label class="flex min-h-12 items-start gap-3 py-2">
+  <input type="radio" name="…" value="all_days" class="mt-0.5 size-6 shrink-0 accent-brand">
+  <span class="min-w-0"><span class="block font-semibold">Tutti i giorni</span><span class="block text-sm text-ink-muted">Venerdì 17, sabato 18 e domenica 19 settembre 2027 · 60 €</span></span>
+</label>
+```
+
+- **Scelta a segmenti** (2 o 3 tocchi affiancati, `grid-cols-2` con due; per ogni giorno «Non viene · Giornata · Solo pranzo»): una radio trasparente sopra a un riquadro. Le `select` sono scartate: le opzioni si vedrebbero solo dopo un tocco.
+
+```html
+<fieldset class="min-w-0"><legend class="mb-1.5 font-semibold">Venerdì 17</legend>
+  <div class="grid grid-cols-3 gap-2">
+    <label class="relative block">
+      <input type="radio" name="…day.fri" value="full" class="peer absolute inset-0 size-full cursor-pointer opacity-0">
+      <span class="flex min-h-12 items-center justify-center rounded-xl border border-line-strong bg-surface px-1.5 py-1 text-center text-sm font-medium transition-colors duration-150 peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:font-semibold peer-checked:text-brand peer-checked:ring-1 peer-checked:ring-brand peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus">Giornata</span>
+    </label>
+  </div>
+</fieldset>
+```
+
+- **Giorni visibili con «Alcuni giorni»**, anche senza JavaScript: si nascondono solo con CSS (`:has()`), e dove manca (iOS prima della 15.4) restano sempre visibili.
+
+```html
+<fieldset class="group min-w-0">
+  …radio «Tutti i giorni» e «Alcuni giorni» (value="days")…
+  <div class="mt-1 ml-9 hidden rounded-2xl border border-line bg-canvas p-4 group-has-[input[value=days]:checked]:block not-supports-[selector(:has(*))]:block">…segmenti…</div>
+</fieldset>
+```
+
+- **Casella con testo lungo e errore** (`registration/checkRow.jte`): l'errore sta sotto il testo, rientrato come lui (`ml-9`), non sotto la casella.
+
+```html
+<div><label class="flex min-h-12 items-start gap-3 py-2"><input type="checkbox" name="acceptCustody" value="true" aria-invalid="true" aria-describedby="accetto-errore" class="mt-0.5 size-6 shrink-0 accent-brand"><span class="min-w-0 font-semibold wrap-anywhere">Ho letto il testo dell’affidamento e lo accetto.</span></label>
+<p id="accetto-errore" class="ml-9 flex items-start gap-1.5 text-sm font-medium text-danger"><svg class="mt-0.5 size-4 shrink-0" aria-hidden="true">…circle-alert…</svg>…</p></div>
+```
+
+- **Telefono**: `type="tel"` con `autocomplete="tel"` e `autocorrect="off"`, **senza** `inputmode="numeric"`: la tastiera numerica di iOS non ha il «+».
+- **Appunti di sanità** (`registration/noteField.jte`): area di testo da due righe (`min-h-22`), che cresce, con l'esempio nell'aiuto sotto l'etichetta.
 
 ### 4.3 Liste
 
@@ -1008,6 +1047,12 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 </dl>
 ```
 
+- **Riga con un valore lungo** («Quando», «Giornata: sabato 18. Solo pranzo: domenica 19.»): il valore va a capo sotto l'etichetta e sta a sinistra.
+
+```html
+<div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Quando</dt><dd class="basis-full text-left font-semibold">Giornata: sabato 18. Solo pranzo: domenica 19.</dd></div>
+```
+
 - **Il titolo della scheda e il suo «Modifica»** stanno sulla stessa riga (`flex items-center justify-between gap-3`), con il bottone di testo e l'icona `pencil`; il bottone ha un `aria-label` che dice cosa si modifica («Modifica le quote»), perché sulla pagina ce ne sono quattro.
 
 ### 4.5 Etichette di stato
@@ -1027,6 +1072,8 @@ Una parola o due, con l'iniziale maiuscola. L'etichetta ripete in parole quello 
 dice: il colore da solo non basta.
 
 Della convivenza (`components/badge.jte`, una parola di variante: `neutral`, `info`, `positive`, `warning`, `danger`): **Bozza** neutra, **Iscrizioni aperte** informativa, **Iscrizioni chiuse** neutra, e **Finita** neutra che si aggiunge accanto alla prima quando l'ultimo giorno è passato («finita» non è uno stato: è una data). **Sei tu** neutra accanto al proprio nome, **Da completare** di attenzione accanto a un dato che serve per aprire le iscrizioni.
+
+Delle iscrizioni (TALITA-5): **Confermata** positiva, **In forse** di attenzione, **Ritirata** neutra; **Accettata online** e **Cartacea ricevuta** positive, **Da ricevere** e **Possibile doppione** di attenzione; **Sei tu** neutra (anche nelle letture delle segnalazioni).
 
 ### 4.6 Avvisi nella pagina
 
@@ -1293,7 +1340,58 @@ Le schede sono quelle di 4.4 (`section` con `aria-labelledby`, `break-inside-avo
 
 **«Pagina non trovata» per `/info`**: la stessa risposta (404, stesso HTML, stesse intestazioni) per una bozza e per un codice che non esiste, anche per una sola maiuscola diversa, con o senza accesso, maestri compresi: non si deve capire se la bozza esiste. Titolo «Pagina non trovata», testo «L’indirizzo potrebbe essere sbagliato o incompleto. Se te l’ha mandato un maestro, chiedigli di mandartelo di nuovo.» (una variante della 404 di 4.11 solo per `/info`: chi riceve il link tagliato da una chat sa cosa fare), bottone «Vai all’accesso» senza accesso (guscio pubblico), «Vai alla home» con l'accesso (guscio dell'app, nessuna voce corrente).
 
-**«Iscrizione»** (`/info/{codice}/iscrizione`, per ogni account; chi non ha l'accesso va a `/accedi` e, con il link nello stesso browser, torna qui): con le iscrizioni aperte e la fine non passata, finché TALITA-5 non c'è, la pagina «In preparazione» (stato vuoto di 4.9, `hourglass`, sotto l'`h1` il titolo della convivenza, bottone «Torna alle informazioni»), con corrente «Iscrizioni»; con le iscrizioni chiuse o la convivenza finita, 303 verso `/info/{codice}`; con una bozza o un codice sconosciuto, la 404 di sopra.
+**«Iscrizione»** (`/info/{codice}/iscrizione`, per ogni account; chi non ha l'accesso va a `/accedi` e, con il link nello stesso browser, torna qui): con le iscrizioni aperte e la fine non passata, il passo 1 dell'iscrizione (TALITA-5, 4.15); con le iscrizioni chiuse o la convivenza finita, 303 verso `/info/{codice}`; con una bozza o un codice sconosciuto, la 404 di sopra.
+
+### 4.15 Passi
+
+Un'iscrizione è in due passi: due barre (`aria-hidden`, la prima piena al passo 1, tutte e due al passo 2) e una frase che dice dove si è. Sta sotto il titolo e il suo sottotitolo (`registration/steps.jte`).
+
+```html
+<div class="mt-4"><div class="flex gap-1.5" aria-hidden="true"><span class="h-1.5 flex-1 rounded-full bg-brand"></span><span class="h-1.5 flex-1 rounded-full bg-line"></span></div>
+<p class="mt-2 text-sm font-semibold text-ink-muted">Passo 1 di 2 · I dati</p></div>
+```
+
+### 4.16 Quota che si aggiorna
+
+La quota dovuta si calcola solo sul server (`Quota`, una funzione per tutti i moduli) e si vede dentro il blocco del bambino, sotto la presenza. È una regione che si annuncia (`aria-live="polite"`) e si **riempie**, non si sostituisce: così uno screen reader legge il cambiamento. Vuota finché non c'è una scelta valida (`empty:hidden`); si attenua mentre la risposta arriva (`busy:opacity-60`, la richiesta parte dal gruppo di radio che la contiene). Con due o più bambini c'è la scheda «Quota» con una riga per bambino e il totale.
+
+```html
+<p id="quota-0" aria-live="polite" class="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 rounded-xl bg-brand-soft px-4 py-3 busy:opacity-60 empty:hidden"><span>Quota</span><strong class="font-bold">35 €</strong></p>
+```
+
+### 4.17 Sezione che si apre
+
+Una parte facoltativa di un form sta in un `<details>`, chiuso se è vuoto e aperto se ha testo o errori (le segnalazioni di un bambino): il modulo resta corto per chi non ha niente da scrivere, e la scritta dice cosa c'è dentro (**Facoltativo**, o **Facoltativo · scritte**).
+
+```html
+<details class="group rounded-2xl border border-line-strong bg-surface">
+  <summary class="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
+    <svg class="size-6 shrink-0 text-brand" aria-hidden="true">…heart-pulse…</svg>
+    <span class="min-w-0 flex-1"><span class="block font-semibold">Allergie, intolleranze, farmaci</span><span class="block text-sm text-ink-muted">Facoltativo</span></span>
+    <svg class="size-5 shrink-0 text-ink-muted transition-transform duration-150 group-open:rotate-180" aria-hidden="true">…chevron-down…</svg>
+  </summary>
+  <div class="space-y-5 border-t border-line px-4 pt-4 pb-4">…</div>
+</details>
+```
+
+### 4.18 Testo lungo e cornice del testo di prova
+
+Un testo che si deve leggere tutto (l'affidamento, il testo accettato) sta intero nella pagina, **mai in una finestra che scorre**: `max-w-prose whitespace-pre-line wrap-anywhere` a 17 px. Un testo che non è ancora quello vero (l'informativa completa, finché non l'ha letta una persona competente) ha in cima la sua cornice, e un test (`-Prelease`) non lascia uscire un rilascio che la porta ancora.
+
+```html
+<p class="mb-4 rounded-lg bg-warning-soft px-3 py-2 text-sm font-semibold wrap-anywhere">[TESTO DI PROVA · …]</p>
+<p class="mt-3 max-w-prose whitespace-pre-line wrap-anywhere">Affidamento di figli minorenni …</p>
+```
+
+### 4.19 Azioni di una scheda
+
+Le azioni di una scheda sono bottoni di testo (4.1) in fila, che vanno a capo, con l'icona e un `aria-label` che dice di chi sono («Modifica l’iscrizione di Luca Rossi»). Sul telefono ogni bottone è alto 44 px.
+
+```html
+<div class="-mb-2 -ml-3 mt-3 flex flex-wrap gap-1">…bottoni di testo…</div>
+```
+
+L'azione che toglie qualcosa per sempre («Togli le segnalazioni») ha il suo dialogo (4.8) e nel dialogo il bottone di **pericolo**; il ritiro di un'iscrizione si può rimediare, quindi nel suo dialogo il bottone è primario. Il ritiro e la revoca sono due verbi diversi: il secondo cancella.
 
 ## 5. htmx: cosa vede chi usa Talità
 
@@ -1361,6 +1459,12 @@ pagine 404 e 500 arrivano dal server con gli stessi testi.
 Il codice che fa queste cose sta in un file JS dell'app (`app.js`), non nei template: gestione di
 `htmx:beforeSwap`, `htmx:sendError`, `htmx:timeout`, `htmx:afterRequest`, `htmx:afterSettle`,
 apertura dei dialoghi. Come scriverlo lo decide il developer.
+
+### Quota che si aggiorna e blocchi che si aggiungono (TALITA-5)
+
+- **Quota che si aggiorna**: un cambio in un gruppo di radio → `hx-post` dei soli campi della presenza e dei nomi (`data-quota`, mai le segnalazioni: i dati sanitari non viaggiano a ogni tocco), `hx-swap="none"` e `hx-sync="closest form:replace"` (vale l'ultima richiesta). La risposta contiene la riga di ogni bambino e il totale **fuori banda** (`hx-swap-oob="innerHTML:#quota-0"`). Senza JavaScript la quota si vede al passo 2.
+- **Blocchi che si aggiungono e si tolgono dentro un form**: i bottoni «Aggiungi un figlio», «Togli», «Aggiungi» sono bottoni del form (`name="azione"`, `formaction`) che senza JavaScript mandano il form e ricevono la pagina intera; con htmx (`hx-post`, `hx-target="#figli"`, `hx-swap="outerHTML"`) si sostituisce **un pezzo solo**, e il fuoco va al blocco nuovo (`data-fuoco` sul suo primo campo).
+- **Un passo che non salva** (passo 2 dell'iscrizione): è la risposta al passo 1 (200, non un redirect), con `HX-Push-Url: false` così non lascia una voce nella cronologia; i dati viaggiano nei campi nascosti e il server li ricontrolla tutti all'invio.
 
 ## 6. Scrivere i testi
 
@@ -1453,6 +1557,14 @@ la trovi qui con le date, i maestri e le iscrizioni."
 | Singolare e plurale | sempre giusti | 1 bambino, 24 bambini (mai "bambino/i") |
 
 Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
+
+### Iscrizioni (TALITA-5)
+
+- **Importi** con lo spazio non separabile prima di «€» (`60 €`); **«Gratuita»** per zero, mai «0 €»; **«Non dovuta»** per la quota di una ritirata.
+- **Presenza**: `Tutti i giorni (17–19 settembre 2027)` oppure `Giornata: sabato 18. Solo pranzo: domenica 19.`; nelle righe di un elenco `Sab 18 · pranzo Dom 19`.
+- **Modelli di testo** (l'affidamento): un solo testo con segnaposto, una versione (`affidamento-1`) e due regole d'accordo, `{b:suo|loro}` per i bambini e `{a:lo/la|li}` per i maestri affidatari; nessuno chiede il sesso, quindi la forma del singolare è le due insieme.
+- **Ritirare** e **togliere le segnalazioni** sono due verbi diversi, e nei testi non si scambiano.
+- Il **telefono** si legge come lo ha scritto chi lo ha scritto, con uno spazio per ogni separatore.
 
 ## 7. Accessibilità: controlli prima della PR
 
