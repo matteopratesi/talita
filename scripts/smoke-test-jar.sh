@@ -54,9 +54,11 @@ docker exec "$container" pg_isready -U talita -d talita >/dev/null
 
 cd "$workdir"
 
-# Without the controller of the data the application must not start: the log says which variables are missing and nothing answers on the port.
+# Without the controller of the data the application must not start: the log names the two variables and nothing answers on the port.
 # (The process may stay alive after a failed start, because a thread of the login links is not a daemon one: it is stopped here, not waited for.)
 echo "Starting $jar without the controller of the data: it must not start"
+# `env -u` removes the two variables even if the caller exported them in the shell: the check must not depend on the caller's environment.
+env -u TALITA_PRIVACY_CONTROLLER_NAME -u TALITA_PRIVACY_CONTACT \
 SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$db_port/talita" \
 SPRING_DATASOURCE_USERNAME=talita \
 SPRING_DATASOURCE_PASSWORD=talita \
