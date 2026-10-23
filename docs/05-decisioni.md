@@ -509,3 +509,33 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
   che chiedono date precise (giorni della settimana, intervalli) si provano con date fisse nei test del formattatore, che non guardano
   il calendario. Ogni test che tocca le convivenze comincia da `GatheringSupport.reset()`, perché il database è condiviso e ce ne può
   essere una sola non chiusa.
+
+**B. Pagina informativa**
+
+- **Una pagina senza script e senza cookie** (`layout/public.jte`): niente htmx, niente `app.js`, niente codice CSRF (leggerlo farebbe
+  nascere la sessione e il cookie). La risposta non ha `Set-Cookie`, il browser non scarica nient'altro che CSS, font e icona dell'app,
+  la prima visita pesa circa 85 KB. La Content-Security-Policy è quella di sempre.
+- **Il template riceve `PublicInfo`, non la convivenza**: titolo, date, giorni, luogo, quote, testi e l'indirizzo. I nomi degli
+  affidatari e i numeri sulle iscrizioni non possono arrivarci per distrazione, e un test fissa l'elenco dei campi.
+- **Stessa risposta per una bozza e per un codice che non esiste** (anche per una sola maiuscola, anche per un maestro): 404 con lo
+  stesso HTML e le stesse intestazioni, scritta dal controller e non dalla pagina d'errore, così non si capisce se una bozza esiste.
+  Senza accesso la pagina sta nel guscio pubblico e porta all'accesso; con l'accesso nel guscio dell'app.
+- **`X-Robots-Tag: noindex, nofollow`** e `<meta name="robots">` sulla pagina, sul 404 e sull'anteprima; `Cache-Control` è quello di
+  Spring Security (`no-cache, no-store`), mai una pagina conservata.
+- **L'anteprima del link** (`og:*`) ha titolo, date e luogo su una riga, mai un'immagine né un indirizzo esterno; quando la convivenza è
+  finita dice solo che è finita. La query che le app aggiungono (`?fbclid=…`) non cambia niente.
+- **`/info/*` è nell'elenco unico degli indirizzi pubblici** (con il suo test); `/info/{codice}/iscrizione` no: chiede un account e
+  porta alla pagina chiesta dopo l'accesso, nello stesso browser (negli altri alla home, accettato). Finché TALITA-5 non c'è risponde
+  «In preparazione»; con le iscrizioni chiuse o la convivenza finita torna alla pagina informativa con un 303.
+- **L'indirizzo che si mostra e si stampa viene da `talita.public-url`**, mai dall'`Host` della richiesta. Se manca, la scheda lo dice
+  invece di mostrare un indirizzo sbagliato.
+- **Copia e condividi** sono bottoni nascosti nell'HTML che `app.js` mostra solo se il browser sa fare `navigator.clipboard` e
+  `navigator.share`, e rifà dopo ogni cambio di pagina; la conferma sta nel bottone per 3 secondi e in una regione `role="status"`. Senza
+  JavaScript restano l'indirizzo, selezionabile, e il collegamento all'anteprima.
+- **Anteprima per i maestri**: lo stesso componente della pagina pubblica (`gathering/infoContent.jte`, con il livello dei titoli come
+  parametro), il bottone «Iscrivi i tuoi figli» è un bottone che non fa niente e non porta mai all'iscrizione. In bozza non c'è «Stampa
+  la pagina» né il blocco dell'indirizzo (non è ancora vero).
+- **Stampa**: il CSS di `@media print` sta in `app.css` fuori da ogni `@layer`, quindi vince sulle utility senza `!important`. Nero su
+  bianco, A4 verticale, l'indirizzo al posto del bottone, gli avvisi con il bordo nero (il significato non dipende da uno sfondo). I
+  test e2e la provano con l'emulazione della stampa e con un PDF di Chromium scritto sotto `build/` (una pagina A4); nessun PDF nel repo.
+- **Il recapito del titolare** non sta sulla pagina: `docs/03` lo assegna all'informativa di TALITA-5 (domanda 6 approvata).

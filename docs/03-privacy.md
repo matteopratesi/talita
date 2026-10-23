@@ -112,7 +112,10 @@ Previste dal progetto, con il ticket in cui diventano vere:
   luogo di nascita; nessun documento caricato, nessuna firma.
 - **Segnalazioni** in una tabella separata, visibili solo ai maestri, con ogni lettura registrata
   (TALITA-5 e TALITA-7).
-- **La pagina informativa non mostra dati personali** (TALITA-4).
+- **La pagina informativa non mostra dati personali** (TALITA-4): niente nomi dei maestri, né email o telefoni, né numeri sulle
+  iscrizioni; a un indirizzo con un codice che non si indovina, mai indicizzata (`noindex` nella pagina e nell'intestazione), mai
+  conservata (`Cache-Control`), senza cookie, senza script e senza nulla caricato da altri indirizzi; chi la riceve da un'app di
+  messaggi vede un'anteprima con titolo, date e luogo e nessuna immagine. A convivenza finita dice solo titolo e date.
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
 - **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7).
 - **Sviluppo con dati sintetici**, mai dati reali in locale né nel repo; il database di produzione si
@@ -162,7 +165,10 @@ Il genitore li esercita **dal suo account**, per i dati suoi e dei suoi figli:
 - revoca il consenso alle segnalazioni, che vengono tolte.
 
 Per quello che l'app non permette di fare da sé, scrive al titolare, che risponde entro un mese. Il
-recapito di contatto lo fissa TALITA-4 insieme alla pagina informativa.
+recapito di contatto del titolare **non sta sulla pagina informativa** (che non mostra dati personali,
+nemmeno quelli di chi organizza): sta nell'informativa dell'iscrizione, che scrive TALITA-5. L'indirizzo lo
+sceglie Matteo con TALITA-9: uno sul dominio di Talità richiede un servizio che riceva posta, oggi non
+elencato fra i fornitori.
 
 ## DPIA: da valutare
 

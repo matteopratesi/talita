@@ -466,6 +466,10 @@ Icone assegnate (nomi di Lucide):
 | Conferma dell'accesso | `log-in` |
 | Il link non vale più | `link-2-off` |
 | Maestri, nella pagina Convivenza | `user-round` |
+| Copia il link | `copy` |
+| Condividi | `share-2` |
+| Stampa la pagina | `printer` |
+| Anteprima della pagina | `eye` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -685,6 +689,16 @@ vale più», 404 e 500 per chi non è dentro) hanno lo stesso guscio senza navig
 | Messaggi a comparsa | in basso, senza la navigazione sotto (`bottom-no-nav`) | sopra la navigazione (`bottom-above-nav`) |
 
 Classi dell'intestazione senza accesso: `sticky top-0 z-40 flex min-h-14 items-center gap-2 border-b border-line bg-surface pt-safe px-gutter short:static lg:px-10`, a tutta larghezza anche su desktop (non c'è la colonna a sinistra); il marchio è un `<p class="inline-flex min-h-11 items-center gap-2 text-lg font-bold tracking-tight text-ink">`. `main`: `block px-gutter pt-6 pb-no-nav transition-opacity duration-150 motion-safe:animate-enter nav-busy:opacity-60 nav-busy:delay-300 lg:px-10 lg:pt-16 lg:pb-16`, senza `lg:ml-64`. Due utility nel CSS: `pb-no-nav` (`calc(2.5rem + env(safe-area-inset-bottom))`) e `bottom-no-nav` (`calc(env(safe-area-inset-bottom) + 0.75rem)`).
+
+**Guscio pubblico** (`layout/public.jte`, TALITA-4): la pagina informativa della convivenza (4.14), che chiunque apre da un link, ha lo stesso guscio senza accesso, con tre differenze:
+
+| | Accedi (TALITA-3) | Pagina informativa |
+|---|---|---|
+| Larghezza della colonna | `max-w-md` (448 px) | `max-w-2xl` (672 px): le schede con date e quote respirano su desktop |
+| Script | htmx e `app.js` | **nessuno**: né `hx-boost`, né `htmx-config`, né `#caricamento`, né `#messaggi`, né i `<template>` dei messaggi, né il codice CSRF (che farebbe nascere la sessione e un cookie) |
+| Animazione d'ingresso | sì | no (nessun cambio di pagina da attenuare) |
+
+Nell'`<head>` ha solo il necessario: `noindex, nofollow`, e se la pagina si condivide `description` e `og:title`, `og:description`, `og:type` (`website`), `og:site_name`, `og:locale`: mai `og:image`, `og:url`, `twitter:*` né indirizzi esterni. La prima visita pesa circa 85 KB (HTML, CSS, il font latino, l'icona), sotto i 250 KB. `main` ha `pb-no-nav` e il link «Vai al contenuto» funziona anche senza JavaScript. In stampa intestazione e link «Vai al contenuto» non si stampano (4.12).
 
 Le pagine di errore per chi non ha accesso (404 e 500 sono pubbliche) hanno i testi di 4.11, ma «Vai alla home» diventa «Vai all’accesso» (link a `/accedi`). «Riprova» della 500 resta, solo per le letture.
 
@@ -1183,6 +1197,91 @@ organizza la convivenza.» Mai «Riprova»: ripetere non cambia niente. Una 403 
 titolo, come 404 e 500. Senza JavaScript la pagina 403 arriva dal server con gli stessi testi. Il CSRF scaduto non è
 una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
 
+### 4.12 Stampa
+
+Vale per la pagina informativa e per la sua anteprima (stesso componente). Da telefono la persona usa il menu del browser («Condividi → Stampa»), da desktop Ctrl+P; i maestri anche il bottone «Stampa la pagina» dell'anteprima (`data-azione="stampa"`, `app.js` chiama `window.print()`). La pagina pubblica non ha un bottone «Stampa»: servirebbe uno script.
+
+| Cosa | Regola |
+|---|---|
+| Pagina | **A4 verticale**, margini 16 mm in alto e in basso e 18 mm ai lati, corpo del testo a 11 pt |
+| Colori | testo **nero su bianco**; i token si portano a nero e grigio con le variabili del blocco CSS qui sotto, così nessuna classe va riscritta. Gli sfondi non si stampano (i browser li tolgono) e **nessun significato dipende da uno sfondo**: gli avvisi hanno un bordo nero in stampa (`print:border print:border-ink`, già in `components/alert.jte`) |
+| Si stampa | il titolo; le schede (bordo grigio, senza sfondo, mai spezzate a metà); l'avviso delle iscrizioni chiuse o della convivenza finita |
+| **Non** si stampa | «Vai al contenuto», barra di caricamento, intestazione col marchio, navigazione, messaggi a comparsa, bottone «Iscrivi i tuoi figli» e la sua riga; nell'anteprima anche il titolo dell'anteprima, l'avviso, i bottoni e la cornice |
+| **Al posto del bottone** (solo iscrizioni aperte) | un blocco con filetto nero sopra: «Per iscrivere i tuoi figli apri questo indirizzo dal telefono o dal computer:», l'**indirizzo completo** in grande (`text-xl font-bold break-all`) e «Poi entri con il tuo indirizzo email: ti mandiamo un link, senza password.» Niente QR (per dopo, con un ticket) |
+| Non tagliato a destra | niente larghezze fisse; testi lunghi a capo (`wrap-anywhere`), l'indirizzo con `break-all`; il layout a due colonne delle schede o quello a una vanno bene tutti e due (la larghezza della pagina stampata, 658 px, sta a cavallo dei 640 px) |
+| Pagine | i titoli non restano soli in fondo (`break-after: avoid`), le schede e il blocco dell'indirizzo non si spezzano (`break-inside-avoid`). Con i testi al massimo (5.000 e 2.000 caratteri) la pagina arriva a due fogli: va bene |
+| Chiuse e finita | niente blocco dell'indirizzo: non c'è niente da fare |
+
+L'indirizzo stampato è `talita.public-url` più `/info/{codice}`, completo e assoluto. Il CSS sta in `src/main/css/app.css`, **fuori da ogni** `@layer`: gli stili senza layer battono le utility di Tailwind, che stanno in `@layer utilities`, senza bisogno di `!important`.
+
+```css
+@media print {
+  @page { size: A4 portrait; margin: 16mm 18mm; }
+
+  :root {
+    --color-canvas: #fff; --color-surface: #fff; --color-surface-muted: #fff;
+    --color-line: #999; --color-line-strong: #666;
+    --color-ink: #000; --color-ink-muted: #333;
+    --color-brand: #000; --color-brand-soft: #fff;
+    --color-warning: #000; --color-warning-soft: #fff;
+    --color-success: #000; --color-success-soft: #fff;
+  }
+
+  html { font-size: 11pt; }
+  body { background: #fff; color: #000; }
+
+  a[href="#contenuto"], #caricamento, #messaggi, body > header, body > nav { display: none; }
+
+  main { margin: 0; padding: 0; animation: none; opacity: 1; }
+  h1, h2, h3 { break-after: avoid; }
+}
+```
+
+Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga della pagina pubblica e sull'avviso e sui bottoni dell'anteprima; `break-inside-avoid` sulle schede; `hidden … print:block` sul blocco dell'indirizzo; `print:border print:border-ink` sugli avvisi; sulla cornice dell'anteprima `print:border-0 print:bg-transparent print:p-0`. La stampa si prova con un PDF di Chromium (`Page.pdf`, scritto sotto `build/`, mai nel repo: lo fanno i test e2e).
+
+### 4.13 Indirizzo da copiare
+
+Il blocco della scheda «Link per i genitori» del dettaglio di una convivenza. **L'indirizzo è sempre visibile e selezionabile, anche senza JavaScript** (`select-all`, `break-all`, un tocco lungo lo seleziona). I bottoni che copiano e condividono sono `hidden` nell'HTML e li mostra `app.js` solo se il browser lo sa fare (`navigator.clipboard`, `navigator.share`), e lo rifà dopo ogni cambio di pagina (`htmx:afterSettle`). Senza JavaScript restano l'indirizzo e il link all'anteprima.
+
+```html
+<p class="mt-3 mb-1.5 text-sm text-ink-muted">Indirizzo della pagina</p>
+<p id="link-indirizzo" class="rounded-xl bg-surface-muted px-4 py-3 font-medium break-all select-all">https://talita.example.org/info/q7Vd_3KmZ0xRb-Ew</p>
+<div class="mt-4 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+  <button type="button" hidden data-azione="copia" data-copia="link-indirizzo" class="…primario 4.1…">
+    <svg class="size-5" aria-hidden="true">…copy…</svg>
+    <span data-copia-normale>Copia il link</span><span hidden data-copia-fatto>Link copiato</span>
+  </button>
+  <button type="button" hidden data-azione="condividi" data-titolo="Convivenza di settembre 2027" data-testo="Informazioni: Convivenza di settembre 2027" data-indirizzo-da="link-indirizzo" class="…secondario 4.1…"><svg class="size-5" aria-hidden="true">…share-2…</svg>Condividi</button>
+  <a href="/convivenza/12/anteprima" class="…testo 4.1… justify-center"><svg class="size-5" aria-hidden="true">…eye…</svg>Apri l’anteprima</a>
+</div>
+<p role="status" class="sr-only" data-copia-stato data-copia-annuncio="Link copiato."></p>
+<p hidden data-copia-errore class="mt-2 text-sm text-ink-muted">Non riesco a copiare il link. Tienilo premuto per copiarlo.</p>
+```
+
+- **Copia** scrive l'indirizzo negli appunti. La conferma sta **nel punto in cui si è toccato**: per 3 secondi il bottone dice «Link copiato» (`app.js` scambia i due testi, che stanno entrambi nell'HTML) e una regione `role="status"` solo per i lettori di schermo ripete «Link copiato.». Niente messaggio a comparsa. Se la copia fallisce compare la riga «Non riesco a copiare il link. Tienilo premuto per copiarlo.» e l'indirizzo viene selezionato.
+- **Condividi** chiama `navigator.share` con titolo (`data-titolo`), testo (`data-testo`) e indirizzo. Se la persona annulla non succede niente e non si dice niente. I testi stanno nei `data-*` del template, non nel JS.
+- Il bottone primario della pagina è «Copia il link»; è secondario se la convivenza è finita e le iscrizioni sono ancora aperte (la cosa da fare è chiuderle). Il titolo e l'indirizzo sono testo, mai HTML.
+- In una bozza non c'è l'indirizzo (non funziona ancora): la scheda dice «Il link funziona dopo l’apertura delle iscrizioni. Intanto puoi vedere come sarà la pagina.» e ha solo «Apri l’anteprima».
+
+### 4.14 Pagina informativa
+
+La pagina che i genitori ricevono da un link (`/info/{codice}`), nel guscio pubblico (3.5), senza script. Dall'alto: `h1` (il titolo), avviso (solo chiuse e finita), schede, bottone (solo aperte). Titoli in ordine: `h1` → `h2` delle schede. Mai nomi né email di maestri, né numeri sulle iscrizioni: il template riceve solo i dati pubblici (`PublicInfo`), non la convivenza.
+
+| Elemento | Aperta | Chiusa | Finita |
+|---|---|---|---|
+| Sotto l'`h1` | — | — | le date (`17–19 settembre 2027`, `text-ink-muted`) |
+| Avviso | — | **attenzione**, senza `role` (è la pagina, non la risposta a un'azione): «Le iscrizioni sono chiuse. Per iscrivere un altro bambino o cambiare un’iscrizione già fatta, chiedi ai maestri.» | **informativo**: «La convivenza è finita. Per la prossima arriverà un link nuovo.» |
+| Quando e dove, Quanto costa, Informazioni, Cosa portare | sì, ognuna solo se c'è | sì | **no**: né luogo, né quote, né testi, né bottone |
+| Bottone «Iscrivi i tuoi figli» | **sì**, in fondo | no | no |
+
+Le schede sono quelle di 4.4 (`section` con `aria-labelledby`, `break-inside-avoid`). «Quanto costa» ha le righe di 4.4: **Tutti i giorni** `60 €`, **Alcuni giorni** `25 € per ogni giorno`, **Solo pranzo** `10 € per ogni pranzo`; zero: «Gratuita»; una quota non prevista non compare, e se non ce n'è nessuna la scheda non compare. Le informazioni sono paragrafi (`max-w-prose`, `whitespace-pre-line`, `wrap-anywhere`), «Cosa portare» un elenco puntato. Il bottone è un normale collegamento a `/info/{codice}/iscrizione` (a tutta larghezza sul telefono, `sm:w-auto`), con sotto «Per iscriverli entri con il tuo indirizzo email: ti mandiamo un link, senza password.» (`text-sm text-ink-muted`: ripete l'introduzione di «Accedi»). Sta in fondo, dopo le informazioni: chi arriva dalla lettera vuole prima sapere quando, dove e quanto costa.
+
+**Anteprima per i maestri** (`/convivenza/{id}/anteprima`, nel guscio con navigazione, `noindex`): lo stesso componente (`gathering/infoContent.jte`, con il livello dei titoli come parametro: il titolo della convivenza diventa `h2` e le schede `h3`, l'unico `h1` è «Anteprima della pagina»), dentro una cornice (`rounded-2xl border border-line bg-canvas p-4 lg:p-6`) che su desktop dice che è un'anteprima. In cima un avviso informativo («Così vede la pagina chi apre il link adesso.», più «Il bottone «Iscrivi i tuoi figli» qui non porta all’iscrizione.» se aperta; «Così apparirà la pagina quando aprirai le iscrizioni…» in bozza; «…: la convivenza è finita.» se finita) e i bottoni «Stampa la pagina» (non in bozza) e «Torna alla convivenza». Il bottone «Iscrivi i tuoi figli» è un `<button type="button">` che non fa niente, con `aria-describedby` che punta all'avviso: è l'unico bottone «finto», e mai un collegamento a `/info/…/iscrizione`.
+
+**«Pagina non trovata» per `/info`**: la stessa risposta (404, stesso HTML, stesse intestazioni) per una bozza e per un codice che non esiste, anche per una sola maiuscola diversa, con o senza accesso, maestri compresi: non si deve capire se la bozza esiste. Titolo «Pagina non trovata», testo «L’indirizzo potrebbe essere sbagliato o incompleto. Se te l’ha mandato un maestro, chiedigli di mandartelo di nuovo.» (una variante della 404 di 4.11 solo per `/info`: chi riceve il link tagliato da una chat sa cosa fare), bottone «Vai all’accesso» senza accesso (guscio pubblico), «Vai alla home» con l'accesso (guscio dell'app, nessuna voce corrente).
+
+**«Iscrizione»** (`/info/{codice}/iscrizione`, per ogni account; chi non ha l'accesso va a `/accedi` e, con il link nello stesso browser, torna qui): con le iscrizioni aperte e la fine non passata, finché TALITA-5 non c'è, la pagina «In preparazione» (stato vuoto di 4.9, `hourglass`, sotto l'`h1` il titolo della convivenza, bottone «Torna alle informazioni»), con corrente «Iscrizioni»; con le iscrizioni chiuse o la convivenza finita, 303 verso `/info/{codice}`; con una bozza o un codice sconosciuto, la 404 di sopra.
+
 ## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
@@ -1239,6 +1338,8 @@ modifica):
   lenta", con lo stesso comportamento;
 - tornata la rete, "Riprova" o un nuovo tocco funzionano normalmente;
 - vale soprattutto per i maestri durante la convivenza, dove il campo può mancare a lungo: una richiesta che fallisce non cancella mai quello che la persona ha scritto, il form resta compilato (già previsto in 4.7).
+
+**La pagina informativa pubblica non usa htmx** (4.14): niente `hx-*`, niente `app.js`, un solo caricamento, nessun indicatore. Nel dettaglio e nell'anteprima (guscio con htmx) cambia solo la pagina intera; `app.js` ha tre azioni, tutte con `data-azione` e nessun `onclick`: `copia`, `condividi` e `stampa` (4.12, 4.13).
 
 **Senza JavaScript** (o prima che htmx sia caricato): link e form funzionano come in un sito
 normale, con il ricaricamento della pagina. Niente indicatore e niente messaggi a comparsa, ma le
