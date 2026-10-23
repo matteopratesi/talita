@@ -36,13 +36,13 @@ class TalitaApplicationTests(
     }
 
     @Test
-    fun `the migrations are V1 extensions, V2 accounts and V3 teachers, and the only extension is unaccent`() {
+    fun `the migrations are V1 extensions, V2 accounts, V3 teachers and V4 gathering, and the only extension is unaccent`() {
         val applied = dsl.resultQuery("select version, script from flyway_schema_history where success order by installed_rank")
             .fetch { it.get(0, String::class.java) to it.get(1, String::class.java) }
-        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql"), applied)
+        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql", "4" to "V4__gathering.sql"), applied)
 
         val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").mapNotNull { it.filename }.sorted()
-        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql"), files)
+        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql", "V4__gathering.sql"), files)
 
         val installed = dsl.resultQuery("select extname from pg_extension").fetch(0, String::class.java)
         assertTrue("unaccent" in installed, "installed: $installed")

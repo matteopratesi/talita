@@ -1,0 +1,597 @@
+/*
+ * Talità · mockup di TALITA-4 (convivenza e pagina informativa)
+ *
+ * Parte dal CSS del mockup di origine (KOINE-11), che rispecchia i token e le classi Tailwind di
+ * docs/design/README.md, e aggiunge i pezzi nuovi di questo ticket. I nomi delle classi servono
+ * solo al mockup: nell'app si usano le classi Tailwind indicate nei commenti del ticket.
+ *
+ * Nessuna risorsa esterna. Il font è Inter solo se è già installato, altrimenti lo stack di sistema.
+ * La stampa si prova con la stampa del browser (Ctrl+P) o con l'anteprima di stampa.
+ */
+@import url("../KOINE-11/mockup.css");
+
+/* ---------- Guscio senza accesso (pagine pubbliche, come in TALITA-3 ma con colonna da 672 px) ---------- */
+
+body.public .app-header,
+body.public .app-header .wordmark {
+  position: static;
+}
+
+body.public .app-header {
+  width: auto;
+  height: auto;
+  min-height: 3.5rem;
+  padding-inline: var(--gutter-l) var(--gutter-r);
+  border-right: 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+body.public main {
+  margin-left: 0;
+  padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+}
+
+body.public .container {
+  max-width: 42rem;
+}
+
+@media (min-width: 64rem) {
+  body.public .app-header {
+    position: static;
+    padding-inline: 2.5rem;
+  }
+  body.public main {
+    margin-left: 0;
+    padding: 4rem 2.5rem 4rem;
+  }
+}
+
+/* Il marchio senza accesso non è un link */
+.wordmark--static {
+  cursor: default;
+}
+
+/* ---------- Pillola «Profilo» (la disegna TALITA-3, qui solo per completare l'intestazione) ---------- */
+
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-left: auto;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 9999px;
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+  font-weight: 600;
+}
+
+.profile-pill span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+}
+
+@media (min-width: 64rem) {
+  .profile-pill {
+    position: fixed;
+    top: 0.5rem;
+    right: 1.5rem;
+    z-index: 41;
+  }
+}
+
+/* ---------- Elenco chiave-valore con una riga per coppia (come in 4.4 della guida) ---------- */
+
+.dl {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.dl > div {
+  display: grid;
+}
+
+.dl > div + div {
+  margin-top: 0.75rem;
+}
+
+.dl dd {
+  margin-top: 0;
+}
+
+@media (min-width: 40rem) {
+  .dl {
+    grid-template-columns: none;
+  }
+  .dl > div {
+    grid-template-columns: 11rem 1fr;
+    column-gap: 1.5rem;
+  }
+}
+
+/* Righe «etichetta ........ valore» (le quote): una riga per voce, anche sul telefono */
+.dl--rows > div,
+.dl--rows > div + div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1rem;
+  margin-top: 0;
+  padding-block: 0.625rem;
+  grid-template-columns: none;
+}
+
+.dl--rows > div + div {
+  border-top: 1px solid var(--color-line);
+}
+
+.dl--rows > div:first-child {
+  padding-top: 0;
+}
+
+.dl--rows > div:last-child {
+  padding-bottom: 0;
+}
+
+.dl--rows dt {
+  color: var(--color-ink-muted);
+  font-size: var(--text-base);
+  line-height: var(--text-base--lh);
+}
+
+.dl--rows dd {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ---------- Testi della pagina informativa ---------- */
+
+.paras p {
+  max-width: 65ch;
+  overflow-wrap: anywhere;
+}
+
+.paras p + p {
+  margin-top: 0.75rem;
+}
+
+.bullets {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.bullets li {
+  padding-left: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.bullets li + li {
+  margin-top: 0.25rem;
+}
+
+.bullets li::marker {
+  color: var(--color-ink-muted);
+}
+
+.stack-3 > * + * {
+  margin-top: 0.75rem;
+}
+
+.cta-help {
+  margin-top: 0.75rem;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+}
+
+.print-only {
+  display: none;
+}
+
+.cta {
+  margin-top: 2rem;
+}
+
+/* ---------- Avvisi con elenco e titolo ---------- */
+
+.alert__body {
+  min-width: 0;
+}
+
+.alert__body > * + * {
+  margin-top: 0.5rem;
+}
+
+.alert ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.alert-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.alert:focus {
+  outline: none;
+}
+
+/* ---------- Indirizzo da copiare ---------- */
+
+.copy-box {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
+
+.copy-label {
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+}
+
+.card .actions {
+  margin-top: 1rem;
+}
+
+/* ---------- Anteprima della pagina (nel guscio dei maestri) ---------- */
+
+.preview-frame {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  background: var(--color-canvas);
+}
+
+.preview-frame .preview-inner {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 64rem) {
+  .preview-frame {
+    padding: 1.5rem;
+  }
+}
+
+/* ---------- Campi nuovi: importo, area di testo, scelta multipla ---------- */
+
+.field-suffix {
+  position: relative;
+  margin-top: 0.375rem;
+}
+
+.field-suffix .input {
+  margin-top: 0;
+  padding-right: 3rem;
+}
+
+.field-suffix > span {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  translate: 0 -50%;
+  color: var(--color-ink-muted);
+  pointer-events: none;
+}
+
+textarea.input {
+  display: block;
+  min-height: 9rem;
+  padding-block: 0.75rem;
+  resize: vertical;
+}
+
+.checklist {
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  background: var(--color-surface);
+}
+
+.checklist label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.checklist label + label {
+  border-top: 1px solid var(--color-line);
+}
+
+.checklist input {
+  width: 1.5rem;
+  height: 1.5rem;
+  accent-color: var(--color-brand);
+  flex-shrink: 0;
+}
+
+.checklist .who {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.field-link {
+  font-weight: 600;
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Riga con più bottoni in una scheda */
+.card .actions .btn--text {
+  justify-content: center;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.card__text {
+  margin-top: 0.5rem;
+}
+
+.card__text + .actions,
+.badge-row + .card__text {
+  margin-top: 0.75rem;
+}
+
+.dl dd .sub {
+  display: block;
+  color: var(--color-ink-muted);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+}
+
+.dl dd .muted {
+  color: var(--color-ink-muted);
+  font-weight: 400;
+}
+
+.dl dd.dd-flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.name-list > li {
+  padding-block: 0.5rem;
+}
+
+.name-list > li + li {
+  border-top: 1px solid var(--color-line);
+}
+
+/* ---------- Anteprima del link in un'app di messaggi (solo illustrazione) ---------- */
+
+.msg {
+  max-width: 24rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #e7f6dd;
+  padding: 0.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.msg__card {
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 0.05);
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid rgb(0 0 0 / 0.2);
+}
+
+.msg__host {
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--lh);
+}
+
+.msg__title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+  overflow-wrap: anywhere;
+}
+
+.msg__desc {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--lh);
+  overflow-wrap: anywhere;
+}
+
+.msg__link {
+  padding: 0.25rem 0.5rem 0.25rem;
+  color: #0b57d0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* ---------- Indice del mockup ---------- */
+
+.index-list li + li {
+  margin-top: 0.25rem;
+}
+
+.index-list a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.index-list small {
+  color: var(--color-ink-muted);
+}
+
+/* ---------- Stampa ---------- */
+/*
+ * Nell'app questo blocco sta in src/main/css/app.css, FUORI da ogni @layer: gli stili senza
+ * layer battono le utility di Tailwind (che stanno in @layer utilities) senza bisogno di !important.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 18mm;
+  }
+
+  :root {
+    --color-canvas: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-muted: #ffffff;
+    --color-line: #999999;
+    --color-line-strong: #666666;
+    --color-ink: #000000;
+    --color-ink-muted: #333333;
+    --color-brand: #000000;
+    --color-brand-soft: #ffffff;
+    --color-warning: #000000;
+    --color-warning-soft: #ffffff;
+    --color-success: #000000;
+    --color-success-soft: #ffffff;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .skip-link,
+  .indicator,
+  .toasts,
+  .app-header,
+  .nav,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    animation: none;
+    opacity: 1 !important;
+  }
+
+  .container {
+    max-width: none;
+  }
+
+  .card {
+    break-inside: avoid;
+  }
+
+  .alert {
+    border: 1px solid #000;
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  .print-only {
+    display: block;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid #000;
+    break-inside: avoid;
+  }
+
+  .print-only .url {
+    margin-top: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  .preview-frame {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  a {
+    color: inherit;
+  }
+}
+
+/* ---------- Distanze che nelle pagine erano attributi style (non ammessi: la CSP li blocca) ---------- */
+
+.spacer-3 {
+  height: 0.75rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.ink-muted {
+  color: var(--color-ink-muted);
+}

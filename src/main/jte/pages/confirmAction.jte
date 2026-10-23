@@ -1,5 +1,5 @@
 @import org.springframework.security.web.csrf.CsrfToken
-@import talita.teacher.ConfirmModel
+@import talita.ui.ConfirmModel
 @import talita.ui.Shell
 @param Shell shell
 @param ConfirmModel page
@@ -14,7 +14,7 @@
       @template.components.csrf(csrf = csrf)
       <input type="hidden" name="${page.getField()}" value="${page.getValue()}">
       @template.components.button(label = page.getConfirmLabel(), busyLabel = page.getBusyLabel())
-      @template.components.linkButton(href = "/maestri", label = "Annulla", variant = "secondary", width = "phone")
+      @template.components.linkButton(href = page.getCancelHref(), label = "Annulla", variant = "secondary", width = "phone")
     </form>
   </div>
 `)

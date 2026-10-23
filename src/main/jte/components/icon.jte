@@ -22,4 +22,10 @@
 @elseif(icon == Icon.CIRCLE_ALERT)<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>
 @elseif(icon == Icon.LOADER_CIRCLE)<path d="M21 12a9 9 0 1 1-6.219-8.56"/>
 @elseif(icon == Icon.LOCK)<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-@elseif(icon == Icon.USER_ROUND)<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>@endif</svg>
+@elseif(icon == Icon.USER_ROUND)<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>
+@elseif(icon == Icon.PLUS)<path d="M5 12h14"/><path d="M12 5v14"/>
+@elseif(icon == Icon.PENCIL)<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>
+@elseif(icon == Icon.COPY)<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+@elseif(icon == Icon.SHARE_2)<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
+@elseif(icon == Icon.PRINTER)<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>
+@elseif(icon == Icon.EYE)<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>@endif</svg>

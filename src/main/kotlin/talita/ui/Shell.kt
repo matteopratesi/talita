@@ -16,6 +16,8 @@ class Shell(
     val assets: Assets,
     val navigation: List<NavItem>,
     val profile: ProfileLink? = null,
+    /** The page asks not to be indexed (the preview of a page that is not public yet): `noindex` in the page. */
+    val noindex: Boolean = false,
 ) {
     val isSignedIn: Boolean get() = profile != null
 
@@ -24,3 +26,17 @@ class Shell(
 
     val homeLabel: String get() = if (isSignedIn) "Vai alla home" else "Vai all’accesso"
 }
+
+/**
+ * What the public layout needs (`layout/public.jte`): the pages that anyone can open with a link and that load no script. [share] is what a
+ * messaging app reads to draw the preview of the link; a page that is not to be shared has none.
+ */
+class PublicShell(
+    /** Text of the browser tab: `Convivenza di settembre 2027 · Talità`. */
+    val title: String,
+    val assets: Assets,
+    val share: Share? = null,
+)
+
+/** What a messaging app reads of the page to draw the preview of the link: a title and one line, with no image. */
+data class Share(val title: String, val description: String)

@@ -20,7 +20,7 @@ String tone = switch (kind) {
     case WARNING -> "text-warning";
     case DANGER -> "text-danger";
 };}
-<div class="flex items-start gap-3 rounded-xl ${box} p-4" role="${live ? kind.getRole() : null}" tabindex="${live ? "-1" : null}" data-fuoco="${live ? "" : null}">
+<div class="flex items-start gap-3 rounded-xl ${box} p-4 print:border print:border-ink" role="${live ? kind.getRole() : null}" tabindex="${live ? "-1" : null}" data-fuoco="${live ? "" : null}">
   @template.components.icon(icon = kind.getIcon(), classes = "size-6 shrink-0 " + tone)
   @if(action != null)
     <div class="min-w-0">

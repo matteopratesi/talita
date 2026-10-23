@@ -1,5 +1,5 @@
 @import org.springframework.security.web.csrf.CsrfToken
-@import talita.teacher.ConfirmModel
+@import talita.ui.ConfirmModel
 @param ConfirmModel dialog
 @param CsrfToken csrf
 <%-- A dialog of confirmation (design guide 4.8): the native <dialog>, that app.js opens with showModal() when a button with
@@ -9,7 +9,7 @@
   <h2 id="${dialog.getId()}-titolo" class="text-xl font-semibold tracking-tight wrap-anywhere">${dialog.getTitle()}</h2>
   <p id="${dialog.getId()}-testo" class="mt-2 text-ink-muted wrap-anywhere">${dialog.getText()}</p>
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
-    <form method="post" action="${dialog.getAction()}" hx-post="${dialog.getAction()}" hx-target="#maestri-contenuto" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" class="contents">
+    <form method="post" action="${dialog.getAction()}" hx-post="${dialog.getTarget() != null ? dialog.getAction() : null}" hx-target="${dialog.getTarget()}" hx-swap="${dialog.getTarget() != null ? "outerHTML" : null}" hx-disabled-elt="find button[type=submit]" class="contents">
       @template.components.csrf(csrf = csrf)
       <input type="hidden" name="${dialog.getField()}" value="${dialog.getValue()}">
       @template.components.button(label = dialog.getConfirmLabel(), busyLabel = dialog.getBusyLabel())

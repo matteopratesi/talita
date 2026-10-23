@@ -12,13 +12,13 @@ import kotlin.test.assertTrue
 class ShellDesignE2eTest {
 
     private val sections = listOf(
-        // path, name, summary on the home, sentence of the placeholder
-        Quadruple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori.", "Qui troverai le date, i maestri e la pagina con le informazioni per i genitori."),
+        // path, name, summary on the home, sentence of the placeholder (none for the gathering, which has its page: GatheringE2eTest)
+        Quadruple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori.", null),
         Quadruple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo.", "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo."),
         Quadruple("/arrivi", "Arrivi", "Chi è arrivato e le liste da stampare.", "Qui potrai segnare chi è arrivato e stampare le liste."),
     )
 
-    private data class Quadruple(val path: String, val name: String, val summary: String, val placeholder: String)
+    private data class Quadruple(val path: String, val name: String, val summary: String, val placeholder: String?)
 
     @E2eTest
     fun `the home shows the texts of the design`(e2e: E2e) {
@@ -43,23 +43,17 @@ class ShellDesignE2eTest {
     }
 
     @E2eTest
-    fun `every section shows its empty state, with the text of the design and no buttons`(e2e: E2e) {
+    fun `every section that is not ready shows its empty state, with the text of the design and no buttons`(e2e: E2e) {
         val page = e2e.page
-        for (section in sections) {
+        for (section in sections.filter { it.placeholder != null }) {
             e2e.open(section.path)
             val where = section.path
 
             assertThat(page).hasTitle("${section.name} · Talità")
             assertThat(page.locator("h1")).hasText(section.name)
             assertThat(page.locator("main h2").first()).hasText("In preparazione")
-            assertThat(page.locator("main")).containsText(section.placeholder)
-            // The empty state has no buttons; the page of the gathering has, under it, the way to «Maestri» (TALITA-3, 3.8).
-            if (section.path == "/convivenza") {
-                assertThat(page.locator("main a, main button")).hasCount(1)
-                assertThat(page.locator("main a")).hasAttribute("href", "/maestri")
-            } else {
-                assertEquals(0, page.locator("main a, main button").count(), "$where: the empty state has no buttons")
-            }
+            assertThat(page.locator("main")).containsText(section.placeholder!!)
+            assertEquals(0, page.locator("main a, main button").count(), "$where: the empty state has no buttons")
             // The current entry is the one of the section, and only that one.
             assertThat(page.locator("nav a[aria-current=page]")).hasText(section.name)
             assertThat(page.locator("nav [aria-current]")).hasCount(1)

@@ -4,8 +4,13 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.springframework.stereotype.Component
 import talita.account.TeacherName
+import talita.gathering.Custodianship
+import talita.gathering.Custodianships
+import talita.gathering.GatheringRef
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
+import java.time.Clock
+import java.time.LocalDate
 
 /** What a teacher may write as name and surname: the rules of the invitation and of the profile are the same. */
 object PersonName {
@@ -58,11 +63,17 @@ sealed interface RemovalResult {
 
     /** The only teacher: there must always be at least one. */
     data object LastTeacher : RemovalResult
+
+    /** The person is a custodian of a gathering that is not over: they have to be taken away from its custodians first (criterion 40). */
+    data class IsCustodian(val name: TeacherName, val gatherings: List<GatheringRef>) : RemovalResult
 }
 
-/** The teachers: an account with a name. The name is written by the teacher, never by someone else. */
+/**
+ * The teachers: an account with a name. The name is written by the teacher, never by someone else. [clock] says what day it is (the
+ * day of Rome) for «a gathering that is not over».
+ */
 @Component
-class Teachers(private val dsl: DSLContext) {
+class Teachers(private val dsl: DSLContext, private val clock: Clock) {
 
     fun count(): Int = dsl.fetchCount(TEACHER)
 
@@ -97,8 +108,11 @@ class Teachers(private val dsl: DSLContext) {
      * row is deleted. Two teachers who take each other away at the same moment are in a queue: the second one
      * finds one teacher and is told no. Without the lock both would see two and both would go ahead.
      *
-     * TALITA-4 adds here, in the same transaction and under the same lock, the check that the teacher is not a
-     * custodian of a gathering that is not over (and the message of the dialog that says so).
+     * Under the same lock, and in the same transaction, a teacher who is a custodian of a gathering that is not over (a draft, or one
+     * whose last day has not passed) is not taken away ([RemovalResult.IsCustodian], criterion 40): the custodians of such a
+     * gathering are saved with the teachers locked in share mode (`Gatherings.saveCustodians`), so a custodianship written at the
+     * same moment is either seen here or refused there. For a gathering that is over the row of the custodians goes with the
+     * teacher (the foreign key cascades).
      */
     fun remove(accountId: Long): RemovalResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
@@ -107,7 +121,14 @@ class Teachers(private val dsl: DSLContext) {
         val target = locked.firstOrNull { it[TEACHER.ACCOUNT_ID] == accountId } ?: return@transactionResult RemovalResult.NotATeacher
         if (locked.size <= 1) return@transactionResult RemovalResult.LastTeacher
 
+        val name = TeacherName(target[TEACHER.FIRST_NAME]!!, target[TEACHER.LAST_NAME]!!)
+        val keeping = Custodianships.unfinished(transaction, accountId, LocalDate.now(clock))
+        if (keeping.isNotEmpty()) return@transactionResult RemovalResult.IsCustodian(name, keeping)
+
         transaction.deleteFrom(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).execute()
-        RemovalResult.Removed(TeacherName(target[TEACHER.FIRST_NAME]!!, target[TEACHER.LAST_NAME]!!))
+        RemovalResult.Removed(name)
     }
+
+    /** Where each teacher is a custodian, split by whether the gathering is over: what «Maestri» says in the row and in the dialog of «Togli». */
+    fun custodianships(): Map<Long, Custodianship> = Custodianships.byTeacher(dsl, LocalDate.now(clock))
 }

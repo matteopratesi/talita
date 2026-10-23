@@ -7,6 +7,8 @@ src/main/jte/components/icon.jte, copiati dal pacchetto npm lucide-static 1.59.0
   integrity sha512-MuHZYaXbHgzN2QO6D3OM19bj09A+8GJiFSdXIMlbnLLEGQQ9+NRH2KaCxuivevD3Y23vM74kV17XBifgtqhfEg==
 cartella icons/, senza modifiche ai tracciati.
 
+Aggiunte da TALITA-4: plus, pencil (convivenza), copy, share-2, printer, eye (link per i genitori e anteprima).
+
 Usate nel guscio: house, users-round, clipboard-check, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
 nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.

@@ -10,6 +10,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-3/` sono i mockup del login, dei ruoli e dei maestri (TALITA-3, Grace Kerning): 42 pagine statiche con tutti gli stati e dati sintetici, che si aprono allo stesso modo da `index.html`. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-4/` sono i mockup della convivenza e della pagina informativa (TALITA-4, Grace Kerning): 27 pagine statiche con tutti gli stati e dati sintetici, da `index.html`; `talita-4.css` importa il CSS del mockup di origine. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -464,6 +466,10 @@ Icone assegnate (nomi di Lucide):
 | Conferma dell'accesso | `log-in` |
 | Il link non vale più | `link-2-off` |
 | Maestri, nella pagina Convivenza | `user-round` |
+| Copia il link | `copy` |
+| Condividi | `share-2` |
+| Stampa la pagina | `printer` |
+| Anteprima della pagina | `eye` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -612,14 +618,14 @@ Note:
 | Ordine | Etichetta | URL | Icona | Chi la vede | Cosa ci sarà |
 |---|---|---|---|---|---|
 | 1 | Home | `/` | `house` | Maestro e genitore | pagina iniziale |
-| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | configurazione, maestri, pagina informativa per i genitori |
+| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | la convivenza (stato, date, luogo, quote, maestri affidatari, informazioni e link per i genitori) e, sotto, «Maestri» |
 | 3 | Iscrizioni | `/iscrizioni` | `users-round` | Maestro e genitore | per il maestro elenco e inserimento dal modulo cartaceo; per il genitore le iscrizioni dei suoi figli |
 | 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | check-in e stampe |
 
 Il maestro ha le quattro voci. Il **genitore ne ha due**, Home e Iscrizioni: ognuna occupa metà barra
 (le `<li>` hanno già `flex-1`), con etichette e icone di sempre, e non scatta mai la regola «più di
 cinque voci → Altro». Chi è maestro e genitore (un solo account) vede la navigazione del maestro.
-«Maestri» non è una voce: ci si arriva dalla Convivenza e ha corrente «Convivenza». Il profilo,
+«Maestri» non è una voce: ci si arriva dalla Convivenza (la sua pagina ha la riga «Maestri» in fondo, in ogni stato, anche vuota, e nessun'altra voce di navigazione) e ha corrente «Convivenza». Il profilo,
 «Accetta l’invito» e le pagine di errore non hanno nessuna voce corrente. Le voci arrivano al template
 filtrate per ruolo, con il ruolo letto dal database a ogni richiesta: dopo un invito accettato, o dopo
 che un maestro viene tolto, il tocco successivo mostra già la navigazione giusta. Gli indirizzi dei soli
@@ -683,6 +689,16 @@ vale più», 404 e 500 per chi non è dentro) hanno lo stesso guscio senza navig
 | Messaggi a comparsa | in basso, senza la navigazione sotto (`bottom-no-nav`) | sopra la navigazione (`bottom-above-nav`) |
 
 Classi dell'intestazione senza accesso: `sticky top-0 z-40 flex min-h-14 items-center gap-2 border-b border-line bg-surface pt-safe px-gutter short:static lg:px-10`, a tutta larghezza anche su desktop (non c'è la colonna a sinistra); il marchio è un `<p class="inline-flex min-h-11 items-center gap-2 text-lg font-bold tracking-tight text-ink">`. `main`: `block px-gutter pt-6 pb-no-nav transition-opacity duration-150 motion-safe:animate-enter nav-busy:opacity-60 nav-busy:delay-300 lg:px-10 lg:pt-16 lg:pb-16`, senza `lg:ml-64`. Due utility nel CSS: `pb-no-nav` (`calc(2.5rem + env(safe-area-inset-bottom))`) e `bottom-no-nav` (`calc(env(safe-area-inset-bottom) + 0.75rem)`).
+
+**Guscio pubblico** (`layout/public.jte`, TALITA-4): la pagina informativa della convivenza (4.14), che chiunque apre da un link, ha lo stesso guscio senza accesso, con tre differenze:
+
+| | Accedi (TALITA-3) | Pagina informativa |
+|---|---|---|
+| Larghezza della colonna | `max-w-md` (448 px) | `max-w-2xl` (672 px): le schede con date e quote respirano su desktop |
+| Script | htmx e `app.js` | **nessuno**: né `hx-boost`, né `htmx-config`, né `#caricamento`, né `#messaggi`, né i `<template>` dei messaggi, né il codice CSRF (che farebbe nascere la sessione e un cookie) |
+| Animazione d'ingresso | sì | no (nessun cambio di pagina da attenuare) |
+
+Nell'`<head>` ha solo il necessario: `noindex, nofollow`, e se la pagina si condivide `description` e `og:title`, `og:description`, `og:type` (`website`), `og:site_name`, `og:locale`: mai `og:image`, `og:url`, `twitter:*` né indirizzi esterni. La prima visita pesa circa 85 KB (HTML, CSS, il font latino, l'icona), sotto i 250 KB. `main` ha `pb-no-nav` e il link «Vai al contenuto» funziona anche senza JavaScript. In stampa intestazione e link «Vai al contenuto» non si stampano (4.12).
 
 Le pagine di errore per chi non ha accesso (404 e 500 sono pubbliche) hanno i testi di 4.11, ma «Vai alla home» diventa «Vai all’accesso» (link a `/accedi`). «Riprova» della 500 resta, solo per le letture.
 
@@ -888,6 +904,19 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
   size-5 -translate-y-1/2 text-ink-muted`) e campo con `pl-11`; etichetta `sr-only` "Cerca una
   persona".
 - Pila dei campi: `space-y-5`. Bottoni del form in fondo, con `mt-6`.
+- **Data** (le date degli eventi): lo stesso campo di testo con `type="date"`, senza `min` né `max` (gli errori sono i nostri, e un limite del browser coprirebbe l'errore). Il valore è `aaaa-mm-gg`.
+- **Importo in euro** (`components/amountField.jte`): campo di testo con `inputmode="decimal"`, `autocomplete="off"`, il segno «€» dentro il campo a destra (solo per gli occhi, `aria-hidden`: l'etichetta dice cosa è) e `pr-12` perché il testo non lo copra. Si accettano `60`, `12,50`, `12.5`; si mostrano sempre come da 6.
+
+```html
+<div class="relative">
+  <input id="quota-intera" name="fullFee" type="text" inputmode="decimal" autocomplete="off" aria-describedby="quota-intera-aiuto quota-intera-errore" aria-invalid="true"
+         class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface pr-12 pl-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+  <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-muted">€</span>
+</div>
+```
+
+- **Area di testo** (`components/textAreaField.jte`): le stesse classi del campo, con `min-h-48` (9 righe) per un testo lungo e `min-h-36` (6 righe) per un elenco, `resize-y`, `py-3`. Gli a capo che la persona scrive si conservano.
+- **Scelta multipla** (più caselle, dove le radio non servono: «Maestri affidatari»): un `fieldset` con `legend`, e le caselle in una lista con bordo, `min-h-14` per riga, `size-6 accent-brand`, il nome che va a capo (`wrap-anywhere`) e, se serve, un'etichetta («Sei tu»). L'errore sta sotto l'elenco, `aria-describedby` sul `fieldset` e `aria-invalid="true"` sulla **prima casella**, così `app.js` le dà il fuoco.
 
 ### 4.3 Liste
 
@@ -958,6 +987,18 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
   `overflow-hidden`) e ha solo il bordo in alto.
 - Un dato che manca si scrive "Non indicata" / "Non indicato" in `text-ink-muted`; mai un trattino
   o un campo vuoto.
+- **Righe «etichetta … valore»** (le quote, la scheda «Quanto costa»): una riga per voce, anche sul telefono, con il valore a destra.
+
+```html
+<dl class="mt-3 divide-y divide-line">
+  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0">
+    <dt class="text-ink-muted">Quota intera</dt>
+    <dd class="text-right font-semibold">60 €</dd>
+  </div>
+</dl>
+```
+
+- **Il titolo della scheda e il suo «Modifica»** stanno sulla stessa riga (`flex items-center justify-between gap-3`), con il bottone di testo e l'icona `pencil`; il bottone ha un `aria-label` che dice cosa si modifica («Modifica le quote»), perché sulla pagina ce ne sono quattro.
 
 ### 4.5 Etichette di stato
 
@@ -966,14 +1007,16 @@ più una variante:
 
 | Variante | Classi | Esempi |
 |---|---|---|
-| Neutra | `bg-surface-muted text-ink-muted` | Bozza, Chiusa |
-| Informativa | `bg-brand-soft text-brand` | Aperta, In corso |
+| Neutra | `bg-surface-muted text-ink-muted` | Bozza, Iscrizioni chiuse, Finita, Sei tu |
+| Informativa | `bg-brand-soft text-brand` | Iscrizioni aperte, In corso |
 | Positiva | `bg-success-soft text-success` | Confermata, Pagata |
-| Attenzione | `bg-warning-soft text-warning` | In forse, Da pagare |
+| Attenzione | `bg-warning-soft text-warning` | In forse, Da pagare, Da completare |
 | Negativa | `bg-danger-soft text-danger` | Annullata |
 
 Una parola o due, con l'iniziale maiuscola. L'etichetta ripete in parole quello che il colore
 dice: il colore da solo non basta.
+
+Della convivenza (`components/badge.jte`, una parola di variante: `neutral`, `info`, `positive`, `warning`, `danger`): **Bozza** neutra, **Iscrizioni aperte** informativa, **Iscrizioni chiuse** neutra, e **Finita** neutra che si aggiunge accanto alla prima quando l'ultimo giorno è passato («finita» non è uno stato: è una data). **Sei tu** neutra accanto al proprio nome, **Da completare** di attenzione accanto a un dato che serve per aprire le iscrizioni.
 
 ### 4.6 Avvisi nella pagina
 
@@ -992,6 +1035,20 @@ Un messaggio che resta nella pagina finché la situazione non cambia.
 | Conferma | `bg-success-soft` | `circle-check`, `text-success` |
 | Attenzione | `bg-warning-soft` | `triangle-alert`, `text-warning` |
 | Errore | `bg-danger-soft` | `circle-alert`, `text-danger` |
+
+Un avviso di attenzione può portare **un elenco di collegamenti** (le cose da fare prima di aprire le iscrizioni: ognuna porta al campo da completare, con il fuoco sul campo, `min-h-11` per il tocco):
+
+```html
+<div role="alert" tabindex="-1" data-fuoco class="flex items-start gap-3 rounded-xl bg-warning-soft p-4">
+  <svg class="size-6 shrink-0 text-warning" aria-hidden="true">…triangle-alert…</svg>
+  <div class="min-w-0">
+    <p class="font-semibold">Prima di aprire le iscrizioni:</p>
+    <ul class="mt-1 list-disc pl-5 marker:text-warning">
+      <li><a href="/convivenza/12/date#luogo" class="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-2">Scrivi il luogo</a></li>
+    </ul>
+  </div>
+</div>
+```
 
 Testo in `text-ink`. Se l'avviso compare dopo un'azione (per esempio un form rimandato con errori),
 ha `role="alert"` (errore e attenzione); una conferma ha `role="status"`; un'informazione che c'è
@@ -1072,6 +1129,7 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   `app.js` ferma l'invio e fa `showModal()`. Il dialogo è `components/confirmDialog.jte`, dentro il blocco che
   l'azione sostituisce; il suo form è un `hx-post` verso lo stesso blocco. L'id del dialogo è `togli-0`,
   `ritira-0`…: mai un nome o un indirizzo.
+- **Passi dello stato della convivenza** (aprire, chiudere, riaprire le iscrizioni, TALITA-4): il bottone è un **link** con `data-apri` verso la pagina di conferma (`/convivenza/12/apri`), che senza JavaScript è la pagina con gli stessi testi (`pages/confirmAction.jte`, «Annulla» torna alla convivenza). Il form del dialogo è un normale form della pagina, non un blocco che si sostituisce (`ConfirmModel.target` nullo): risponde 303 alla pagina con la conferma. `app.js` ascolta i `data-apri` nella fase di cattura, perché un link è anche un link che htmx fa navigare. Una bozza che non si può aprire non ha dialogo: il bottone manda il form e la pagina risponde con l'elenco di cosa manca (4.6).
 - **Se la richiesta del dialogo fallisce** (rete assente, lenta, errore del server, accesso negato) i dialoghi
   aperti si chiudono prima che compaia il messaggio (4.7): un dialogo aperto sta sopra a tutto, anche ai messaggi,
   e il messaggio resterebbe nascosto sotto il suo sfondo. La pagina resta com'era e il messaggio si vede.
@@ -1139,6 +1197,94 @@ organizza la convivenza.» Mai «Riprova»: ripetere non cambia niente. Una 403 
 titolo, come 404 e 500. Senza JavaScript la pagina 403 arriva dal server con gli stessi testi. Il CSRF scaduto non è
 una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
 
+### 4.12 Stampa
+
+Vale per la pagina informativa e per la sua anteprima (stesso componente). Da telefono la persona usa il menu del browser («Condividi → Stampa»), da desktop Ctrl+P; i maestri anche il bottone «Stampa la pagina» dell'anteprima (`data-azione="stampa"`, `app.js` chiama `window.print()`). La pagina pubblica non ha un bottone «Stampa»: servirebbe uno script.
+
+| Cosa | Regola |
+|---|---|
+| Pagina | **A4 verticale**, margini 16 mm in alto e in basso e 18 mm ai lati, corpo del testo a 11 pt |
+| Colori | testo **nero su bianco**; i token si portano a nero e grigio con le variabili del blocco CSS qui sotto, così nessuna classe va riscritta. Gli sfondi non si stampano (i browser li tolgono) e **nessun significato dipende da uno sfondo**: gli avvisi hanno un bordo nero in stampa (`print:border print:border-ink`, già in `components/alert.jte`) |
+| Si stampa | il titolo; le schede (bordo grigio, senza sfondo); l'avviso delle iscrizioni chiuse o della convivenza finita. Le schede brevi (date, quote) non si spezzano mai a metà; quelle che possono essere lunghe (informazioni, cosa portare) si spezzano fra le pagine |
+| **Non** si stampa | «Vai al contenuto», barra di caricamento, intestazione col marchio, navigazione, messaggi a comparsa, bottone «Iscrivi i tuoi figli» e la sua riga; nell'anteprima anche il titolo dell'anteprima, l'avviso, i bottoni e la cornice |
+| **Al posto del bottone** (solo iscrizioni aperte) | un blocco con filetto nero sopra: «Per iscrivere i tuoi figli apri questo indirizzo dal telefono o dal computer:», l'**indirizzo completo** in grande (`text-xl font-bold break-all`) e «Poi entri con il tuo indirizzo email: ti mandiamo un link, senza password.» Niente QR (per dopo, con un ticket) |
+| Non tagliato a destra | niente larghezze fisse; testi lunghi a capo (`wrap-anywhere`), l'indirizzo con `break-all`; il layout a due colonne delle schede o quello a una vanno bene tutti e due (la larghezza della pagina stampata, 658 px, sta a cavallo dei 640 px) |
+| Pagine | i titoli non restano soli in fondo (`break-after: avoid`) e restano attaccati al testo che segue; un paragrafo non lascia meno di tre righe da solo (`orphans`, `widows`) e una voce dell'elenco non si taglia a metà; le schede brevi e il blocco dell'indirizzo non si spezzano (`break-inside-avoid`). Con testi normali è un foglio. Con i testi al massimo (5.000 caratteri di informazioni e 2.000 di cose da portare, una per riga) sono **quattro fogli, e pieni**: a 11 pt il contenuto è alto 3,9 fogli (provato con un PDF di Chromium), quindi due non bastano; il difetto da evitare è un foglio mezzo vuoto, che si aveva quando le schede lunghe non potevano spezzarsi (5 fogli) |
+| Chiuse e finita | niente blocco dell'indirizzo: non c'è niente da fare |
+
+L'indirizzo stampato è `talita.public-url` più `/info/{codice}`, completo e assoluto. Il CSS sta in `src/main/css/app.css`, **fuori da ogni** `@layer`: gli stili senza layer battono le utility di Tailwind, che stanno in `@layer utilities`, senza bisogno di `!important`.
+
+```css
+@media print {
+  @page { size: A4 portrait; margin: 16mm 18mm; }
+
+  :root {
+    --color-canvas: #fff; --color-surface: #fff; --color-surface-muted: #fff;
+    --color-line: #999; --color-line-strong: #666;
+    --color-ink: #000; --color-ink-muted: #333;
+    --color-brand: #000; --color-brand-soft: #fff;
+    --color-warning: #000; --color-warning-soft: #fff;
+    --color-success: #000; --color-success-soft: #fff;
+  }
+
+  html { font-size: 11pt; }
+  body { background: #fff; color: #000; }
+
+  a[href="#contenuto"], #caricamento, #messaggi, body > header, body > nav { display: none; }
+
+  main { margin: 0; padding: 0; animation: none; opacity: 1; }
+  h1, h2, h3 { break-after: avoid; }
+
+  p, li { orphans: 3; widows: 3; }
+  li { break-inside: avoid; }
+}
+```
+
+Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga della pagina pubblica e sull'avviso e sui bottoni dell'anteprima; `break-inside-avoid` sulle schede brevi (date e quote: non su «Informazioni» e «Cosa portare»); `hidden … print:block` sul blocco dell'indirizzo; `print:border print:border-ink` sugli avvisi; sulla cornice dell'anteprima `print:border-0 print:bg-transparent print:p-0`. La stampa si prova con un PDF di Chromium (`Page.pdf`, scritto sotto `build/`, mai nel repo: lo fanno i test e2e).
+
+### 4.13 Indirizzo da copiare
+
+Il blocco della scheda «Link per i genitori» del dettaglio di una convivenza. **L'indirizzo è sempre visibile e selezionabile, anche senza JavaScript** (`select-all`, `break-all`, un tocco lungo lo seleziona). I bottoni che copiano e condividono sono `hidden` nell'HTML e li mostra `app.js` solo se il browser lo sa fare (`navigator.clipboard`, `navigator.share`), e lo rifà dopo ogni cambio di pagina (`htmx:afterSettle`). Senza JavaScript restano l'indirizzo e il link all'anteprima.
+
+```html
+<p class="mt-3 mb-1.5 text-sm text-ink-muted">Indirizzo della pagina</p>
+<p id="link-indirizzo" class="rounded-xl bg-surface-muted px-4 py-3 font-medium break-all select-all">https://talita.example.org/info/q7Vd_3KmZ0xRb-Ew</p>
+<div class="mt-4 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+  <button type="button" hidden data-azione="copia" data-copia="link-indirizzo" class="…primario 4.1…">
+    <svg class="size-5" aria-hidden="true">…copy…</svg>
+    <span data-copia-normale>Copia il link</span><span hidden data-copia-fatto>Link copiato</span>
+  </button>
+  <button type="button" hidden data-azione="condividi" data-titolo="Convivenza di settembre 2027" data-testo="Informazioni: Convivenza di settembre 2027" data-indirizzo-da="link-indirizzo" class="…secondario 4.1…"><svg class="size-5" aria-hidden="true">…share-2…</svg>Condividi</button>
+  <a href="/convivenza/12/anteprima" class="…testo 4.1… justify-center"><svg class="size-5" aria-hidden="true">…eye…</svg>Apri l’anteprima</a>
+</div>
+<p role="status" class="sr-only" data-copia-stato data-copia-annuncio="Link copiato."></p>
+<p hidden data-copia-errore class="mt-2 text-sm text-ink-muted">Non riesco a copiare il link. Tienilo premuto per copiarlo.</p>
+```
+
+- **Copia** scrive l'indirizzo negli appunti. La conferma sta **nel punto in cui si è toccato**: per 3 secondi il bottone dice «Link copiato» (`app.js` scambia i due testi, che stanno entrambi nell'HTML) e una regione `role="status"` solo per i lettori di schermo ripete «Link copiato.». Niente messaggio a comparsa. Se la copia fallisce compare la riga «Non riesco a copiare il link. Tienilo premuto per copiarlo.» e l'indirizzo viene selezionato.
+- **Condividi** chiama `navigator.share` con titolo (`data-titolo`), testo (`data-testo`) e indirizzo. Se la persona annulla non succede niente e non si dice niente. I testi stanno nei `data-*` del template, non nel JS.
+- Il bottone primario della pagina è «Copia il link»; è secondario se la convivenza è finita: con le iscrizioni ancora aperte il primario diventa «Chiudi le iscrizioni», con le iscrizioni chiuse la pagina non ha un primario. Il titolo e l'indirizzo sono testo, mai HTML.
+- In una bozza non c'è l'indirizzo (non funziona ancora): la scheda dice «Il link funziona dopo l’apertura delle iscrizioni. Intanto puoi vedere come sarà la pagina.» e ha solo «Apri l’anteprima».
+
+### 4.14 Pagina informativa
+
+La pagina che i genitori ricevono da un link (`/info/{codice}`), nel guscio pubblico (3.5), senza script. Dall'alto: `h1` (il titolo), avviso (solo chiuse e finita), schede, bottone (solo aperte). Titoli in ordine: `h1` → `h2` delle schede. Mai nomi né email di maestri, né numeri sulle iscrizioni: il template riceve solo i dati pubblici (`PublicInfo`), non la convivenza.
+
+| Elemento | Aperta | Chiusa | Finita |
+|---|---|---|---|
+| Sotto l'`h1` | — | — | le date (`17–19 settembre 2027`, `text-ink-muted`) |
+| Avviso | — | **attenzione**, senza `role` (è la pagina, non la risposta a un'azione): «Le iscrizioni sono chiuse. Per iscrivere un altro bambino o cambiare un’iscrizione già fatta, chiedi ai maestri.» | **informativo**: «La convivenza è finita. Per la prossima arriverà un link nuovo.» |
+| Quando e dove, Quanto costa, Informazioni, Cosa portare | sì, ognuna solo se c'è | sì | **no**: né luogo, né quote, né testi, né bottone |
+| Bottone «Iscrivi i tuoi figli» | **sì**, in fondo | no | no |
+
+Le schede sono quelle di 4.4 (`section` con `aria-labelledby`, `break-inside-avoid`). «Quanto costa» ha le righe di 4.4: **Tutti i giorni** `60 €`, **Alcuni giorni** `25 € per ogni giorno`, **Solo pranzo** `10 € per ogni pranzo`; zero: «Gratuita»; una quota non prevista non compare, e se non ce n'è nessuna la scheda non compare. Le informazioni sono paragrafi (`max-w-prose`, `whitespace-pre-line`, `wrap-anywhere`), «Cosa portare» un elenco puntato. Il bottone è un normale collegamento a `/info/{codice}/iscrizione` (a tutta larghezza sul telefono, `sm:w-auto`), con sotto «Per iscriverli entri con il tuo indirizzo email: ti mandiamo un link, senza password.» (`text-sm text-ink-muted`: ripete l'introduzione di «Accedi»). Sta in fondo, dopo le informazioni: chi arriva dalla lettera vuole prima sapere quando, dove e quanto costa.
+
+**Anteprima per i maestri** (`/convivenza/{id}/anteprima`, nel guscio con navigazione, `noindex`): lo stesso componente (`gathering/infoContent.jte`, con il livello dei titoli come parametro: il titolo della convivenza diventa `h2` e le schede `h3`, l'unico `h1` è «Anteprima della pagina»), dentro una cornice (`rounded-2xl border border-line bg-canvas p-4 lg:p-6`) che su desktop dice che è un'anteprima. In cima un avviso informativo («Così vede la pagina chi apre il link adesso.», più «Il bottone «Iscrivi i tuoi figli» qui non porta all’iscrizione.» se aperta; «Così apparirà la pagina quando aprirai le iscrizioni…» in bozza; «…: la convivenza è finita.» se finita) e i bottoni «Stampa la pagina» (non in bozza) e «Torna alla convivenza». Il bottone «Iscrivi i tuoi figli» è un `<button type="button">` che non fa niente, con `aria-describedby` che punta all'avviso: è l'unico bottone «finto», e mai un collegamento a `/info/…/iscrizione`.
+
+**«Pagina non trovata» per `/info`**: la stessa risposta (404, stesso HTML, stesse intestazioni) per una bozza e per un codice che non esiste, anche per una sola maiuscola diversa, con o senza accesso, maestri compresi: non si deve capire se la bozza esiste. Titolo «Pagina non trovata», testo «L’indirizzo potrebbe essere sbagliato o incompleto. Se te l’ha mandato un maestro, chiedigli di mandartelo di nuovo.» (una variante della 404 di 4.11 solo per `/info`: chi riceve il link tagliato da una chat sa cosa fare), bottone «Vai all’accesso» senza accesso (guscio pubblico), «Vai alla home» con l'accesso (guscio dell'app, nessuna voce corrente).
+
+**«Iscrizione»** (`/info/{codice}/iscrizione`, per ogni account; chi non ha l'accesso va a `/accedi` e, con il link nello stesso browser, torna qui): con le iscrizioni aperte e la fine non passata, finché TALITA-5 non c'è, la pagina «In preparazione» (stato vuoto di 4.9, `hourglass`, sotto l'`h1` il titolo della convivenza, bottone «Torna alle informazioni»), con corrente «Iscrizioni»; con le iscrizioni chiuse o la convivenza finita, 303 verso `/info/{codice}`; con una bozza o un codice sconosciuto, la 404 di sopra.
+
 ## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
@@ -1155,12 +1301,13 @@ una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
   qualsiasi, con il suo indirizzo e il suo titolo (criteri 25 e 26);
 - doppio tocco o tocco su un'altra voce mentre si aspetta: vale l'ultimo tocco, senza errori.
 
-**Form rimandato con errori** (un indirizzo sbagliato, un limite, una pagina scaduta): il server
-risponde con la pagina del form, **422** (errori) o **429** (limiti), e `app.js` la mette al posto di
+**Form rimandato con errori** (un indirizzo sbagliato, un limite, una pagina scaduta, un passo che lo stato delle cose rifiuta): il server
+risponde con la pagina del form, **422** (errori), **429** (limiti) o **409** (conflitto con lo stato: una convivenza che non si può
+riaprire, un maestro che è affidatario), e `app.js` la mette al posto di
 quella che c'è come per una risposta 200, senza il messaggio «Qualcosa non ha funzionato». I campi
 restano compilati. Il fuoco va al primo campo con `aria-invalid="true"`; se non c'è, al primo elemento con
 `data-fuoco` (l'avviso); se non c'è nemmeno quello e la pagina è cambiata, all'`h1`. L'errore di un campo lo
-legge il lettore di schermo grazie ad `aria-describedby`. Il form rimandato non lascia un'altra voce nella
+legge il lettore di schermo grazie ad `aria-describedby`. Dopo un cambio di pagina con un frammento nell'indirizzo (`/convivenza/12/date#luogo`, un collegamento di «Prima di aprire le iscrizioni») il fuoco va all'elemento che ha quell'`id`, il campo da completare, prima di ripiegare sull'`h1`. Il form rimandato non lascia un'altra voce nella
 cronologia. Vale per ogni form con `hx-boost` e per ogni `hx-post` con un suo `hx-target`.
 
 **Azione su un blocco della pagina** (un form o un bottone con `hx-post`, `hx-target` e `hx-swap="outerHTML"`,
@@ -1194,6 +1341,8 @@ modifica):
   lenta", con lo stesso comportamento;
 - tornata la rete, "Riprova" o un nuovo tocco funzionano normalmente;
 - vale soprattutto per i maestri durante la convivenza, dove il campo può mancare a lungo: una richiesta che fallisce non cancella mai quello che la persona ha scritto, il form resta compilato (già previsto in 4.7).
+
+**La pagina informativa pubblica non usa htmx** (4.14): niente `hx-*`, niente `app.js`, un solo caricamento, nessun indicatore. Nel dettaglio e nell'anteprima (guscio con htmx) cambia solo la pagina intera; `app.js` ha tre azioni, tutte con `data-azione` e nessun `onclick`: `copia`, `condividi` e `stampa` (4.12, 4.13).
 
 **Senza JavaScript** (o prima che htmx sia caricato): link e form funzionano come in un sito
 normale, con il ricaricamento della pagina. Niente indicatore e niente messaggi a comparsa, ma le
@@ -1287,6 +1436,10 @@ la trovi qui con le date, i maestri e le iscrizioni."
 | Numeri | punto per le migliaia | 1.250 persone |
 | Importi | virgola per i decimali, euro dopo, decimali solo se non zero | 120 €, 120,50 € |
 | Zero | in parole | Nessuna iscrizione (non "0 iscrizioni") |
+| Importo a zero | in parole | Gratuita (non "0 €") |
+| Giorni di una convivenza | giorno della settimana con l'iniziale maiuscola, i giorni separati da virgole e «e»; mese e anno una volta sola se sono gli stessi, altrimenti per ogni giorno | Venerdì 17, sabato 18 e domenica 19 settembre 2027 · Giovedì 30 dicembre 2027, venerdì 31 dicembre 2027 e sabato 1 gennaio 2028 |
+| Anni diversi in un intervallo | trattino medio con spazi, l'anno di ogni data | 30 dicembre 2027 – 1 gennaio 2028 |
+| Un giorno solo | la data intera | 18 settembre 2027 |
 | Singolare e plurale | sempre giusti | 1 bambino, 24 bambini (mai "bambino/i") |
 
 Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.

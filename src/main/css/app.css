@@ -174,3 +174,76 @@
     outline: none;
   }
 }
+
+/*
+ * Stampa della pagina informativa e della sua anteprima (design di TALITA-4, 4.12 della guida). Fuori da ogni @layer: gli stili senza layer
+ * battono le utility di Tailwind, che stanno in @layer utilities, senza bisogno di !important. Il significato non dipende mai da uno sfondo (i
+ * browser li tolgono): testo nero su bianco, i token si portano a nero e grigio qui, così nessuna classe va riscritta.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 18mm;
+  }
+
+  :root {
+    --color-canvas: #fff;
+    --color-surface: #fff;
+    --color-surface-muted: #fff;
+    --color-line: #999;
+    --color-line-strong: #666;
+    --color-ink: #000;
+    --color-ink-muted: #333;
+    --color-brand: #000;
+    --color-brand-soft: #fff;
+    --color-warning: #000;
+    --color-warning-soft: #fff;
+    --color-success: #000;
+    --color-success-soft: #fff;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  a[href="#contenuto"],
+  #caricamento,
+  #messaggi,
+  body > header,
+  body > nav {
+    display: none;
+  }
+
+  main {
+    margin: 0;
+    padding: 0;
+    animation: none;
+    opacity: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /*
+   * Le schede brevi (date, quote) restano intere (`break-inside-avoid` sul template); quelle che possono essere lunghe, informazioni e cosa
+   * portare, si spezzano fra le pagine, altrimenti ognuna comincia su un foglio nuovo e i fogli restano mezzi vuoti. Il titolo resta attaccato
+   * al testo che segue (`break-after` sopra), un paragrafo non lascia meno di tre righe da solo e una voce dell'elenco non si taglia a metà.
+   */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  li {
+    break-inside: avoid;
+  }
+}

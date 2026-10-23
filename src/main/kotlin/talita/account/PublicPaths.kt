@@ -8,13 +8,16 @@ import org.springframework.web.util.pattern.PathPatternParser
  * The addresses that anyone can open without being inside. Everything else asks for a login: a
  * person without one is sent to `/accedi`, whatever the address (even one that does not exist).
  *
- * This is the only list. A ticket that adds a public page (the information page of the gathering,
- * TALITA-4) adds it here, and the test of the list (`PublicPathsTests`) says so if it forgets.
+ * This is the only list. A ticket that adds a public page adds it here, and the test of the list
+ * (`PublicPathsTests`) says so if it forgets.
  */
 object PublicPaths {
 
-    /** Pages: the login pages, the health of the application (for whoever watches it), the error page. */
-    val pages: List<String> = listOf("/accedi/**", "/actuator/health", "/error")
+    /**
+     * Pages: the login pages, the health of the application (for whoever watches it), the error page, and the information page of a gathering
+     * (`/info/{codice}`, TALITA-4). The registration under it (`/info/{codice}/iscrizione`) is not here: it asks for an account.
+     */
+    val pages: List<String> = listOf("/accedi/**", "/actuator/health", "/error", "/info/*")
 
     /**
      * The static files of the app. The fingerprint in the name (`/css/app-<hash>.css`) is added by
