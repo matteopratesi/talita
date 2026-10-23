@@ -31,6 +31,9 @@ internal class GatheringTestKit(private val mockMvc: MockMvc, tokens: OneTimeTok
 
     fun accountId(email: String): Long = teachers.accountId(email)
 
+    /** The link of the mail of [email], as the token service makes it. */
+    fun link(email: String): String = teachers.link(email)
+
     /** A person who is not a teacher and has entered. */
     fun parent(email: String = Addresses.unique("conv-genitore")): MockBrowser =
         MockBrowser(mockMvc).also { it.confirm(teachers.link(email)) }
