@@ -29,4 +29,8 @@ enum class Icon {
     USER_ROUND,
     PLUS,
     PENCIL,
+    COPY,
+    SHARE_2,
+    PRINTER,
+    EYE,
 }

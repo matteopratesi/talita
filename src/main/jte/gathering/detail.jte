@@ -61,6 +61,42 @@
       @endif
     </section>
 
+    <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="link">
+      <h2 id="link" class="text-lg font-semibold">Link per i genitori</h2>
+      @if(!page.getLink().getOpen())
+        <p class="mt-3">Il link funziona dopo l’apertura delle iscrizioni. Intanto puoi vedere come sarà la pagina.</p>
+        <div class="mt-4">
+          @template.components.linkButton(href = page.getLink().getPreviewHref(), label = "Apri l’anteprima", variant = "secondary", icon = Icon.EYE, width = "phone")
+        </div>
+      @else
+        <p class="mt-3">Condividilo con i genitori, per esempio su WhatsApp. Chi lo apre vede le informazioni, senza dover entrare.</p>
+        @if(page.getLink().getAddress() != null)
+          <p class="mt-3 mb-1.5 text-sm text-ink-muted">Indirizzo della pagina</p>
+          <p id="link-indirizzo" class="rounded-xl bg-surface-muted px-4 py-3 font-medium break-all select-all">${page.getLink().getAddress()}</p>
+        @else
+          <p class="mt-3 text-sm text-ink-muted">L’indirizzo del sito non è impostato: avvisa chi gestisce Talità.</p>
+        @endif
+        @if(page.getLink().getOver())
+          <p class="mt-3">La pagina dice che la convivenza è finita.</p>
+        @endif
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+          @if(page.getLink().getAddress() != null)
+            <button type="button" hidden data-azione="copia" data-copia="link-indirizzo" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold transition-colors duration-150 select-none sm:w-auto ${page.getLink().getCopyPrimary() ? "bg-brand text-white hover:bg-brand-strong active:bg-brand-strong" : "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted"}">
+              @template.components.icon(icon = Icon.COPY, classes = "size-5")
+              <span data-copia-normale>Copia il link</span><span hidden data-copia-fatto>Link copiato</span>
+            </button>
+            <button type="button" hidden data-azione="condividi" data-titolo="${page.getLink().getTitle()}" data-testo="${"Informazioni: " + page.getLink().getTitle()}" data-indirizzo-da="link-indirizzo" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-5 text-base font-semibold text-ink transition-colors duration-150 select-none hover:bg-surface-muted active:bg-surface-muted sm:w-auto">
+              @template.components.icon(icon = Icon.SHARE_2, classes = "size-5")
+              Condividi
+            </button>
+          @endif
+          @template.components.linkButton(href = page.getLink().getPreviewHref(), label = "Apri l’anteprima", variant = "text", icon = Icon.EYE, width = "phone")
+        </div>
+        <p role="status" class="sr-only" data-copia-stato data-copia-annuncio="Link copiato."></p>
+        <p hidden data-copia-errore class="mt-2 text-sm text-ink-muted">Non riesco a copiare il link. Tienilo premuto per copiarlo.</p>
+      @endif
+    </section>
+
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="quando">
       <div class="flex items-center justify-between gap-3">
         <h2 id="quando" class="text-lg font-semibold">Quando e dove</h2>

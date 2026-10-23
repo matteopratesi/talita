@@ -11,6 +11,8 @@
 //   time leaves the page as it is and shows a pop-up message (texts are in the layout, as <template>);
 //   the same for the back button without network;
 // - touching another link while a page change is on its way: the last touch wins;
+// - the address of the information page of a gathering can be copied and shared (`data-azione="copia"` and `"condividi"`, shown only if the
+//   browser can) and the preview can be printed (`"stampa"`): the texts are in the template, the code only does;
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
 //   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
@@ -277,6 +279,84 @@
     },
     true,
   );
+
+  // ---- Copy, share and print the information page ----
+
+  const COPIED_FOR_MS = 3000;
+  let copiedTimer = null;
+
+  /** The buttons that copy and share are in the page hidden: they are shown only where the browser can do it. Without JavaScript the address is text to select. */
+  function showCopyAndShare() {
+    const canCopy = Boolean(navigator.clipboard && typeof navigator.clipboard.writeText === "function");
+    const canShare = typeof navigator.share === "function";
+    document.querySelectorAll('[data-azione="copia"]').forEach((button) => {
+      button.hidden = !canCopy;
+    });
+    document.querySelectorAll('[data-azione="condividi"]').forEach((button) => {
+      button.hidden = !canShare;
+    });
+  }
+
+  function copyLink(button) {
+    const source = document.getElementById(button.getAttribute("data-copia"));
+    const normal = button.querySelector("[data-copia-normale]");
+    const done = button.querySelector("[data-copia-fatto]");
+    const status = document.querySelector("[data-copia-stato]");
+    const failure = document.querySelector("[data-copia-errore]");
+    if (!source || !navigator.clipboard) return;
+    navigator.clipboard.writeText(source.textContent.trim()).then(
+      () => {
+        // The confirmation is where the person touched: the button says it for three seconds, and a region for screen readers repeats it.
+        if (failure) failure.hidden = true;
+        if (normal) normal.hidden = true;
+        if (done) done.hidden = false;
+        if (status) status.textContent = status.getAttribute("data-copia-annuncio") || "";
+        clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => {
+          if (normal) normal.hidden = false;
+          if (done) done.hidden = true;
+          if (status) status.textContent = "";
+        }, COPIED_FOR_MS);
+      },
+      () => {
+        // It did not work (no permission, an old browser): the address is selected, the person presses and holds to copy it.
+        if (failure) failure.hidden = false;
+        window.getSelection().selectAllChildren(source);
+      },
+    );
+  }
+
+  function shareLink(button) {
+    const source = document.getElementById(button.getAttribute("data-indirizzo-da"));
+    if (!source || typeof navigator.share !== "function") return;
+    // If the person cancels the sheet nothing happens, and nothing is said.
+    navigator
+      .share({ title: button.getAttribute("data-titolo"), text: button.getAttribute("data-testo"), url: source.textContent.trim() })
+      .catch(() => {});
+  }
+
+  document.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-azione]");
+    if (!action) return;
+    switch (action.getAttribute("data-azione")) {
+      case "copia":
+        copyLink(action);
+        break;
+      case "condividi":
+        shareLink(action);
+        break;
+      case "stampa":
+        window.print();
+        break;
+      default:
+        break;
+    }
+  });
+
+  // The page is boosted: after every change of page the new buttons are shown (or not) again.
+  document.addEventListener("htmx:afterSettle", showCopyAndShare);
+  document.addEventListener("DOMContentLoaded", showCopyAndShare);
+  showCopyAndShare();
 
   // A form that comes back with its errors stays at the address it had: no second entry in the history.
   document.addEventListener("htmx:beforeHistoryUpdate", (event) => {

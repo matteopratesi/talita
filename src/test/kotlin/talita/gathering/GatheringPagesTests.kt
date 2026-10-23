@@ -537,7 +537,7 @@ class GatheringPagesTests(
             val id = dsl.select(GATHERING.ID).from(GATHERING).limit(1).fetchOne(GATHERING.ID)
             val paths = listOf("/convivenza", "/convivenza/nuova", "/maestri") + if (id == null) emptyList() else listOf(
                 "/convivenza/$id", "/convivenza/$id/date", "/convivenza/$id/quote", "/convivenza/$id/affidatari", "/convivenza/$id/informazioni",
-                "/convivenza/$id/apri", "/convivenza/$id/chiudi", "/convivenza/$id/riapri",
+                "/convivenza/$id/apri", "/convivenza/$id/chiudi", "/convivenza/$id/riapri", "/convivenza/$id/anteprima",
             )
             for (path in paths) pages["$label $path"] = browser.get(path).body()
         }
@@ -573,7 +573,7 @@ class GatheringPagesTests(
 
     private fun addressesOf(id: Long) = listOf(
         "/convivenza", "/convivenza/nuova", "/convivenza/$id", "/convivenza/$id/date", "/convivenza/$id/quote", "/convivenza/$id/affidatari",
-        "/convivenza/$id/informazioni", "/convivenza/$id/apri", "/convivenza/$id/chiudi", "/convivenza/$id/riapri",
+        "/convivenza/$id/informazioni", "/convivenza/$id/apri", "/convivenza/$id/chiudi", "/convivenza/$id/riapri", "/convivenza/$id/anteprima",
     )
 
     @Test

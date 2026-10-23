@@ -11,6 +11,9 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="htmx-config" content='{"historyCacheSize":0,"includeIndicatorStyles":false,"timeout":20000}'>
   <title>${shell.getTitle()}</title>
+  @if(shell.getNoindex())
+    <meta name="robots" content="noindex, nofollow">
+  @endif
   <link rel="icon" href="${shell.getAssets().url("/favicon.svg")}" type="image/svg+xml">
   <link rel="preload" href="${shell.getAssets().url("/fonts/inter-latin.woff2")}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${shell.getAssets().url("/css/app.css")}">

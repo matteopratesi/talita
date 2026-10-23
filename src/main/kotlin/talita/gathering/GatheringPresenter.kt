@@ -2,6 +2,7 @@ package talita.gathering
 
 import org.springframework.stereotype.Component
 import talita.account.CurrentAccount
+import talita.account.PublicUrl
 import talita.ui.Alert
 import talita.ui.ConfirmModel
 import java.time.LocalDate
@@ -12,7 +13,7 @@ import java.time.LocalDate
  * is missing) come from [Gathering] and [Gatherings]: nothing is decided twice.
  */
 @Component
-class GatheringPresenter(private val gatherings: Gatherings) {
+class GatheringPresenter(private val gatherings: Gatherings, private val publicUrl: PublicUrl) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
     fun badges(gathering: Gathering, today: LocalDate): List<Badge> = buildList {
@@ -73,13 +74,22 @@ class GatheringPresenter(private val gatherings: Gatherings) {
             custodiansNeeded = draft && custodians.isEmpty(),
             infoParagraphs = paragraphs(gathering.infoText),
             whatToBring = lines(gathering.whatToBring),
-            link = null,
+            link = LinkCard(
+                open = !draft,
+                address = if (draft) null else publicUrl.of("/info/${gathering.publicCode}"),
+                over = over,
+                previewHref = "/convivenza/${gathering.id}/anteprima",
+                title = gathering.title,
+                copyPrimary = !draft && !over,
+            ),
         )
     }
 
     /**
      * The card «Stato»: the labels, a sentence, and the one button that makes sense (design 4). The button of a draft that is not complete
-     * is a form that sends straight away, and the answer is the list of what is missing.
+     * is a form that sends straight away, and the answer is the list of what is missing. The main button of the page is «Apri le iscrizioni»
+     * for a draft, «Copia il link» (card «Link per i genitori») for open or closed registrations, and «Chiudi le iscrizioni» again when the
+     * gathering is over and they are still open: the thing to do.
      */
     private fun stateCard(gathering: Gathering, over: Boolean, complete: Boolean): StateCard {
         val id = gathering.id
@@ -93,7 +103,7 @@ class GatheringPresenter(private val gatherings: Gatherings) {
 
             GatheringState.OPEN -> StateCard(
                 badges, "I genitori possono iscrivere i figli dal link.", null,
-                StateButton("Chiudi le iscrizioni", primary = true, href = "/convivenza/$id/chiudi", opens = "dialogo-chiudi", direct = false, action = "chiudi"),
+                StateButton("Chiudi le iscrizioni", primary = over, href = "/convivenza/$id/chiudi", opens = "dialogo-chiudi", direct = false, action = "chiudi"),
                 from = "open",
             )
 
@@ -109,7 +119,7 @@ class GatheringPresenter(private val gatherings: Gatherings) {
                     )
                     else -> StateCard(
                         badges, closed, null,
-                        StateButton("Riapri le iscrizioni", primary = true, href = "/convivenza/$id/riapri", opens = "dialogo-riapri", direct = false, action = "riapri"),
+                        StateButton("Riapri le iscrizioni", primary = false, href = "/convivenza/$id/riapri", opens = "dialogo-riapri", direct = false, action = "riapri"),
                         from = "closed",
                     )
                 }

@@ -75,18 +75,21 @@ data class DetailPage(
     val custodiansNeeded: Boolean,
     val infoParagraphs: List<String>,
     val whatToBring: List<String>,
-    /** Part B: the card «Link per i genitori». */
-    val link: LinkCard?,
+    val link: LinkCard,
 )
 
-/** The card «Link per i genitori» (part B). */
+/**
+ * The card «Link per i genitori»: while the gathering is a draft there is nothing to copy (the link works after the opening: only the
+ * preview), afterwards the complete address, as selectable text, with the buttons that copy and share it (shown by `app.js` only if the browser
+ * can). [address] is null when the public address of the site is not set (`talita.public-url`): the card says so instead of a wrong link.
+ * [copyPrimary]: «Copia il link» is the main action of the page, unless the gathering is over and the thing to do is to close the registrations.
+ */
 data class LinkCard(
     val open: Boolean,
     val address: String?,
     val over: Boolean,
     val previewHref: String,
     val title: String,
-    val share: String,
     val copyPrimary: Boolean,
 )
 
