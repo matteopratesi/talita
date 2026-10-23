@@ -1205,11 +1205,11 @@ Vale per la pagina informativa e per la sua anteprima (stesso componente). Da te
 |---|---|
 | Pagina | **A4 verticale**, margini 16 mm in alto e in basso e 18 mm ai lati, corpo del testo a 11 pt |
 | Colori | testo **nero su bianco**; i token si portano a nero e grigio con le variabili del blocco CSS qui sotto, così nessuna classe va riscritta. Gli sfondi non si stampano (i browser li tolgono) e **nessun significato dipende da uno sfondo**: gli avvisi hanno un bordo nero in stampa (`print:border print:border-ink`, già in `components/alert.jte`) |
-| Si stampa | il titolo; le schede (bordo grigio, senza sfondo, mai spezzate a metà); l'avviso delle iscrizioni chiuse o della convivenza finita |
+| Si stampa | il titolo; le schede (bordo grigio, senza sfondo); l'avviso delle iscrizioni chiuse o della convivenza finita. Le schede brevi (date, quote) non si spezzano mai a metà; quelle che possono essere lunghe (informazioni, cosa portare) si spezzano fra le pagine |
 | **Non** si stampa | «Vai al contenuto», barra di caricamento, intestazione col marchio, navigazione, messaggi a comparsa, bottone «Iscrivi i tuoi figli» e la sua riga; nell'anteprima anche il titolo dell'anteprima, l'avviso, i bottoni e la cornice |
 | **Al posto del bottone** (solo iscrizioni aperte) | un blocco con filetto nero sopra: «Per iscrivere i tuoi figli apri questo indirizzo dal telefono o dal computer:», l'**indirizzo completo** in grande (`text-xl font-bold break-all`) e «Poi entri con il tuo indirizzo email: ti mandiamo un link, senza password.» Niente QR (per dopo, con un ticket) |
 | Non tagliato a destra | niente larghezze fisse; testi lunghi a capo (`wrap-anywhere`), l'indirizzo con `break-all`; il layout a due colonne delle schede o quello a una vanno bene tutti e due (la larghezza della pagina stampata, 658 px, sta a cavallo dei 640 px) |
-| Pagine | i titoli non restano soli in fondo (`break-after: avoid`), le schede e il blocco dell'indirizzo non si spezzano (`break-inside-avoid`). Con i testi al massimo (5.000 e 2.000 caratteri) la pagina arriva a due fogli: va bene |
+| Pagine | i titoli non restano soli in fondo (`break-after: avoid`) e restano attaccati al testo che segue; un paragrafo non lascia meno di tre righe da solo (`orphans`, `widows`) e una voce dell'elenco non si taglia a metà; le schede brevi e il blocco dell'indirizzo non si spezzano (`break-inside-avoid`). Con testi normali è un foglio. Con i testi al massimo (5.000 caratteri di informazioni e 2.000 di cose da portare, una per riga) sono **quattro fogli, e pieni**: a 11 pt il contenuto è alto 3,9 fogli (provato con un PDF di Chromium), quindi due non bastano; il difetto da evitare è un foglio mezzo vuoto, che si aveva quando le schede lunghe non potevano spezzarsi (5 fogli) |
 | Chiuse e finita | niente blocco dell'indirizzo: non c'è niente da fare |
 
 L'indirizzo stampato è `talita.public-url` più `/info/{codice}`, completo e assoluto. Il CSS sta in `src/main/css/app.css`, **fuori da ogni** `@layer`: gli stili senza layer battono le utility di Tailwind, che stanno in `@layer utilities`, senza bisogno di `!important`.
@@ -1234,10 +1234,13 @@ L'indirizzo stampato è `talita.public-url` più `/info/{codice}`, completo e as
 
   main { margin: 0; padding: 0; animation: none; opacity: 1; }
   h1, h2, h3 { break-after: avoid; }
+
+  p, li { orphans: 3; widows: 3; }
+  li { break-inside: avoid; }
 }
 ```
 
-Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga della pagina pubblica e sull'avviso e sui bottoni dell'anteprima; `break-inside-avoid` sulle schede; `hidden … print:block` sul blocco dell'indirizzo; `print:border print:border-ink` sugli avvisi; sulla cornice dell'anteprima `print:border-0 print:bg-transparent print:p-0`. La stampa si prova con un PDF di Chromium (`Page.pdf`, scritto sotto `build/`, mai nel repo: lo fanno i test e2e).
+Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga della pagina pubblica e sull'avviso e sui bottoni dell'anteprima; `break-inside-avoid` sulle schede brevi (date e quote: non su «Informazioni» e «Cosa portare»); `hidden … print:block` sul blocco dell'indirizzo; `print:border print:border-ink` sugli avvisi; sulla cornice dell'anteprima `print:border-0 print:bg-transparent print:p-0`. La stampa si prova con un PDF di Chromium (`Page.pdf`, scritto sotto `build/`, mai nel repo: lo fanno i test e2e).
 
 ### 4.13 Indirizzo da copiare
 

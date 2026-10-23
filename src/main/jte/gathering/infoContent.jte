@@ -7,7 +7,9 @@
 @param boolean preview = false
 <%-- The content of the information page (criteria 24, 26, 27, 28, 33), one component for the public page (`level` 1: the title is the h1, the cards h2) and for
      the preview of the teachers (`level` 2: the title is an h2 of the same size, the cards h3). Nothing here is personal data: [info] holds only what the page shows.
-     The parts that are empty are not drawn, cards included. In print (app.css and the `print:` classes) the button and its line are not printed, and where the button is
+     The parts that are empty are not drawn, cards included. The cards that can be long (the information and the things to bring: up to 5,000 and 2,000
+     characters) are not kept whole on a sheet, or the sheets would stay half empty: they split between pages (app.css keeps the heading with the text that
+     follows and the lines of a list whole); the short ones (date, fees) stay whole with `break-inside-avoid`. In print (app.css and the `print:` classes) the button and its line are not printed, and where the button is
      there is the address of the page, complete, for whoever reads the sheet.
      [preview]: the button «Iscrivi i tuoi figli» is a button that does nothing (the notice of the preview says so), never a link to the registration. --%>
 <div class="mb-6 lg:mb-8">
@@ -60,7 +62,7 @@
     @endif
 
     @if(!info.getParagraphs().isEmpty())
-      <section class="break-inside-avoid rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="informazioni">
+      <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="informazioni">
         @template.components.heading(level = level + 1, id = "informazioni", classes = "text-lg font-semibold", text = "Informazioni")
         <div class="mt-3 max-w-prose space-y-3">
           @for(String paragraph : info.getParagraphs())
@@ -71,7 +73,7 @@
     @endif
 
     @if(!info.getWhatToBring().isEmpty())
-      <section class="break-inside-avoid rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="portare">
+      <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="portare">
         @template.components.heading(level = level + 1, id = "portare", classes = "text-lg font-semibold", text = "Cosa portare")
         <ul class="mt-3 list-disc space-y-1 pl-5 marker:text-ink-muted wrap-anywhere">
           @for(String thing : info.getWhatToBring())

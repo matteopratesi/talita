@@ -522,6 +522,58 @@ class InfoPageE2eTest {
         assertEquals(1, Regex("/Type\\s*/Page[^s]").findAll(String(bytes, Charsets.ISO_8859_1)).count(), "the sheet has more than one page")
     }
 
+    /**
+     * The longest texts that the forms accept: 5,000 characters of information and 2,000 of things to bring. Two ways of writing them: the information in
+     * twenty paragraphs and one thing per line (about 55 lines), and the information as one paragraph and the things in a few long lines.
+     */
+    private fun longestTexts(): List<Pair<String, String>> {
+        val sentence = "Ci si ritrova venerdì alle 18:00 davanti alla casa, si dorme in camerata e si finisce domenica dopo il pranzo, verso le 15:00. "
+        val paragraphs = (1..20).joinToString("") { sentence.repeat(3).trim() + "\n\n" }.trim().take(5000)
+        val lines = (1..200).joinToString("\n") { "Un oggetto da portare, il numero $it" }.take(2000).substringBeforeLast('\n')
+        val oneParagraph = (1..40).joinToString(" ") { sentence.trim() }.take(5000)
+        val longLines = (1..20).joinToString("\n") { "Tutto il necessario per dormire in camerata, per lavarsi e per stare all'aperto, il pacchetto numero $it" }.take(2000).substringBeforeLast('\n')
+        check(paragraphs.length == 5000 && lines.length in 1900..2000 && oneParagraph.length == 5000 && longLines.length in 1500..2000)
+        return listOf(paragraphs to lines, oneParagraph to longLines)
+    }
+
+    /** The number of pages of a PDF that Chromium wrote (the page objects are in the clear: Skia writes no object streams). */
+    private fun pagesOf(pdf: Path): Int = Regex("/Type\\s*/Page[^s]").findAll(String(Files.readAllBytes(pdf), Charsets.ISO_8859_1)).count()
+
+    @E2eTest(signedIn = false)
+    fun `c33 with the texts at their maximum the long cards are split between the pages, so that no sheet is left with a large white space`(e2e: E2e) {
+        val page = e2e.page
+        e2e.reset()
+        val folder = Files.createTempDirectory("talita-stampa")
+        try {
+            for ((index, texts) in longestTexts().withIndex()) {
+                val (info, things) = texts
+                e2e.gatherings().reset()
+                e2e.openGathering(info = info, whatToBring = things)
+                page.setViewportSize(1280, 800)
+                e2e.open("/info/$code")
+                page.waitForSettledContent()
+
+                // The PDF as Chromium prints it, A4 with the margins of the design, in a folder that is thrown away: never in the repository. (Not after emulating the
+                // screen: then Chromium prints with the CSS of the screen, on a Letter sheet.)
+                val pdf = folder.resolve("info-massimo-$index-${e2e.profile.label}.pdf")
+                page.pdf(Page.PdfOptions().setPath(pdf).setPreferCSSPageSize(true).setPrintBackground(false))
+                val pages = pagesOf(pdf)
+
+                // How many sheets the content needs when each one is filled: its height printed in one piece (a sheet of A4 with the margins of the design is 658 px
+                // wide and 265 mm, about 1,001 px, high) over the height of a sheet. A page that is split badly takes more sheets than this, with white at the bottom.
+                page.emulateMedia(Page.EmulateMediaOptions().setMedia(Media.PRINT))
+                page.setViewportSize(658, 1001)
+                val height = (page.evaluate("document.documentElement.scrollHeight") as Number).toDouble()
+                val needed = Math.ceil(height / 1001.0).toInt()
+
+                assertTrue(pages > 1, "texts $index: the texts at their maximum fit on one page")
+                assertTrue(pages <= needed, "texts $index: the sheet is $pages pages, and its content ($height px) fills $needed: some pages are left with white space")
+            }
+        } finally {
+            folder.toFile().deleteRecursively()
+        }
+    }
+
     @E2eTest
     fun `c33 the preview prints only the page, with the address and no notice, no buttons and no frame, and with the registrations closed there is no address`(e2e: E2e) {
         val page = e2e.page

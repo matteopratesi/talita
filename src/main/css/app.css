@@ -231,4 +231,19 @@
   h3 {
     break-after: avoid;
   }
+
+  /*
+   * Le schede brevi (date, quote) restano intere (`break-inside-avoid` sul template); quelle che possono essere lunghe, informazioni e cosa
+   * portare, si spezzano fra le pagine, altrimenti ognuna comincia su un foglio nuovo e i fogli restano mezzi vuoti. Il titolo resta attaccato
+   * al testo che segue (`break-after` sopra), un paragrafo non lascia meno di tre righe da solo e una voce dell'elenco non si taglia a metà.
+   */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  li {
+    break-inside: avoid;
+  }
 }

@@ -221,6 +221,11 @@ class GatheringLinkTests(
         // The page: the button and its line are in a block that is hidden in print, the address is in a block that is only for print.
         assertTrue(Regex("""<div class="mt-8 print:hidden">[\s\S]*?Iscrivi i tuoi figli""").containsMatchIn(html))
         assertTrue(Regex("""<div class="mt-8 hidden break-inside-avoid border-t-2 border-ink pt-4 print:block">""").containsMatchIn(html))
-        assertEquals(4, Regex("""class="break-inside-avoid rounded-2xl""").findAll(html).count(), "the cards are not cut by a page")
+        // The short cards are not cut by a page; the ones that can be long (information, things to bring) split, or the sheets stay half empty.
+        assertEquals(2, Regex("""class="break-inside-avoid rounded-2xl""").findAll(html).count(), "the short cards are not cut by a page")
+        for (long in listOf("informazioni", "portare")) {
+            assertTrue(Regex("""<section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="$long">""").containsMatchIn(html), "the card $long can be split between pages")
+        }
+        assertTrue(print.contains("orphans:3") && print.contains("widows:3") && print.contains("li{break-inside:avoid}"), "a paragraph is not left with fewer than three lines, a list item is not cut")
     }
 }

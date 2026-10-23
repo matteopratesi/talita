@@ -537,5 +537,10 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
   la pagina» né il blocco dell'indirizzo (non è ancora vero).
 - **Stampa**: il CSS di `@media print` sta in `app.css` fuori da ogni `@layer`, quindi vince sulle utility senza `!important`. Nero su
   bianco, A4 verticale, l'indirizzo al posto del bottone, gli avvisi con il bordo nero (il significato non dipende da uno sfondo). I
-  test e2e la provano con l'emulazione della stampa e con un PDF di Chromium scritto sotto `build/` (una pagina A4); nessun PDF nel repo.
+  test e2e la provano con l'emulazione della stampa e con un PDF di Chromium (una pagina A4 con testi normali); nessun PDF nel repo.
+  **Testi al massimo** (5.000 e 2.000 caratteri): la QA ha visto 5 fogli con buchi bianchi, perché le schede «Informazioni» e «Cosa portare» non
+  si potevano spezzare fra le pagine. Ora si spezzano (le schede brevi restano intere), il titolo resta attaccato al testo, un paragrafo non lascia
+  meno di tre righe da solo e una voce dell'elenco non si taglia: 4 fogli, pieni. Il design diceva «due fogli», ma a 11 pt quel contenuto è alto
+  3,9 fogli anche con ogni foglio pieno (misurato), quindi due non si possono avere senza cambiare la grandezza del testo; la guida (4.12) ora dice
+  quattro. Il test e2e controlla che i fogli non siano più di quelli che il contenuto riempie (il PDF sta in una cartella temporanea, mai nel repo).
 - **Il recapito del titolare** non sta sulla pagina: `docs/03-privacy.md` lo assegna all'informativa di TALITA-5 (domanda 6 approvata).
