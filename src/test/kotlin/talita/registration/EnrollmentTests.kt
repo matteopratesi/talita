@@ -1,6 +1,7 @@
 package talita.registration
 
 import org.jooq.DSLContext
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.get
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.body
@@ -867,5 +869,33 @@ class EnrollmentTests(
         val stored = dsl.select(REGISTRATION.CUSTODY_TEXT).from(REGISTRATION).fetchSingle(REGISTRATION.CUSTODY_TEXT)!!
         assertTrue(stored.contains("<b>Luca</b>"), "what is kept is what the person wrote")
         assertNotNull(dsl.select(HEALTH_NOTE.ALLERGIES).from(HEALTH_NOTE).fetchSingle(HEALTH_NOTE.ALLERGIES))
+    }
+
+    // ---- The texts of the development must not be released (-Prelease) -------------------------------------------------------------
+
+    @Test
+    fun `t5 release the texts of the custody and of the notices have no placeholder that nobody filled`() {
+        assumeTrue(System.getProperty("talita.release") == "true", "only with -Prelease: the texts are still waiting for the person who reads them")
+
+        val pages = listOf("/informativa").associateWith { mockMvc.get(it).andReturn().response.contentAsString }
+        val found = Informativa.markers.flatMap { marker ->
+            buildList {
+                if (CustodyText.model.contains(marker)) add("the model of the custody has $marker")
+                pages.forEach { (path, html) -> if (html.contains(marker)) add("$path has $marker") }
+            }
+        }
+
+        assertEquals(emptyList<String>(), found)
+    }
+
+    @Test
+    fun `t5 release the markers are the ones that the texts of the development carry, and the model of the custody has none`() {
+        assertTrue(Informativa.markers.contains(Informativa.PLACEHOLDER_NOTICE))
+        assertTrue(Informativa.markers.contains(Informativa.OPEN_ITEM))
+        // The notice of the placeholder is in the page today: the release test above would fail on it, and that is what it is for.
+        val page = mockMvc.get("/informativa").andReturn().response.contentAsString
+        assertTrue(Informativa.markers.any { page.contains(it) })
+        assertFalse(Informativa.markers.any { CustodyText.model.contains(it) })
+        assertTrue(CustodyText.model.lines().none { it.trimStart().startsWith("[") }, "no line of the model is a bracketed note")
     }
 }

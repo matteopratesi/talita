@@ -426,7 +426,7 @@ class MineTests(
     fun `t5 c16 every address with the id of a registration goes through the one filter`() {
         val source = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/kotlin/talita/registration/MineController.kt"))
         val handlers = Regex("""@(?:Get|Post)Mapping\("/iscrizioni/\{id""").findAll(source).count()
-        val filtered = Regex("""own\.require\(account, id\)""").findAll(source).count()
+        val filtered = Regex("""own\.(?:require|requireOrTeacher)\(account, id\)""").findAll(source).count()
 
         assertEquals(9, handlers, "the addresses of the parent with an id")
         assertEquals(handlers, filtered, "every one of them asks the filter first")

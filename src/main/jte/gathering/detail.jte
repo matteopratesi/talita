@@ -97,6 +97,17 @@
       @endif
     </section>
 
+    <section class="overflow-hidden rounded-2xl border border-line bg-surface" aria-labelledby="iscrizioni">
+      <h2 id="iscrizioni" class="px-4 pt-4 text-lg font-semibold lg:px-6 lg:pt-6">Iscrizioni</h2>
+      @if(page.getRegistrations().getHref() != null)
+        <ul class="mt-2 divide-y divide-line">
+          <li>@template.components.listLink(href = page.getRegistrations().getHref(), icon = Icon.USERS_ROUND, title = "Vedi le iscrizioni", meta = page.getRegistrations().getSummary())</li>
+        </ul>
+      @else
+        <p class="px-4 pt-3 pb-4 text-ink-muted lg:px-6 lg:pb-6">${page.getRegistrations().getSummary()}</p>
+      @endif
+    </section>
+
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="quando">
       <div class="flex items-center justify-between gap-3">
         <h2 id="quando" class="text-lg font-semibold">Quando e dove</h2>

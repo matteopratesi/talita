@@ -172,7 +172,9 @@ class RolesE2eTest {
         e2e.touch(page.navLink("Iscrizioni"))
 
         assertThat(page.locator("nav a")).hasCount(4)
-        assertThat(page.locator("main")).containsText("potrai inserire le iscrizioni arrivate sul modulo cartaceo")
+        // The page of the registrations is now the one of the teachers (TALITA-5): the list, or its empty state, with no card of a parent.
+        assertThat(page.locator("h1")).hasText("Iscrizioni")
+        assertThat(page.locator("main")).not().containsText("Quando iscrivi un bambino, lo trovi qui")
 
         // The teacher is removed: the touch after is already the one of a parent, and the page of the teachers is a 403.
         TestAccounts.removeTeacher(dsl, address)

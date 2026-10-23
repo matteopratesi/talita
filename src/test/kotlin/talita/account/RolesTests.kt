@@ -241,30 +241,47 @@ class RolesTests(
         }
         assertEquals(listOf("AccessHandlers.kt", "CurrentAccountFilter.kt", "CurrentAccounts.kt"), readers)
         // The addresses of the teachers: one list, read by the security configuration.
-        assertEquals(listOf("/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome"), TeacherPaths.patterns)
+        assertEquals(
+            listOf(
+                "/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome",
+                "/iscrizioni/nuova", "/iscrizioni/nuova/quota", "/iscrizioni/{id:[0-9]+}", "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni", "/iscrizioni/{id:[0-9]+}/correggi",
+                "/iscrizioni/{id:[0-9]+}/correggi/quota", "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni", "/iscrizioni/{id:[0-9]+}/manleva",
+            ),
+            TeacherPaths.patterns,
+        )
         assertTrue(Files.readString(Path.of("src/main/kotlin/talita/account/SecurityConfiguration.kt")).contains("TeacherPaths.patterns.forEach"))
     }
 
     @Test
     fun `t3 c38 a parent is tried on every address of the teachers, with a page and with a form`() {
         val session = signIn.session()
-        val concrete = listOf(
-            "/convivenza", "/convivenza/x", "/convivenza/x/y", "/arrivi", "/arrivi/x", "/maestri", "/maestri/x", "/maestri/x/y",
-            // The correction of the name that a teacher makes in the profile: one address, not a branch.
-            "/profilo/nome",
-        )
         // Every pattern of the rule is covered by an address here, and every address here by a pattern.
-        assertEquals(
-            TeacherPaths.patterns.toSet(),
-            concrete.map { if (it == "/profilo/nome") it else "/" + it.removePrefix("/").substringBefore("/") + "/**" }.toSet(),
+        val byPattern = mapOf(
+            "/convivenza/**" to listOf("/convivenza", "/convivenza/x", "/convivenza/x/y"),
+            "/arrivi/**" to listOf("/arrivi", "/arrivi/x"),
+            "/maestri/**" to listOf("/maestri", "/maestri/x", "/maestri/x/y"),
+            // The correction of the name that a teacher makes in the profile: one address, not a branch.
+            "/profilo/nome" to listOf("/profilo/nome"),
+            // The registrations of the teachers (TALITA-5): the paper form, the detail with its notes, the corrections and the manleva.
+            "/iscrizioni/nuova" to listOf("/iscrizioni/nuova"),
+            "/iscrizioni/nuova/quota" to listOf("/iscrizioni/nuova/quota"),
+            "/iscrizioni/{id:[0-9]+}" to listOf("/iscrizioni/12"),
+            "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni" to listOf("/iscrizioni/12/mostra-segnalazioni"),
+            "/iscrizioni/{id:[0-9]+}/correggi" to listOf("/iscrizioni/12/correggi"),
+            "/iscrizioni/{id:[0-9]+}/correggi/quota" to listOf("/iscrizioni/12/correggi/quota"),
+            "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni" to listOf("/iscrizioni/12/correggi-segnalazioni"),
+            "/iscrizioni/{id:[0-9]+}/manleva" to listOf("/iscrizioni/12/manleva"),
         )
+        assertEquals(TeacherPaths.patterns.toSet(), byPattern.keys)
+        val concrete = byPattern.values.flatten()
 
         for (path in concrete) {
             assertTrue(TeacherPaths.matches(path), path)
             assertEquals(403, mockMvc.get(path) { this.session = session }.andReturn().response.status, "GET $path")
             assertEquals(403, mockMvc.post(path) { this.session = session; with(csrf()) }.andReturn().response.status, "POST $path")
         }
-        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/profilo", "/profilo/altro", "/invito")) {
+        // Open to every account: the home, the list (which is the cards of a parent), what a parent does with an id of their own, the profile.
+        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/iscrizioni/12/modifica", "/iscrizioni/12/segnalazioni", "/iscrizioni/12/segnalazioni/togli", "/iscrizioni/12/ritira", "/iscrizioni/12/modifica/quota", "/profilo", "/profilo/altro", "/invito")) {
             assertFalse(TeacherPaths.matches(path), path)
         }
     }

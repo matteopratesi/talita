@@ -9,6 +9,11 @@
 @template.layout.shell(shell = shell, content = @`
   @template.components.pageHead(title = "Modifica le quote", lead = "Gli importi compaiono nella pagina per i genitori.")
 
+  @if(page.getNotice() != null)
+    <div class="mb-3">
+      @template.components.alert(content = @`${page.getNotice()}`)
+    </div>
+  @endif
   @if(page.getAlert() != null)
     <div class="mb-3">
       @template.components.alert(variant = page.getAlert().getVariant(), live = true, content = @`${page.getAlert().getText()}`)

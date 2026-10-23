@@ -26,7 +26,6 @@ import talita.ui.AlertVariant.WARNING
 import talita.ui.ConfirmModel
 import talita.ui.Flash
 import talita.ui.Icon
-import talita.ui.PlaceholderPage
 import talita.ui.Section
 import talita.ui.ShellFactory
 
@@ -44,6 +43,13 @@ class OwnRegistrations(private val registrations: Registrations) {
 
     /** The registration or the answer 404 of an id that does not exist. */
     fun require(account: CurrentAccount, id: Long): RegistrationData = find(account, id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+
+    /**
+     * The same, except for the withdrawal: a teacher withdraws any registration (criterion 26), with the pages of the teachers; whoever else, only their own.
+     * It is the only address with an id that two roles share, and the only place that says so.
+     */
+    fun requireOrTeacher(account: CurrentAccount, id: Long): RegistrationData =
+        if (account.isTeacher) registrations.find(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND) else require(account, id)
 }
 
 /** A button of the card of a registration: the text, the address (and the page of confirmation without JavaScript), the icon and the dialog that it opens. */
@@ -99,9 +105,14 @@ data class EditPage(
     val busy: String,
 )
 
-/** What the page of the notes on health of a registration shows. */
+/**
+ * What the page of the notes on health of a registration shows: the parent's («Segnalazioni») and the one where a teacher corrects the notes of a paper
+ * registration («Correggi le segnalazioni»). [togli] is the dialog that takes them away (the parent only); [intro] the paragraphs of the parent;
+ * [warning] the notice that this page shows the notes, so a reading was written.
+ */
 data class HealthPage(
     val id: Long,
+    val title: String,
     val lead: String,
     val firstName: String,
     val child: ChildView,
@@ -109,7 +120,12 @@ data class HealthPage(
     val exists: Boolean,
     val closedNotice: Boolean,
     val alert: Alert?,
-    val togli: ConfirmModel,
+    val togli: ConfirmModel?,
+    val formAction: String,
+    val cancelHref: String,
+    val paper: Boolean = false,
+    val intro: Boolean = true,
+    val warning: String? = null,
 )
 
 /** Builds what the pages of the parent show of the registrations they have made. The sentences are those of the design (B of TALITA-5). */
@@ -261,17 +277,14 @@ class MineController(
     private val healthNotes: HealthNotes,
     private val presenter: RegistrationPresenter,
     private val mine: MinePresenter,
+    private val teacherPages: TeacherRegistrationsController,
 ) {
 
     // ---- The list ---------------------------------------------------------------------------------------------------------------
 
     @GetMapping("/iscrizioni")
-    fun list(account: CurrentAccount, request: HttpServletRequest): ModelAndView =
-        if (account.isTeacher) teachersPlaceholder() else listPage(account, Flash.take(request), HttpStatus.OK)
-
-    /** The list of the teachers comes with the next part of the ticket: until then the section says what it will hold. */
-    private fun teachersPlaceholder(): ModelAndView =
-        ModelAndView("pages/placeholder", mapOf("shell" to shells.shell(page = "Iscrizioni", current = Section.ISCRIZIONI), "page" to PlaceholderPage("Iscrizioni", checkNotNull(Section.ISCRIZIONI.placeholder))))
+    fun list(account: CurrentAccount, request: HttpServletRequest, @RequestParam(name = "convivenza", required = false) gathering: Long?): ModelAndView =
+        if (account.isTeacher) teacherPages.list(account, request, gathering) else listPage(account, Flash.take(request), HttpStatus.OK)
 
     private fun listPage(account: CurrentAccount, alert: Alert?, status: HttpStatus): ModelAndView =
         ModelAndView(
@@ -382,9 +395,13 @@ class MineController(
     /** The page that stands in for the dialog «Ritirare l’iscrizione?» without JavaScript (same words). */
     @GetMapping("/iscrizioni/{id:[0-9]{1,18}}/ritira")
     fun confirmWithdrawal(account: CurrentAccount, @PathVariable id: Long): ModelAndView {
-        val registration = own.require(account, id)
+        val registration = own.requireOrTeacher(account, id)
         val gathering = gatherings.byId(registration.gatheringId)!!
-        if (registration.status == Status.WITHDRAWN) return seeOther("/iscrizioni")
+        if (registration.status == Status.WITHDRAWN) return seeOther(if (account.isTeacher) "/iscrizioni/$id" else "/iscrizioni")
+        if (account.isTeacher) {
+            val model = teacherPages.withdrawDialog(registration)
+            return ModelAndView("pages/confirmAction", mapOf("shell" to shells.shell(page = model.title, current = Section.ISCRIZIONI), "page" to model))
+        }
         if (!Rules.parentCanChange(gathering)) return notAllowed(account, ChangeResult.NotAllowed(gathering.over), "l’iscrizione")
         val model = mine.withdrawDialog(registration, gathering)
         return ModelAndView("pages/confirmAction", mapOf("shell" to shells.shell(page = model.title, current = Section.ISCRIZIONI), "page" to model))
@@ -392,9 +409,10 @@ class MineController(
 
     @PostMapping("/iscrizioni/{id:[0-9]{1,18}}/ritira")
     fun withdraw(account: CurrentAccount, @PathVariable id: Long, request: HttpServletRequest): ModelAndView {
-        own.require(account, id)
-        return when (val result = registrations.withdraw(id, account.id)) {
-            ChangeResult.Done, ChangeResult.AlreadyDone -> back(request, "Iscrizione ritirata.")
+        own.requireOrTeacher(account, id)
+        // A teacher withdraws any registration and goes back to its detail; a parent only their own, and goes back to the list.
+        return when (val result = registrations.withdraw(id, account.id.takeUnless { account.isTeacher })) {
+            ChangeResult.Done, ChangeResult.AlreadyDone -> if (account.isTeacher) teacherPages.withdrawn(request, id) else back(request, "Iscrizione ritirata.")
             ChangeResult.NotFound, ChangeResult.IsWithdrawn, is ChangeResult.Taken -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
             is ChangeResult.NotAllowed -> notAllowed(account, result, "l’iscrizione")
         }
@@ -407,6 +425,7 @@ class MineController(
         val view = presenter.childView(0, 1, input, ChildCheck(input, errors, "", "", null, null, null, null, null), presenter.offer(gathering))
         val page = HealthPage(
             id = registration.id,
+            title = "Segnalazioni",
             lead = "${registration.name} · ${gathering.title}",
             firstName = registration.firstName,
             child = view,
@@ -415,6 +434,8 @@ class MineController(
             closedNotice = !Rules.parentCanChange(gathering),
             alert = alert,
             togli = mine.revokeDialog(registration),
+            formAction = "/iscrizioni/${registration.id}/segnalazioni",
+            cancelHref = "/iscrizioni",
         )
         return ModelAndView("registration/health", mapOf("shell" to shells.shell(page = "Segnalazioni", current = Section.ISCRIZIONI), "page" to page)).also { it.status = status }
     }

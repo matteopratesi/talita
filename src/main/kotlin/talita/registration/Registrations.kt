@@ -10,14 +10,19 @@ import org.springframework.stereotype.Component
 import talita.account.CurrentAccount
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
+import talita.gathering.FeeUsers
 import talita.gathering.GatheringState
+import talita.gathering.RegistrationCounts
+import talita.gathering.RegistrationUsage
 import talita.gathering.isUniqueViolation
 import talita.jooq.enums.RegistrationAttendance
+import talita.jooq.enums.RegistrationDayKind
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.REGISTRATION_DAY
+import talita.jooq.tables.references.TEACHER
 import java.time.Clock
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -120,7 +125,7 @@ class Registrations(
     private val clock: Clock,
     private val gatherings: GatheringReader,
     private val healthNotes: HealthNotes,
-) {
+) : RegistrationUsage {
 
     private fun now(): OffsetDateTime = OffsetDateTime.now(clock)
 
@@ -309,7 +314,7 @@ class Registrations(
      * (a withdrawn registration is put back by choosing «Confermata» or «In forse»), the phone. The acceptance is never touched. A parent ([owner])
      * changes the phone of all their registrations at this gathering; a teacher ([owner] null) the phone of this one.
      */
-    fun update(id: Long, owner: Long?, phone: String, block: ChildCheck): ChangeResult = dsl.transactionResult { configuration ->
+    fun update(id: Long, owner: Long?, phone: String, block: ChildCheck, paperReceived: Boolean? = null): ChangeResult = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
         val (registration, gathering) = target(tx, id, owner) ?: return@transactionResult ChangeResult.NotFound
         if (!allowed(gathering, teacher = owner == null)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
@@ -329,6 +334,8 @@ class Registrations(
         writeDays(tx, id, presence)
         val samePhone = if (owner != null) REGISTRATION.GATHERING_ID.eq(registration.gatheringId).and(REGISTRATION.ACCOUNT_ID.eq(owner)) else REGISTRATION.ID.eq(id)
         tx.update(REGISTRATION).set(REGISTRATION.PHONE, phone).set(REGISTRATION.UPDATED_AT, at).where(samePhone).execute()
+        // The paper form that was received is only for a paper registration (the key of the table says so too).
+        if (paperReceived != null && registration.onPaper) tx.update(REGISTRATION).set(REGISTRATION.PAPER_FORM_RECEIVED, paperReceived).where(REGISTRATION.ID.eq(id)).execute()
         ChangeResult.Done
     }
 
@@ -367,6 +374,107 @@ class Registrations(
         healthNotes.remove(tx, id)
         ChangeResult.Done
     }
+
+    // ---- The paper forms (criteria 25, 26) ------------------------------------------------------------------------------------------
+
+    /** What came of typing in a paper registration. */
+    sealed interface PaperResult {
+        data class Created(val id: Long) : PaperResult
+        data object NotFound : PaperResult
+        data class NotAllowed(val over: Boolean) : PaperResult
+    }
+
+    /**
+     * A teacher types in the paper form of a parent (criterion 25): a child that has no account, no acceptance to give and the teacher who typed it in.
+     * [paperReceived] is the signed form in the hands of the teachers; the notes, if any, come with the consent that the parent signed on paper. Possible
+     * in every state of the gathering but the draft.
+     */
+    fun insertPaper(teacher: Long, gatheringId: Long, phone: String, block: ChildCheck, paperReceived: Boolean): PaperResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val gathering = gatherings.sharedIn(tx, gatheringId) ?: return@transactionResult PaperResult.NotFound
+        if (!Rules.teacherCanChange(gathering)) return@transactionResult PaperResult.NotAllowed(gathering.over)
+        val childId = insertChild(tx, null, block)
+        val id = insertRegistration(tx, gatheringId, childId, null, phone, block.presence!!, block.status!!, now(), null, enteredBy = teacher, paperReceived = paperReceived)
+        block.notes?.let { healthNotes.save(tx, id, it, byAccount = null, onPaper = true) }
+        PaperResult.Created(id)
+    }
+
+    /** The teacher says that the signed paper form has arrived, or that it has not (criterion 21): only for a paper registration. */
+    fun markPaper(id: Long, received: Boolean): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, null) ?: return@transactionResult ChangeResult.NotFound
+        if (!registration.onPaper) return@transactionResult ChangeResult.NotFound
+        if (!Rules.teacherCanChange(gathering)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
+        tx.update(REGISTRATION).set(REGISTRATION.PAPER_FORM_RECEIVED, received).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
+        ChangeResult.Done
+    }
+
+    /**
+     * A teacher corrects the notes of a paper registration (criterion 26): the online ones are the parent's. Saving is a reading too, so the register
+     * has a row for it. [notes] null takes them away.
+     */
+    fun saveHealthOnPaper(id: Long, teacher: Long, notes: Notes?): ChangeResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, null) ?: return@transactionResult ChangeResult.NotFound
+        if (!registration.onPaper) return@transactionResult ChangeResult.NotFound
+        if (registration.status == Status.WITHDRAWN) return@transactionResult ChangeResult.IsWithdrawn
+        if (!Rules.teacherCanChange(gathering)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
+        if (notes == null) healthNotes.remove(tx, id) else healthNotes.save(tx, id, notes, byAccount = null, onPaper = true)
+        healthNotes.recordReading(tx, id, teacher)
+        tx.update(REGISTRATION).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
+        ChangeResult.Done
+    }
+
+    // ---- What the gathering and the list of the teachers ask ------------------------------------------------------------------------
+
+    override fun counts(gatheringId: Long): RegistrationCounts {
+        val byStatus = dsl.select(REGISTRATION.STATUS, DSL.count()).from(REGISTRATION).where(REGISTRATION.GATHERING_ID.eq(gatheringId)).groupBy(REGISTRATION.STATUS)
+            .fetch().associate { it[REGISTRATION.STATUS]!! to it.value2() }
+        return RegistrationCounts(byStatus[RegistrationStatus.confirmed] ?: 0, byStatus[RegistrationStatus.maybe] ?: 0, byStatus[RegistrationStatus.withdrawn] ?: 0)
+    }
+
+    override fun feeUsers(context: DSLContext, gatheringId: Long): FeeUsers {
+        fun using(kind: RegistrationDayKind): Int =
+            context.selectCount().from(REGISTRATION).where(REGISTRATION.GATHERING_ID.eq(gatheringId)).and(REGISTRATION.STATUS.ne(RegistrationStatus.withdrawn))
+                .andExists(DSL.selectOne().from(REGISTRATION_DAY).where(REGISTRATION_DAY.REGISTRATION_ID.eq(REGISTRATION.ID)).and(REGISTRATION_DAY.KIND.eq(kind)))
+                .fetchSingle().value1()
+        return FeeUsers(using(RegistrationDayKind.full), using(RegistrationDayKind.lunch))
+    }
+
+    override fun dayUsers(context: DSLContext, gatheringId: Long, days: Collection<LocalDate>): Map<LocalDate, Int> {
+        if (days.isEmpty()) return emptyMap()
+        val everyDay = context.selectCount().from(REGISTRATION).where(REGISTRATION.GATHERING_ID.eq(gatheringId)).and(REGISTRATION.STATUS.ne(RegistrationStatus.withdrawn))
+            .and(REGISTRATION.ATTENDANCE.eq(RegistrationAttendance.all_days)).fetchSingle().value1()
+        val chosen = context.select(REGISTRATION_DAY.DAY, DSL.count()).from(REGISTRATION_DAY).join(REGISTRATION).on(REGISTRATION.ID.eq(REGISTRATION_DAY.REGISTRATION_ID))
+            .where(REGISTRATION.GATHERING_ID.eq(gatheringId)).and(REGISTRATION.STATUS.ne(RegistrationStatus.withdrawn)).and(REGISTRATION_DAY.DAY.`in`(days))
+            .groupBy(REGISTRATION_DAY.DAY).fetch().associate { it[REGISTRATION_DAY.DAY]!! to it.value2() }
+        return days.associateWith { everyDay + (chosen[it] ?: 0) }.filterValues { it > 0 }
+    }
+
+    /**
+     * For each registration of [gatheringId] that is not withdrawn, the others that have the same name, surname (compared with `unaccent`, in lowercase,
+     * without the spaces at the sides) and date of birth (criterion 24): «Possibile doppione». It helps, it blocks nothing: a pair that is the same child
+     * is solved by withdrawing one of them.
+     */
+    fun duplicates(gatheringId: Long): Map<Long, List<Long>> {
+        val first = REGISTRATION.`as`("r1")
+        val second = REGISTRATION.`as`("r2")
+        val firstChild = CHILD.`as`("c1")
+        val secondChild = CHILD.`as`("c2")
+        return dsl.select(first.ID, second.ID).from(first)
+            .join(firstChild).on(firstChild.ID.eq(first.CHILD_ID))
+            .join(second).on(second.GATHERING_ID.eq(first.GATHERING_ID).and(second.ID.ne(first.ID)))
+            .join(secondChild).on(secondChild.ID.eq(second.CHILD_ID))
+            .where(first.GATHERING_ID.eq(gatheringId)).and(first.STATUS.ne(RegistrationStatus.withdrawn)).and(second.STATUS.ne(RegistrationStatus.withdrawn))
+            .and(firstChild.BIRTH_DATE.eq(secondChild.BIRTH_DATE))
+            .and(same(firstChild.FIRST_NAME).eq(same(secondChild.FIRST_NAME))).and(same(firstChild.LAST_NAME).eq(same(secondChild.LAST_NAME)))
+            .orderBy(first.ID, second.ID)
+            .fetch().groupBy({ it[first.ID]!! }) { it[second.ID]!! }
+    }
+
+    /** The name of a teacher as they wrote it, or null when the account is not a teacher any more (who typed in a paper form, who read the notes). */
+    fun teacherName(accountId: Long): String? =
+        dsl.select(TEACHER.FIRST_NAME, TEACHER.LAST_NAME).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).fetchOne { "${it[TEACHER.FIRST_NAME]} ${it[TEACHER.LAST_NAME]}" }
 
     // ---- The rows --------------------------------------------------------------------------------------------------------------
 
