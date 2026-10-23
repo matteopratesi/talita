@@ -82,6 +82,8 @@ SPRING_MAIL_PASSWORD=chiave-segreta-di-mailjet
 TALITA_MAIL_FROM=nome@example.org
 TALITA_PUBLIC_URL=https://talita.example.org
 TALITA_BOOTSTRAP_TEACHER=nome@example.org
+TALITA_PRIVACY_CONTROLLER_NAME=Titolare di esempio
+TALITA_PRIVACY_CONTACT=nome@example.org
 ```
 
 - `SPRING_MAIL_*`: il server SMTP. Con STARTTLS obbligatorio e timeout di 10 secondi
@@ -96,6 +98,11 @@ TALITA_BOOTSTRAP_TEACHER=nome@example.org
   (`talita.teacher.invitation-validity`): a ogni avvio, finché non c'è nessun maestro, si rinnova. Con almeno
   un maestro la variabile non fa niente; senza variabile e senza maestri l'app parte lo stesso e il log
   avvisa che nessuno può essere invitato. In sviluppo il profilo `dev` la imposta a `nome@example.org`.
+- `TALITA_PRIVACY_CONTROLLER_NAME` e `TALITA_PRIVACY_CONTACT` (`talita.privacy.controller-name` e `talita.privacy.contact`): chi è il titolare
+  del trattamento e a quale indirizzo scrivergli, come li dicono l'informativa breve del passo 2 dell'iscrizione e quella completa a
+  `/informativa`. Nel repo ci sono solo i segnaposto «Titolare di esempio» e `nome@example.org`; i valori veri arrivano con TALITA-9
+  (`docs/03-privacy.md`). Senza le variabili l'app parte lo stesso, con i segnaposto: un test (`./gradlew build -Prelease`) non lascia
+  uscire un rilascio con i testi ancora di prova.
 
 ## Build, sviluppo e test
 

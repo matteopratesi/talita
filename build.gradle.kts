@@ -317,6 +317,8 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // `./gradlew build -Prelease`: the test of the texts (ReleaseTextsTests) stops a release that still has a placeholder in a text that a parent reads.
+    if (project.hasProperty("release")) systemProperty("talita.release", "true")
 }
 
 // End-to-end tests: Playwright drives a real Chromium against the app started on a random port,

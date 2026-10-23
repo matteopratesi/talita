@@ -98,6 +98,10 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     /** The gathering that is a draft or open: at most one (the database sees to it). */
     fun current(): Gathering? = dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.closed)).fetchOne()?.let(::gathering)
 
+    /** The gathering that is not a draft with the latest first day, or null (a teacher's list of registrations starts from it). */
+    fun latestNotDraft(): Gathering? =
+        dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.draft)).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).limit(1).fetchOne()?.let(::gathering)
+
     /** The closed gatherings, the most recent first. */
     fun closed(): List<Gathering> =
         dsl.selectFrom(GATHERING).where(GATHERING.STATUS.eq(GatheringStatus.closed))
@@ -118,6 +122,15 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
         if (gathering.fees.fullCents == null) add(Missing.FULL_FEE)
         if (custodianCount == 0) add(Missing.CUSTODIAN)
         if (gathering.endDate.isBefore(today)) add(Missing.DATES)
+    }
+
+    /**
+     * The gathering inside the transaction of [context], with a lock: for sharing (a registration is being made: the others can look, nobody can
+     * close it, change its dates or its custodians until the transaction ends) or, with [exclusive], for updating. Null if there is none.
+     */
+    fun findLocked(context: DSLContext, id: Long, exclusive: Boolean = false): Gathering? {
+        val query = context.selectFrom(GATHERING).where(GATHERING.ID.eq(id))
+        return (if (exclusive) query.forUpdate() else query.forShare()).fetchOne()?.let(::gathering)
     }
 
     // ---- Creating -------------------------------------------------------------------------------------------------------------
@@ -253,7 +266,7 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     private fun lock(transaction: DSLContext, id: Long): Record? =
         transaction.selectFrom(GATHERING).where(GATHERING.ID.eq(id)).forUpdate().fetchOne()
 
-    private fun custodians(context: DSLContext, id: Long): List<Custodian> =
+    internal fun custodians(context: DSLContext, id: Long): List<Custodian> =
         context.select(TEACHER.ACCOUNT_ID, TEACHER.FIRST_NAME, TEACHER.LAST_NAME).from(GATHERING_CUSTODIAN)
             .join(TEACHER).on(TEACHER.ACCOUNT_ID.eq(GATHERING_CUSTODIAN.TEACHER_ACCOUNT_ID))
             .where(GATHERING_CUSTODIAN.GATHERING_ID.eq(id))

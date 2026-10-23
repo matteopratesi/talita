@@ -470,6 +470,16 @@ Icone assegnate (nomi di Lucide):
 | Condividi | `share-2` |
 | Stampa la pagina | `printer` |
 | Anteprima della pagina | `eye` |
+| Segnalazioni su allergie, intolleranze e farmaci | `heart-pulse` |
+| Sezione che si apre | `chevron-down` |
+| Affidamento accettato | `file-check` |
+| Testo accettato | `file-text` |
+| Ritira l'iscrizione | `circle-x` |
+| Rimetti l'iscrizione | `rotate-ccw` |
+| Togli le segnalazioni | `trash-2` |
+| Segna come ricevuta | `check` |
+| Si apre in una nuova scheda | `external-link` |
+| Iscrizioni chiuse | `calendar-x` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
