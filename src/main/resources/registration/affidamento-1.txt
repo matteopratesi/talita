@@ -1,0 +1,5 @@
+Affidamento di figli minorenni
+
+Io, titolare dell’account {indirizzo}, affido {bambini} alla responsabilità di {affidatari} per la durata della convivenza «{titolo}», che si svolge a {luogo} dal {primo giorno} al {ultimo giorno}, e {a:lo/la|li} autorizzo a prendere, in mia assenza, tutte le decisioni necessarie per il {b:suo|loro} bene.
+
+Dichiaro di accettare anche con il consenso dell’altro genitore, oppure di esercitare da solo/a la responsabilità genitoriale.
