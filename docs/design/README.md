@@ -1263,7 +1263,7 @@ Il blocco della scheda «Link per i genitori» del dettaglio di una convivenza. 
 
 - **Copia** scrive l'indirizzo negli appunti. La conferma sta **nel punto in cui si è toccato**: per 3 secondi il bottone dice «Link copiato» (`app.js` scambia i due testi, che stanno entrambi nell'HTML) e una regione `role="status"` solo per i lettori di schermo ripete «Link copiato.». Niente messaggio a comparsa. Se la copia fallisce compare la riga «Non riesco a copiare il link. Tienilo premuto per copiarlo.» e l'indirizzo viene selezionato.
 - **Condividi** chiama `navigator.share` con titolo (`data-titolo`), testo (`data-testo`) e indirizzo. Se la persona annulla non succede niente e non si dice niente. I testi stanno nei `data-*` del template, non nel JS.
-- Il bottone primario della pagina è «Copia il link»; è secondario se la convivenza è finita e le iscrizioni sono ancora aperte (la cosa da fare è chiuderle). Il titolo e l'indirizzo sono testo, mai HTML.
+- Il bottone primario della pagina è «Copia il link»; è secondario se la convivenza è finita: con le iscrizioni ancora aperte il primario diventa «Chiudi le iscrizioni», con le iscrizioni chiuse la pagina non ha un primario. Il titolo e l'indirizzo sono testo, mai HTML.
 - In una bozza non c'è l'indirizzo (non funziona ancora): la scheda dice «Il link funziona dopo l’apertura delle iscrizioni. Intanto puoi vedere come sarà la pagina.» e ha solo «Apri l’anteprima».
 
 ### 4.14 Pagina informativa
