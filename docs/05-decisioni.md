@@ -461,7 +461,7 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
 - **Stati**: bozza → iscrizioni aperte → iscrizioni chiuse; da chiuse si riapre finché la fine non è passata, qualunque maestro; mai di
   nuovo in bozza. «Finita» non è uno stato: è una convivenza non in bozza con l'ultimo giorno passato, nel giorno di Roma (un solo
   `Clock`, `Europe/Rome`). Dopo la fine le date non cambiano.
-- **Il recapito del titolare** non sta sulla pagina informativa (regola 5) ma nell'informativa di TALITA-5: `docs/03` non lo assegna più a
+- **Il recapito del titolare** non sta sulla pagina informativa (regola 5) ma nell'informativa di TALITA-5: `docs/03-privacy.md` non lo assegna più a
   TALITA-4.
 - **Controllo su email, telefoni e IBAN** nei testi che vanno sulla pagina pubblica (titolo, luogo, informazioni, cosa portare).
 
@@ -538,4 +538,4 @@ informativa) fatte come commit in quest'ordine, ognuna con la build verde.
 - **Stampa**: il CSS di `@media print` sta in `app.css` fuori da ogni `@layer`, quindi vince sulle utility senza `!important`. Nero su
   bianco, A4 verticale, l'indirizzo al posto del bottone, gli avvisi con il bordo nero (il significato non dipende da uno sfondo). I
   test e2e la provano con l'emulazione della stampa e con un PDF di Chromium scritto sotto `build/` (una pagina A4); nessun PDF nel repo.
-- **Il recapito del titolare** non sta sulla pagina: `docs/03` lo assegna all'informativa di TALITA-5 (domanda 6 approvata).
+- **Il recapito del titolare** non sta sulla pagina: `docs/03-privacy.md` lo assegna all'informativa di TALITA-5 (domanda 6 approvata).
