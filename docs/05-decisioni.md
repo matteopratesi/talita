@@ -440,3 +440,72 @@ in quest'ordine, ognuno con la build verde.
 - **Anche il nome nella riga di un maestro** ha `wrap-anywhere` (la QA lo ha trovato dopo gli altri): con `wrap-break-word` una
   parola di 24 lettere passava sotto «Togli» sul telefono e una di 100 usciva dalla riga. Controllati gli altri nomi e
   indirizzi delle pagine «Maestri», profilo e «Controlla la posta»: avevano già `wrap-anywhere`.
+
+## 2026-10-23: scelte di TALITA-4
+
+Convivenza e pagina informativa. Analisi e design approvati da Matteo il 22/10/2026 con tutte le raccomandazioni delle
+domande aperte. **Il ticket non si spezza**: un branch e una PR, con le parti A (convivenza per i maestri) e B (pagina
+informativa) fatte come commit in quest'ordine, ognuna con la build verde.
+
+**Valori approvati**
+
+- **Indirizzo pubblico `/info/{codice}`** con un codice casuale per ogni convivenza: 16 caratteri base64url da 12 byte di
+  `SecureRandom` (96 bit), che non cambia con le modifiche. Il repo è pubblico e i domini finiscono nei registri dei certificati:
+  con un indirizzo fisso, luogo e date di un evento con bambini sarebbero leggibili da chiunque; col codice il link vale quanto la
+  lettera su WhatsApp.
+- **Al massimo una convivenza in bozza o aperta**, per volta. Lo garantiscono un indice unico parziale (`gathering_only_one_not_closed`)
+  e un controllo nella transazione che crea o riapre, così due maestri che toccano insieme non ne fanno due.
+- **Tre quote facoltative**, in centesimi: vuoto = non prevista, 0 = «Gratuita» (mai «0 €»), da 0 a 1.000 € con al massimo due decimali.
+  L'intera serve per aprire. «Solo pranzo» è un importo per pranzo, in qualunque giorno. Niente sconti per più figli.
+- **Giorni di presenza**: tutti quelli fra inizio e fine, al massimo 7, senza un campo per sceglierli.
+- **Stati**: bozza → iscrizioni aperte → iscrizioni chiuse; da chiuse si riapre finché la fine non è passata, qualunque maestro; mai di
+  nuovo in bozza. «Finita» non è uno stato: è una convivenza non in bozza con l'ultimo giorno passato, nel giorno di Roma (un solo
+  `Clock`, `Europe/Rome`). Dopo la fine le date non cambiano.
+- **Il recapito del titolare** non sta sulla pagina informativa (regola 5) ma nell'informativa di TALITA-5: `docs/03` non lo assegna più a
+  TALITA-4.
+- **Controllo su email, telefoni e IBAN** nei testi che vanno sulla pagina pubblica (titolo, luogo, informazioni, cosa portare).
+
+**A. Convivenza per i maestri**
+
+- **Pacchetto `talita.gathering`** (identificatori in inglese). `talita.teacher` dipende da lui (il controllo di «Togli»), lui non
+  dipende da `talita.teacher`: i nomi dei maestri si leggono dalla tabella `teacher`.
+- **Schema `V4__gathering.sql`**: enum `gathering_status`, tabella `gathering` con i controlli (titolo 1-100, date in ordine e al massimo
+  7 giorni, importi 0-100000 centesimi, testi con il massimo, luogo e quota intera obbligatori fuori dalla bozza) e
+  `gathering_custodian`. Le due chiavi di `gathering_custodian` sono `on delete cascade`: toccano solo le convivenze finite, perché per
+  le altre «Togli» si ferma prima, e «finita» dipende da oggi, che un vincolo non può sapere.
+- **«Non finita», per «Togli»**, è una bozza oppure una convivenza con l'ultimo giorno non passato. Una convivenza aperta con la fine
+  passata è finita (come dice la sua pagina), quindi i suoi affidatari si possono togliere e il loro legame si cancella con il nome.
+- **Il controllo su «Togli» sta in `Teachers.remove`**, nella stessa transazione e sotto lo stesso lock sulle righe di `teacher`
+  (`FOR UPDATE`). Chi sceglie gli affidatari (`Gatherings.saveCustodians`) blocca prima la riga della convivenza (`FOR UPDATE`) e poi i
+  maestri scelti (`FOR SHARE`): un maestro tolto nello stesso istante o è già sparito (non si salva) o aspetta e trova l'affidamento
+  (viene rifiutato). Un test lo prova con due transazioni vere per 25 giri.
+- **Ogni passo dello stato** (`Gatherings.change`) è una transazione che blocca la riga della convivenza: il secondo di due tocchi
+  insieme trova lo stato già cambiato e riceve la stessa conferma del primo, mai un errore (`AlreadyDone`). Il campo `from` del form dice
+  da che stato parte la persona. L'apertura controlla luogo, quota intera, almeno un affidatario e la fine non passata; la riapertura la
+  fine non passata e nessun'altra convivenza in bozza o aperta (l'indice unico fa da rete).
+- **Un modulo per parte, ognuno nella sua pagina** (`/date`, `/quote`, `/affidatari`, `/informazioni`), con il suo indirizzo: form corti,
+  il tasto indietro del telefono, e i collegamenti di «Prima di aprire le iscrizioni» (`#luogo`, `#quota-intera`) arrivano al campo
+  giusto anche senza JavaScript. `app.js` dà il fuoco all'elemento del frammento dopo un cambio di pagina.
+- **Il bottone primario cambia con la situazione** (scostamento dall'analisi, approvato): «Apri le iscrizioni» in bozza; con le iscrizioni
+  aperte o chiuse è «Copia il link» e l'azione di stato è secondaria; con la fine passata e le iscrizioni ancora aperte torna «Chiudi
+  le iscrizioni».
+- **Dialoghi dei passi dello stato**: un link con `data-apri` verso la pagina di conferma (`/convivenza/{id}/apri`...), che senza
+  JavaScript è la pagina con gli stessi testi; il form del dialogo è un normale form della pagina (boosted), non un blocco che si
+  sostituisce. Per una bozza non completa non c'è dialogo: il bottone manda il form e la risposta (422) elenca cosa manca, con un
+  collegamento a ogni parte, e il bottone resta attivo.
+- **`app.js`**: il listener dei dialoghi sta nella fase di cattura, perché un link con `data-apri` è anche un link che htmx fa
+  navigare (htmx ascolta sul link stesso e partirebbe prima); **409 è una risposta**, come 422 e 429 (una richiesta che lo stato delle cose
+  rifiuta sostituisce la pagina, non diventa «Qualcosa non ha funzionato»).
+- **Importi e date con `Locale.ITALIAN`** in un solo formattatore (`GatheringFormat`): `17–19 settembre 2027`, `Venerdì 17, sabato 18 e
+  domenica 19 settembre 2027`, `12,50 €`, `1.000 €`, «Gratuita».
+- **Controlli dei campi** in un solo posto (`GatheringChecks`): un errore per campo, il primo che vale; le lunghezze si contano come le conta
+  il database (un punto di codice, un'emoji vale uno). Il testo si salva com'è scritto (a capo conservati, spazi ai bordi tolti); più righe
+  vuote valgono uno stacco quando si mostra.
+- **Aggiunte al design, per un buco che il database aprirebbe**: fuori dalla bozza il luogo e la quota intera non si possono
+  svuotare (lo vieta uno dei vincoli della tabella), quindi i moduli hanno due errori in più: «Scrivi il luogo: la pagina per i genitori lo
+  mostra.» e «Scrivi la quota intera. Se è gratuita, scrivi 0.». Lo stesso per l'IBAN, che la domanda 7 approvata voleva bloccare insieme a
+  email e telefoni: «Qui c’è un IBAN. Toglilo: la pagina la legge chiunque abbia il link.»
+- **Test con date relative al giorno del `Clock` di prova**: con date fisse del 2027 i test cadrebbero il giorno in cui passano. Le frasi
+  che chiedono date precise (giorni della settimana, intervalli) si provano con date fisse nei test del formattatore, che non guardano
+  il calendario. Ogni test che tocca le convivenze comincia da `GatheringSupport.reset()`, perché il database è condiviso e ce ne può
+  essere una sola non chiusa.

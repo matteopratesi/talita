@@ -10,6 +10,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-3/` sono i mockup del login, dei ruoli e dei maestri (TALITA-3, Grace Kerning): 42 pagine statiche con tutti gli stati e dati sintetici, che si aprono allo stesso modo da `index.html`. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-4/` sono i mockup della convivenza e della pagina informativa (TALITA-4, Grace Kerning): 27 pagine statiche con tutti gli stati e dati sintetici, da `index.html`; `talita-4.css` importa il CSS del mockup di origine. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -612,14 +614,14 @@ Note:
 | Ordine | Etichetta | URL | Icona | Chi la vede | Cosa ci sarà |
 |---|---|---|---|---|---|
 | 1 | Home | `/` | `house` | Maestro e genitore | pagina iniziale |
-| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | configurazione, maestri, pagina informativa per i genitori |
+| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | la convivenza (stato, date, luogo, quote, maestri affidatari, informazioni e link per i genitori) e, sotto, «Maestri» |
 | 3 | Iscrizioni | `/iscrizioni` | `users-round` | Maestro e genitore | per il maestro elenco e inserimento dal modulo cartaceo; per il genitore le iscrizioni dei suoi figli |
 | 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | check-in e stampe |
 
 Il maestro ha le quattro voci. Il **genitore ne ha due**, Home e Iscrizioni: ognuna occupa metà barra
 (le `<li>` hanno già `flex-1`), con etichette e icone di sempre, e non scatta mai la regola «più di
 cinque voci → Altro». Chi è maestro e genitore (un solo account) vede la navigazione del maestro.
-«Maestri» non è una voce: ci si arriva dalla Convivenza e ha corrente «Convivenza». Il profilo,
+«Maestri» non è una voce: ci si arriva dalla Convivenza (la sua pagina ha la riga «Maestri» in fondo, in ogni stato, anche vuota, e nessun'altra voce di navigazione) e ha corrente «Convivenza». Il profilo,
 «Accetta l’invito» e le pagine di errore non hanno nessuna voce corrente. Le voci arrivano al template
 filtrate per ruolo, con il ruolo letto dal database a ogni richiesta: dopo un invito accettato, o dopo
 che un maestro viene tolto, il tocco successivo mostra già la navigazione giusta. Gli indirizzi dei soli
@@ -888,6 +890,19 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
   size-5 -translate-y-1/2 text-ink-muted`) e campo con `pl-11`; etichetta `sr-only` "Cerca una
   persona".
 - Pila dei campi: `space-y-5`. Bottoni del form in fondo, con `mt-6`.
+- **Data** (le date degli eventi): lo stesso campo di testo con `type="date"`, senza `min` né `max` (gli errori sono i nostri, e un limite del browser coprirebbe l'errore). Il valore è `aaaa-mm-gg`.
+- **Importo in euro** (`components/amountField.jte`): campo di testo con `inputmode="decimal"`, `autocomplete="off"`, il segno «€» dentro il campo a destra (solo per gli occhi, `aria-hidden`: l'etichetta dice cosa è) e `pr-12` perché il testo non lo copra. Si accettano `60`, `12,50`, `12.5`; si mostrano sempre come da 6.
+
+```html
+<div class="relative">
+  <input id="quota-intera" name="fullFee" type="text" inputmode="decimal" autocomplete="off" aria-describedby="quota-intera-aiuto quota-intera-errore" aria-invalid="true"
+         class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface pr-12 pl-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+  <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-muted">€</span>
+</div>
+```
+
+- **Area di testo** (`components/textAreaField.jte`): le stesse classi del campo, con `min-h-48` (9 righe) per un testo lungo e `min-h-36` (6 righe) per un elenco, `resize-y`, `py-3`. Gli a capo che la persona scrive si conservano.
+- **Scelta multipla** (più caselle, dove le radio non servono: «Maestri affidatari»): un `fieldset` con `legend`, e le caselle in una lista con bordo, `min-h-14` per riga, `size-6 accent-brand`, il nome che va a capo (`wrap-anywhere`) e, se serve, un'etichetta («Sei tu»). L'errore sta sotto l'elenco, `aria-describedby` sul `fieldset` e `aria-invalid="true"` sulla **prima casella**, così `app.js` le dà il fuoco.
 
 ### 4.3 Liste
 
@@ -958,6 +973,18 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
   `overflow-hidden`) e ha solo il bordo in alto.
 - Un dato che manca si scrive "Non indicata" / "Non indicato" in `text-ink-muted`; mai un trattino
   o un campo vuoto.
+- **Righe «etichetta … valore»** (le quote, la scheda «Quanto costa»): una riga per voce, anche sul telefono, con il valore a destra.
+
+```html
+<dl class="mt-3 divide-y divide-line">
+  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0">
+    <dt class="text-ink-muted">Quota intera</dt>
+    <dd class="text-right font-semibold">60 €</dd>
+  </div>
+</dl>
+```
+
+- **Il titolo della scheda e il suo «Modifica»** stanno sulla stessa riga (`flex items-center justify-between gap-3`), con il bottone di testo e l'icona `pencil`; il bottone ha un `aria-label` che dice cosa si modifica («Modifica le quote»), perché sulla pagina ce ne sono quattro.
 
 ### 4.5 Etichette di stato
 
@@ -966,14 +993,16 @@ più una variante:
 
 | Variante | Classi | Esempi |
 |---|---|---|
-| Neutra | `bg-surface-muted text-ink-muted` | Bozza, Chiusa |
-| Informativa | `bg-brand-soft text-brand` | Aperta, In corso |
+| Neutra | `bg-surface-muted text-ink-muted` | Bozza, Iscrizioni chiuse, Finita, Sei tu |
+| Informativa | `bg-brand-soft text-brand` | Iscrizioni aperte, In corso |
 | Positiva | `bg-success-soft text-success` | Confermata, Pagata |
-| Attenzione | `bg-warning-soft text-warning` | In forse, Da pagare |
+| Attenzione | `bg-warning-soft text-warning` | In forse, Da pagare, Da completare |
 | Negativa | `bg-danger-soft text-danger` | Annullata |
 
 Una parola o due, con l'iniziale maiuscola. L'etichetta ripete in parole quello che il colore
 dice: il colore da solo non basta.
+
+Della convivenza (`components/badge.jte`, una parola di variante: `neutral`, `info`, `positive`, `warning`, `danger`): **Bozza** neutra, **Iscrizioni aperte** informativa, **Iscrizioni chiuse** neutra, e **Finita** neutra che si aggiunge accanto alla prima quando l'ultimo giorno è passato («finita» non è uno stato: è una data). **Sei tu** neutra accanto al proprio nome, **Da completare** di attenzione accanto a un dato che serve per aprire le iscrizioni.
 
 ### 4.6 Avvisi nella pagina
 
@@ -992,6 +1021,20 @@ Un messaggio che resta nella pagina finché la situazione non cambia.
 | Conferma | `bg-success-soft` | `circle-check`, `text-success` |
 | Attenzione | `bg-warning-soft` | `triangle-alert`, `text-warning` |
 | Errore | `bg-danger-soft` | `circle-alert`, `text-danger` |
+
+Un avviso di attenzione può portare **un elenco di collegamenti** (le cose da fare prima di aprire le iscrizioni: ognuna porta al campo da completare, con il fuoco sul campo, `min-h-11` per il tocco):
+
+```html
+<div role="alert" tabindex="-1" data-fuoco class="flex items-start gap-3 rounded-xl bg-warning-soft p-4">
+  <svg class="size-6 shrink-0 text-warning" aria-hidden="true">…triangle-alert…</svg>
+  <div class="min-w-0">
+    <p class="font-semibold">Prima di aprire le iscrizioni:</p>
+    <ul class="mt-1 list-disc pl-5 marker:text-warning">
+      <li><a href="/convivenza/12/date#luogo" class="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-2">Scrivi il luogo</a></li>
+    </ul>
+  </div>
+</div>
+```
 
 Testo in `text-ink`. Se l'avviso compare dopo un'azione (per esempio un form rimandato con errori),
 ha `role="alert"` (errore e attenzione); una conferma ha `role="status"`; un'informazione che c'è
@@ -1072,6 +1115,7 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   `app.js` ferma l'invio e fa `showModal()`. Il dialogo è `components/confirmDialog.jte`, dentro il blocco che
   l'azione sostituisce; il suo form è un `hx-post` verso lo stesso blocco. L'id del dialogo è `togli-0`,
   `ritira-0`…: mai un nome o un indirizzo.
+- **Passi dello stato della convivenza** (aprire, chiudere, riaprire le iscrizioni, TALITA-4): il bottone è un **link** con `data-apri` verso la pagina di conferma (`/convivenza/12/apri`), che senza JavaScript è la pagina con gli stessi testi (`pages/confirmAction.jte`, «Annulla» torna alla convivenza). Il form del dialogo è un normale form della pagina, non un blocco che si sostituisce (`ConfirmModel.target` nullo): risponde 303 alla pagina con la conferma. `app.js` ascolta i `data-apri` nella fase di cattura, perché un link è anche un link che htmx fa navigare. Una bozza che non si può aprire non ha dialogo: il bottone manda il form e la pagina risponde con l'elenco di cosa manca (4.6).
 - **Se la richiesta del dialogo fallisce** (rete assente, lenta, errore del server, accesso negato) i dialoghi
   aperti si chiudono prima che compaia il messaggio (4.7): un dialogo aperto sta sopra a tutto, anche ai messaggi,
   e il messaggio resterebbe nascosto sotto il suo sfondo. La pagina resta com'era e il messaggio si vede.
@@ -1155,12 +1199,13 @@ una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
   qualsiasi, con il suo indirizzo e il suo titolo (criteri 25 e 26);
 - doppio tocco o tocco su un'altra voce mentre si aspetta: vale l'ultimo tocco, senza errori.
 
-**Form rimandato con errori** (un indirizzo sbagliato, un limite, una pagina scaduta): il server
-risponde con la pagina del form, **422** (errori) o **429** (limiti), e `app.js` la mette al posto di
+**Form rimandato con errori** (un indirizzo sbagliato, un limite, una pagina scaduta, un passo che lo stato delle cose rifiuta): il server
+risponde con la pagina del form, **422** (errori), **429** (limiti) o **409** (conflitto con lo stato: una convivenza che non si può
+riaprire, un maestro che è affidatario), e `app.js` la mette al posto di
 quella che c'è come per una risposta 200, senza il messaggio «Qualcosa non ha funzionato». I campi
 restano compilati. Il fuoco va al primo campo con `aria-invalid="true"`; se non c'è, al primo elemento con
 `data-fuoco` (l'avviso); se non c'è nemmeno quello e la pagina è cambiata, all'`h1`. L'errore di un campo lo
-legge il lettore di schermo grazie ad `aria-describedby`. Il form rimandato non lascia un'altra voce nella
+legge il lettore di schermo grazie ad `aria-describedby`. Dopo un cambio di pagina con un frammento nell'indirizzo (`/convivenza/12/date#luogo`, un collegamento di «Prima di aprire le iscrizioni») il fuoco va all'elemento che ha quell'`id`, il campo da completare, prima di ripiegare sull'`h1`. Il form rimandato non lascia un'altra voce nella
 cronologia. Vale per ogni form con `hx-boost` e per ogni `hx-post` con un suo `hx-target`.
 
 **Azione su un blocco della pagina** (un form o un bottone con `hx-post`, `hx-target` e `hx-swap="outerHTML"`,
@@ -1287,6 +1332,10 @@ la trovi qui con le date, i maestri e le iscrizioni."
 | Numeri | punto per le migliaia | 1.250 persone |
 | Importi | virgola per i decimali, euro dopo, decimali solo se non zero | 120 €, 120,50 € |
 | Zero | in parole | Nessuna iscrizione (non "0 iscrizioni") |
+| Importo a zero | in parole | Gratuita (non "0 €") |
+| Giorni di una convivenza | giorno della settimana con l'iniziale maiuscola, i giorni separati da virgole e «e»; mese e anno una volta sola se sono gli stessi, altrimenti per ogni giorno | Venerdì 17, sabato 18 e domenica 19 settembre 2027 · Giovedì 30 dicembre 2027, venerdì 31 dicembre 2027 e sabato 1 gennaio 2028 |
+| Anni diversi in un intervallo | trattino medio con spazi, l'anno di ogni data | 30 dicembre 2027 – 1 gennaio 2028 |
+| Un giorno solo | la data intera | 18 settembre 2027 |
 | Singolare e plurale | sempre giusti | 1 bambino, 24 bambini (mai "bambino/i") |
 
 Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
