@@ -7,7 +7,8 @@ package talita.gathering
  * not to write them.
  *
  * - **email**: `@` with something before it and a domain after it;
- * - **phone**: nine digits or more in a row, also split by one space, dot or dash between two digits, with or without a leading `+`.
+ * - **phone**: nine digits or more in a row, also split by one space, dot or dash between two digits, or by a round bracket with
+ *   a space next to it (`+39 (02) 12345678`, `(02) 1234 5678`, `+39(02)12345678`), with or without a leading `+`.
  *   `17/09/2027 alle 18:30`, `dalle 9.30` and `60 €` pass;
  * - **IBAN**: two letters, two digits and a long run of letters and digits (also in groups of four).
  */
@@ -44,8 +45,8 @@ object PublicText {
 
     private val iban = Regex("""(?<![\p{L}\p{N}])[A-Za-z]{2}\d{2}(?:[ \-]?[A-Za-z0-9]{4}){3,7}(?:[ \-]?[A-Za-z0-9]{1,3})?(?![\p{L}\p{N}])""")
 
-    /** A run of digits, with at most one space, dot or dash between two of them. */
-    private val digits = Regex("""\d(?:[ .\-]?\d)*""")
+    /** A run of digits, with at most one space, dot, dash or round bracket (a space may be next to it) between two of them. */
+    private val digits = Regex("""\d(?:(?:[ .\-]|[ ]?[()][ ]?)?\d)*""")
 
     private const val PHONE_DIGITS = 9
 
