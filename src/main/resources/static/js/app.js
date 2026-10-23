@@ -4,14 +4,15 @@
 // - the 404 and 500 pages show up as normal pages when they arrive from a link of the app, and
 //   when the back button leads to them; the same for the 403 of a page that the person cannot see,
 //   while a request that does not change the page and is refused (403) shows the message «Accesso negato»;
-// - a form that comes back with its errors (422) or with a limit (429) replaces the page or the piece
-//   of page that sent it, with the fields still filled in, and the focus goes to the first wrong field
-//   or to the notice; it leaves no second entry in the history;
+// - a form that comes back with its errors (422), with a limit (429) or with a refusal that depends on the state of things (409,
+//   for example a step of a gathering that is no longer possible) replaces the page or the piece of page that sent it, with the
+//   fields still filled in, and the focus goes to the first wrong field or to the notice; it leaves no second entry in the history;
 // - a request that does not change the page and gets a 5xx, a missing network or no answer in
 //   time leaves the page as it is and shows a pop-up message (texts are in the layout, as <template>);
 //   the same for the back button without network;
 // - touching another link while a page change is on its way: the last touch wins;
-// - after a change of page the focus goes to the heading, so a screen reader announces it.
+// - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
+//   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
 // (see the beforeSwap listener).
 "use strict";
@@ -103,10 +104,21 @@
     if (heading) heading.focus({ preventScroll: true });
   }
 
+  /** The element that the fragment of the address names (`#luogo`), if there is one. */
+  function fragmentTarget() {
+    if (!location.hash) return null;
+    try {
+      return document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    } catch (error) {
+      return null;
+    }
+  }
+
   /**
    * After a page or a piece of it has been replaced, the focus goes where the person must look: the
    * first wrong field (a screen reader reads its error through aria-describedby), else the first
-   * notice (data-fuoco), else, if the page changed, the heading.
+   * notice (data-fuoco), else, if the page changed, the element that the fragment of the address names (the
+   * field that a link says to fix), else the heading.
    */
   function focusAfterSwap(pageChanged, root) {
     const scope = root || document;
@@ -114,7 +126,12 @@
     if (target) {
       target.focus();
     } else if (pageChanged) {
-      focusHeading();
+      const named = fragmentTarget();
+      if (named) {
+        named.focus();
+      } else {
+        focusHeading();
+      }
     }
   }
 
@@ -146,8 +163,8 @@
     const request = describe(event.detail);
 
     if (status >= 400) {
-      if (status === 422 || status === 429) {
-        // A form sent again with its errors, or a limit: it is the answer, not a failure.
+      if (status === 409 || status === 422 || status === 429) {
+        // A form sent again with its errors, a limit, or a request that the state of things refuses (409): it is the answer, not a failure.
         event.detail.shouldSwap = true;
         event.detail.isError = false;
       } else if (status === 403) {
@@ -245,19 +262,26 @@
   // A button with data-apri="<id>" opens the dialog with that id (a native <dialog>: Esc, focus kept inside,
   // the page behind inert, with no more code). Without JavaScript the button sends its form, which leads to a page
   // with the same words; with it, the form is not sent.
-  document.addEventListener("click", (event) => {
-    const opener = event.target.closest("[data-apri]");
-    if (!opener) return;
-    const dialog = document.getElementById(opener.getAttribute("data-apri"));
-    if (!dialog || typeof dialog.showModal !== "function") return;
-    event.preventDefault();
-    if (!dialog.open) dialog.showModal();
-  });
+  // The listener is on the capture phase: a link that opens a dialog (the step of a gathering) is also a link that htmx boosts, and htmx
+  // listens on the link itself and would start the page change before this listener, on the way up, could stop it.
+  document.addEventListener(
+    "click",
+    (event) => {
+      const opener = event.target.closest("[data-apri]");
+      if (!opener) return;
+      const dialog = document.getElementById(opener.getAttribute("data-apri"));
+      if (!dialog || typeof dialog.showModal !== "function") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!dialog.open) dialog.showModal();
+    },
+    true,
+  );
 
   // A form that comes back with its errors stays at the address it had: no second entry in the history.
   document.addEventListener("htmx:beforeHistoryUpdate", (event) => {
     const status = event.detail.xhr ? event.detail.xhr.status : 0;
-    if (status === 422 || status === 429) event.detail.history.type = "replace";
+    if (status === 409 || status === 422 || status === 429) event.detail.history.type = "replace";
   });
   document.addEventListener("htmx:historyRestore", focusHeading);
 

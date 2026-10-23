@@ -22,4 +22,6 @@
 @elseif(icon == Icon.CIRCLE_ALERT)<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>
 @elseif(icon == Icon.LOADER_CIRCLE)<path d="M21 12a9 9 0 1 1-6.219-8.56"/>
 @elseif(icon == Icon.LOCK)<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-@elseif(icon == Icon.USER_ROUND)<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>@endif</svg>
+@elseif(icon == Icon.USER_ROUND)<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>
+@elseif(icon == Icon.PLUS)<path d="M5 12h14"/><path d="M12 5v14"/>
+@elseif(icon == Icon.PENCIL)<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>@endif</svg>

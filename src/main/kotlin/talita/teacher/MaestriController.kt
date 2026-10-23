@@ -12,29 +12,26 @@ import talita.account.CurrentAccount
 import talita.account.EmailAddress
 import talita.account.isHtmx
 import talita.account.seeOther
+import talita.gathering.Custodianship
+import talita.gathering.GatheringRef
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.SUCCESS
 import talita.ui.AlertVariant.WARNING
+import talita.ui.ConfirmModel
 import talita.ui.Flash
 import talita.ui.LONG_DATE
 import talita.ui.Section
 import talita.ui.ShellFactory
 
-/** A dialog of confirmation, or the page that stands in for it without JavaScript: the same words. */
-data class ConfirmModel(
-    val id: String,
-    val title: String,
-    val text: String,
-    val confirmLabel: String,
-    val busyLabel: String,
-    val action: String,
-    val field: String,
-    val value: String,
-)
+/**
+ * What stops a teacher from being taken away while they are a custodian of a gathering that is not over (criterion 40): the sentence,
+ * and the text button that leads to the custodians of that gathering. [ariaLabel] names the gathering when there are two buttons.
+ */
+data class CustodyLine(val sentence: String, val label: String, val ariaLabel: String?, val href: String)
 
 /** One teacher in the list: name and surname (the address is never shown), and what can be done with them. */
-data class TeacherLine(val name: String, val initials: String, val you: Boolean, val removal: ConfirmModel?, val note: String?)
+data class TeacherLine(val name: String, val initials: String, val you: Boolean, val removal: ConfirmModel?, val note: String?, val custody: List<CustodyLine> = emptyList())
 
 /** One invitation in the list: the address, when it expires (or expired), and the dialog to withdraw it. */
 data class InvitationLine(val email: String, val expired: Boolean, val date: String, val withdrawal: ConfirmModel)
@@ -123,6 +120,17 @@ class MaestriController(
 
             RemovalResult.LastTeacher ->
                 render(account, request, "", null, Alert(WARNING, "Serve almeno un maestro. Per togliere questa persona, invita prima un altro maestro."), HttpStatus.UNPROCESSABLE_ENTITY)
+
+            // A request made by hand, or two teachers at the same moment: nothing changes, and the block says why (409).
+            is RemovalResult.IsCustodian -> {
+                val of = titles(result.gatherings.map { it.title }, "di ")
+                val text = if (id == account.id) {
+                    "Non puoi toglierti: sei affidatario $of. Togliti prima dagli affidatari."
+                } else {
+                    "Non puoi togliere ${result.name.full}: è affidatario $of. Toglilo prima dagli affidatari."
+                }
+                render(account, request, "", null, Alert(WARNING, text), HttpStatus.CONFLICT)
+            }
         }
     }
 
@@ -141,7 +149,10 @@ class MaestriController(
     @PostMapping("/maestri/togli/conferma")
     fun confirmRemoval(account: CurrentAccount, @RequestParam(name = "maestro", defaultValue = "") target: String): ModelAndView {
         val line = teachers.all().firstOrNull { it.accountId.toString() == target.trim() } ?: return seeOther("/maestri")
-        return confirmPage(removalDialog(0, line, line.accountId == account.id))
+        val custody = teachers.custodianships()[line.accountId] ?: Custodianship.NONE
+        // The one who is a custodian of a gathering that is not over is not taken away: there is nothing to confirm.
+        if (custody.unfinished.isNotEmpty()) return seeOther("/maestri")
+        return confirmPage(removalDialog(0, line, line.accountId == account.id, custody.finished))
     }
 
     @PostMapping("/maestri/inviti/ritira/conferma")
@@ -173,15 +184,20 @@ class MaestriController(
         status: HttpStatus,
     ): ModelAndView {
         val people = teachers.all()
+        val custodies = teachers.custodianships()
         val lines = people.mapIndexed { index, row ->
             val you = row.accountId == account.id
+            val custody = custodies[row.accountId] ?: Custodianship.NONE
+            // A custodian of a gathering that is not over is not taken away: the sentence and the way to the custodians are where «Togli» would be.
+            val blocked = people.size > 1 && custody.unfinished.isNotEmpty()
             TeacherLine(
                 name = row.name.full,
                 initials = (row.name.first.take(1) + row.name.last.take(1)).uppercase(),
                 you = you,
-                removal = if (people.size > 1) removalDialog(index, row, you) else null,
+                removal = if (people.size > 1 && !blocked) removalDialog(index, row, you, custody.finished) else null,
                 // The only teacher cannot take themself away: the page says why, where the button would be.
                 note = if (people.size == 1) "Serve almeno un maestro: per toglierti, invita prima un altro maestro." else null,
+                custody = if (blocked) custody.unfinished.map { custodyLine(it, you, custody.unfinished.size > 1) } else emptyList(),
             )
         }
         val waiting = invitations.all().mapIndexed { index, invitation ->
@@ -201,13 +217,39 @@ class MaestriController(
         }
     }
 
-    private fun removalDialog(index: Int, row: TeacherRow, you: Boolean): ConfirmModel {
+    private fun custodyLine(gathering: GatheringRef, you: Boolean, several: Boolean): CustodyLine = CustodyLine(
+        sentence = if (you) {
+            "Sei affidatario di «${gathering.title}»: per toglierti, prima togliti dagli affidatari."
+        } else {
+            "Affidatario di «${gathering.title}»: prima va tolto dagli affidatari."
+        },
+        label = if (you) "Togliti dagli affidatari" else "Togli dagli affidatari",
+        ariaLabel = if (several) (if (you) "Togliti dagli affidatari di «${gathering.title}»" else "Togli dagli affidatari di «${gathering.title}»") else null,
+        href = "/convivenza/${gathering.id}/affidatari",
+    )
+
+    /** «di «A»», «di «A» e di «B»», «di «A», di «B» e di «C»»: the titles of the gatherings in a sentence. [prefix] repeats «di » before every title. */
+    private fun titles(titles: List<String>, prefix: String): String {
+        val quoted = titles.mapIndexed { index, title -> (if (index == 0) "" else prefix) + "«$title»" }
+        return if (quoted.size == 1) prefix + quoted.single() else prefix + quoted.dropLast(1).joinToString(", ") + " e " + quoted.last()
+    }
+
+    /** The line that the dialog adds when the teacher is also a custodian of gatherings that are over: their name goes from those too. */
+    private fun finishedLine(finished: List<GatheringRef>, you: Boolean): String {
+        if (finished.isEmpty()) return ""
+        val owner = if (you) "Il tuo" else "Il suo"
+        return " $owner nome sparisce anche dagli affidatari ${titles(finished.map { it.title }, "di ")}, " +
+            if (finished.size == 1) "che è finita." else "che sono finite."
+    }
+
+    private fun removalDialog(index: Int, row: TeacherRow, you: Boolean, finished: List<GatheringRef> = emptyList()): ConfirmModel {
         val name = row.name.full
+        val extra = finishedLine(finished, you)
         return if (you) {
             ConfirmModel(
                 id = "togli-$index",
                 title = "Toglierti dai maestri?",
-                text = "Non potrai più gestire la convivenza né vedere i bambini e le segnalazioni. Il tuo nome viene cancellato dall’elenco dei maestri. Un altro maestro potrà invitarti di nuovo.",
+                text = "Non potrai più gestire la convivenza né vedere i bambini e le segnalazioni. Il tuo nome viene cancellato dall’elenco dei maestri. Un altro maestro potrà invitarti di nuovo.$extra",
                 confirmLabel = "Toglimi dai maestri",
                 busyLabel = "Rimozione…",
                 action = "/maestri/togli",
@@ -218,7 +260,7 @@ class MaestriController(
             ConfirmModel(
                 id = "togli-$index",
                 title = "Togliere $name dai maestri?",
-                text = "$name non potrà più gestire la convivenza né vedere i bambini e le segnalazioni. Il suo nome viene cancellato dall’elenco dei maestri. Potrà ancora entrare in Talità come genitore.",
+                text = "$name non potrà più gestire la convivenza né vedere i bambini e le segnalazioni. Il suo nome viene cancellato dall’elenco dei maestri. Potrà ancora entrare in Talità come genitore.$extra",
                 confirmLabel = "Togli dai maestri",
                 busyLabel = "Rimozione…",
                 action = "/maestri/togli",

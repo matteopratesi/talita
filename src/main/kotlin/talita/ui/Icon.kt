@@ -27,4 +27,6 @@ enum class Icon {
     LOADER_CIRCLE,
     LOCK,
     USER_ROUND,
+    PLUS,
+    PENCIL,
 }

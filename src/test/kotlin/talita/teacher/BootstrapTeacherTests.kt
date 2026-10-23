@@ -28,13 +28,14 @@ import kotlin.test.assertTrue
 class BootstrapTeacherTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val realTeachers: Teachers,
+    @Autowired private val clock: java.time.Clock,
     @Autowired private val invitations: Invitations,
 ) {
 
     /** Written in pieces: the only address allowed in a tracked file is `nome@example.org`. */
     private fun at(local: String, domain: String) = local + "@" + domain
 
-    private val noTeachers = object : Teachers(dsl) {
+    private val noTeachers = object : Teachers(dsl, clock) {
         override fun count(): Int = 0
     }
 

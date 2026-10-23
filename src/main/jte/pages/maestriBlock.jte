@@ -1,4 +1,5 @@
 @import org.springframework.security.web.csrf.CsrfToken
+@import talita.teacher.CustodyLine
 @import talita.teacher.InvitationLine
 @import talita.teacher.MaestriPage
 @import talita.teacher.TeacherLine
@@ -43,6 +44,10 @@
               @if(teacher.getNote() != null)
                 <span class="block text-sm text-ink-muted">${teacher.getNote()}</span>
               @endif
+              @for(CustodyLine custody : teacher.getCustody())
+                <span class="block text-sm text-ink-muted wrap-anywhere">${custody.getSentence()}</span>
+                <a href="${custody.getHref()}" aria-label="${custody.getAriaLabel()}" class="-ml-3 inline-flex min-h-11 items-center rounded-xl px-3 text-base font-semibold text-brand transition-colors duration-150 hover:bg-brand-soft active:bg-brand-soft">${custody.getLabel()}</a>
+              @endfor
             </span>
             @if(teacher.getRemoval() != null)
               <form method="post" action="/maestri/togli/conferma" class="-ml-3 sm:ml-0 sm:shrink-0">
