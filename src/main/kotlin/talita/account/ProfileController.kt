@@ -3,10 +3,13 @@ package talita.account
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.stereotype.Controller
-import org.springframework.ui.Model
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
+import org.springframework.web.servlet.ModelAndView
+import talita.retention.YourData
+import talita.retention.YourDataPresenter
 import talita.ui.Alert
 import talita.ui.Flash
 import talita.ui.ShellFactory
@@ -17,32 +20,42 @@ data class NameForm(val first: String, val last: String, val firstError: String?
 /**
  * Model of the profile page: what the person sees about their own access. [role] is «Maestro» for a teacher; a
  * parent has no row (every account is a parent, it does not need saying). [nameForm] is the card «Il tuo nome»,
- * only for a teacher. [alert] is the notice at the top: a confirmation («Nome salvato.») or the count of errors.
+ * only for a teacher. [alert] is the notice at the top: a confirmation («Nome salvato.», «Dati di Luca cancellati.») or the count of errors.
+ * [data] is the card «I tuoi dati» (TALITA-7): the children, with the way to delete their data, and the account.
  */
-data class ProfilePage(val email: String, val role: String?, val nameForm: NameForm?, val alert: Alert?)
+data class ProfilePage(val email: String, val role: String?, val nameForm: NameForm?, val alert: Alert?, val data: YourData)
 
 /**
  * The profile, two taps from every page (the pill in the header, then "Esci"): the address with which
- * the person is inside, the way out and, for a teacher, the correction of their name (`talita.teacher`).
- * Every account has one.
+ * the person is inside, the way out, for a teacher the correction of their name (`talita.teacher`) and, for everyone, «I tuoi dati»: the data of the children
+ * and of the account, with the way to delete them (`talita.retention`, TALITA-7). Every account has one.
  */
 @Controller
-class ProfileController(private val shells: ShellFactory) {
+class ProfileController(private val shells: ShellFactory, private val yourData: YourDataPresenter) {
 
     @GetMapping("/profilo")
-    fun profile(account: CurrentAccount, request: HttpServletRequest, model: Model): String {
-        model.addAttribute("shell", shells.shell(page = "Profilo", current = null, onProfile = true))
-        model.addAttribute(
-            "page",
-            ProfilePage(
-                email = account.email,
-                role = if (account.isTeacher) "Maestro" else null,
-                nameForm = account.teacher?.let { NameForm(it.first, it.last, null, null) },
-                alert = Flash.take(request),
+    fun profile(account: CurrentAccount, request: HttpServletRequest): ModelAndView = page(account, Flash.take(request), HttpStatus.OK)
+
+    /** The profile as it is now, with [alert] at the top: also the answer of a request that cannot be made (409), which shows what to do first. */
+    fun page(
+        account: CurrentAccount,
+        alert: Alert?,
+        status: HttpStatus,
+        nameForm: NameForm? = account.teacher?.let { NameForm(it.first, it.last, null, null) },
+    ): ModelAndView =
+        ModelAndView(
+            "pages/profile",
+            mapOf(
+                "shell" to shells.shell(page = "Profilo", current = null, onProfile = true),
+                "page" to ProfilePage(
+                    email = account.email,
+                    role = if (account.isTeacher) "Maestro" else null,
+                    nameForm = nameForm,
+                    alert = alert,
+                    data = yourData.forProfile(account),
+                ),
             ),
-        )
-        return "pages/profile"
-    }
+        ).also { it.status = status }
 }
 
 /**

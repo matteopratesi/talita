@@ -151,6 +151,9 @@ class ErasureService(
         dsl.select(CHILD.ID, CHILD.FIRST_NAME, CHILD.LAST_NAME).from(CHILD).where(CHILD.ACCOUNT_ID.eq(accountId))
             .orderBy(DSL.lower(CHILD.LAST_NAME), DSL.lower(CHILD.FIRST_NAME), CHILD.ID).fetch { OwnChild(it[CHILD.ID]!!, it[CHILD.FIRST_NAME]!!, it[CHILD.LAST_NAME]!!) }
 
+    /** The register still has the number of this child: its data were deleted on request (a second request for it is not an error, criterion 22). */
+    fun childWasErased(childId: Long): Boolean = RetentionLog.hasRequest(dsl, RetentionLog.CHILD_REQUEST, childId)
+
     private fun childPlan(child: OwnChild, classified: Classified): ChildPlan {
         val fates = classified.fates.filter { it.childId == child.id }
         return ChildPlan(

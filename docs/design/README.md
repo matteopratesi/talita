@@ -487,6 +487,8 @@ Icone assegnate (nomi di Lucide):
 | Elenco per la struttura | `list` |
 | Registro arrivi | `clipboard-list` |
 | Torna agli arrivi | `chevron-left` |
+| Conservata fino al…, quello che è stato cancellato (stato vuoto neutro) | `archive` |
+| Per quanto tempo teniamo i dati | `shield-check` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):

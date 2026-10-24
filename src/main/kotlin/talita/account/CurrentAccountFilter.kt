@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.web.filter.OncePerRequestFilter
+import talita.ui.Flash
 
 /**
  * On every request, turns "whoever the session says is inside" into the account as the database
@@ -30,9 +31,12 @@ class CurrentAccountFilter(private val accounts: Accounts) : OncePerRequestFilte
         if (authentication != null && authentication.isAuthenticated && principal is AccountUserDetails) {
             val account = accounts.current(principal.id)
             if (account == null) {
-                // The account is gone (TALITA-7 deletes them): the session is worth nothing.
+                // The account is gone (TALITA-7 deletes them, on request or when they stay empty): the session is worth nothing. The person is told so on the access
+                // page, once, and the request goes on without access, so that it ends there as a whole page (never inside the page that was open, never an error).
                 request.getSession(false)?.invalidate()
                 SecurityContextHolder.clearContext()
+                request.setAttribute(LoginEntryPoint.ACCOUNT_GONE, true)
+                Flash.put(request, ACCOUNT_DELETED_NOTICE)
             } else {
                 // A new context, not the one of the session: this one must not be saved there.
                 SecurityContextHolder.setContext(SecurityContextImpl(AccountAuthentication(account, authoritiesOf(account))))

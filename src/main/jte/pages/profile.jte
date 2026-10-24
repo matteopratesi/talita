@@ -11,7 +11,7 @@
 
   @if(page.getAlert() != null)
     <div class="mb-4">
-      @template.components.alert(variant = page.getAlert().getVariant(), live = true, content = @`${page.getAlert().getText()}`)
+      @template.components.alert(variant = page.getAlert().getVariant(), live = true, lead = page.getAlert().getLead(), actionLabel = page.getAlert().getActionLabel(), actionHref = page.getAlert().getActionHref(), content = @`${page.getAlert().getText()}`)
     </div>
   @endif
 
@@ -52,5 +52,7 @@
         </form>
       </section>
     @endif
+
+    @template.profile.yourData(data = page.getData(), csrf = csrf)
   </div>
 `)

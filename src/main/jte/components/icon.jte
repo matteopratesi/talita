@@ -43,4 +43,6 @@
 @elseif(icon == Icon.LIST)<path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/>
 @elseif(icon == Icon.CLIPBOARD_LIST)<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
 @elseif(icon == Icon.CHEVRON_LEFT)<path d="m15 18-6-6 6-6"/>
-@elseif(icon == Icon.SEARCH)<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>@endif</svg>
+@elseif(icon == Icon.SEARCH)<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>
+@elseif(icon == Icon.ARCHIVE)<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>
+@elseif(icon == Icon.SHIELD_CHECK)<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>@endif</svg>
