@@ -87,6 +87,9 @@ private object MailpitContextCustomizer : ContextCustomizer {
             // The controller of the data has no default in the application: the tests say who it is, with the placeholders of the dev profile.
             "talita.privacy.controller-name" to "Titolare di esempio",
             "talita.privacy.contact" to "nome@example.org",
+            // The job of the retention (TALITA-7) is switched on by default, at the start and every night at 4:15: the tests run it by hand, with a fixed clock,
+            // so that it never deletes under the feet of another test. A test of the schedule says `talita.retention.automatic=true` in its own properties.
+            "talita.retention.automatic" to "false",
         )
         // Before everything but the properties that a test sets on its own (`@SpringBootTest(properties = ...)`),
         // which can replace the mail port or the public address to try a mail that fails.
