@@ -654,3 +654,15 @@ iscrizioni del genitore, maestri, regole di TALITA-4 e chiusura.
 - **Test**: `RegistrationTestKit` e `RegistrationRows` preparano maestri, convivenza e iscrizioni (anche direttamente in tabella, per i test che non riguardano il farle); la prima
   convivenza parte da un venerdì a un mese di distanza con i tre giorni nello stesso mese, così le frasi sui giorni non dipendono da quando gira il test. Il database è condiviso:
   `GatheringSupport.reset()` cancella prima le iscrizioni.
+
+## 2026-10-24: camere, cucina e solleciti nel primo rilascio (TALITA-1)
+
+Decisione di Matteo, 24/10/2026: **camere** (TALITA-11), **cucina e menù** (TALITA-12) e **solleciti via email** (TALITA-13) entrano nel primo rilascio. I tre ticket sono sotto l'epica TALITA-1 (M1 · Primo rilascio). **Questa voce supera la parte della voce del 21/10/2026 («nascita di Talità») che metteva «camere, cucina e menù, solleciti via email» fuori dal primo rilascio**: quella voce è storia e non si riscrive; le altre cose che elenca fuori dal primo rilascio (rendiconto e raccolte, funzionamento senza rete, firma con valore legale, sesso e luogo di nascita, dati dei maestri per la struttura, documenti caricati) restano fuori.
+
+Restano i vincoli già scritti nei ticket:
+
+- **camere**: assegnate a mano dai maestri, senza registrare il sesso e senza mandare dati dei bambini a servizi esterni o a un'IA;
+- **cucina**: il minimo indispensabile, mai nomi accanto ai dati sanitari;
+- **solleciti**: prima si decide a chi si scrive e con quale scopo per l'indirizzo email.
+
+Le analisi sono nei ticket.
