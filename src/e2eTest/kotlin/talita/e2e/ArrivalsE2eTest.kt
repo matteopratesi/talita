@@ -103,6 +103,38 @@ class ArrivalsE2eTest {
         assertAccessible(page, "list of a day that has not come (${e2e.profile.label})")
     }
 
+    @E2eTest
+    fun `t6 c01 c27 with seven days the selector has every day in one row at 320 px, the page does not scroll, and every day is a target of at least 24 by 44 px`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering(first = -3, last = 3)
+        e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9))
+        e2e.open("/arrivi")
+        val links = page.locator("nav[aria-label='Giorni della convivenza'] a")
+        assertThat(links).hasCount(7)
+
+        // The design asked for 44 px of width for each day «also at 320 px», which seven days cannot give (they get 34 px at 320 and 42 at 375): what the page keeps is the
+        // minimum of WCAG 2.2 (24 px), the height of 64 px, one row and no sideways scrolling. With the usual three days every target is much wider than 44 px.
+        for (width in listOf(320, 360)) {
+            page.setViewportSize(width, 800)
+            page.waitForSettledContent()
+            assertTrue(page.noHorizontalScroll(), "no sideways scrolling at $width px")
+            val boxes = links.all().map { it.box() }
+            assertTrue(boxes.all { Math.abs(it.y - boxes.first().y) < 1.0 }, "the seven days are in one row at $width px")
+            for (box in boxes) {
+                assertTrue(box.width >= 24.0 && box.height >= 44.0, "a day is $box at $width px")
+                assertTrue(box.x >= 0.0 && box.x + box.width <= width, "a day is out of the screen at $width px: $box")
+            }
+        }
+        page.setViewportSize(320, 800)
+        assertAccessible(page, "list of seven days at 320 px (${e2e.profile.label})")
+
+        // A day is chosen with a link that carries the date and nothing else, and the page says which day it is.
+        e2e.touch(links.first())
+        assertThat(page).hasURL(e2e.url("/arrivi?giorno=${w.today.minusDays(3)}"))
+        assertThat(page.locator("nav[aria-label='Giorni della convivenza'] a[aria-current=date]")).hasCount(1)
+        assertThat(page.locator("main")).containsText("un giorno passato")
+    }
+
     // ---- The search by name (criterion 3) ---------------------------------------------------------------------------------------------
 
     @E2eTest
@@ -196,6 +228,36 @@ class ArrivalsE2eTest {
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
         assertEquals(0, page.locator("dialog").count())
+    }
+
+    /**
+     * QA of TALITA-6, a case that is open to discussion and not a defect against a criterion: the design says (part 1, 3.4) that who taps «Segna presente» twice does not take the presence
+     * away by mistake, because the first tap disables the button and the second falls on «a different button». It does not: the answer arrives in a few tens of milliseconds and the
+     * new «Togli» is centred where the old button was (it is smaller, but the point of the tap is inside it), so a second tap that comes 80 ms or more after the first takes the
+     * presence away, with no confirmation (criterion 6), and the row goes back to «Segna presente». Only a tap sooner than the answer is ignored. On the list it works the other way
+     * round too (Togli, then the big «Segna presente» under the finger marks the child again), and so on the card for Togli; on the card «Segna presente» twice is safe, and so are the
+     * payment and the notes (their blocks move). Enable this test if the decision is to protect the new button for a moment after the swap.
+     */
+    @org.junit.jupiter.api.Disabled("QA TALITA-6: a double tap with 80 ms or more between the taps marks the presence and then takes it away; open to discussion, see the comment of the test")
+    @E2eTest(profiles = [Profile.PHONE])
+    fun `t6 c04 a double tap on Segna presente leaves the child present, the second tap does not take the presence away`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val id = e2e.rows().register(w.id, e2e.someParent(), "Luca", "Rossi", LocalDate.of(2016, 4, 4))
+        e2e.open("/arrivi")
+        val button = page.locator("#riga-$id form button").first()
+        button.evaluate("e => e.scrollIntoView({ block: 'center' })")
+        val box = button.box()
+        val x = box.x + box.width / 2
+        val y = box.y + box.height / 2
+
+        page.touchscreen().tap(x, y)
+        page.waitForTimeout(150.0)
+        page.touchscreen().tap(x, y)
+        page.waitForTimeout(800.0)
+
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(id)), "two quick taps on the same point are one wish: the child is present")
+        assertThat(page.locator("#riga-$id")).containsText("Presente")
     }
 
     @E2eTest

@@ -23,9 +23,10 @@ internal data class ArrivalsWorld(val id: Long, val martaId: Long, val paoloId: 
 
 /**
  * The teachers Marta Bianchi, Paolo Verdi and the person of the test (Giulia Serra), and no other, no invitation and no gathering but this one: the database is shared.
- * [first] and [last] are the days from today that the gathering begins and ends.
+ * [first] and [last] are the days from today that the gathering begins and ends. With [meTeacher] false the person of the test is left as the account that it is (a parent):
+ * [ArrivalsWorld.meId] is then the id of that account, which is not a teacher.
  */
-internal fun E2e.arrivalsGathering(first: Long = -1, last: Long = 1, status: GatheringStatus = GatheringStatus.`open`): ArrivalsWorld {
+internal fun E2e.arrivalsGathering(first: Long = -1, last: Long = 1, status: GatheringStatus = GatheringStatus.`open`, meTeacher: Boolean = true): ArrivalsWorld {
     val dsl = dsl()
     dsl.deleteFrom(TEACHER_INVITATION).execute()
     dsl.deleteFrom(TEACHER).execute()
@@ -33,7 +34,7 @@ internal fun E2e.arrivalsGathering(first: Long = -1, last: Long = 1, status: Gat
     support.reset()
     val marta = TestAccounts.makeTeacher(dsl, Addresses.unique("e2e-marta"), "Marta", "Bianchi")
     val paolo = TestAccounts.makeTeacher(dsl, Addresses.unique("e2e-paolo"), "Paolo", "Verdi")
-    val me = TestAccounts.makeTeacher(dsl, checkNotNull(signedInAs), "Giulia", "Serra")
+    val me = if (meTeacher) TestAccounts.makeTeacher(dsl, checkNotNull(signedInAs), "Giulia", "Serra") else accountId(checkNotNull(signedInAs))
     val today = support.today()
     val id = support.make(start = today.plusDays(first), end = today.plusDays(last), status = status, code = GatheringSupport.nextCode(), custodians = listOf(marta, paolo))
     return ArrivalsWorld(id, marta, paolo, me, today)

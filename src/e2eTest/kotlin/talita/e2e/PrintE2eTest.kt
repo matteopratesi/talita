@@ -11,7 +11,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.util.regex.Pattern
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -133,6 +135,83 @@ class PrintE2eTest {
         assertAccessible(page, "list for the venue with no one (${e2e.profile.label})")
         e2e.touch(page.locator("main").linkNamed("Vedi le iscrizioni confermate"))
         assertThat(page).hasURL(e2e.url("/arrivi/elenco"))
+    }
+
+    // ---- What the sheets say (criteria 23, 26) -----------------------------------------------------------------------------------------
+
+    private fun String.plain(): String = replace('\u00a0', ' ').replace(Regex("\\s+"), " ").trim()
+
+    @E2eTest
+    fun `t6 c23 c26 the register has the days with their letters and boxes, what is due and paid, the manleva and the notes of the app, five blank rows and the totals, and no contact, while the sheet for the teachers has the contacts`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val rows = e2e.rows()
+        val anna = rows.register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = talita.registration.Notes("Arachidi", null, null))
+        val luca = rows.register(w.id, e2e.someParent(), "Luca", "Rossi", LocalDate.of(2016, 4, 4), days = mapOf(w.today to "full", w.tomorrow to "lunch"))
+        rows.register(w.id, null, "Nicolò", "Ferri", LocalDate.of(2015, 6, 2), enteredBy = w.martaId, paperReceived = true)
+        rows.register(w.id, null, "Sara", "Neri", LocalDate.of(2017, 3, 3), enteredBy = w.martaId, status = talita.jooq.enums.RegistrationStatus.maybe)
+        val chiara = rows.register(w.id, e2e.someParent(), "Chiara", "Fontana", LocalDate.of(2016, 8, 8), status = talita.jooq.enums.RegistrationStatus.withdrawn)
+        e2e.payment(anna, 3500, w.martaId)
+        e2e.payment(chiara, 6000, w.paoloId)
+        for ((id, day) in listOf(anna to w.today, luca to w.yesterday)) {
+            e2e.dsl().insertInto(CHECKIN).set(CHECKIN.REGISTRATION_ID, id).set(CHECKIN.DAY, day).set(CHECKIN.RECORDED_AT, OffsetDateTime.now()).set(CHECKIN.RECORDED_BY_ACCOUNT_ID, w.paoloId).execute()
+        }
+
+        e2e.open("/arrivi/registro")
+        assertThat(page.locator("h1")).hasText("Registro arrivi")
+        assertThat(page.locator("main")).containsText(Pattern.compile("Stampato il \\d+ \\w+ \\d{4} alle \\d+:\\d{2}\\."))
+        assertThat(page.locator("main")).containsText("G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza già segnata in Talità.")
+        val table = page.locator("main table.tabella-stampa").first()
+        val headers = table.locator("thead th").allInnerTexts().map { it.plain() }
+        assertEquals(8, headers.size, "the child, three days, due, paid, manleva and notes: $headers")
+        assertEquals(listOf("Bambino"), headers.take(1))
+        assertEquals(listOf("Dovuta", "Pagato", "Manleva", "Note"), headers.takeLast(4))
+        assertTrue(headers[1].startsWith("V ${w.yesterday.dayOfMonth}") && headers[2].startsWith("S ${w.today.dayOfMonth}") && headers[3].startsWith("D ${w.tomorrow.dayOfMonth}"), "$headers")
+        val body = table.locator("tbody tr:not(.riga-vuota)")
+        assertEquals(listOf("Nicolò Ferri", "Sara Neri", "Anna Rossi", "Luca Rossi"), body.locator("td.nome").allInnerTexts().map { it.plain() }, "no withdrawn registration, by surname")
+        fun row(name: String) = body.filter(Locator.FilterOptions().setHasText(name))
+        fun Locator.letters() = locator(".lettera").allInnerTexts().map { it.plain() }
+        fun Locator.crossed() = locator("td.cella-giorno").all().map { it.locator(".casella:has-text('X')").count() }
+        fun Locator.cell(css: String) = locator("td.$css").innerText().plain()
+
+        val ferri = row("Nicolò Ferri")
+        assertEquals(listOf("G", "G", "G"), ferri.letters())
+        assertEquals(listOf(0, 0, 0), ferri.crossed())
+        assertEquals("60 €", ferri.cell("col-dovuta"))
+        assertEquals("Cartacea", ferri.cell("col-manleva"))
+        assertEquals("Dal cartaceo", ferri.cell("col-note"))
+        val neri = row("Sara Neri")
+        assertEquals("In forse · Dal cartaceo", neri.cell("col-note"))
+        assertEquals(1, neri.locator("td.col-manleva .casella").count(), "a box to tick for a manleva that is not here")
+        val rossiAnna = row("Anna Rossi")
+        assertEquals(listOf(0, 1, 0), rossiAnna.crossed(), "the presence of today is an X in the box of today")
+        assertEquals("35 €", rossiAnna.cell("col-pagato"))
+        assertEquals("Online", rossiAnna.cell("col-manleva"))
+        val rossiLuca = row("Luca Rossi")
+        assertEquals(listOf("–", "G", "P"), rossiLuca.letters())
+        assertEquals(listOf(1, 0, 0), rossiLuca.crossed(), "the presence of a day that was not foreseen is marked too")
+        assertEquals("35 €", rossiLuca.cell("col-dovuta"))
+        assertTrue(rossiLuca.cell("col-note").endsWith("non previsto"), rossiLuca.cell("col-note"))
+        assertEquals(5, table.locator("tbody tr.riga-vuota").count(), "five blank rows")
+        val totals = page.locator("main table.totali-stampa tbody tr")
+        assertEquals(
+            listOf(
+                "Totale dovuto dalle iscrizioni confermate" to "155 €", "Dovuto da chi è in forse (a parte)" to "60 €",
+                "Incassato registrato in Talità (anche delle iscrizioni ritirate)" to "95 €", "Incassato a mano" to "",
+            ),
+            totals.all().map { it.locator("th").innerText().plain() to it.locator("td").innerText().plain().removeSuffix("Da scrivere a mano").trim() },
+        )
+        assertThat(page.locator("main")).containsText("Il registro si conserva fra i documenti della convivenza. Non ha recapiti né segnalazioni.")
+        assertFalse(page.content().contains("333 123 4567"), "no contact in the register")
+        assertFalse(page.content().contains("Arachidi"), "no note on health in the register")
+
+        // The sheet for the teachers: the contacts, one row for every registration that is not withdrawn, and the sentence that says to destroy it.
+        e2e.open("/arrivi/foglio")
+        assertEquals(listOf("Nicolò Ferri", "Sara Neri", "Anna Rossi", "Luca Rossi"), page.locator("main table tbody td:first-child").allInnerTexts().map { it.plain() })
+        assertEquals(List(4) { "333 123 4567" }, page.locator("main table tbody td:nth-child(2)").allInnerTexts().map { it.plain() })
+        assertThat(page.locator("main")).containsText("Alla fine della convivenza questo foglio va distrutto.")
+        assertFalse(page.content().contains("Arachidi"), "no note on health in the sheet either")
+        assertEquals(0, e2e.dsl().fetchCount(talita.jooq.tables.references.HEALTH_NOTE_ACCESS), "printing reads no notes")
     }
 
     // ---- As it comes out of the printer (criterion 24) ----------------------------------------------------------------------------

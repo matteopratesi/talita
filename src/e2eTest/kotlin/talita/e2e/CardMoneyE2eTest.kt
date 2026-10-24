@@ -126,6 +126,41 @@ class CardMoneyE2eTest {
         assertTrue(money.said().contains("Pagata ${said(1850)}"), money.said())
     }
 
+    @E2eTest
+    fun `t6 c10 the balance is said in words, Da pagare, Pagata, Pagato in più and Gratuita, and a withdrawn registration owes nothing and keeps its payments`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val rows = e2e.rows()
+        val luca = rows.register(w.id, e2e.someParent(), "Luca", "Rossi", LocalDate.of(2016, 4, 4))
+        val anna = rows.register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9))
+        val chiara = rows.register(w.id, e2e.someParent(), "Chiara", "Fontana", LocalDate.of(2016, 8, 8), status = talita.jooq.enums.RegistrationStatus.withdrawn)
+        val sofia = rows.register(w.id, e2e.someParent(), "Sofia", "Conti", LocalDate.of(2017, 7, 7), status = talita.jooq.enums.RegistrationStatus.withdrawn)
+        val money = page.locator("#pagamenti")
+
+        fun balance(id: Long): String {
+            e2e.open("/arrivi/$id")
+            return money.said()
+        }
+        // 60 euros due: nothing paid, part paid, all paid, ten more.
+        assertTrue(balance(luca).contains("Dovuta ${said(6000)} Pagata Niente Saldo Da pagare ${said(6000)}"), money.said())
+        e2e.payment(luca, 3500, w.martaId)
+        e2e.payment(luca, 2500, w.paoloId)
+        assertTrue(balance(luca).contains("Dovuta ${said(6000)} Pagata ${said(6000)} Saldo Pagata Pagamenti"), money.said())
+        e2e.payment(luca, 1000, w.paoloId)
+        assertTrue(balance(luca).contains("Pagata ${said(7000)} Saldo Pagato ${said(1000)} in più"), money.said())
+        // Withdrawn: nothing is due, the payments stay, and what was paid is more than what is due.
+        assertTrue(balance(sofia).contains("Dovuta Non dovuta Pagata Niente Saldo Niente da pagare"), money.said())
+        e2e.payment(chiara, 6000, w.paoloId)
+        assertTrue(balance(chiara).contains("Dovuta Non dovuta Pagata ${said(6000)} Saldo Pagato ${said(6000)} in più"), money.said())
+        // Nothing due and nothing paid is «Gratuita»: the fees of the gathering are zero.
+        e2e.dsl().update(talita.jooq.tables.references.GATHERING).set(talita.jooq.tables.references.GATHERING.FULL_FEE_CENTS, 0).where(talita.jooq.tables.references.GATHERING.ID.eq(w.id)).execute()
+        assertTrue(balance(anna).contains("Dovuta Gratuita Pagata Niente Saldo Gratuita"), money.said())
+        assertTrue(balance(luca).contains("Dovuta Gratuita Pagata ${said(7000)} Saldo Pagato ${said(7000)} in più"), money.said())
+        e2e.open("/arrivi")
+        assertEquals(0, page.locator("#riga-$anna").getByText("Da pagare").count(), "a registration that owes nothing has no «Da pagare» in its row")
+        assertAccessible(page, "list with free registrations (${e2e.profile.label})")
+    }
+
     // ---- Taking a payment away (criterion 13) ----------------------------------------------------------------------------------
 
     @E2eTest
