@@ -12,7 +12,8 @@
 //   the same for the back button without network;
 // - touching another link while a page change is on its way: the last touch wins;
 // - the address of the information page of a gathering can be copied and shared (`data-azione="copia"` and `"condividi"`, shown only if the
-//   browser can) and the preview can be printed (`"stampa"`): the texts are in the template, the code only does;
+//   browser can) and the preview, the register, the list for the venue and the sheet for the teachers can be printed (`"stampa"`, hidden in the page and shown here):
+//   the texts are in the template, the code only does;
 // - the list of the arrivals can be searched by name (`data-filtro`, shown only here: without JavaScript the list is whole): the search runs in the
 //   browser on the names that are in the page, asks the server nothing and writes no name in an address or in a log;
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
@@ -354,8 +355,15 @@
   const COPIED_FOR_MS = 3000;
   let copiedTimer = null;
 
-  /** The buttons that copy and share are in the page hidden: they are shown only where the browser can do it. Without JavaScript the address is text to select. */
+  /**
+   * The buttons that copy and share are in the page hidden: they are shown only where the browser can do it. Without JavaScript the address is text to select. The
+   * button that prints a document (the register, the list for the venue, the sheet for the teachers) is hidden in the same way and shown here: without JavaScript there
+   * is no button, and the line of help under it says what to do.
+   */
   function showCopyAndShare() {
+    document.querySelectorAll('[data-azione="stampa"]').forEach((button) => {
+      button.hidden = false;
+    });
     const canCopy = Boolean(navigator.clipboard && typeof navigator.clipboard.writeText === "function");
     const canShare = typeof navigator.share === "function";
     document.querySelectorAll('[data-azione="copia"]').forEach((button) => {

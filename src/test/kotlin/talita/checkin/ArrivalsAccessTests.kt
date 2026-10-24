@@ -43,7 +43,10 @@ class ArrivalsAccessTests(
 
     /** The pages of the arrivals as a link opens them, for the registration [id]. */
     private fun pages(id: Long): List<String> =
-        listOf("/arrivi", "/arrivi?giorno=2027-09-18", "/arrivi/$id", "/arrivi/$id?giorno=2027-09-18", "/arrivi/$id/pagamenti/1/togli", "/arrivi/$id/pagamenti/1/togli?giorno=2027-09-18")
+        listOf(
+            "/arrivi", "/arrivi?giorno=2027-09-18", "/arrivi/$id", "/arrivi/$id?giorno=2027-09-18", "/arrivi/$id/pagamenti/1/togli", "/arrivi/$id/pagamenti/1/togli?giorno=2027-09-18",
+            "/arrivi/registro", "/arrivi/elenco", "/arrivi/elenco?giorno=2027-09-18", "/arrivi/foglio",
+        )
 
     /** The forms of the arrivals, as the pages send them. */
     private fun forms(id: Long): List<String> = listOf(
