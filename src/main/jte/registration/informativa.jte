@@ -52,19 +52,26 @@
       <p class="mt-3">Chi ospita il sito, nell’Unione europea; il servizio che manda le email, che riceve l’indirizzo e il testo del messaggio; chi tiene le copie di sicurezza, cifrate prima di lasciare il server. Nessun altro: niente pubblicità, niente statistiche, niente servizi esterni nelle pagine.</p>
     </section>
 
-    <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="tempi">
+    <section id="per-quanto-tempo" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="tempi">
       <h2 id="tempi" class="text-lg font-semibold">Per quanto tempo</h2>
-      <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
-        <li class="pl-1">Le segnalazioni, un mese dopo la fine della convivenza.</li>
-        <li class="pl-1">L’iscrizione, l’accettazione dell’affidamento e il registro delle letture, un anno.</li>
-        <li class="pl-1">I dati dei bambini, per l’anno dopo: li puoi cancellare quando vuoi.</li>
-      </ul>
-      <p class="mt-3">${page.getOpenItem()}</p>
+      <p class="mt-3">${page.getTime()}</p>
+      <dl class="mt-3 space-y-3">
+        @for(talita.retention.TimeRow row : page.getTimes())
+          <div class="sm:grid sm:grid-cols-[13rem_1fr] sm:gap-x-6">
+            <dt class="font-semibold wrap-anywhere">${row.getWhat()}</dt>
+            <dd class="wrap-anywhere">${row.getTime()}</dd>
+          </div>
+        @endfor
+      </dl>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="diritti">
       <h2 id="diritti" class="text-lg font-semibold">I tuoi diritti</h2>
-      <p class="mt-3">Puoi chiedere di vedere, correggere, cancellare o limitare l’uso dei dati, riceverne una copia, opporti e togliere il consenso quando vuoi. Dalla pagina «Iscrizioni» correggi l’iscrizione finché le iscrizioni sono aperte e togli le segnalazioni con un tocco. Per il resto scrivi al titolare: risponde entro un mese.</p>
+      <div class="mt-3 space-y-3">
+        @for(String paragraph : page.getRights())
+          <p>${paragraph}</p>
+        @endfor
+      </div>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="reclamo">

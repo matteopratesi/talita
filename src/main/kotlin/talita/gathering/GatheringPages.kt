@@ -77,13 +77,25 @@ data class DetailPage(
     val whatToBring: List<String>,
     val link: LinkCard,
     val registrations: RegistrationsCard,
+    /** The card «Conservazione dei dati» (TALITA-7): null for a draft, which has no registrations. */
+    val retention: RetentionCard?,
 )
+
+/** A row of the card «Conservazione dei dati»: the data, when they go (in the tense of the date), and why. */
+data class RetentionLine(val label: String, val value: String, val why: String)
+
+/**
+ * The card «Conservazione dei dati» of the detail (TALITA-7, criterion 29): information, not an action. The dates are those of `RetentionPolicy`, worked out at every
+ * request from the end of the gathering, so while it is not finished they follow it ([note]); after the end they do not change.
+ */
+data class RetentionCard(val intro: String, val lines: List<RetentionLine>, val note: String?)
 
 /**
  * The card «Iscrizioni» of the detail (criterion 20, design C 3): a row that leads to the list, with the counts and never the names; in a draft there
  * is no list, and the card says why. [href] is null for a draft.
  */
 data class RegistrationsCard(val summary: String, val href: String?)
+
 
 /**
  * The card «Link per i genitori»: while the gathering is a draft there is nothing to copy (the link works after the opening: only the

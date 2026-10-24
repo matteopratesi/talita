@@ -69,8 +69,8 @@
         <p><span class="block font-semibold">A cosa servono</span>A iscrivere i bambini alla convivenza e a organizzarla: li usiamo perché ce lo chiedi con l’iscrizione. I dati dell’iscrizione sono necessari: senza non possiamo iscrivere i bambini.</p>
         <p><span class="block font-semibold">Salute (facoltativa)</span>Allergie, intolleranze e farmaci li salviamo solo se ci dai il consenso. Se non li scrivi, l’iscrizione vale lo stesso, ma i maestri non li sapranno. Li leggono solo i maestri, quando serve, e ogni lettura resta registrata.</p>
         <p><span class="block font-semibold">Chi li riceve</span>I maestri della convivenza. La struttura che ospita la convivenza riceve su carta il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro. Per far funzionare Talità ci appoggiamo a chi ospita il sito, a chi manda le email e a chi tiene le copie di sicurezza: usano i dati solo per questo.</p>
-        <p><span class="block font-semibold">Per quanto tempo</span>Le segnalazioni le cancelliamo un mese dopo la fine della convivenza. L’iscrizione e l’accettazione si conservano per un anno. I dati dei bambini restano per l’anno dopo e li puoi cancellare quando vuoi.</p>
-        <p><span class="block font-semibold">I tuoi diritti</span>Puoi vedere, correggere o cancellare i dati e togliere il consenso quando vuoi, dalla pagina «Iscrizioni» o scrivendo al titolare. Se pensi che i dati non siano trattati bene, puoi rivolgerti al Garante per la protezione dei dati personali.</p>
+        <p><span class="block font-semibold">Per quanto tempo</span>${page.getNotice().getTime()}</p>
+        <p><span class="block font-semibold">I tuoi diritti</span>${page.getNotice().getRights()}</p>
       </div>
       <a href="/informativa" target="_blank" rel="noopener" hx-boost="false" class="-mb-2 -ml-3 mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-base font-semibold text-brand transition-colors duration-150 select-none hover:bg-brand-soft active:bg-brand-soft">
         @template.components.icon(icon = Icon.EXTERNAL_LINK, classes = "size-5")

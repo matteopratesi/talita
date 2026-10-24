@@ -221,6 +221,27 @@
         </div>
       </dl>
     </section>
+
+    @if(page.getRetention() != null)
+      <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="conservazione">
+        <h2 id="conservazione" class="text-lg font-semibold">Conservazione dei dati</h2>
+        <p class="mt-3 text-ink-muted">${page.getRetention().getIntro()}</p>
+        <dl class="mt-3 space-y-3">
+          @for(talita.gathering.RetentionLine line : page.getRetention().getLines())
+            <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-x-6">
+              <dt class="text-sm text-ink-muted">${line.getLabel()}</dt>
+              <dd>
+                <p class="font-medium wrap-anywhere">${line.getValue()}</p>
+                <p class="text-sm text-ink-muted">${line.getWhy()}</p>
+              </dd>
+            </div>
+          @endfor
+        </dl>
+        @if(page.getRetention().getNote() != null)
+          <p class="mt-3 text-sm text-ink-muted">${page.getRetention().getNote()}</p>
+        @endif
+      </section>
+    @endif
   </div>
 
   @if(page.getDialog() != null)

@@ -10,6 +10,9 @@ import talita.registration.RegistrationData
 import talita.registration.RegistrationFormat
 import talita.registration.Status
 import talita.registration.TeacherPresenter
+import talita.retention.NotesDeleted
+import talita.retention.RetentionPolicy
+import talita.retention.RetentionTexts
 import talita.ui.AlertVariant
 import talita.ui.ConfirmModel
 import java.io.Serializable
@@ -92,7 +95,7 @@ data class ContactView(val phone: String, val telephone: String)
  * The card «Segnalazioni» (criteria 17, 18): closed, it is the same for every child (it does not say whether there is anything); open, it shows who read and when,
  * what is written, and the consent. It is open only in the answer to the touch that wrote the reading, and never after any other action.
  */
-data class NotesView(val shown: Boolean, val readLine: String?, val rows: List<Pair<String, String>>, val consent: String?)
+data class NotesView(val shown: Boolean, val readLine: String?, val rows: List<Pair<String, String>>, val consent: String?, val deleted: NotesDeleted? = null)
 
 /** A payment of the card: the amount, who registered it and when, and the dialog that takes it away (criterion 13). */
 data class PaymentRow(val id: Long, val amount: String, val meta: String, val removeHref: String, val removeLabel: String, val dialog: ConfirmModel)
@@ -134,7 +137,13 @@ data class CardPage(
 
 /** Builds the card of a child from what [ArrivalsData] read: the sentences are those of the design (part 2, tables 2 and 3). */
 @Component
-class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher: TeacherPresenter, private val payments: Payments) {
+class CardPresenter(
+    private val arrivals: ArrivalsPresenter,
+    private val teacher: TeacherPresenter,
+    private val payments: Payments,
+    private val policy: RetentionPolicy,
+    private val texts: RetentionTexts,
+) {
 
     private fun days(data: ArrivalsData, registration: RegistrationData, choice: DayChoice): List<CardDay> {
         val withdrawn = data.withdrawn(registration)
@@ -198,7 +207,9 @@ class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher
         Phase.DURING -> null
     }
 
-    private fun notes(read: NotesRead?, reader: String): NotesView {
+    /** From the day of their date the card says that the notes were deleted, the same for every child, with no button: nothing can be read, so no reading is written (criterion 30). */
+    private fun notes(read: NotesRead?, reader: String, deleted: NotesDeleted?): NotesView {
+        if (deleted != null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null, deleted = deleted)
         if (read == null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null)
         val note = read.note
         val rows = buildList {
@@ -281,7 +292,7 @@ class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher
             phaseNotice = phaseNotice(choice),
             days = days(data, registration, choice),
             contact = ContactView(registration.phone, CheckinFormat.dialable(registration.phone)),
-            notes = notes(read, reader),
+            notes = notes(read, reader, if (policy.notesExpired(data.gathering.end, choice.today)) texts.notesDeleted(data.gathering.end) else null),
             money = money(data, registration, choice, typed),
             custody = custody(registration),
             registration = RegistrationView(

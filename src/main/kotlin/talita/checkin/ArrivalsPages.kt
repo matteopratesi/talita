@@ -10,6 +10,8 @@ import talita.registration.RegistrationFormat
 import talita.registration.Registrations
 import talita.registration.Status
 import talita.registration.TeacherPresenter
+import talita.retention.DeletedState
+import talita.retention.RetentionTexts
 import talita.ui.Alert
 import talita.ui.AlertVariant
 import talita.ui.Icon
@@ -126,7 +128,7 @@ data class MoneyLine(val label: String, val value: String, val under: String?)
 data class SummaryView(val title: String, val tag: Badge, val stats: List<StatView>, val collected: MoneyLine, val owed: MoneyLine)
 
 /** What the page is: a list of the children, a gathering with no registration, a draft, or no gathering at all. */
-enum class ArrivalsState { LIST, EMPTY, DRAFT, NONE }
+enum class ArrivalsState { LIST, EMPTY, DRAFT, NONE, DELETED }
 
 data class ArrivalsPage(
     val state: ArrivalsState,
@@ -141,6 +143,8 @@ data class ArrivalsPage(
     val newHref: String?,
     val draftTitle: String?,
     val draftHref: String?,
+    /** The registrations of the gathering are gone: the empty state that says when and why. */
+    val deleted: DeletedState? = null,
 )
 
 /** The answer to a touch on a row: the new row, the new summary and the sentence that a screen reader says (criterion 4, design 5). */
@@ -152,7 +156,7 @@ data class RowAnswer(val row: RowView, val summary: SummaryView, val announcemen
  * those of the registrations of TALITA-5.
  */
 @Component
-class ArrivalsPresenter(private val registrations: Registrations, private val teacher: TeacherPresenter) {
+class ArrivalsPresenter(private val registrations: Registrations, private val teacher: TeacherPresenter, private val texts: RetentionTexts) {
 
     fun hrefOf(registration: Long, day: LocalDate): String = "/arrivi/$registration?giorno=$day"
 
@@ -325,6 +329,10 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
 
     fun draftPage(draft: GatheringInfo): ArrivalsPage =
         ArrivalsPage(ArrivalsState.DRAFT, draft.title, null, emptyList(), null, "", "/arrivi", null, emptyList(), null, draft.title, "/convivenza/${draft.id}")
+
+    /** Arrivi, or a print, of a gathering whose registrations are gone (a year after the end): nothing to list, and the page says when and why. */
+    fun deletedPage(gathering: GatheringInfo): ArrivalsPage =
+        ArrivalsPage(ArrivalsState.DELETED, lead(gathering), null, emptyList(), null, "", "/arrivi", null, emptyList(), null, null, null, texts.arrivalsDeleted(gathering.id, gathering.end))
 
     fun nonePage(): ArrivalsPage = ArrivalsPage(ArrivalsState.NONE, null, null, emptyList(), null, "", "/arrivi", null, emptyList(), null, null, null)
 }

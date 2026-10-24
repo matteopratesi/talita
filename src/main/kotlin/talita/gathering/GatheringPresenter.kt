@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component
 import talita.account.CurrentAccount
 import talita.account.PublicUrl
 import talita.ui.Alert
+import talita.retention.RetentionPolicy
+import talita.retention.RetentionTexts
 import talita.ui.ConfirmModel
 import java.time.LocalDate
 
@@ -13,7 +15,13 @@ import java.time.LocalDate
  * is missing) come from [Gathering] and [Gatherings]: nothing is decided twice.
  */
 @Component
-class GatheringPresenter(private val gatherings: Gatherings, private val publicUrl: PublicUrl, private val usage: RegistrationUsage) {
+class GatheringPresenter(
+    private val gatherings: Gatherings,
+    private val publicUrl: PublicUrl,
+    private val usage: RegistrationUsage,
+    private val policy: RetentionPolicy,
+    private val texts: RetentionTexts,
+) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
     fun badges(gathering: Gathering, today: LocalDate): List<Badge> = buildList {
@@ -82,14 +90,60 @@ class GatheringPresenter(private val gatherings: Gatherings, private val publicU
                 title = gathering.title,
                 copyPrimary = !draft && !over,
             ),
-            registrations = registrations(gathering),
+            registrations = registrations(gathering, today),
+            retention = if (draft) null else retention(gathering, over, today),
+        )
+    }
+
+    /**
+     * The card «Conservazione dei dati» (design TALITA-7, part 3, 1): the verb says «Si cancellano il …» before the date and «Cancellate il …» from the day of the date, whatever
+     * the database holds, so the card and the pages say the same thing at every hour. The line «Su carta» is a proposal of the design: it tells whoever holds the paper when to destroy it.
+     */
+    private fun retention(gathering: Gathering, over: Boolean, today: LocalDate): RetentionCard {
+        val notesDate = GatheringFormat.date(policy.notesDeletionDate(gathering.endDate))
+        val registrationsDate = GatheringFormat.date(policy.registrationsDeletionDate(gathering.endDate))
+        val notesGone = policy.notesExpired(gathering.endDate, today)
+        val registrationsGone = policy.registrationsExpired(gathering.endDate, today)
+        val lines = listOf(
+            RetentionLine(
+                "Segnalazioni",
+                if (notesGone) "Cancellate il $notesDate" else "Si cancellano il $notesDate",
+                if (notesGone) {
+                    "${texts.capital(texts.notes)} dopo la fine della convivenza."
+                } else {
+                    "${texts.capital(texts.notes)} dopo la fine della convivenza, perché servono se durante l’evento succede qualcosa."
+                },
+            ),
+            RetentionLine(
+                "Iscrizioni, manleve e registro arrivi",
+                if (registrationsGone) "Cancellate il $registrationsDate" else "Si cancellano il $registrationsDate",
+                if (registrationsGone) {
+                    "${texts.capital(texts.registrations)} dopo la fine della convivenza, con le presenze, i pagamenti e il registro delle letture."
+                } else {
+                    "${texts.capital(texts.registrations)} dopo la fine della convivenza: servono come prova dell’affidamento. Vanno via anche le presenze, i pagamenti e il registro delle letture delle segnalazioni."
+                },
+            ),
+            RetentionLine(
+                "Su carta",
+                "Da distruggere a partire dal $registrationsDate",
+                "Vale per le manleve firmate e per il registro stampato. Il foglio per i maestri va distrutto alla fine della convivenza.",
+            ),
+        )
+        return RetentionCard(
+            intro = "Talità cancella da sola i dati di questa convivenza, ogni notte. Qui vedi quando.",
+            lines = lines,
+            note = if (over) null else "Le date seguono la fine della convivenza: se la cambi, cambiano anche queste.",
         )
     }
 
     /** The card «Iscrizioni» (design C 3): counts only, never names; a draft has no registrations, not even on paper, and says so. */
-    private fun registrations(gathering: Gathering): RegistrationsCard {
+    private fun registrations(gathering: Gathering, today: LocalDate): RegistrationsCard {
         if (gathering.state == GatheringState.DRAFT) {
             return RegistrationsCard("Le iscrizioni arrivano dopo l’apertura: finché la convivenza è in bozza non ce ne sono, nemmeno da carta.", null)
+        }
+        // A year after the end the registrations are gone (from the day of their date): the row says so, and leads to the page that says when and why.
+        if (policy.registrationsExpired(gathering.endDate, today)) {
+            return RegistrationsCard("Cancellate il ${GatheringFormat.date(policy.registrationsDeletionDate(gathering.endDate))}", "/iscrizioni?convivenza=${gathering.id}")
         }
         val counts = usage.counts(gathering.id)
         val parts = listOfNotNull(

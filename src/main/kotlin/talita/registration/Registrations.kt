@@ -106,8 +106,13 @@ data class RegistrationData(
     val paperFormReceived: Boolean,
     val enteredBy: Long?,
     val createdAt: OffsetDateTime,
+    /** The account that the child is attached to now: null when the parent asked for the data of the child to be deleted and the registration stays until its date (TALITA-7). */
+    val childAccountId: Long? = null,
 ) {
     val name: String get() = "$firstName $lastName"
+
+    /** The parent has had the child detached from the account: the registration stays as the proof, and the parent only looks at it. */
+    val detached: Boolean get() = accountId != null && childAccountId == null
 
     /**
      * Typed in by a teacher from the paper form: there is no acceptance online. What tells a paper registration from an online one is the acceptance and not
@@ -279,7 +284,7 @@ class Registrations(
      */
     private fun select(context: DSLContext, condition: Condition): List<RegistrationData> {
         val today = LocalDate.now(clock)
-        val rows = context.select(REGISTRATION.asterisk(), CHILD.FIRST_NAME, CHILD.LAST_NAME, CHILD.BIRTH_DATE, GATHERING.END_DATE)
+        val rows = context.select(REGISTRATION.asterisk(), CHILD.FIRST_NAME, CHILD.LAST_NAME, CHILD.BIRTH_DATE, CHILD.ACCOUNT_ID, GATHERING.END_DATE)
             .from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID)).join(GATHERING).on(GATHERING.ID.eq(REGISTRATION.GATHERING_ID))
             .where(condition).orderBy(REGISTRATION.CREATED_AT, REGISTRATION.ID).fetch()
             .filterNot { policy.registrationsExpired(it[GATHERING.END_DATE]!!, today) }
@@ -306,6 +311,7 @@ class Registrations(
                 paperFormReceived = row[REGISTRATION.PAPER_FORM_RECEIVED]!!,
                 enteredBy = row[REGISTRATION.ENTERED_BY_ACCOUNT_ID],
                 createdAt = row[REGISTRATION.CREATED_AT]!!,
+                childAccountId = row[CHILD.ACCOUNT_ID],
             )
         }
     }

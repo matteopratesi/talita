@@ -18,6 +18,10 @@ import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
 import talita.gathering.GatheringState
+import talita.retention.DeletedState
+import talita.retention.NotesDeleted
+import talita.retention.RetentionPolicy
+import talita.retention.RetentionTexts
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.INFO
@@ -27,6 +31,7 @@ import talita.ui.ConfirmModel
 import talita.ui.Flash
 import talita.ui.Section
 import talita.ui.ShellFactory
+import java.time.LocalDate
 
 /** The value of `ritorno` that says the paper form was opened from the arrivals: a word, no data. */
 private const val ARRIVALS = "arrivi"
@@ -35,7 +40,7 @@ private const val ARRIVALS = "arrivi"
 data class TeacherRow(val href: String, val initials: String, val name: String, val status: Badge, val manleva: Badge?, val duplicate: Boolean, val line: String)
 
 /** What the page «Iscrizioni» of the teachers is about: a list, a gathering with no registration, a draft, or no gathering at all. */
-enum class TeacherListKind { LIST, EMPTY, DRAFT, NONE }
+enum class TeacherListKind { LIST, EMPTY, DRAFT, NONE, DELETED }
 
 data class TeacherListPage(
     val kind: TeacherListKind,
@@ -46,6 +51,8 @@ data class TeacherListPage(
     val rows: List<TeacherRow>,
     val draftTitle: String?,
     val draftHref: String?,
+    /** The registrations of the gathering are gone (a year after the end): the empty state that says when and why. */
+    val deleted: DeletedState? = null,
 )
 
 /** Another registration of the same child, for «Apri l'altra iscrizione». */
@@ -60,6 +67,8 @@ data class NotesView(
     val consent: String?,
     /** A paper registration with notes: they can be corrected from a page that shows them (and writes a reading). */
     val canCorrect: Boolean,
+    /** The notes are past their date: the card says so, with no button (the same for every registration, it does not say whether there were any). */
+    val deleted: NotesDeleted? = null,
 )
 
 data class ReadingView(val name: String, val at: String, val mine: Boolean)
@@ -133,6 +142,9 @@ class TeacherPresenter(
     private val registrations: Registrations,
     private val healthNotes: HealthNotes,
     private val presenter: RegistrationPresenter,
+    private val policy: RetentionPolicy,
+    private val texts: RetentionTexts,
+    private val clock: java.time.Clock,
 ) {
 
     private fun quotaOf(gathering: GatheringInfo, registration: RegistrationData): Int? = Quota.due(presenter.offer(gathering), registration.presence)
@@ -211,8 +223,11 @@ class TeacherPresenter(
     private fun readings(id: Long, me: Long): List<ReadingView> =
         healthNotes.readings(id).map { ReadingView(it.teacher ?: "Un maestro che non è più tra i maestri", RegistrationFormat.moment(it.at), it.teacherAccountId == me) }
 
-    /** The notes of the card: [read] has them (after a request that wrote a reading), null for the card as it is before. */
-    fun notes(registration: RegistrationData, read: NotesRead?): NotesView {
+    /**
+     * The notes of the card: [read] has them (after a request that wrote a reading), null for the card as it is before. From the day of their date the card says that they were
+     * deleted, whatever [read] is: the date and not the rows decides (criterion 30).
+     */
+    fun notes(registration: RegistrationData, read: NotesRead?, gathering: GatheringInfo): NotesView {
         val note = read?.note
         val rows = buildList {
             note?.notes?.allergies?.let { add("Allergie" to it) }
@@ -226,6 +241,7 @@ class TeacherPresenter(
             rows = rows,
             consent = note?.let { if (it.onPaper) "Il genitore ha dato il consenso sul modulo cartaceo." else "Consenso dato dal genitore il ${RegistrationFormat.moment(it.consentAt)}." },
             canCorrect = registration.onPaper && note != null && registration.status != Status.WITHDRAWN,
+            deleted = if (policy.notesExpired(gathering.end, LocalDate.now(clock))) texts.notesDeleted(gathering.end) else null,
         )
     }
 
@@ -253,7 +269,7 @@ class TeacherPresenter(
             acceptedText = registration.custodyText,
             paperReceived = registration.paperFormReceived,
             enteredBy = registration.enteredBy?.let { registrations.teacherName(it) ?: "un maestro che non è più tra i maestri" },
-            notes = notes(registration, read),
+            notes = notes(registration, read, gathering),
             readings = readings(registration.id, account.id),
             alert = alert,
             withdrawDialog = withdrawDialog(registration),
@@ -281,6 +297,8 @@ class TeacherRegistrationsController(
     private val healthNotes: HealthNotes,
     private val presenter: RegistrationPresenter,
     private val teacher: TeacherPresenter,
+    private val policy: RetentionPolicy,
+    private val texts: RetentionTexts,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
@@ -309,6 +327,14 @@ class TeacherRegistrationsController(
     fun list(account: CurrentAccount, request: HttpServletRequest, gatheringId: Long?): ModelAndView {
         val alert = Flash.take(request)
         val gathering = if (gatheringId != null) gatherings.byId(gatheringId) ?: notFound() else gatherings.latestNotDraft()
+        // A year after the end the registrations are gone, from the day of their date: the page says when and why, and leads to the gathering.
+        if (gathering != null && gathering.state != GatheringState.DRAFT && policy.registrationsExpired(gathering.end, gatherings.today())) {
+            val model = TeacherListPage(
+                TeacherListKind.DELETED, alert, "${gathering.title} · ${GatheringFormat.range(gathering.start, gathering.end)}", null, emptyList(), emptyList(), null, null,
+                texts.registrationsDeleted(gathering.id, gathering.end),
+            )
+            return page("registration/teacherList", "Iscrizioni", model)
+        }
         if (gathering != null && gathering.state != GatheringState.DRAFT) return page("registration/teacherList", "Iscrizioni", teacher.list(gathering, alert))
         val draft = gathering ?: gatherings.current()
         if (draft != null) {

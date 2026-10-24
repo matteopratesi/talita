@@ -57,12 +57,18 @@
               <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Quando</dt><dd class="basis-full text-left font-semibold wrap-anywhere">${card.getPresence()}</dd></div>
               <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Quota</dt><dd class="font-semibold">${card.getQuota()}</dd></div>
               <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Telefono</dt><dd class="font-semibold">${card.getPhone()}</dd></div>
-              <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Segnalazioni</dt><dd class="font-semibold">${card.getHealth()}</dd></div>
+              <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Segnalazioni</dt><dd class="${card.getHealthWide() ? "basis-full text-left " : ""}font-semibold wrap-anywhere">${card.getHealth()}</dd></div>
             </dl>
             @if(card.getAccepted() != null)
               <p class="mt-3 flex items-start gap-2 text-sm text-ink-muted">
                 @template.components.icon(icon = Icon.FILE_CHECK, classes = "mt-0.5 size-4 shrink-0")
                 <span class="min-w-0">${card.getAccepted()}</span>
+              </p>
+            @endif
+            @if(card.getKeptUntil() != null)
+              <p class="mt-2 flex items-start gap-2 text-sm text-ink-muted">
+                @template.components.icon(icon = Icon.ARCHIVE, classes = "mt-0.5 size-4 shrink-0")
+                <span class="min-w-0">${card.getKeptUntil()}</span>
               </p>
             @endif
             @if(!card.getActions().isEmpty())

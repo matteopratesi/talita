@@ -17,6 +17,8 @@ import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
 import talita.gathering.GatheringState
+import talita.retention.RetentionPolicy
+import talita.retention.RetentionTexts
 import talita.ui.Alert
 import talita.ui.AlertVariant
 import talita.ui.AlertVariant.DANGER
@@ -66,7 +68,11 @@ data class RegistrationCard(
     val quota: String,
     val phone: String,
     val health: String,
+    /** The text of «Segnalazioni» is long («Cancellate il …, un mese dopo la fine della convivenza.»): it goes under its label, like «Quando». */
+    val healthWide: Boolean,
     val accepted: String?,
+    /** «Conservata fino al 20 settembre 2028 come prova dell’affidamento»: on the card of a gathering that is finished, or of a child that was detached (TALITA-7); else none. */
+    val keptUntil: String?,
     val actions: List<CardAction>,
 )
 
@@ -138,6 +144,8 @@ class MinePresenter(
     private val gatherings: GatheringReader,
     private val healthNotes: HealthNotes,
     private val presenter: RegistrationPresenter,
+    private val policy: RetentionPolicy,
+    private val texts: RetentionTexts,
 ) {
 
     private fun quotaOf(gathering: GatheringInfo, registration: RegistrationData): Int? = Quota.due(presenter.offer(gathering), registration.presence)
@@ -181,6 +189,20 @@ class MinePresenter(
         danger = true,
     )
 
+    /**
+     * The row «Segnalazioni» of a card. On a card that only looks (TALITA-7) it says the date, in the tense of the date and not of the rows: «Scritte. Si cancellano il …»
+     * until the day, «Cancellate il …, un mese dopo la fine della convivenza.» from the day (the same for every registration, it does not say whether there were any).
+     */
+    private fun health(gathering: GatheringInfo, readOnly: Boolean, hasHealth: Boolean): String {
+        if (!readOnly) return if (hasHealth) "Scritte" else "Nessuna"
+        val date = GatheringFormat.date(policy.notesDeletionDate(gathering.end))
+        return when {
+            policy.notesExpired(gathering.end, gatherings.today()) -> "Cancellate il $date, ${texts.notes} dopo la fine della convivenza."
+            hasHealth -> "Scritte. Si cancellano il $date."
+            else -> "Nessuna"
+        }
+    }
+
     /** The sections of the page «Iscrizioni» of [accountId], the gathering that starts last first (criterion 11). */
     fun sections(accountId: Long): List<MineSection> {
         val owned = registrations.ownedBy(accountId)
@@ -197,7 +219,17 @@ class MinePresenter(
         val cards = items.map { registration ->
             val withdrawn = registration.status == Status.WITHDRAWN
             val hasHealth = registration.id in withHealth
+            // Only looking: the gathering is finished, or the parent asked for the data of the child to be deleted and the registration stays until its date (TALITA-7).
+            val readOnly = gathering.over || registration.detached
             val actions = buildList {
+                if (readOnly) {
+                    // Nothing to change. The parent can still take away the notes of a registration of a finished gathering, while they exist.
+                    if (gathering.over && hasHealth) {
+                        add(CardAction("Togli le segnalazioni", "Togli le segnalazioni di ${registration.name}", "/iscrizioni/${registration.id}/segnalazioni/togli", Icon.TRASH_2, "togli-${registration.id}"))
+                        dialogs += revokeDialog(registration)
+                    }
+                    return@buildList
+                }
                 if (canChange && !withdrawn) {
                     add(CardAction("Modifica", "Modifica l’iscrizione di ${registration.name}", "/iscrizioni/${registration.id}/modifica", Icon.PENCIL, null))
                 }
@@ -217,6 +249,7 @@ class MinePresenter(
                 }
             }
             val due = quotaOf(gathering, registration)
+            val healthText = health(gathering, readOnly, hasHealth)
             RegistrationCard(
                 id = registration.id,
                 name = registration.name,
@@ -230,8 +263,10 @@ class MinePresenter(
                 presence = RegistrationFormat.presence(registration.presence, gathering.days),
                 quota = if (withdrawn) "Non dovuta" else due?.let(RegistrationFormat::money) ?: "Da definire",
                 phone = registration.phone,
-                health = if (hasHealth) "Scritte" else "Nessuna",
+                health = healthText,
+                healthWide = healthText != "Scritte" && healthText != "Nessuna",
                 accepted = registration.custodyAcceptedAt?.let { "Affidamento accettato il ${RegistrationFormat.moment(it)}" },
+                keptUntil = if (readOnly) "Conservata fino al ${GatheringFormat.date(policy.registrationsDeletionDate(gathering.end))} come prova dell’affidamento" else null,
                 actions = actions,
             )
         }

@@ -1,6 +1,8 @@
 package talita.retention
 
 import org.springframework.stereotype.Component
+import talita.gathering.GatheringFormat
+import java.time.LocalDate
 import java.time.Period
 
 /**
@@ -34,6 +36,32 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     val invitations: String get() = words(policy.invitations)
     val emptyAccounts: String get() = words(policy.emptyAccounts)
     val backups: String get() = words(policy.backups)
+
+    // ---- What the pages of the teachers say when data are gone (design part 3) -------------------------------------------------------
+
+    /** What takes the place of the button «Mostra le segnalazioni» from the day of their date (criterion 30): the same for every registration, it does not say whether there were any. */
+    fun notesDeleted(lastDay: LocalDate): NotesDeleted = NotesDeleted(
+        "Segnalazioni cancellate il ${GatheringFormat.date(policy.notesDeletionDate(lastDay))}, $notes dopo la fine.",
+        "Talità le cancella da sola, per tutte le iscrizioni. Il registro delle letture resta fino al ${GatheringFormat.date(policy.registrationsDeletionDate(lastDay))}.",
+    )
+
+    private fun when_(lastDay: LocalDate): String = GatheringFormat.date(policy.registrationsDeletionDate(lastDay))
+
+    private val untilNothing = "Restano le date e le informazioni della convivenza, senza nomi."
+
+    /** The empty state of «Iscrizioni» of a gathering whose registrations are gone (criterion 31): when and why. */
+    fun registrationsDeleted(gatheringId: Long, lastDay: LocalDate): DeletedState = DeletedState(
+        "Iscrizioni cancellate",
+        "Le iscrizioni di questa convivenza, con le manleve, sono state cancellate il ${when_(lastDay)}, $registrations dopo la fine: servivano come prova dell’affidamento.",
+        untilNothing, "/convivenza/$gatheringId", "Vai alla convivenza",
+    )
+
+    /** The empty state of «Arrivi» (and of the prints) of a gathering whose registrations are gone. */
+    fun arrivalsDeleted(gatheringId: Long, lastDay: LocalDate): DeletedState = DeletedState(
+        "Arrivi cancellati",
+        "Gli arrivi, le presenze e i pagamenti di questa convivenza sono stati cancellati il ${when_(lastDay)}, $registrations dopo la fine: servivano come registro e come prova dell’affidamento.",
+        untilNothing, "/convivenza/$gatheringId", "Vai alla convivenza",
+    )
 
     // ---- The complete notice, `/informativa` (design part 4, 1) -----------------------------------------------------------------
 
@@ -92,3 +120,9 @@ class RetentionTexts(private val policy: RetentionPolicy) {
 
 /** A row of the card «Per quanto tempo»: what, and for how long. */
 data class TimeRow(val what: String, val time: String)
+
+/** The two sentences of the card «Segnalazioni» when the notes are gone: the first in bold, the second smaller. */
+data class NotesDeleted(val main: String, val second: String)
+
+/** A page that says that some data are gone, when and why: the title, two paragraphs, and the link to the gathering. */
+data class DeletedState(val title: String, val text: String, val text2: String, val href: String, val label: String)

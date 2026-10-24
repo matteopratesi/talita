@@ -3,6 +3,7 @@ package talita.registration
 import org.springframework.stereotype.Component
 import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
+import talita.retention.RetentionTexts
 import talita.ui.Alert
 import talita.ClockConfiguration
 import java.time.LocalDate
@@ -118,8 +119,11 @@ data class FirstStepPage(
 /** What the second step says of a child: the words of the recap. */
 data class RecapChild(val name: String, val status: String, val statusTone: String, val birth: String, val presence: String, val health: String, val quota: String)
 
-/** The short notice of step 2: who the controller is and how to reach them (`talita.privacy.*`). */
-data class ShortNotice(val controller: String, val contact: String)
+/**
+ * The short notice of step 2: who the controller is and how to reach them (`talita.privacy.*`), how long the data are kept ([time]) and the rights ([rights]): the two
+ * last come from `RetentionTexts`, that is from the periods of the policy, and nowhere else (TALITA-7, criterion 32).
+ */
+data class ShortNotice(val controller: String, val contact: String, val time: String, val rights: String)
 
 /** The second step: recap, short notice, the text of the custody, the three boxes. [hidden] carries the data of the first step (a second step saves nothing). */
 data class SecondStepPage(
@@ -152,7 +156,7 @@ data class ClosedPage(val over: Boolean, val infoHref: String)
  * the design (A 1/2 and A 2/2 of TALITA-5); the quota of a block comes from [Quota] and from nowhere else.
  */
 @Component
-class RegistrationPresenter(private val privacy: PrivacySettings) {
+class RegistrationPresenter(private val privacy: PrivacySettings, private val texts: RetentionTexts) {
 
     fun offer(gathering: GatheringInfo): Offer = Offer(gathering.fees, gathering.days)
 
@@ -291,7 +295,7 @@ class RegistrationPresenter(private val privacy: PrivacySettings) {
             children = recap,
             phone = check.phone,
             total = RegistrationFormat.money(check.children.sumOf { it.dueCents!! }),
-            notice = ShortNotice(privacy.controllerName, privacy.contact),
+            notice = ShortNotice(privacy.controllerName, privacy.contact, texts.briefTime(), texts.briefRights),
             custodyBody = text.body,
             declaration = text.declaration,
             hash = CustodyText.hash(text.full),
