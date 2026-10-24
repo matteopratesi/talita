@@ -26,6 +26,8 @@
 
   @if(page.getState() == ArrivalsState.NONE)
     @template.components.emptyState(icon = Icon.CALENDAR_DAYS, title = "Nessuna convivenza in programma", text = "Gli arrivi si segnano dopo che hai creato la convivenza e aperto le iscrizioni.", href = "/convivenza/nuova", label = "Crea la convivenza")
+  @elseif(page.getState() == ArrivalsState.DELETED)
+    @template.components.emptyState(icon = Icon.ARCHIVE, title = page.getDeleted().getTitle(), text = page.getDeleted().getText(), text2 = page.getDeleted().getText2(), href = page.getDeleted().getHref(), label = page.getDeleted().getLabel(), variant = "text", buttonIcon = Icon.CALENDAR_DAYS, neutral = true)
   @elseif(page.getState() == ArrivalsState.DRAFT)
     @template.components.alert(variant = AlertVariant.INFO, content = @`La convivenza «${page.getDraftTitle()}» è ancora in bozza: gli arrivi si segnano dopo l’apertura delle iscrizioni. Apri le iscrizioni dalla pagina della convivenza.`, action = @`@template.components.linkButton(href = page.getDraftHref(), label = "Vai alla convivenza", variant = "text")`)
   @else

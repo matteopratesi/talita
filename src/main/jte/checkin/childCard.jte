@@ -109,7 +109,17 @@
 
     <section id="segnalazioni" aria-labelledby="segnalazioni-titolo" tabindex="${page.getNotes().getShown() ? "-1" : null}" data-fuoco="${page.getNotes().getShown() ? "" : null}" class="rounded-2xl border ${page.getNotes().getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6">
       <h2 id="segnalazioni-titolo" class="text-lg font-semibold">Segnalazioni</h2>
-      @if(!page.getNotes().getShown())
+      @if(page.getNotes().getDeleted() != null)
+        <div class="mt-3 flex items-start gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted">
+            @template.components.icon(icon = Icon.TRASH_2, classes = "size-6")
+          </span>
+          <div class="min-w-0">
+            <p class="font-semibold wrap-anywhere">${page.getNotes().getDeleted().getMain()}</p>
+            <p class="mt-1 text-sm text-ink-muted">${page.getNotes().getDeleted().getSecond()}</p>
+          </div>
+        </div>
+      @elseif(!page.getNotes().getShown())
         <p class="mt-2">Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.</p>
         <form method="post" action="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-post="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-target="#scheda" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" class="mt-3">
           @template.components.csrf(csrf = csrf)

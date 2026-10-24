@@ -78,7 +78,7 @@ internal class CheckinTestKit(private val mockMvc: MockMvc, tokens: OneTimeToken
     /** An account that nobody has entered with: the owner of an online registration made straight in the table. */
     fun account(name: String = "genitore"): Long {
         val email = Addresses.unique(name)
-        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).execute()
+        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).set(ACCOUNT.CREATED_ON, java.time.LocalDate.now()).execute()
         return dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email)).fetchSingle(ACCOUNT.ID)!!
     }
 

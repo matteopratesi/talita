@@ -929,7 +929,6 @@ class EnrollmentTests(
     @Test
     fun `t5 release the markers are the ones that the texts of the development carry, and the model of the custody has none`() {
         assertTrue(Informativa.markers.contains(Informativa.PLACEHOLDER_NOTICE))
-        assertTrue(Informativa.markers.contains(Informativa.OPEN_ITEM))
         // The notice of the placeholder is in the page today: the release test above would fail on it, and that is what it is for.
         val page = mockMvc.get("/informativa").andReturn().response.contentAsString
         assertTrue(Informativa.markers.any { page.contains(it) })

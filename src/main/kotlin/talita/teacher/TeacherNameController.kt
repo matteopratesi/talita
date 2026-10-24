@@ -10,14 +10,13 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import talita.account.CurrentAccount
 import talita.account.NameForm
-import talita.account.ProfilePage
+import talita.account.ProfileController
 import talita.account.isHtmx
 import talita.account.seeOther
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.SUCCESS
 import talita.ui.Flash
-import talita.ui.ShellFactory
 
 /**
  * «Il tuo nome» in the profile: a teacher corrects name and surname, with the rules of the invitation (both
@@ -26,7 +25,7 @@ import talita.ui.ShellFactory
  * (the address is in `TeacherPaths`).
  */
 @Controller
-class TeacherNameController(private val shells: ShellFactory, private val teachers: Teachers) {
+class TeacherNameController(private val profile: ProfileController, private val teachers: Teachers) {
 
     /** A reload of the page that an error left at the address of the form (without JavaScript): back to the profile. */
     @GetMapping("/profilo/nome")
@@ -43,16 +42,9 @@ class TeacherNameController(private val shells: ShellFactory, private val teache
         val check = PersonName.check(first, last)
         if (!check.valid) {
             val alert = if (check.errors > 1) Alert(DANGER, "Controlla i ${check.errors} campi segnati in rosso.") else null
-            val page = ProfilePage(
-                email = account.email,
-                role = "Maestro",
-                nameForm = NameForm(first.take(MAX_ECHO), last.take(MAX_ECHO), check.firstError, check.lastError),
-                alert = alert,
-            )
             // With htmx the address bar stays on the profile, where a reload leads; without it the page is at the address of the form.
             if (request.isHtmx()) response.setHeader("HX-Replace-Url", "/profilo")
-            return ModelAndView("pages/profile", mapOf("shell" to shells.shell(page = "Profilo", current = null, onProfile = true), "page" to page))
-                .also { it.status = HttpStatus.UNPROCESSABLE_ENTITY }
+            return profile.page(account, alert, HttpStatus.UNPROCESSABLE_ENTITY, NameForm(first.take(MAX_ECHO), last.take(MAX_ECHO), check.firstError, check.lastError))
         }
         teachers.rename(account.id, check.name())
         Flash.put(request, Alert(SUCCESS, "Nome salvato."))

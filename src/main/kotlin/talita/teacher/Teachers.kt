@@ -11,6 +11,7 @@ import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
 import java.time.Clock
 import java.time.LocalDate
+import java.time.OffsetDateTime
 
 /** What a teacher may write as name and surname: the rules of the invitation and of the profile are the same. */
 object PersonName {
@@ -92,6 +93,7 @@ class Teachers(private val dsl: DSLContext, private val clock: Clock) {
             .set(TEACHER.ACCOUNT_ID, accountId)
             .set(TEACHER.FIRST_NAME, name.first)
             .set(TEACHER.LAST_NAME, name.last)
+            .set(TEACHER.CREATED_AT, OffsetDateTime.now(clock))
             .onConflict(TEACHER.ACCOUNT_ID).doNothing()
             .execute()
     }
@@ -116,17 +118,62 @@ class Teachers(private val dsl: DSLContext, private val clock: Clock) {
      */
     fun remove(accountId: Long): RemovalResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
+        when (val check = lockAndCheck(transaction, accountId)) {
+            is TeacherCheck.Blocked -> check.result
+            is TeacherCheck.NotATeacher -> RemovalResult.NotATeacher
+            is TeacherCheck.Free -> {
+                deleteRow(transaction, accountId)
+                RemovalResult.Removed(check.name)
+            }
+        }
+    }
+
+    /** What the check that comes before taking a teacher away found. */
+    sealed interface TeacherCheck {
+        /** The person is not a teacher. */
+        data object NotATeacher : TeacherCheck
+
+        /** The person can be taken away: [name] is the name that goes with the row. */
+        data class Free(val name: TeacherName) : TeacherCheck
+
+        /** The person cannot be taken away: the last teacher, or a custodian of a gathering that is not over. */
+        data class Blocked(val result: RemovalResult) : TeacherCheck
+    }
+
+    /**
+     * The check of [remove], on its own, inside the transaction of [transaction]: locks every row of `teacher`, counts the teachers and looks at the custodianships
+     * of [accountId]. Nothing is deleted. The cancelling of an account (`talita.retention.ErasureService`) asks it first, under the same lock and with the same
+     * words, so «Togli» and «Cancella il mio account» can never disagree about who may go.
+     */
+    fun lockAndCheck(transaction: DSLContext, accountId: Long, today: LocalDate = LocalDate.now(clock)): TeacherCheck {
         val locked = transaction.select(TEACHER.ACCOUNT_ID, TEACHER.FIRST_NAME, TEACHER.LAST_NAME).from(TEACHER)
             .orderBy(TEACHER.ACCOUNT_ID).forUpdate().fetch()
-        val target = locked.firstOrNull { it[TEACHER.ACCOUNT_ID] == accountId } ?: return@transactionResult RemovalResult.NotATeacher
-        if (locked.size <= 1) return@transactionResult RemovalResult.LastTeacher
+        val target = locked.firstOrNull { it[TEACHER.ACCOUNT_ID] == accountId } ?: return TeacherCheck.NotATeacher
+        if (locked.size <= 1) return TeacherCheck.Blocked(RemovalResult.LastTeacher)
 
         val name = TeacherName(target[TEACHER.FIRST_NAME]!!, target[TEACHER.LAST_NAME]!!)
-        val keeping = Custodianships.unfinished(transaction, accountId, LocalDate.now(clock))
-        if (keeping.isNotEmpty()) return@transactionResult RemovalResult.IsCustodian(name, keeping)
+        val keeping = Custodianships.unfinished(transaction, accountId, today)
+        if (keeping.isNotEmpty()) return TeacherCheck.Blocked(RemovalResult.IsCustodian(name, keeping))
+        return TeacherCheck.Free(name)
+    }
 
+    /** Deletes the row of the teacher (and, for the gatherings that are over, their links as custodian). After [lockAndCheck] said [TeacherCheck.Free], in the same transaction. */
+    fun deleteRow(transaction: DSLContext, accountId: Long) {
         transaction.deleteFrom(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).execute()
-        RemovalResult.Removed(name)
+    }
+
+    /**
+     * Why [accountId] cannot be taken away now, without locking anything: for what the pages say before anyone asks (the profile). Null if they can, or if they are
+     * not a teacher. The same rules as [lockAndCheck]; the one who asks to be taken away finds them again inside the transaction.
+     */
+    fun blockOf(accountId: Long, today: LocalDate = LocalDate.now(clock)): RemovalResult? {
+        val count = dsl.fetchCount(TEACHER)
+        if (!dsl.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId))) return null
+        if (count <= 1) return RemovalResult.LastTeacher
+        val keeping = Custodianships.unfinished(dsl, accountId, today)
+        if (keeping.isEmpty()) return null
+        val name = dsl.select(TEACHER.FIRST_NAME, TEACHER.LAST_NAME).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).fetchSingle { TeacherName(it[TEACHER.FIRST_NAME]!!, it[TEACHER.LAST_NAME]!!) }
+        return RemovalResult.IsCustodian(name, keeping)
     }
 
     /** Where each teacher is a custodian, split by whether the gathering is over: what «Maestri» says in the row and in the dialog of «Togli». */

@@ -48,4 +48,6 @@ enum class Icon {
     CLIPBOARD_LIST,
     CHEVRON_LEFT,
     SEARCH,
+    ARCHIVE,
+    SHIELD_CHECK,
 }

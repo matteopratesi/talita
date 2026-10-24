@@ -9,6 +9,7 @@ import talita.registration.Quota
 import talita.registration.RegistrationData
 import talita.registration.Registrations
 import talita.registration.Status
+import talita.retention.RetentionPolicy
 import java.time.LocalDate
 
 /**
@@ -17,7 +18,7 @@ import java.time.LocalDate
  * id of a registration of another gathering is an id that does not exist.
  */
 @Component
-class ArrivalsScope(private val gatherings: GatheringReader, private val registrations: Registrations) {
+class ArrivalsScope(private val gatherings: GatheringReader, private val registrations: Registrations, private val policy: RetentionPolicy) {
 
     fun gathering(): GatheringInfo? = gatherings.latestNotDraft()
 
@@ -32,6 +33,9 @@ class ArrivalsScope(private val gatherings: GatheringReader, private val registr
     }
 
     fun today(): LocalDate = gatherings.today()
+
+    /** The registrations of the gathering are gone (a year after its end, from the day of the date): Arrivi and the prints say so, and lead to the gathering. */
+    fun expired(gathering: GatheringInfo): Boolean = policy.registrationsExpired(gathering.end, today())
 }
 
 /** Where today is among the days of the gathering. */

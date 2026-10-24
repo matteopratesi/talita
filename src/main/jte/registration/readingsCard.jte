@@ -7,7 +7,8 @@
 <section id="letture" hx-swap-oob="${oob ? "true" : null}" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="letture-titolo">
   <h2 id="letture-titolo" class="text-lg font-semibold">Letture delle segnalazioni</h2>
   @if(page.getReadings().isEmpty())
-    <p class="mt-3 text-ink-muted">Nessuno le ha ancora lette.</p>
+    <%-- «ancora» promises that someone can still read them: once the notes are deleted (TALITA-7), the sentence does not say it. --%>
+    <p class="mt-3 text-ink-muted">${page.getNotes().getDeleted() != null ? "Nessuno le ha lette." : "Nessuno le ha ancora lette."}</p>
   @else
     <ul class="mt-3 divide-y divide-line">
       @for(ReadingView reading : page.getReadings())

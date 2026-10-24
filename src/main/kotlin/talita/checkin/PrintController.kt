@@ -30,8 +30,17 @@ class PrintController(
     private val scope: ArrivalsScope,
     private val arrivals: Arrivals,
     private val presenter: PrintPresenter,
+    private val arrivalsPresenter: ArrivalsPresenter,
     private val clock: Clock,
 ) {
+
+    /** The registrations of the gathering are gone: every print shows the same state as Arrivi, and nothing is printed. */
+    private fun deleted(gathering: GatheringInfo): ModelAndView? =
+        if (scope.expired(gathering)) {
+            ModelAndView("checkin/arrivals", mapOf("shell" to shells.shell(page = "Arrivi", current = Section.ARRIVI), "page" to arrivalsPresenter.deletedPage(gathering)))
+        } else {
+            null
+        }
 
     private fun gathering(): GatheringInfo = scope.gathering() ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 
@@ -39,15 +48,16 @@ class PrintController(
         ModelAndView("checkin/$template", mapOf("shell" to shells.shell(page = title, current = Section.ARRIVI, wide = true), "page" to model))
 
     @GetMapping("/arrivi/registro")
-    fun register(): ModelAndView = page("register", "Registro arrivi", presenter.register(arrivals.load(gathering()), OffsetDateTime.now(clock)))
+    fun register(): ModelAndView = deleted(gathering()) ?: page("register", "Registro arrivi", presenter.register(arrivals.load(gathering()), OffsetDateTime.now(clock)))
 
     @GetMapping("/arrivi/elenco")
     fun venueList(@RequestParam(name = "giorno", required = false) day: String?): ModelAndView {
         val gathering = gathering()
+        deleted(gathering)?.let { return it }
         val chosen = if (day.isNullOrBlank()) null else presenter.dayOf(gathering, day) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
         return page("venueList", "Elenco per la struttura", presenter.venue(arrivals.load(gathering), chosen, OffsetDateTime.now(clock)))
     }
 
     @GetMapping("/arrivi/foglio")
-    fun teacherSheet(): ModelAndView = page("teacherSheet", "Foglio per i maestri", presenter.sheet(arrivals.load(gathering()), OffsetDateTime.now(clock)))
+    fun teacherSheet(): ModelAndView = deleted(gathering()) ?: page("teacherSheet", "Foglio per i maestri", presenter.sheet(arrivals.load(gathering()), OffsetDateTime.now(clock)))
 }

@@ -73,7 +73,8 @@ class LoginEntryPoint : AuthenticationEntryPoint {
             response.status = HttpStatus.UNAUTHORIZED.value()
             return
         }
-        val sessionExpired = request.requestedSessionId != null && !request.isRequestedSessionIdValid
+        // A session that was closed because its account is gone (TALITA-7) says so with its own notice, and not that the access closed by itself.
+        val sessionExpired = request.requestedSessionId != null && !request.isRequestedSessionIdValid && request.getAttribute(ACCOUNT_GONE) != true
         if (sessionExpired) {
             Flash.put(request, Alert(INFO, INACTIVITY_NOTICE))
         }
@@ -87,9 +88,21 @@ class LoginEntryPoint : AuthenticationEntryPoint {
 
     companion object {
         const val LOGIN_PATH = "/accedi"
+
+        /** The attribute of a request whose session was closed because the account it pointed at is gone ([CurrentAccountFilter]). */
+        const val ACCOUNT_GONE = "talita.account.gone"
+
         const val INACTIVITY_NOTICE = "Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link."
     }
 }
+
+/**
+ * What `/accedi` says to someone whose account was deleted (on request: TALITA-7), whether they did it from this phone or another phone still had the session. It says
+ * nothing of what stays: the dialog said it a moment before, and a page without access must not carry dates or data of a registration.
+ */
+val ACCOUNT_DELETED_NOTICE = Alert(
+    SUCCESS, "Se ti serve, puoi rientrare con lo stesso indirizzo: troverai un account nuovo e vuoto.", lead = "Account cancellato.",
+)
 
 /** The notice of a form that was open for too long (a CSRF code that the session no longer knows). */
 internal const val PAGE_EXPIRED = "La pagina era aperta da troppo tempo. Riprova."

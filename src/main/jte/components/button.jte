@@ -10,7 +10,8 @@
 @param String ariaLabel = null
 <%-- The button of a form (design guide 4.1). While its request is on its way the form has the class htmx-request:
      the button shows the spinner and the busy label (busy:), and is disabled by hx-disabled-elt on the form.
-     variant: primary (the one action of the screen), secondary (alternative), text (minor action in a card or a list).
+     variant: primary (the one action of the screen), secondary (alternative), text (minor action in a card or a list), danger (the button that deletes for good,
+     only inside a dialog), danger-outline (the button on a page that opens such a dialog: it deletes nothing by itself, and is never the main action).
      width: "phone" (the width of the screen on the phone, its own from 640 px, the default), "full" (always the width of its card), "auto".
      opens: the id of a dialog (confirmDialog.jte): app.js opens it at the tap; without JavaScript the button sends its form, which leads
      to a page with the same words.
@@ -19,6 +20,7 @@
 !{String look = switch (variant) {
     case "secondary" -> "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted";
     case "danger" -> "bg-danger text-white hover:bg-danger-strong active:bg-danger-strong";
+    case "danger-outline" -> "border border-danger bg-surface text-danger hover:bg-danger-soft active:bg-danger-soft";
     case "text" -> "text-brand hover:bg-brand-soft active:bg-brand-soft";
     default -> "bg-brand text-white hover:bg-brand-strong active:bg-brand-strong";
 };

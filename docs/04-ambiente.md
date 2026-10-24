@@ -106,6 +106,13 @@ TALITA_PRIVACY_CONTACT=nome@example.org
   le variabili l'informativa completa nomina il titolare. Un altro test (`./gradlew build -Prelease`) non lascia uscire un rilascio con i testi ancora
   di prova.
 
+## Il job della conservazione dei dati
+
+L'applicazione cancella da sola i dati scaduti (TALITA-7, `docs/03-privacy.md`): un job gira **a ogni avvio** (quando l'applicazione è pronta) e **ogni notte alle 4:15 di Roma**, senza profili e senza variabili da impostare. Il log dice
+solo le regole e i numeri (`Retention: rule notes deleted 12 rows.`), mai un nome o un indirizzo, e un errore dice il nome della regola e il tipo dell'eccezione. In sviluppo (profilo `dev`) gira allo stesso modo, sul database di sviluppo, con dati sintetici.
+Nei test dell'applicazione è spento (`talita.retention.automatic=false`, impostato da `TestcontainersConfiguration`): ogni test lo chiama a mano con un `Clock` fisso, così non cancella da solo sotto gli altri test. Lo smoke test del jar controlla che il log dell'avvio
+dica che il job ha girato. Il backup del giorno deve partire **dopo** le 4:15 (`docs/03-privacy.md`, «Backup: requisiti per TALITA-8»).
+
 ## Build, sviluppo e test
 
 - **Build completa**: `./gradlew build` (migrazioni, generazione jOOQ, template JTE, CSS di Tailwind,

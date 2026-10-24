@@ -20,9 +20,11 @@ import talita.jooq.enums.RegistrationDayKind
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
+import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.REGISTRATION_DAY
 import talita.jooq.tables.references.TEACHER
+import talita.retention.RetentionPolicy
 import java.time.Clock
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -104,11 +106,19 @@ data class RegistrationData(
     val paperFormReceived: Boolean,
     val enteredBy: Long?,
     val createdAt: OffsetDateTime,
+    /** The account that the child is attached to now: null when the parent asked for the data of the child to be deleted and the registration stays until its date (TALITA-7). */
+    val childAccountId: Long? = null,
 ) {
     val name: String get() = "$firstName $lastName"
 
-    /** Typed in by a teacher from the paper form: there is no account and no acceptance online. */
-    val onPaper: Boolean get() = accountId == null
+    /** The parent has had the child detached from the account: the registration stays as the proof, and the parent only looks at it. */
+    val detached: Boolean get() = accountId != null && childAccountId == null
+
+    /**
+     * Typed in by a teacher from the paper form: there is no acceptance online. What tells a paper registration from an online one is the acceptance and not
+     * the account: an online registration whose parent deleted the account (TALITA-7) has no account any more, and keeps its acceptance until its date.
+     */
+    val onPaper: Boolean get() = custodyText == null
 }
 
 /**
@@ -141,6 +151,7 @@ class Registrations(
     private val clock: Clock,
     private val gatherings: GatheringReader,
     private val healthNotes: HealthNotes,
+    private val policy: RetentionPolicy,
 ) : RegistrationUsage {
 
     private fun now(): OffsetDateTime = OffsetDateTime.now(clock)
@@ -267,10 +278,16 @@ class Registrations(
 
     // ---- Reading ----------------------------------------------------------------------------------------------------------------
 
+    /**
+     * The registrations that [condition] says, **except those past their date** (TALITA-7): one year after the end of the gathering a registration is gone, even
+     * in the hours between that midnight and the job that deletes it, so no page, list or print shows it.
+     */
     private fun select(context: DSLContext, condition: Condition): List<RegistrationData> {
-        val rows = context.select(REGISTRATION.asterisk(), CHILD.FIRST_NAME, CHILD.LAST_NAME, CHILD.BIRTH_DATE)
-            .from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID))
+        val today = LocalDate.now(clock)
+        val rows = context.select(REGISTRATION.asterisk(), CHILD.FIRST_NAME, CHILD.LAST_NAME, CHILD.BIRTH_DATE, CHILD.ACCOUNT_ID, GATHERING.END_DATE)
+            .from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID)).join(GATHERING).on(GATHERING.ID.eq(REGISTRATION.GATHERING_ID))
             .where(condition).orderBy(REGISTRATION.CREATED_AT, REGISTRATION.ID).fetch()
+            .filterNot { policy.registrationsExpired(it[GATHERING.END_DATE]!!, today) }
         val ids = rows.map { it[REGISTRATION.ID]!! }
         val days = if (ids.isEmpty()) emptyMap() else context.select(REGISTRATION_DAY.REGISTRATION_ID, REGISTRATION_DAY.DAY, REGISTRATION_DAY.KIND).from(REGISTRATION_DAY)
             .where(REGISTRATION_DAY.REGISTRATION_ID.`in`(ids)).fetch().groupBy({ it[REGISTRATION_DAY.REGISTRATION_ID]!! }) { it[REGISTRATION_DAY.DAY]!! to DayKind.of(it[REGISTRATION_DAY.KIND]!!) }
@@ -294,6 +311,7 @@ class Registrations(
                 paperFormReceived = row[REGISTRATION.PAPER_FORM_RECEIVED]!!,
                 enteredBy = row[REGISTRATION.ENTERED_BY_ACCOUNT_ID],
                 createdAt = row[REGISTRATION.CREATED_AT]!!,
+                childAccountId = row[CHILD.ACCOUNT_ID],
             )
         }
     }
@@ -319,7 +337,7 @@ class Registrations(
     private fun target(context: DSLContext, id: Long, owner: Long?): Pair<RegistrationData, GatheringInfo>? {
         val locked = lockRegistration(context, id) ?: return null
         if (owner != null && locked[REGISTRATION.ACCOUNT_ID] != owner) return null
-        val registration = select(context, REGISTRATION.ID.eq(id)).single()
+        val registration = select(context, REGISTRATION.ID.eq(id)).singleOrNull() ?: return null
         return registration to gatherings.sharedIn(context, registration.gatheringId)!!
     }
 

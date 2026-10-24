@@ -383,7 +383,9 @@ class MineTests(
         assertTrue(text(html).contains("La convivenza è finita."))
         assertTrue(text(html).contains("Finita"))
         assertFalse(html.contains("Iscrivi un altro figlio"))
-        assertTrue(card(html, luca).endsWith("Affidamento accettato il ${RegistrationFormat.moment(kit.registrations(setup.id).single().custodyAcceptedAt!!)}"), card(html, luca))
+        // The card ends with the acceptance and, since TALITA-7, with the date until which the registration is kept.
+        val accepted = "Affidamento accettato il ${RegistrationFormat.moment(kit.registrations(setup.id).single().custodyAcceptedAt!!)}"
+        assertTrue(Regex("""${Regex.escape(accepted)} Conservata fino al \d+ \p{L}+ \d{4} come prova dell’affidamento$""").containsMatchIn(card(html, luca)), card(html, luca))
         for (path in listOf("/iscrizioni/$luca/modifica", "/iscrizioni/$luca/segnalazioni")) {
             val answer = parent.get(path)
             assertEquals(409, answer.status(), path)

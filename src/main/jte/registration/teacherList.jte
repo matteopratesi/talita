@@ -31,6 +31,8 @@
         @template.components.linkButton(href = "/convivenza/nuova", label = "Crea la convivenza", width = "phone")
       </div>
     </div>
+  @elseif(page.getKind() == TeacherListKind.DELETED)
+    @template.components.emptyState(icon = Icon.ARCHIVE, title = page.getDeleted().getTitle(), text = page.getDeleted().getText(), text2 = page.getDeleted().getText2(), href = page.getDeleted().getHref(), label = page.getDeleted().getLabel(), variant = "text", buttonIcon = Icon.CALENDAR_DAYS, neutral = true)
   @elseif(page.getKind() == TeacherListKind.DRAFT)
     @template.components.alert(variant = AlertVariant.INFO, content = @`La convivenza «${page.getDraftTitle()}» è ancora in bozza: le iscrizioni si fanno dopo l’apertura, anche quelle di carta. Apri le iscrizioni dalla pagina della convivenza.`, action = @`@template.components.linkButton(href = page.getDraftHref(), label = "Vai alla convivenza", variant = "text")`)
   @elseif(page.getKind() == TeacherListKind.EMPTY)

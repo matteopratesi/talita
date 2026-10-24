@@ -7,6 +7,7 @@
 # page rendered by the precompiled template. It proves that the template classes (see
 # https://github.com/casid/jte/issues/438) and the static files (CSS built by Tailwind, htmx, fonts)
 # really end up in the jar, that the migrations ran, and that the application starts without mail.
+# It also proves that the job of the retention (TALITA-7) runs at the start, with no profile.
 # It also proves that the jar does not start without the controller of the data (TALITA_PRIVACY_CONTROLLER_NAME and
 # TALITA_PRIVACY_CONTACT, which have no default: a production instance cannot show the placeholders of the notices), and
 # that with them the complete notice names the controller.
@@ -148,6 +149,17 @@ if ! grep -q '"status":"UP"' <<<"$health"; then
 fi
 if ! grep -q "Mail is not configured" "$workdir/app.log"; then
   echo "The log does not warn that the mail is not configured:" >&2
+  tail -n 40 "$workdir/app.log" >&2
+  exit 1
+fi
+
+# With no profile the job of the retention is on (TALITA-7): it ran at the start, and the log says that it runs every night at 4:15 of Rome.
+for _ in $(seq 1 30); do
+  if grep -q "Retention: the job ran at the start (0 rules failed)" "$workdir/app.log"; then break; fi
+  sleep 1
+done
+if ! grep -q "Retention: the job ran at the start (0 rules failed)" "$workdir/app.log"; then
+  echo "The log does not say that the job of the retention ran at the start with no rule failed:" >&2
   tail -n 40 "$workdir/app.log" >&2
   exit 1
 fi

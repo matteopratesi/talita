@@ -61,6 +61,8 @@ class ArrivalsController(
             val draft = scope.draft()
             return page("checkin/arrivals", "Arrivi", if (draft != null) presenter.draftPage(draft) else presenter.nonePage())
         }
+        // A year after the end the registrations are gone, from the day of their date: nothing to list, and the page says when and why.
+        if (scope.expired(gathering)) return page("checkin/arrivals", "Arrivi", presenter.deletedPage(gathering))
         val choice = DayChoice.of(gathering.days, day, scope.today())
         return page("checkin/arrivals", "Arrivi", presenter.page(arrivals.load(gathering), choice, OffsetDateTime.now(clock), alert))
     }

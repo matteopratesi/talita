@@ -26,8 +26,17 @@ enum class AlertVariant(val icon: Icon) {
     }
 }
 
-/** A notice at the top of a page, with its text. The notice that follows an action is one of these. */
-data class Alert(val variant: AlertVariant, val text: String) : Serializable
+/**
+ * A notice at the top of a page, with its text. The notice that follows an action is one of these. A notice can have a bold [lead] before the text («Dati di Luca
+ * cancellati.», then what stays and until when: design of TALITA-7), and a text button under it ([actionLabel] that leads to [actionHref]).
+ */
+data class Alert(
+    val variant: AlertVariant,
+    val text: String,
+    val lead: String? = null,
+    val actionLabel: String? = null,
+    val actionHref: String? = null,
+) : Serializable
 
 /**
  * A notice that is shown once, on the page where a redirect leads ("Accesso chiuso."): the

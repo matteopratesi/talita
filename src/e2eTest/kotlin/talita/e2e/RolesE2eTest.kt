@@ -110,13 +110,16 @@ class RolesE2eTest {
         val page = e2e.page
         // The profile has a form, and so the CSRF code that the form of a person needs.
         e2e.open("/profilo")
-        val csrf = page.locator("input[name=_csrf]").inputValue()
+        // Any of the forms of the profile has it (since TALITA-7 the dialogs have one each): the code is the same.
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
         page.addToContent(
             """<form id="invito-a-mano" method="post" action="/maestri/invita" hx-post="/maestri/invita" hx-target="#bersaglio">
                  <input type="hidden" name="_csrf" value="$csrf"><input type="hidden" name="email" value="${Addresses.unique("a-mano")}">
                  <button id="manda" type="submit">Manda</button></form>
                <div id="bersaglio"><p>Contenuto di prima</p></div>
                <button id="leggi" type="button" hx-get="/convivenza" hx-target="#bersaglio">Leggi</button>""",
+            // At the top: the profile is long since TALITA-7 and at the bottom the message, fixed over the page, would cover the button.
+            atTop = true,
         )
 
         e2e.touch(page.locator("#manda"))

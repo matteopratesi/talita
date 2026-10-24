@@ -10,7 +10,17 @@
 !{talita.registration.NotesView notes = page.getNotes();}
 <section id="segnalazioni" class="rounded-2xl border ${notes.getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6" aria-labelledby="segnalazioni-titolo">
   <h2 id="segnalazioni-titolo" class="text-lg font-semibold">Segnalazioni</h2>
-  @if(!notes.getShown())
+  @if(notes.getDeleted() != null)
+    <div class="mt-3 flex items-start gap-3">
+      <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted">
+        @template.components.icon(icon = Icon.TRASH_2, classes = "size-6")
+      </span>
+      <div class="min-w-0">
+        <p class="font-semibold wrap-anywhere">${notes.getDeleted().getMain()}</p>
+        <p class="mt-1 text-sm text-ink-muted">${notes.getDeleted().getSecond()}</p>
+      </div>
+    </div>
+  @elseif(!notes.getShown())
     <p class="mt-3">Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.</p>
     <form method="post" action="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-post="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-target="#segnalazioni" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" class="mt-3">
       @template.components.csrf(csrf = csrf)
