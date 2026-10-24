@@ -21,6 +21,7 @@
       <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
         <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento.</li>
         <li class="pl-1"><span class="font-semibold">Dei bambini:</span> nome, cognome, data di nascita, giorni di presenza e stato dell’iscrizione.</li>
+        <li class="pl-1"><span class="font-semibold">Segnati dai maestri durante la convivenza:</span> le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.</li>
         <li class="pl-1"><span class="font-semibold">Facoltativi:</span> allergie, intolleranze e farmaci dei bambini, solo con il consenso del genitore.</li>
         <li class="pl-1"><span class="font-semibold">Dei maestri:</span> nome, cognome e indirizzo email.</li>
       </ul>
@@ -31,6 +32,7 @@
       <h2 id="scopi" class="text-lg font-semibold">A cosa servono e perché possiamo usarli</h2>
       <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
         <li class="pl-1">Iscrivere i bambini e organizzare la convivenza: li usiamo perché ce lo chiedi iscrivendo i bambini.</li>
+        <li class="pl-1">Presenze e pagamenti: servono ai maestri per sapere chi c’è ogni giorno e quanto è stato pagato, e li usiamo perché fanno parte del servizio che ci chiedi iscrivendo i bambini.</li>
         <li class="pl-1">Allergie, intolleranze e farmaci: li usiamo solo con il tuo consenso esplicito, per la sicurezza dei bambini durante la convivenza.</li>
         <li class="pl-1">Partecipare a una convivenza organizzata da parrocchie può far capire le convinzioni religiose della famiglia: per questo, nell’iscrizione, ti chiediamo il consenso con una casella a parte.</li>
         <li class="pl-1">I dati dei maestri servono a organizzare la convivenza insieme.</li>
@@ -44,7 +46,7 @@
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="visibilita">
       <h2 id="visibilita" class="text-lg font-semibold">Chi vede i dati</h2>
-      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
+      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="fornitori">

@@ -411,6 +411,12 @@ class RetentionPagesTests(
         assertTrue(other.briefTime().contains("2 mesi") && other.briefTime().contains("2 anni") && other.briefTime().contains("45 giorni") && other.briefTime().contains("60 giorni") && other.briefTime().contains("14 giorni"), other.briefTime())
         assertFalse(other.briefTime().contains("un mese") || other.briefTime().contains("un anno") || other.briefTime().contains("30 giorni"), other.briefTime())
         assertTrue(standard.briefTime().contains("un mese") && standard.briefTime().contains("un anno") && standard.briefTime().contains("30 giorni"))
+        // The attendance by day and the payments go away with the registration, and both notices say so with the period of the policy (the review of TALITA-6).
+        assertTrue(other.briefTime().contains("le presenze segnate e i pagamenti si conservano per 2 anni dopo la fine della convivenza"), other.briefTime())
+        assertTrue(standard.briefTime().contains("le presenze segnate e i pagamenti si conservano per un anno dopo la fine della convivenza"), standard.briefTime())
+        val attendance = { rows: List<TimeRow> -> rows.single { it.what.contains("presenze") && it.what.contains("pagamenti") }.time }
+        assertTrue(attendance(other.completeRows()).startsWith("2 anni dopo la fine della convivenza"), attendance(other.completeRows()))
+        assertTrue(attendance(standard.completeRows()).startsWith("Un anno dopo la fine della convivenza"), attendance(standard.completeRows()))
         val rows = other.completeRows().joinToString(" ") { it.time }
         assertTrue(rows.contains("2 mesi dopo la fine") && rows.contains("2 anni") && rows.contains("45 giorni") && rows.contains("60 giorni") && rows.contains("14 giorni"), rows)
         assertTrue(other.notesDeleted(LocalDate.of(2027, 9, 19)).main.contains("2 mesi dopo la fine"))

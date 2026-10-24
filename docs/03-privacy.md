@@ -150,6 +150,9 @@ Previste dal progetto, con il ticket in cui diventano vere:
     chiusa e stampe dice se un bambino ha segnalazioni: le stampe non le leggono, e quindi non possono scrivere una lettura;
   - **ogni presenza e ogni pagamento ha il maestro che l'ha scritto e il momento**; i pagamenti non si riscrivono: uno sbagliato si toglie, e togliendolo sparisce con i
     suoi dati;
+  - **le due informative lo dicono** (commento di CodeRabbit sulla PR di TALITA-6): quella completa elenca presenze e pagamenti fra i dati raccolti, fra gli scopi, fra
+    le cose che vedono solo i maestri e fra i tempi di conservazione; quella breve, al passo 2, li nomina in «A cosa servono» e in «Per quanto tempo». Un test (`t6 c31`)
+    lo verifica;
   - **niente copie dei dati nel telefono**: nessun service worker e nessuna lista che si tenga offline; una pagina già aperta si stampa senza rete, ma per aprirla serve la
     rete (la riserva è la carta, stampata prima di partire). Le pagine di Arrivi non si tengono nel browser (`Cache-Control: no-store`).
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
@@ -233,13 +236,15 @@ Il recapito del titolare non è più assegnato a TALITA-4.
 I testi devono contenere:
 
 - chi è il titolare e come contattarlo;
-- quali dati si raccolgono e a quale scopo, in parole di tutti i giorni;
+- quali dati si raccolgono e a quale scopo, in parole di tutti i giorni, **comprese le presenze segnate giorno per giorno e i pagamenti** (giorno o importo, ora e
+  maestro che li ha segnati: TALITA-6), e che li vedono solo i maestri;
 - la base su cui si trattano, e la distinzione fra l'iscrizione (necessaria) e le parti facoltative (art. 13.2.e: cosa succede se mancano);
 - **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile; e il consenso per le convinzioni religiose deducibili, che è
   un'**ipotesi di lavoro**: la casella c'è nell'iscrizione e nelle informative finché la verifica di «Prima del rilascio» (con la DPIA) non decide se
   serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
-- per quanto tempo si conservano;
+- per quanto tempo si conservano, **anche per presenze e pagamenti**: vanno via con l'iscrizione, un anno dopo la fine della convivenza (TALITA-7 ne prende il tempo da
+  `RetentionPolicy`);
 - i diritti dell'interessato e come esercitarli, e il reclamo al Garante;
 - che l'accettazione dell'affidamento comprende la dichiarazione che anche l'altro genitore è d'accordo (o che la responsabilità genitoriale è
   di uno solo), che data e ora si registrano, e che la dichiarazione **non sostituisce** il loro accordo.
