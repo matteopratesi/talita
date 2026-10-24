@@ -92,7 +92,7 @@ class LoginWithoutPublicUrlTests(@Autowired private val mockMvc: MockMvc, @Autow
 
 /** The mail server accepts the connection and says nothing: the sending fails in time and the person is told (criterion 5). */
 @Import(PostgresConfiguration::class)
-@SpringBootTest
+@SpringBootTest(properties = [PostgresConfiguration.PRIVACY_CONTROLLER, PostgresConfiguration.PRIVACY_CONTACT])
 @AutoConfigureMockMvc
 class LoginSlowMailTests(@Autowired private val mockMvc: MockMvc) {
 

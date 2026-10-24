@@ -437,7 +437,7 @@ class GatheringPagesTests(
         assertTrue(html.contains("Per chi viene tutti i giorni. Serve per aprire le iscrizioni: scrivi 0 se è gratuita."))
         assertTrue(html.contains("Per chi viene solo alcuni giorni: si paga per ogni giorno. Lascia vuoto se non è prevista; scrivi 0 se è gratuita."))
         assertTrue(html.contains("Per chi viene solo a pranzo: si paga per ogni pranzo. Lascia vuoto se non è prevista; scrivi 0 se è gratuita."))
-        assertEquals("Gli importi compaiono nella pagina per i genitori.", Regex("""<p class="mt-2 text-ink-muted">(.*?)</p>""").find(html)?.groupValues?.get(1))
+        assertEquals("Gli importi compaiono nella pagina per i genitori.", Regex("""<p class="mt-2 text-ink-muted wrap-anywhere">(.*?)</p>""").find(html)?.groupValues?.get(1))
     }
 
     @Test

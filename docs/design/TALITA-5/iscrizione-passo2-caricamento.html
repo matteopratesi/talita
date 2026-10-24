@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Controlla e accetta · Talità</title>
+<link rel="stylesheet" href="talita-5.css">
+</head>
+<body class="is-loading">
+<!-- Mockup statico di TALITA-5: dati e testi sintetici, nessuna risorsa esterna. Criterio 10. Il bottone si disabilita durante la richiesta: un doppio tocco non fa partire due richieste. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="home-genitore.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">N</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="home-genitore.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="iscrizioni-genitore.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Controlla e accetta</h1>
+      <p class="lead">Convivenza di settembre 2027 · 17–19 settembre 2027</p>
+    </div>
+<div class="steps"><div class="steps__bars" aria-hidden="true"><span class="steps__bar is-done"></span><span class="steps__bar is-done"></span></div><p class="steps__text">Passo 2 di 2 · Controlla e accetta</p></div>
+    <p class="mt-3 intro">Rileggi i dati, leggi il testo dell’affidamento e spunta le caselle. Per correggere tocca «Modifica i dati»: il tasto indietro del telefono esce dall’iscrizione e quello che hai scritto si perde. Quando tocchi «Accetta e iscrivi» l’iscrizione è fatta.</p>
+    <form id="conferma" class="stack-3 mt-5" method="post" action="iscrizioni-genitore-conferma.html" novalidate>
+      
+      <section class="card" aria-labelledby="riepilogo-titolo">
+        <div class="card__head"><h2 class="card__title" id="riepilogo-titolo">Riepilogo</h2><button class="btn btn--text" type="submit" formaction="iscrizione-passo1-compilato.html" formnovalidate><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></svg>Modifica i dati</button></div>
+        <div class="mt-3"><div class="recap">
+    <p class="recap__name"><span>Luca Rossi</span><span class="badge badge--success">Confermata</span></p>
+    <dl class="dl dl--rows">
+<div><dt>Data di nascita</dt><dd>4 aprile 2016</dd></div>
+<div><dt>Quando</dt><dd class="dd-long">Giornata: sabato 18. Solo pranzo: domenica 19.</dd></div>
+<div><dt>Segnalazioni</dt><dd>Nessuna</dd></div>
+<div><dt>Quota</dt><dd>35 €</dd></div>
+</dl>
+  </div><div class="recap">
+    <p class="recap__name"><span>Anna Rossi</span><span class="badge badge--success">Confermata</span></p>
+    <dl class="dl dl--rows">
+<div><dt>Data di nascita</dt><dd>9 gennaio 2019</dd></div>
+<div><dt>Quando</dt><dd class="dd-long">Tutti i giorni (17–19 settembre 2027)</dd></div>
+<div><dt>Segnalazioni</dt><dd>Scritte, con il tuo consenso</dd></div>
+<div><dt>Quota</dt><dd>60 €</dd></div>
+</dl>
+  </div></div>
+        <dl class="dl dl--rows hr-top">
+<div><dt>Telefono</dt><dd>333 123 4567</dd></div>
+<div><dt>Totale</dt><dd><strong>95 €</strong></dd></div>
+</dl>
+        <p class="kv-note">In Talità non si paga: qui vedi solo l’importo. Per pagare, segui le indicazioni dei maestri.</p>
+      </section>
+      <section class="card" aria-labelledby="informativa-titolo">
+  <h2 class="card__title" id="informativa-titolo">Come usiamo i tuoi dati</h2>
+  <ul class="notice mt-3">
+    <li><strong>Chi li gestisce.</strong> Il titolare è Titolare di esempio. Per qualsiasi domanda scrivi a nome@example.org.</li>
+    <li><strong>A cosa servono.</strong> A iscrivere i bambini alla convivenza e a organizzarla: li usiamo perché ce lo chiedi con l’iscrizione. I dati dell’iscrizione sono necessari: senza non possiamo iscrivere i bambini.</li>
+    <li><strong>Salute (facoltativa).</strong> Allergie, intolleranze e farmaci li salviamo solo se ci dai il consenso. Se non li scrivi, l’iscrizione vale lo stesso, ma i maestri non li sapranno. Li leggono solo i maestri, quando serve, e ogni lettura resta registrata.</li>
+    <li><strong>Chi li riceve.</strong> I maestri della convivenza. Per far funzionare Talità ci appoggiamo a chi ospita il sito, a chi manda le email e a chi tiene le copie di sicurezza: usano i dati solo per questo.</li>
+    <li><strong>Per quanto tempo.</strong> Le segnalazioni le cancelliamo un mese dopo la fine della convivenza. L’iscrizione e l’accettazione si conservano per un anno. I dati dei bambini restano per l’anno dopo e li puoi cancellare quando vuoi.</li>
+    <li><strong>I tuoi diritti.</strong> Puoi vedere, correggere o cancellare i dati e togliere il consenso quando vuoi, dalla pagina «Iscrizioni» o scrivendo al titolare. Se pensi che i dati non siano trattati bene, puoi rivolgerti al Garante per la protezione dei dati personali.</li>
+  </ul>
+  <p class="notice-link"><a class="btn btn--text" href="informativa.html" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>Leggi l’informativa completa</a></p>
+  <p class="kv-note">Si apre in una nuova scheda: così non perdi quello che hai scritto.</p>
+</section>
+      <section class="card" aria-labelledby="affidamento-titolo">
+  <h2 class="card__title" id="affidamento-titolo">Testo dell’affidamento</h2>
+  <p class="legal"><span class="legal-mark">[TESTO DI PROVA · segnaposto sintetico per lo sviluppo: da sostituire con il testo vero prima del rilascio]</span>Affidamento ai maestri · Convivenza di settembre 2027
+
+La convivenza si svolge venerdì 17, sabato 18 e domenica 19 settembre 2027 presso Casa per ritiri di esempio. I maestri affidatari sono Marta Bianchi e Paolo Verdi.
+
+Bambini affidati:
+– Luca Rossi, data di nascita 4 aprile 2016
+– Anna Rossi, data di nascita 9 gennaio 2019
+
+1. Affidamento. Affido i bambini indicati ai maestri affidatari per la durata della convivenza, nei giorni di presenza che ho scelto.
+2. Regole e attività. [Segnaposto: le regole della convivenza e le attività proposte vanno scritte con il modulo vuoto di oggi.]
+3. Salute. Posso scrivere nelle segnalazioni, che sono facoltative, le eventuali allergie, intolleranze o farmaci.
+4. Ritiro. [Segnaposto: chi può venire a ritirare e come.]
+5. Responsabilità. Questo affidamento non esclude la responsabilità dei maestri per dolo o colpa grave.
+6. Dichiarazione. Dichiaro che anche l’altro genitore è d’accordo con questa iscrizione, oppure che la responsabilità genitoriale spetta solo a me.</p>
+</section>
+      <section class="card" aria-labelledby="accetta-titolo">
+        <h2 class="card__title" id="accetta-titolo">Per iscrivere spunta tutte le caselle</h2>
+        <div class="mt-3"><div class="check-box"><label class="choice choice--check"><input type="checkbox" name="acceptCustody" value="true" checked><span class="choice__text"><span class="choice__label">Ho letto il testo dell’affidamento e lo accetto.</span></span></label></div><div class="check-box"><label class="choice choice--check"><input type="checkbox" name="otherParent" value="true" checked><span class="choice__text"><span class="choice__label">Anche l’altro genitore è d’accordo con questa iscrizione, oppure la responsabilità genitoriale è solo mia.</span></span></label></div><div class="check-box"><label class="choice choice--check"><input type="checkbox" name="religionConsent" value="true" checked><span class="choice__text"><span class="choice__label">Acconsento al trattamento dei miei dati e di quelli dei bambini, sapendo che partecipare a una convivenza organizzata da parrocchie può far capire le convinzioni religiose della famiglia.</span></span></label></div></div>
+      </section>
+      <div class="actions"><button class="btn btn--primary btn--block is-busy" type="submit" disabled><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Iscrizione in corso…</button><button class="btn btn--secondary btn--block" type="submit" formaction="iscrizione-passo1-compilato.html" formnovalidate>Indietro</button></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

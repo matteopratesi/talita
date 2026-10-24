@@ -22,7 +22,7 @@
     @template.components.csrf(csrf = csrf)
     <fieldset aria-describedby="${page.getError() != null ? "affidatari-aiuto affidatari-errore" : "affidatari-aiuto"}">
       <legend class="font-semibold">Maestri affidatari</legend>
-      <p id="affidatari-aiuto" class="mt-1.5 text-sm text-ink-muted">I loro nomi compaiono nel testo dell’affidamento che i genitori accettano con l’iscrizione. Non compaiono nella pagina per i genitori.</p>
+      <p id="affidatari-aiuto" class="mt-1.5 text-sm text-ink-muted">I loro nomi compaiono nel testo dell’affidamento che i genitori accettano con l’iscrizione. Non compaiono nella pagina per i genitori. Le iscrizioni già fatte conservano i nomi che hanno accettato.</p>
       <div class="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
         @for(TeacherOption teacher : page.getTeachers())
           <label class="flex min-h-14 items-center gap-3 px-4 py-2">

@@ -14,7 +14,8 @@ class ShellDesignE2eTest {
     private val sections = listOf(
         // path, name, summary on the home, sentence of the placeholder (none for the gathering, which has its page: GatheringE2eTest)
         Quadruple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori.", null),
-        Quadruple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo.", "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo."),
+        // The registrations have their pages (TALITA-5, in EnrollmentE2eTest and MineE2eTest): the row of the home is the only thing that stays here.
+        Quadruple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo.", null),
         Quadruple("/arrivi", "Arrivi", "Chi è arrivato e le liste da stampare.", "Qui potrai segnare chi è arrivato e stampare le liste."),
     )
 

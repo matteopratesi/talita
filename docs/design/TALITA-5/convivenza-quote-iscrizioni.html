@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Modifica le quote · Talità</title>
+<link rel="stylesheet" href="talita-5.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-5: dati e testi sintetici, nessuna risorsa esterna. Criterio 30. Avviso con il numero di iscrizioni (testo di TALITA-4) e l’errore per una quota che le iscrizioni usano. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">MB</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="convivenza-dettaglio.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg></span><span class="nav__label">Convivenza</span></a></li>
+      <li><a href="elenco-maestro.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg></span><span class="nav__label">Arrivi</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Modifica le quote</h1>
+    </div>
+    <form class="stack-3" method="post" action="convivenza-dettaglio.html" novalidate>
+      <div class="alert alert--info"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg><div class="alert__body"><p>Hai già 9 iscrizioni: se cambi le quote, la quota dovuta di ognuna si ricalcola. Quello che è già stato pagato non cambia.</p></div></div>
+      <section class="card" aria-label="Modifica le quote">
+        <p class="intro">Gli importi compaiono nella pagina per i genitori.</p><div class="stack-4 mt-3">    <div class="field">
+      <label class="label" for="quota-intera">Quota intera</label>
+      <p class="hint" id="quota-intera-aiuto">Per chi viene tutti i giorni. Serve per aprire le iscrizioni: scrivi 0 se è gratuita.</p>
+      <div class="field-suffix"><input class="input" id="quota-intera" name="fullFee" type="text" inputmode="decimal" autocomplete="off" value="60" aria-describedby="quota-intera-aiuto"><span aria-hidden="true">€</span></div>
+    </div>    <div class="field">
+      <label class="label" for="quota-giornaliera">Quota giornaliera</label>
+      <p class="hint" id="quota-giornaliera-aiuto">Per chi viene solo alcuni giorni: si paga per ogni giorno. Lascia vuoto se non è prevista; scrivi 0 se è gratuita.</p>
+      <div class="field-suffix"><input class="input" id="quota-giornaliera" name="dailyFee" type="text" inputmode="decimal" autocomplete="off" aria-invalid="true" aria-describedby="quota-giornaliera-aiuto quota-giornaliera-errore"><span aria-hidden="true">€</span></div>
+      <p class="error" id="quota-giornaliera-errore"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg>La usano 3 iscrizioni: non puoi lasciarla vuota. Se diventa gratuita, scrivi 0.</p>
+    </div>    <div class="field">
+      <label class="label" for="quota-pranzo">Quota solo pranzo</label>
+      <p class="hint" id="quota-pranzo-aiuto">Per chi viene solo a pranzo: si paga per ogni pranzo. Lascia vuoto se non è prevista; scrivi 0 se è gratuita.</p>
+      <div class="field-suffix"><input class="input" id="quota-pranzo" name="lunchOnlyFee" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="quota-pranzo-aiuto"><span aria-hidden="true">€</span></div>
+    </div></div>
+      </section>
+      <div class="actions"><button class="btn btn--primary btn--block" type="submit">Salva le modifiche</button><a class="btn btn--secondary btn--block" href="convivenza-dettaglio.html">Annulla</a></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

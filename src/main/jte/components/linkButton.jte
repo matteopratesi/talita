@@ -11,6 +11,7 @@
      ariaLabel: the name when the label alone does not say what it is about («Modifica» of a card). --%>
 !{String look = switch (variant) {
     case "secondary" -> "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted";
+    case "danger" -> "bg-danger text-white hover:bg-danger-strong active:bg-danger-strong";
     case "text" -> "text-brand hover:bg-brand-soft active:bg-brand-soft";
     default -> "bg-brand text-white hover:bg-brand-strong active:bg-brand-strong";
 };

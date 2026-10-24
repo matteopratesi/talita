@@ -76,7 +76,14 @@ data class DetailPage(
     val infoParagraphs: List<String>,
     val whatToBring: List<String>,
     val link: LinkCard,
+    val registrations: RegistrationsCard,
 )
+
+/**
+ * The card «Iscrizioni» of the detail (criterion 20, design C 3): a row that leads to the list, with the counts and never the names; in a draft there
+ * is no list, and the card says why. [href] is null for a draft.
+ */
+data class RegistrationsCard(val summary: String, val href: String?)
 
 /**
  * The card «Link per i genitori»: while the gathering is a draft there is nothing to copy (the link works after the opening: only the
@@ -106,6 +113,8 @@ data class DatesForm(
     val placeError: String?,
     val lockedDates: String?,
     val alert: Alert?,
+    /** There are registrations that are not withdrawn: the help under «Ultimo giorno» says that a day that has been chosen cannot be taken away, and what adding one does. */
+    val withRegistrations: Boolean = false,
 )
 
 /** «Quote»: three fields of an amount. */
@@ -118,6 +127,8 @@ data class FeesForm(
     val dailyError: String?,
     val lunchOnlyError: String?,
     val alert: Alert?,
+    /** The notice that says how many registrations the new fees recalculate (rule R2), when there are some. */
+    val notice: String? = null,
 )
 
 /** One teacher that can be chosen as a custodian. [invalid] is on the first box of a list that was refused: the focus goes there. */

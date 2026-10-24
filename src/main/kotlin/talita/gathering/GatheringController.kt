@@ -33,6 +33,7 @@ class GatheringController(
     private val shells: ShellFactory,
     private val gatherings: Gatherings,
     private val presenter: GatheringPresenter,
+    private val usage: RegistrationUsage,
 ) {
 
     // ---- The section ---------------------------------------------------------------------------------------------------------
@@ -85,7 +86,7 @@ class GatheringController(
     @GetMapping("/convivenza/{id:[0-9]{1,18}}/date")
     fun datesForm(@PathVariable id: Long): ModelAndView {
         val gathering = found(id)
-        return datesPage(DatesForm(id, gathering.title, gathering.startDate.toString(), gathering.endDate.toString(), gathering.place.orEmpty(), null, null, null, null, lockedDates(gathering), null), HttpStatus.OK)
+        return datesPage(DatesForm(id, gathering.title, gathering.startDate.toString(), gathering.endDate.toString(), gathering.place.orEmpty(), null, null, null, null, lockedDates(gathering), null, hasRegistrations(id)), HttpStatus.OK)
     }
 
     @PostMapping("/convivenza/{id:[0-9]{1,18}}/date")
@@ -106,7 +107,7 @@ class GatheringController(
         val titleCheck = GatheringChecks.title(title)
         val placeCheck = GatheringChecks.place(place, required = gathering.state != GatheringState.DRAFT)
         if (changesDates) {
-            val form = DatesForm(id, titleCheck.value.take(MAX_ECHO), "", "", placeCheck.value.take(MAX_ECHO), titleCheck.error, null, null, placeCheck.error, lockedDates(gathering), Alert(WARNING, GatheringChecks.DATES_CLOSED))
+            val form = DatesForm(id, titleCheck.value.take(MAX_ECHO), "", "", placeCheck.value.take(MAX_ECHO), titleCheck.error, null, null, placeCheck.error, lockedDates(gathering), Alert(WARNING, GatheringChecks.DATES_CLOSED), hasRegistrations(id))
             return datesPage(form, HttpStatus.CONFLICT)
         }
         val dates = if (over) null else GatheringChecks.dates(startDate, endDate, today, gathering.startDate to gathering.endDate)
@@ -114,12 +115,27 @@ class GatheringController(
         if (errors > 0) {
             val form = DatesForm(
                 id, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), placeCheck.value.take(MAX_ECHO),
-                titleCheck.error, dates?.startError, dates?.endError, placeCheck.error, lockedDates(gathering), errorsAlert(errors),
+                titleCheck.error, dates?.startError, dates?.endError, placeCheck.error, lockedDates(gathering), errorsAlert(errors), hasRegistrations(id),
             )
             return datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, placeCheck.value.ifEmpty { null })
-        return savedAndBack(request, id, "Titolo, date e luogo salvati.")
+        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, placeCheck.value.ifEmpty { null }, usage)) {
+            DatesResult.Saved -> savedAndBack(request, id, "Titolo, date e luogo salvati.")
+            DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            is DatesResult.DaysInUse -> {
+                // One sentence for each day that would go (rule R3), under the field that would lose it: the first day or the last.
+                val sentences = result.days.map { (day, count) ->
+                    day to "Non puoi togliere ${GatheringFormat.weekday(day)} ${GatheringFormat.date(day)}: " + if (count == 1) "l’ha scelto 1 iscrizione." else "l’hanno scelto $count iscrizioni."
+                }
+                val startError = sentences.filter { it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
+                val endError = sentences.filter { !it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
+                val form = DatesForm(
+                    id, titleCheck.value.take(MAX_ECHO), dates!!.startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO), placeCheck.value.take(MAX_ECHO),
+                    null, startError, endError, null, lockedDates(gathering), errorsAlert(listOfNotNull(startError, endError).size), true,
+                )
+                datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+        }
     }
 
     // ---- Fees ----------------------------------------------------------------------------------------------------------------
@@ -127,7 +143,7 @@ class GatheringController(
     @GetMapping("/convivenza/{id:[0-9]{1,18}}/quote")
     fun feesForm(@PathVariable id: Long): ModelAndView {
         val fees = found(id).fees
-        val form = FeesForm(id, fees.fullCents.field(), fees.dailyCents.field(), fees.lunchOnlyCents.field(), null, null, null, null)
+        val form = FeesForm(id, fees.fullCents.field(), fees.dailyCents.field(), fees.lunchOnlyCents.field(), null, null, null, null, feesNotice(id))
         return page("gathering/feesForm", "Modifica le quote", form)
     }
 
@@ -147,12 +163,24 @@ class GatheringController(
         if (errors > 0) {
             val form = FeesForm(
                 id, fullCheck.typed.take(MAX_ECHO), dailyCheck.typed.take(MAX_ECHO), lunchCheck.typed.take(MAX_ECHO),
-                fullCheck.error, dailyCheck.error, lunchCheck.error, errorsAlert(errors),
+                fullCheck.error, dailyCheck.error, lunchCheck.error, errorsAlert(errors), feesNotice(id),
             )
             return page("gathering/feesForm", "Modifica le quote", form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        gatherings.saveFees(id, Fees(fullCheck.cents, dailyCheck.cents, lunchCheck.cents))
-        return savedAndBack(request, id, "Quote salvate.")
+        return when (val result = gatherings.saveFees(id, Fees(fullCheck.cents, dailyCheck.cents, lunchCheck.cents), usage)) {
+            FeesResult.Saved -> savedAndBack(request, id, "Quote salvate.")
+            FeesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            is FeesResult.InUse -> {
+                // A fee that registrations use cannot be left empty (rule R2): the error says how many use it and what to write if it becomes free.
+                val daily = result.daily.takeIf { it > 0 }?.let(::inUse)
+                val lunch = result.lunchOnly.takeIf { it > 0 }?.let(::inUse)
+                val form = FeesForm(
+                    id, fullCheck.typed.take(MAX_ECHO), dailyCheck.typed.take(MAX_ECHO), lunchCheck.typed.take(MAX_ECHO), null, daily, lunch,
+                    errorsAlert(listOfNotNull(daily, lunch).size), feesNotice(id),
+                )
+                page("gathering/feesForm", "Modifica le quote", form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+        }
     }
 
     // ---- Custodians ----------------------------------------------------------------------------------------------------------
@@ -212,6 +240,22 @@ class GatheringController(
 
     /** The gathering, or the page «Pagina non trovata» (an id that does not exist). */
     private fun found(id: Long): Gathering = gatherings.find(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+
+    /** The error of a fee that registrations use and that was left empty. */
+    private fun inUse(count: Int): String =
+        (if (count == 1) "La usa 1 iscrizione" else "La usano $count iscrizioni") + ": non puoi lasciarla vuota. Se diventa gratuita, scrivi 0."
+
+    private fun hasRegistrations(id: Long): Boolean = usage.counts(id).active > 0
+
+    /** Rule R2: with registrations that are not withdrawn the form of the fees says how many are recalculated. */
+    private fun feesNotice(id: Long): String? {
+        val active = usage.counts(id).active
+        return when {
+            active == 0 -> null
+            active == 1 -> "Hai già 1 iscrizione: se cambi le quote, la sua quota dovuta si ricalcola. Quello che è già stato pagato non cambia."
+            else -> "Hai già $active iscrizioni: se cambi le quote, la quota dovuta di ognuna si ricalcola. Quello che è già stato pagato non cambia."
+        }
+    }
 
     private fun Int?.field(): String = this?.let(GatheringFormat::amountField).orEmpty()
 

@@ -27,7 +27,7 @@
         </div>
       @else
         @template.components.field(id = "primo-giorno", name = "startDate", label = "Primo giorno", type = "date", value = page.getStartDate(), error = page.getStartError())
-        @template.components.field(id = "ultimo-giorno", name = "endDate", label = "Ultimo giorno", type = "date", value = page.getEndDate(), hint = "I giorni di presenza sono tutti quelli dal primo all’ultimo, al massimo 7.", error = page.getEndError())
+        @template.components.field(id = "ultimo-giorno", name = "endDate", label = "Ultimo giorno", type = "date", value = page.getEndDate(), hint = page.getWithRegistrations() ? "I giorni di presenza sono tutti quelli dal primo all’ultimo, al massimo 7. Un giorno scelto da un’iscrizione non si può togliere. Se aggiungi un giorno, chi viene «tutti i giorni» viene anche quel giorno." : "I giorni di presenza sono tutti quelli dal primo all’ultimo, al massimo 7. Un giorno scelto da un’iscrizione non si può togliere.", error = page.getEndError())
       @endif
       @template.components.field(id = "luogo", name = "place", label = "Luogo", value = page.getPlace(), hint = "Il nome della casa o della struttura. Compare nella pagina per i genitori. Serve per aprire le iscrizioni.", error = page.getPlaceError(), autocomplete = "off", autocapitalize = "sentences")
     </div>

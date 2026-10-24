@@ -64,7 +64,7 @@ class InfoPageTests(
 
     @Test
     fun `t4 c39 the list of the public addresses has the information page, and not the registration nor the gathering of the teachers`() {
-        assertEquals(listOf("/accedi/**", "/actuator/health", "/error", "/info/*"), PublicPaths.pages)
+        assertEquals(listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa"), PublicPaths.pages)
         assertTrue(PublicPaths.matches("/info/$code"))
         assertTrue(PublicPaths.matches("/info/Q7vd_3KmZ0xRb-Ew"), "any code: the page decides if it exists")
         for (path in listOf("/info/$code/iscrizione", "/info", "/info/$code/altro", "/convivenza", "/convivenza/1", "/convivenza/1/anteprima", "/informazioni/$code")) {
@@ -412,8 +412,10 @@ class InfoPageTests(
         assertEquals("Iscrizione", heading(page.body()))
         assertEquals("Iscrizione · Talità", title(page.body()))
         assertTrue(text(page.body()).contains("Convivenza di settembre 2027"), "the title of the gathering under the heading")
-        assertTrue(text(page.body()).contains("In preparazione Qui potrai iscrivere i tuoi figli: ci stiamo lavorando. Intanto puoi rileggere le informazioni sulla convivenza."))
-        assertTrue(Regex("""<a href="/info/$code"[^>]*>Torna alle informazioni</a>""").containsMatchIn(page.body()))
+        // The registration of TALITA-5 has taken the place of the page «in preparazione» (its pages are in talita.registration).
+        assertTrue(text(page.body()).contains("Passo 1 di 2 · I dati"))
+        assertFalse(text(page.body()).contains("In preparazione"))
+        assertTrue(Regex("""<a href="/info/$code"[^>]*>[\s\S]*?Annulla</a>""").containsMatchIn(page.body()))
         // The navigation is the one of a parent, with Iscrizioni as the current entry.
         assertEquals(listOf("Home", "Iscrizioni"), Regex("""<span class="max-w-full truncate">([^<]+)</span>""").findAll(page.body()).map { it.groupValues[1] }.toList())
         assertTrue(Regex("""<a href="/iscrizioni" aria-current="page"""").containsMatchIn(page.body()))

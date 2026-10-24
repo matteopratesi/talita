@@ -82,6 +82,8 @@ SPRING_MAIL_PASSWORD=chiave-segreta-di-mailjet
 TALITA_MAIL_FROM=nome@example.org
 TALITA_PUBLIC_URL=https://talita.example.org
 TALITA_BOOTSTRAP_TEACHER=nome@example.org
+TALITA_PRIVACY_CONTROLLER_NAME=Titolare di esempio
+TALITA_PRIVACY_CONTACT=nome@example.org
 ```
 
 - `SPRING_MAIL_*`: il server SMTP. Con STARTTLS obbligatorio e timeout di 10 secondi
@@ -96,6 +98,13 @@ TALITA_BOOTSTRAP_TEACHER=nome@example.org
   (`talita.teacher.invitation-validity`): a ogni avvio, finché non c'è nessun maestro, si rinnova. Con almeno
   un maestro la variabile non fa niente; senza variabile e senza maestri l'app parte lo stesso e il log
   avvisa che nessuno può essere invitato. In sviluppo il profilo `dev` la imposta a `nome@example.org`.
+- `TALITA_PRIVACY_CONTROLLER_NAME` e `TALITA_PRIVACY_CONTACT` (`talita.privacy.controller-name` e `talita.privacy.contact`): chi è il titolare
+  del trattamento e a quale indirizzo scrivergli, come li dicono l'informativa breve del passo 2 dell'iscrizione e quella completa a
+  `/informativa`. **Non hanno un valore di default e sono obbligatorie: senza, l'app non parte** (l'errore nomina le due variabili, anche se ne manca una sola), così un'istanza di
+  produzione non può dire ai genitori che il titolare è un segnaposto. I segnaposto «Titolare di esempio» e `nome@example.org` stanno solo nel profilo `dev`
+  e nei test; i valori veri arrivano con TALITA-9 (`docs/03-privacy.md`). Lo smoke test del jar prova che senza le variabili l'app non parte e che con
+  le variabili l'informativa completa nomina il titolare. Un altro test (`./gradlew build -Prelease`) non lascia uscire un rilascio con i testi ancora
+  di prova.
 
 ## Build, sviluppo e test
 

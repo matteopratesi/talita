@@ -285,14 +285,14 @@ class InfoPageE2eTest {
         assertThat(page).hasTitle("Iscrizione · Talità")
         assertThat(page.locator("h1")).hasText("Iscrizione")
         assertThat(page.locator("main")).containsText("Convivenza di settembre 2027")
-        assertThat(page.locator("main h2")).hasText("In preparazione")
-        assertThat(page.locator("main")).containsText("Qui potrai iscrivere i tuoi figli: ci stiamo lavorando. Intanto puoi rileggere le informazioni sulla convivenza.")
+        // The registration of TALITA-5 is where the page «in preparazione» was.
+        assertThat(page.locator("main")).containsText("Passo 1 di 2 · I dati")
         assertThat(page.locator("nav a[aria-current=page]")).hasText("Iscrizioni")
         assertThat(page.locator("nav a")).hasText(arrayOf("Home", "Iscrizioni"))
         page.waitForSettledContent()
-        assertAccessible(page, "registration, in preparation (${e2e.profile.label})")
+        assertAccessible(page, "registration, first step (${e2e.profile.label})")
 
-        e2e.touch(page.locator("main").linkNamed("Torna alle informazioni"))
+        e2e.touch(page.locator("main").linkNamed("Annulla"))
         assertThat(page).hasURL(e2e.url("/info/$code"))
         assertThat(page.locator("main").linkNamed("Iscrivi i tuoi figli")).isVisible()
 

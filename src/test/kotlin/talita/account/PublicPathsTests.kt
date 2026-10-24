@@ -13,19 +13,19 @@ import kotlin.test.assertTrue
 class PublicPathsTests {
 
     @Test
-    fun `t3 c07 the public addresses are the access pages, the health, the error page and the static files, and nothing else`() {
-        // A ticket that adds a public page changes this list and writes its own test (TALITA-4: /info/{codice}, in InfoPageTests).
-        assertEquals(listOf("/accedi/**", "/actuator/health", "/error", "/info/*"), PublicPaths.pages)
+    fun `t3 c07 the public addresses are the access pages, the health, the error page, the information page, the notice on the privacy and the static files, and nothing else`() {
+        // A ticket that adds a public page changes this list and writes its own test (TALITA-4: /info/{codice}, in InfoPageTests; TALITA-5: /informativa).
+        assertEquals(listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa"), PublicPaths.pages)
         assertEquals(listOf("/css/**", "/js/**", "/fonts/**", "/icons/**", "/favicon.svg", "/favicon-*.svg"), PublicPaths.staticFiles)
         assertEquals(PublicPaths.pages + PublicPaths.staticFiles, PublicPaths.all)
     }
 
     @Test
     fun `t3 c07 an address is public only if the list says so`() {
-        for (path in listOf("/accedi", "/accedi/conferma", "/accedi/controlla-la-posta", "/actuator/health", "/error", "/info/q7Vd_3KmZ0xRb-Ew", "/css/app-0123.css", "/js/htmx.min-0123.js", "/fonts/inter-latin-0123.woff2", "/favicon-0123.svg")) {
+        for (path in listOf("/accedi", "/accedi/conferma", "/accedi/controlla-la-posta", "/actuator/health", "/error", "/info/q7Vd_3KmZ0xRb-Ew", "/informativa", "/css/app-0123.css", "/js/htmx.min-0123.js", "/fonts/inter-latin-0123.woff2", "/favicon-0123.svg")) {
             assertTrue(PublicPaths.matches(path), path)
         }
-        for (path in listOf("/", "/profilo", "/iscrizioni", "/convivenza/x", "/maestri", "/accedi-altro", "/actuator", "/actuator/env", "/actuator/health/liveness", "/errors", "/test/errore", "/ott/generate", "/info", "/info/q7Vd_3KmZ0xRb-Ew/iscrizione", "/convivenza/1/anteprima")) {
+        for (path in listOf("/", "/profilo", "/iscrizioni", "/convivenza/x", "/maestri", "/accedi-altro", "/actuator", "/actuator/env", "/actuator/health/liveness", "/errors", "/test/errore", "/ott/generate", "/info", "/informativa/altro", "/info/q7Vd_3KmZ0xRb-Ew/iscrizione", "/convivenza/1/anteprima")) {
             assertFalse(PublicPaths.matches(path), path)
         }
     }

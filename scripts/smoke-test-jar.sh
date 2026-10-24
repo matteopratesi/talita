@@ -7,6 +7,9 @@
 # page rendered by the precompiled template. It proves that the template classes (see
 # https://github.com/casid/jte/issues/438) and the static files (CSS built by Tailwind, htmx, fonts)
 # really end up in the jar, that the migrations ran, and that the application starts without mail.
+# It also proves that the jar does not start without the controller of the data (TALITA_PRIVACY_CONTROLLER_NAME and
+# TALITA_PRIVACY_CONTACT, which have no default: a production instance cannot show the placeholders of the notices), and
+# that with them the complete notice names the controller.
 #
 # Needs Docker (Postgres) and curl. JAVA can point to a specific `java` binary.
 set -euo pipefail
@@ -49,12 +52,41 @@ for _ in $(seq 1 60); do
 done
 docker exec "$container" pg_isready -U talita -d talita >/dev/null
 
-echo "Starting $jar from $workdir"
 cd "$workdir"
+
+# Without the controller of the data the application must not start: the log names the two variables and nothing answers on the port.
+# (The process may stay alive after a failed start, because a thread of the login links is not a daemon one: it is stopped here, not waited for.)
+echo "Starting $jar without the controller of the data: it must not start"
+# `env -u` removes the two variables even if the caller exported them in the shell: the check must not depend on the caller's environment.
+env -u TALITA_PRIVACY_CONTROLLER_NAME -u TALITA_PRIVACY_CONTACT \
 SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$db_port/talita" \
 SPRING_DATASOURCE_USERNAME=talita \
 SPRING_DATASOURCE_PASSWORD=talita \
 SERVER_PORT="$app_port" \
+  "$java_bin" -jar "$jar" >"$workdir/no-controller.log" 2>&1 &
+app_pid=$!
+for _ in $(seq 1 90); do
+  if grep -q "APPLICATION FAILED TO START" "$workdir/no-controller.log" || ! kill -0 "$app_pid" 2>/dev/null; then break; fi
+  sleep 1
+done
+sleep 2
+if ! grep -q "APPLICATION FAILED TO START" "$workdir/no-controller.log" || ! grep -q "TALITA_PRIVACY_CONTROLLER_NAME" "$workdir/no-controller.log" \
+  || curl -s -o /dev/null "http://127.0.0.1:$app_port/accedi"; then
+  echo "The application did not refuse to start for the missing controller of the data:" >&2
+  tail -n 40 "$workdir/no-controller.log" >&2
+  exit 1
+fi
+kill "$app_pid" 2>/dev/null || true
+wait "$app_pid" 2>/dev/null || true
+app_pid=""
+
+echo "Starting $jar from $workdir"
+SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$db_port/talita" \
+SPRING_DATASOURCE_USERNAME=talita \
+SPRING_DATASOURCE_PASSWORD=talita \
+SERVER_PORT="$app_port" \
+TALITA_PRIVACY_CONTROLLER_NAME="Titolare della prova" \
+TALITA_PRIVACY_CONTACT="nome@example.org" \
   "$java_bin" -jar "$jar" >"$workdir/app.log" 2>&1 &
 app_pid=$!
 
@@ -88,6 +120,14 @@ fi
 if ! grep -q "<title>Accedi · Talità</title>" "$workdir/accedi.html" || ! grep -q "Accedi a Talità" "$workdir/accedi.html"; then
   echo "GET /accedi answered 200 but the page was not rendered by the template:" >&2
   head -c 600 "$workdir/accedi.html" >&2
+  exit 1
+fi
+
+# The complete notice is public and names the controller that the environment gave (and never a placeholder).
+status="$(curl -s -o "$workdir/informativa.html" -w '%{http_code}' "http://127.0.0.1:$app_port/informativa" || true)"
+if [[ "$status" != "200" ]] || ! grep -q "Titolare della prova" "$workdir/informativa.html" || grep -q "Titolare di esempio" "$workdir/informativa.html"; then
+  echo "GET /informativa answered '$status', and it does not name the controller of the environment:" >&2
+  head -c 600 "$workdir/informativa.html" >&2
   exit 1
 fi
 

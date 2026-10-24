@@ -108,9 +108,8 @@ class ShellTests(
     }
 
     @Test
-    fun `the sections that are not ready have their placeholder page with its text and as the current entry`() {
+    fun `the section that is not ready has its placeholder page with its text and as the current entry`() {
         val expected = mapOf(
-            "/iscrizioni" to ("Iscrizioni" to "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo."),
             "/arrivi" to ("Arrivi" to "Qui potrai segnare chi è arrivato e stampare le liste."),
         )
         for ((path, texts) in expected) {

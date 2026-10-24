@@ -3,7 +3,12 @@ package talita.gathering
 import org.jooq.DSLContext
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.GATHERING_CUSTODIAN
+import talita.jooq.tables.references.HEALTH_NOTE
+import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
+import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.REGISTRATION_DAY
 import java.time.Clock
 import java.time.LocalDate
 
@@ -19,8 +24,13 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
 
     fun today(): LocalDate = LocalDate.now(clock)
 
-    /** No gathering at all: the section is empty and a new one can be made. */
+    /** No gathering at all: the section is empty and a new one can be made. The registrations go first (nothing deletes them with the gathering). */
     fun reset() {
+        dsl.deleteFrom(HEALTH_NOTE_ACCESS).execute()
+        dsl.deleteFrom(HEALTH_NOTE).execute()
+        dsl.deleteFrom(REGISTRATION_DAY).execute()
+        dsl.deleteFrom(REGISTRATION).execute()
+        dsl.deleteFrom(CHILD).execute()
         dsl.deleteFrom(GATHERING_CUSTODIAN).execute()
         dsl.deleteFrom(GATHERING).execute()
     }

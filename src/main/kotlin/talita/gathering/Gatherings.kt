@@ -73,6 +73,24 @@ sealed interface CustodiansResult {
     data object NeedsOne : CustodiansResult
 }
 
+/** What came of saving the dates: saved, or refused because registrations have days that the new dates would take away (rule R3). */
+sealed interface DatesResult {
+    data object Saved : DatesResult
+    data object NotFound : DatesResult
+
+    /** Each day that would go, with the number of registrations that have it. */
+    data class DaysInUse(val days: List<Pair<LocalDate, Int>>) : DatesResult
+}
+
+/** What came of saving the fees: saved, or refused because registrations use a fee that would be emptied (rule R2). */
+sealed interface FeesResult {
+    data object Saved : FeesResult
+    data object NotFound : FeesResult
+
+    /** How many registrations use the daily fee and the fee of the lunch only, among the ones that the new fees would leave empty. */
+    data class InUse(val daily: Int, val lunchOnly: Int) : FeesResult
+}
+
 /** A gathering that a teacher is in custody of: enough for a sentence and a link. */
 data class GatheringRef(val id: Long, val title: String)
 
@@ -98,6 +116,10 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     /** The gathering that is a draft or open: at most one (the database sees to it). */
     fun current(): Gathering? = dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.closed)).fetchOne()?.let(::gathering)
 
+    /** The gathering that is not a draft with the latest first day, or null (a teacher's list of registrations starts from it). */
+    fun latestNotDraft(): Gathering? =
+        dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.draft)).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).limit(1).fetchOne()?.let(::gathering)
+
     /** The closed gatherings, the most recent first. */
     fun closed(): List<Gathering> =
         dsl.selectFrom(GATHERING).where(GATHERING.STATUS.eq(GatheringStatus.closed))
@@ -118,6 +140,15 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
         if (gathering.fees.fullCents == null) add(Missing.FULL_FEE)
         if (custodianCount == 0) add(Missing.CUSTODIAN)
         if (gathering.endDate.isBefore(today)) add(Missing.DATES)
+    }
+
+    /**
+     * The gathering inside the transaction of [context], with a lock: for sharing (a registration is being made: the others can look, nobody can
+     * close it, change its dates or its custodians until the transaction ends) or, with [exclusive], for updating. Null if there is none.
+     */
+    fun findLocked(context: DSLContext, id: Long, exclusive: Boolean = false): Gathering? {
+        val query = context.selectFrom(GATHERING).where(GATHERING.ID.eq(id))
+        return (if (exclusive) query.forUpdate() else query.forShare()).fetchOne()?.let(::gathering)
     }
 
     // ---- Creating -------------------------------------------------------------------------------------------------------------
@@ -157,19 +188,47 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
 
     // ---- Saving the parts -----------------------------------------------------------------------------------------------------
 
-    /** Title, dates and place. False if the gathering does not exist. Dates of a gathering that is over are not passed (see the controller). */
-    fun saveDates(id: Long, title: String, start: LocalDate?, end: LocalDate?, place: String?): Boolean {
-        val update = dsl.update(GATHERING).set(GATHERING.TITLE, title).set(GATHERING.PLACE, place)
+    /**
+     * Title, dates and place (criteria 17, 31). A day that a registration that is not withdrawn has cannot be taken away by changing the dates (rule R3):
+     * the answer says which days and how many registrations. Adding days is always possible. Dates of a gathering that is over are not passed (see the
+     * controller). The count is made in the same transaction, under the lock of the gathering.
+     */
+    fun saveDates(id: Long, title: String, start: LocalDate?, end: LocalDate?, place: String?, usage: RegistrationUsage): DatesResult = dsl.transactionResult { configuration ->
+        val transaction = DSL.using(configuration)
+        val row = lock(transaction, id) ?: return@transactionResult DatesResult.NotFound
+        if (start != null && end != null) {
+            val old = gathering(row)
+            val kept = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toSet()
+            val removed = old.days.filter { it !in kept }
+            if (removed.isNotEmpty()) {
+                val users = usage.dayUsers(transaction, id, removed).filterValues { it > 0 }
+                if (users.isNotEmpty()) return@transactionResult DatesResult.DaysInUse(removed.mapNotNull { day -> users[day]?.let { day to it } })
+            }
+        }
+        val update = transaction.update(GATHERING).set(GATHERING.TITLE, title).set(GATHERING.PLACE, place)
         if (start != null && end != null) update.set(GATHERING.START_DATE, start).set(GATHERING.END_DATE, end)
-        return update.where(GATHERING.ID.eq(id)).execute() > 0
+        update.where(GATHERING.ID.eq(id)).execute()
+        DatesResult.Saved
     }
 
-    fun saveFees(id: Long, fees: Fees): Boolean =
-        dsl.update(GATHERING)
+    /**
+     * The three fees (criteria 7, 30). A fee that registrations that are not withdrawn use (the daily one, the one of the lunch only) cannot be emptied
+     * (rule R2): the answer says how many use each. The fees that stay do not change what is due: it is worked out again from the new ones.
+     */
+    fun saveFees(id: Long, fees: Fees, usage: RegistrationUsage): FeesResult = dsl.transactionResult { configuration ->
+        val transaction = DSL.using(configuration)
+        lock(transaction, id) ?: return@transactionResult FeesResult.NotFound
+        val users = usage.feeUsers(transaction, id)
+        val daily = if (fees.dailyCents == null) users.daily else 0
+        val lunch = if (fees.lunchOnlyCents == null) users.lunchOnly else 0
+        if (daily > 0 || lunch > 0) return@transactionResult FeesResult.InUse(daily, lunch)
+        transaction.update(GATHERING)
             .set(GATHERING.FULL_FEE_CENTS, fees.fullCents)
             .set(GATHERING.DAILY_FEE_CENTS, fees.dailyCents)
             .set(GATHERING.LUNCH_ONLY_FEE_CENTS, fees.lunchOnlyCents)
-            .where(GATHERING.ID.eq(id)).execute() > 0
+            .where(GATHERING.ID.eq(id)).execute()
+        FeesResult.Saved
+    }
 
     fun saveInfo(id: Long, infoText: String?, whatToBring: String?): Boolean =
         dsl.update(GATHERING).set(GATHERING.INFO_TEXT, infoText).set(GATHERING.WHAT_TO_BRING, whatToBring)
@@ -253,7 +312,7 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     private fun lock(transaction: DSLContext, id: Long): Record? =
         transaction.selectFrom(GATHERING).where(GATHERING.ID.eq(id)).forUpdate().fetchOne()
 
-    private fun custodians(context: DSLContext, id: Long): List<Custodian> =
+    internal fun custodians(context: DSLContext, id: Long): List<Custodian> =
         context.select(TEACHER.ACCOUNT_ID, TEACHER.FIRST_NAME, TEACHER.LAST_NAME).from(GATHERING_CUSTODIAN)
             .join(TEACHER).on(TEACHER.ACCOUNT_ID.eq(GATHERING_CUSTODIAN.TEACHER_ACCOUNT_ID))
             .where(GATHERING_CUSTODIAN.GATHERING_ID.eq(id))

@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  * database is there; no mail server, no sender address, no public address.
  */
 @Import(PostgresConfiguration::class)
-@SpringBootTest
+@SpringBootTest(properties = [PostgresConfiguration.PRIVACY_CONTROLLER, PostgresConfiguration.PRIVACY_CONTACT])
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension::class)
 class NoMailTests(

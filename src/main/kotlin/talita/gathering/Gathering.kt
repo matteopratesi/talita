@@ -1,5 +1,6 @@
 package talita.gathering
 
+import org.jooq.DSLContext
 import talita.jooq.enums.GatheringStatus
 import java.time.LocalDate
 
@@ -87,3 +88,35 @@ data class GatheringInfo(
     /** Open and not over: a parent can register today. */
     val registrationsPossibleToday: Boolean,
 )
+
+/** How many registrations of each state a gathering has: only counts, never names (the card «Iscrizioni» of its detail, the list of the teachers). */
+data class RegistrationCounts(val confirmed: Int, val maybe: Int, val withdrawn: Int) {
+    /** The registrations that are not withdrawn. */
+    val active: Int get() = confirmed + maybe
+
+    val none: Boolean get() = confirmed + maybe + withdrawn == 0
+}
+
+/** How many registrations that are not withdrawn use the daily fee (they have a whole day among their days) and the fee of the lunch only. */
+data class FeeUsers(val daily: Int, val lunchOnly: Int)
+
+/**
+ * What the registrations tell the gathering (rules R2 and R3 of TALITA-4, criteria 30 and 31): how many there are, and how many use a fee or a day. The
+ * gathering asks, and `talita.registration` answers: this package never reads the tables of the registrations, and does not depend on that package. The
+ * functions that count for a change take the [DSLContext] of the transaction that makes the change, under the lock of the row of the gathering, so that a
+ * registration that is being made is either counted or waits.
+ */
+interface RegistrationUsage {
+
+    /** The registrations of [gatheringId] by state. */
+    fun counts(gatheringId: Long): RegistrationCounts
+
+    /** How many registrations of [gatheringId] that are not withdrawn use each of the two fees that can be left empty. */
+    fun feeUsers(context: DSLContext, gatheringId: Long): FeeUsers
+
+    /**
+     * For each of [days], how many registrations that are not withdrawn have it: the ones of every day have all of them, the ones of some days have the ones
+     * they chose. A day nobody has is not in the answer.
+     */
+    fun dayUsers(context: DSLContext, gatheringId: Long, days: Collection<LocalDate>): Map<LocalDate, Int>
+}

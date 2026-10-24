@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Rimetti l’iscrizione · Talità</title>
+<link rel="stylesheet" href="talita-5.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-5: dati e testi sintetici, nessuna risorsa esterna. Criterio 14. «Confermata» o «In forse»; l’accettazione resta. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="home-genitore.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">N</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="home-genitore.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="iscrizioni-genitore.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Rimetti l’iscrizione</h1>
+      <p class="lead">Luca Rossi · Convivenza di settembre 2027</p>
+    </div>
+    <form class="stack-3" method="post" action="iscrizioni-genitore.html" novalidate>
+      <div class="alert alert--info"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg><div class="alert__body"><p>L’iscrizione è ritirata. Scegli «Confermata» o «In forse» e tocca «Rimetti l’iscrizione»: l’affidamento che hai accettato il 12 giugno 2027 resta valido. Le segnalazioni si cancellano con il ritiro: se servono, scrivile di nuovo da «Segnalazioni».</p></div></div>
+      <section class="card child" aria-labelledby="mod-titolo">
+        <div class="card__head"><h2 class="card__title" id="mod-titolo">I dati dell’iscrizione</h2></div>
+        <div class="field-row">
+    <div class="field">
+      <label class="label" for="m-nome">Nome</label>
+      <input class="input" id="m-nome" name="child.firstName" type="text" value="Luca" autocomplete="off" autocapitalize="words">
+    </div>
+    <div class="field">
+      <label class="label" for="m-cognome">Cognome</label>
+      <input class="input" id="m-cognome" name="child.lastName" type="text" value="Rossi" autocomplete="off" autocapitalize="words">
+    </div>
+  </div>
+        <fieldset aria-describedby="m-nascita-aiuto">
+    <legend class="label">Data di nascita</legend>
+    <p class="hint" id="m-nascita-aiuto">Scrivi giorno, mese e anno: per esempio 4 4 2016.</p>
+    <div class="date-parts"><div><label for="m-giorno">Giorno</label><input class="input input--short" id="m-giorno" name="child.birthGiorno" type="text" inputmode="numeric" autocomplete="off" value="4"></div><div><label for="m-mese">Mese</label><input class="input input--short" id="m-mese" name="child.birthMese" type="text" inputmode="numeric" autocomplete="off" value="4"></div><div><label for="m-anno">Anno</label><input class="input input--year" id="m-anno" name="child.birthAnno" type="text" inputmode="numeric" autocomplete="off" value="2016"></div></div>
+  </fieldset>
+        <fieldset class="choice-group">
+    <legend class="label">Quando viene?</legend>
+    <label class="choice choice--help"><input type="radio" name="child.presence" value="all_days"><span class="choice__text"><span class="choice__label">Tutti i giorni</span><span class="hint">Venerdì 17, sabato 18 e domenica 19 settembre 2027 · 60 €</span></span></label>
+    <label class="choice choice--help"><input type="radio" name="child.presence" value="days" checked><span class="choice__text"><span class="choice__label">Alcuni giorni</span><span class="hint">25 € per ogni giornata, 10 € per ogni solo pranzo.</span></span></label>
+    <div class="days" id="m-giorni"><p class="hint days__help">Per ogni giorno scegli «Giornata» o «Solo pranzo». Se non viene, lascia «Non viene».</p>
+      <fieldset class="day"><legend>Venerdì 17</legend><div class="seg"><label><input type="radio" name="child.day.fri" value="" checked><span>Non viene</span></label><label><input type="radio" name="child.day.fri" value="full"><span>Giornata</span></label><label><input type="radio" name="child.day.fri" value="lunch"><span>Solo pranzo</span></label></div></fieldset><fieldset class="day"><legend>Sabato 18</legend><div class="seg"><label><input type="radio" name="child.day.sat" value=""><span>Non viene</span></label><label><input type="radio" name="child.day.sat" value="full" checked><span>Giornata</span></label><label><input type="radio" name="child.day.sat" value="lunch"><span>Solo pranzo</span></label></div></fieldset><fieldset class="day"><legend>Domenica 19</legend><div class="seg"><label><input type="radio" name="child.day.sun" value=""><span>Non viene</span></label><label><input type="radio" name="child.day.sun" value="full"><span>Giornata</span></label><label><input type="radio" name="child.day.sun" value="lunch" checked><span>Solo pranzo</span></label></div></fieldset>
+    </div>
+  </fieldset>
+        <p class="quota-line" id="quota-0" aria-live="polite"><span>Quota</span><strong>35 €</strong></p>
+        <fieldset>
+    <legend class="label">Stato dell’iscrizione</legend>
+    <label class="choice choice--help"><input type="radio" name="child.status" value="confirmed" checked><span class="choice__text"><span class="choice__label">Confermata</span><span class="hint">Il bambino viene.</span></span></label>
+    <label class="choice choice--help"><input type="radio" name="child.status" value="maybe"><span class="choice__text"><span class="choice__label">In forse</span><span class="hint">Non è ancora sicuro. Puoi cambiare idea finché le iscrizioni sono aperte.</span></span></label>
+  </fieldset>
+        <div class="field">    <div class="field">
+      <label class="label" for="telefono">Telefono per i giorni della convivenza</label>
+      <p class="hint" id="telefono-aiuto">Un numero a cui i maestri possono chiamarti mentre i bambini sono con noi. Lo vedono solo i maestri. Per esempio 333 123 4567.</p>
+      <input class="input" id="telefono" name="phone" type="tel" value="333 123 4567" aria-describedby="telefono-aiuto" autocomplete="tel" autocorrect="off">
+    </div>
+          <p class="kv-note">Il telefono vale per tutte le tue iscrizioni a questa convivenza: se lo cambi qui, cambia anche per gli altri bambini.</p></div>
+      </section>
+      <div class="actions"><button class="btn btn--primary btn--block" type="submit">Rimetti l’iscrizione</button><a class="btn btn--secondary btn--block" href="iscrizioni-genitore.html">Annulla</a></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

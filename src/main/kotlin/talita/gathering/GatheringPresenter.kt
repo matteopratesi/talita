@@ -13,7 +13,7 @@ import java.time.LocalDate
  * is missing) come from [Gathering] and [Gatherings]: nothing is decided twice.
  */
 @Component
-class GatheringPresenter(private val gatherings: Gatherings, private val publicUrl: PublicUrl) {
+class GatheringPresenter(private val gatherings: Gatherings, private val publicUrl: PublicUrl, private val usage: RegistrationUsage) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
     fun badges(gathering: Gathering, today: LocalDate): List<Badge> = buildList {
@@ -82,7 +82,22 @@ class GatheringPresenter(private val gatherings: Gatherings, private val publicU
                 title = gathering.title,
                 copyPrimary = !draft && !over,
             ),
+            registrations = registrations(gathering),
         )
+    }
+
+    /** The card «Iscrizioni» (design C 3): counts only, never names; a draft has no registrations, not even on paper, and says so. */
+    private fun registrations(gathering: Gathering): RegistrationsCard {
+        if (gathering.state == GatheringState.DRAFT) {
+            return RegistrationsCard("Le iscrizioni arrivano dopo l’apertura: finché la convivenza è in bozza non ce ne sono, nemmeno da carta.", null)
+        }
+        val counts = usage.counts(gathering.id)
+        val parts = listOfNotNull(
+            counts.confirmed.takeIf { it > 0 }?.let { if (it == 1) "1 confermata" else "$it confermate" },
+            counts.maybe.takeIf { it > 0 }?.let { "$it in forse" },
+            counts.withdrawn.takeIf { it > 0 }?.let { if (it == 1) "1 ritirata" else "$it ritirate" },
+        )
+        return RegistrationsCard(parts.joinToString(" · ").ifEmpty { "Nessuna iscrizione" }, "/iscrizioni?convivenza=${gathering.id}")
     }
 
     /**

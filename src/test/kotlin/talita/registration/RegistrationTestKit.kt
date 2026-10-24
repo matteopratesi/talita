@@ -1,0 +1,268 @@
+package talita.registration
+
+import org.jooq.DSLContext
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.springframework.security.authentication.ott.OneTimeTokenService
+import org.springframework.test.web.servlet.MockMvc
+import talita.Addresses
+import talita.account.MockBrowser
+import talita.gathering.GatheringTestKit
+import talita.jooq.enums.GatheringStatus
+import talita.jooq.enums.RegistrationStatus
+import talita.jooq.tables.references.ACCOUNT
+import talita.jooq.tables.references.CHILD
+import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.HEALTH_NOTE
+import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
+import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.REGISTRATION_DAY
+import talita.teacher.Person
+import talita.jooq.enums.RegistrationAttendance
+import java.time.OffsetDateTime
+import java.time.Clock
+import java.time.DayOfWeek
+import java.time.LocalDate
+
+/** A gathering as the tests of the registrations need it: open, three days from a Friday, with Marta Bianchi and Paolo Verdi as custodians. */
+internal data class Setup(
+    val id: Long,
+    val code: String,
+    /** The teacher browser (Marta Bianchi) and her account. */
+    val marta: MockBrowser,
+    val martaId: Long,
+    val paoloId: Long,
+    val friday: LocalDate,
+) {
+    val saturday: LocalDate get() = friday.plusDays(1)
+    val sunday: LocalDate get() = friday.plusDays(2)
+    val form: String get() = "/info/$code/iscrizione"
+}
+
+/**
+ * What the tests of the registrations have in common (criteria 1-38): the gathering with its teachers, the parents who have entered with the link,
+ * the fields of a form as the pages name them, and a few readings of the tables. Names, dates and numbers are synthetic; the dates of the gathering
+ * come from the day of the test clock, from the first Friday that is a month away, so that the days of the week are always the same.
+ */
+internal class RegistrationTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService, private val dsl: DSLContext, clock: Clock) {
+
+    val kit = GatheringTestKit(mockMvc, tokens, dsl, clock)
+
+    /** Resets everything and makes an open gathering of three days (Friday to Sunday) with Marta Bianchi and Paolo Verdi; the parameters change how it is made. */
+    fun start(
+        status: GatheringStatus = GatheringStatus.`open`,
+        full: Int? = 6000,
+        daily: Int? = 2500,
+        lunch: Int? = 1000,
+        days: Int = 3,
+        startOffset: Long = 30,
+    ): Setup {
+        val marta = Person(Addresses.unique("marta"), "Marta", "Bianchi")
+        val paolo = Person(Addresses.unique("paolo"), "Paolo", "Verdi")
+        val (browser, martaId) = kit.start(marta, paolo)
+        val paoloId = kit.accountId(paolo.email)
+        var friday = kit.gatherings.today().plusDays(startOffset)
+        // From a Friday, with the days in one month, so that the sentences about the days are always the same.
+        while (friday.dayOfWeek != DayOfWeek.FRIDAY || friday.plusDays(days - 1L).month != friday.month) friday = friday.plusDays(1)
+        val id = kit.gatherings.make(
+            start = friday, end = friday.plusDays(days - 1L), status = status, full = full, daily = daily, lunchOnly = lunch, custodians = listOf(martaId, paoloId),
+        )
+        return Setup(id, kit.codeOf(id), browser, martaId, paoloId, friday)
+    }
+
+    /** The gathering of [setup] is closed and another one opens, from a fortnight later, with the same custodians: the year after. */
+    fun nextGathering(setup: Setup, status: GatheringStatus = GatheringStatus.`open`): Setup {
+        dsl.update(GATHERING).set(GATHERING.STATUS, GatheringStatus.closed).where(GATHERING.ID.eq(setup.id)).execute()
+        val friday = setup.friday.plusDays(14)
+        val id = kit.gatherings.make(title = "Convivenza dell’anno dopo", start = friday, end = friday.plusDays(2), status = status, custodians = listOf(setup.martaId, setup.paoloId))
+        return setup.copy(id = id, code = kit.codeOf(id), friday = friday)
+    }
+
+    /** A parent who has entered. */
+    fun parent(name: String = "genitore"): MockBrowser = kit.parent(Addresses.unique(name))
+
+    // ---- The fields of a form -------------------------------------------------------------------------------------------------
+
+    /** The fields of one block, as the page names them. */
+    fun child(
+        index: Int = 0,
+        first: String = "Luca",
+        last: String = "Rossi",
+        day: String = "4",
+        month: String = "4",
+        year: String = "2016",
+        presence: String = "all_days",
+        status: String = "confirmed",
+        vararg more: Pair<String, String>,
+    ): Map<String, String> {
+        val p = "children[$index]."
+        return mapOf(
+            p + "firstName" to first, p + "lastName" to last, p + "birthDay" to day, p + "birthMonth" to month, p + "birthYear" to year,
+            p + "presence" to presence, p + "status" to status,
+        ) + more.associate { (key, value) -> p + key to value }
+    }
+
+    /** A whole form: the phone and the blocks. */
+    fun form(vararg children: Map<String, String>, phone: String = "333 123 4567"): Map<String, String> =
+        children.fold(mapOf("phone" to phone)) { all, block -> all + block }
+
+    /** The boxes of step 2 ticked: the three, or the ones that are given. */
+    fun boxes(accept: Boolean = true, other: Boolean = true, religion: Boolean = true): Map<String, String> =
+        buildMap {
+            if (accept) put("acceptCustody", "true")
+            if (other) put("otherParent", "true")
+            if (religion) put("religionConsent", "true")
+        }
+
+    /**
+     * The request for the quota of a page, read from its HTML (criterion 5, design A 1/2, 10): each fieldset of the days says with `hx-params` which fields
+     * travel with a touch, and they must be exactly the ones marked `data-quota` and the CSRF code, so that nothing of the child (date of birth, phone,
+     * status, notes on health) goes to the server at every touch. The name and the surname go only with two blocks or more, for the lines of the card
+     * «Quota»; with one block nothing of the name travels. [blocks] is how many fieldsets the page must have. Returns the names that travel.
+     */
+    fun quotaRequestFields(html: String, blocks: Int): Set<String> {
+        val fieldsets = Regex("""<fieldset\b[^>]*\bhx-post="[^"]*/quota"[^>]*>""").findAll(html).map { it.value }.toList()
+        org.junit.jupiter.api.Assertions.assertEquals(blocks, fieldsets.size, "a fieldset of the days for each block")
+        assertTrue(Regex("""<input type="hidden" name="_csrf" """).containsMatchIn(html), "the CSRF code of the forms is called _csrf")
+        val marked = Regex("""<input\b[^>]*\bdata-quota\b[^>]*>""").findAll(html).map { Regex("""\bname="([^"]+)"""").find(it.value)!!.groupValues[1] }.toSet() + "_csrf" +
+            if (blocks > 1) (0 until blocks).flatMap { listOf("children[$it].firstName", "children[$it].lastName") } else emptyList()
+        var travelling = emptySet<String>()
+        for (tag in fieldsets) {
+            assertFalse(tag.contains("hx-include"), "hx-include adds fields, it takes none away: $tag")
+            val listed = Regex("""\bhx-params="([^"]*)"""").find(tag)?.groupValues?.get(1)?.split(',')?.toSet()
+            org.junit.jupiter.api.Assertions.assertEquals(marked, listed, "the fields that travel are the ones of the days: $tag")
+            travelling = listed.orEmpty()
+        }
+        val ofTheChild = Regex("""birth|status|allergies|intolerances|medications|phone|consent|Consent""" + if (blocks > 1) "" else "|firstName|lastName")
+        assertTrue(travelling.none { ofTheChild.containsMatchIn(it) }, "something of the child travels: $travelling")
+        return travelling
+    }
+
+    /** The fingerprint of the text that step 2 shows, read from its page. */
+    fun hashIn(html: String): String = checkNotNull(Regex("""name="textHash" value="([0-9a-f]{64})"""").find(html)?.groupValues?.get(1)) { "the page has no fingerprint of the text" }
+
+    /** The fields of step 2 as the browser sends them back: the hidden fields of the page and the boxes. */
+    fun hiddenFields(html: String): Map<String, String> =
+        Regex("""<input type="hidden" name="([^"]+)" value="([^"]*)">""").findAll(html)
+            .filter { it.groupValues[1] != "_csrf" }
+            .associate { it.groupValues[1] to unescape(it.groupValues[2]) }
+
+    private fun unescape(text: String): String = text.replace("&#39;", "'").replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+    /**
+     * A good form sent through the two steps by a parent, the way a person does: the first step, then the confirmation with the boxes and what the second
+     * step carries. Returns the answer to the confirmation.
+     */
+    fun register(parent: MockBrowser, setup: Setup, form: Map<String, String>, boxes: Map<String, String> = boxes()): org.springframework.test.web.servlet.MvcResult {
+        val second = parent.submit(setup.form, setup.form, form)
+        check(second.response.status == 200) { "the first step did not lead to the second: ${second.response.status}\n${second.response.contentAsString.take(3000)}" }
+        val html = second.response.contentAsString
+        return parent.submit(setup.form, "${setup.form}/conferma", hiddenFields(html) + ("textHash" to hashIn(html)) + boxes)
+    }
+
+    // ---- The tables -------------------------------------------------------------------------------------------------------------
+
+    fun registrationCount(gathering: Long): Int = dsl.fetchCount(REGISTRATION, REGISTRATION.GATHERING_ID.eq(gathering))
+
+    fun childCount(): Int = dsl.fetchCount(CHILD)
+
+    fun healthNoteCount(): Int = dsl.fetchCount(HEALTH_NOTE)
+
+    fun readingCount(): Int = dsl.fetchCount(HEALTH_NOTE_ACCESS)
+
+    fun accountId(email: String): Long = dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email)).fetchSingle(ACCOUNT.ID)!!
+
+    fun emailOf(accountId: Long): String = dsl.select(ACCOUNT.EMAIL).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchSingle(ACCOUNT.EMAIL)!!
+
+    /** The registrations of a gathering, by when they were made. */
+    fun registrations(gathering: Long): List<talita.jooq.tables.records.RegistrationRecord> =
+        dsl.selectFrom(REGISTRATION).where(REGISTRATION.GATHERING_ID.eq(gathering)).orderBy(REGISTRATION.ID).fetch()
+
+    fun daysOf(registration: Long): Map<LocalDate, String> =
+        dsl.select(REGISTRATION_DAY.DAY, REGISTRATION_DAY.KIND).from(REGISTRATION_DAY).where(REGISTRATION_DAY.REGISTRATION_ID.eq(registration))
+            .fetch().associate { it[REGISTRATION_DAY.DAY]!! to it[REGISTRATION_DAY.KIND]!!.literal }
+
+    /** The id of the registration of the child with this first name at the gathering. */
+    fun idOf(gathering: Long, firstName: String): Long =
+        dsl.select(REGISTRATION.ID).from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID))
+            .where(REGISTRATION.GATHERING_ID.eq(gathering)).and(CHILD.FIRST_NAME.eq(firstName)).fetchSingle(REGISTRATION.ID)!!
+
+    /** The gathering ended three days ago (a gathering over, in the state it was in). */
+    fun makeOver(gathering: Long) {
+        val today = kit.gatherings.today()
+        dsl.update(GATHERING).set(GATHERING.START_DATE, today.minusDays(5)).set(GATHERING.END_DATE, today.minusDays(3)).where(GATHERING.ID.eq(gathering)).execute()
+    }
+
+    fun setState(gathering: Long, status: GatheringStatus) {
+        dsl.update(GATHERING).set(GATHERING.STATUS, status).where(GATHERING.ID.eq(gathering)).execute()
+    }
+
+    fun setStatus(registration: Long, status: RegistrationStatus) {
+        dsl.update(REGISTRATION).set(REGISTRATION.STATUS, status).where(REGISTRATION.ID.eq(registration)).execute()
+    }
+}
+
+/**
+ * Children and registrations made straight in the tables, like registrations made yesterday: the set-up of the tests that are not about making them
+ * (the pages of the parent and of the teachers, in a browser). The way in of the people is still the real one. Names and dates are synthetic.
+ */
+class RegistrationRows(private val dsl: DSLContext, private val clock: Clock) {
+
+    /**
+     * A registration at [gathering]. With an [owner] it is an online one, with the text accepted ([custody]) and the address of the parent; without,
+     * a paper one typed in by [enteredBy]. [days] are the days of a registration of some days (`full` or `lunch`). Returns the id.
+     */
+    fun register(
+        gathering: Long,
+        owner: Long?,
+        first: String = "Luca",
+        last: String = "Rossi",
+        birth: LocalDate = LocalDate.of(2016, 4, 4),
+        phone: String = "333 123 4567",
+        status: RegistrationStatus = RegistrationStatus.confirmed,
+        days: Map<LocalDate, String>? = null,
+        custody: String = "Affidamento di figli minorenni\n\nTesto di prova accettato da $first $last.",
+        email: String = "nome@example.org",
+        enteredBy: Long? = null,
+        paperReceived: Boolean = false,
+        notes: Notes? = null,
+        notesOnPaper: Boolean = false,
+        at: OffsetDateTime = OffsetDateTime.now(clock),
+    ): Long {
+        val childId = dsl.insertInto(CHILD).set(CHILD.ACCOUNT_ID, owner).set(CHILD.FIRST_NAME, first).set(CHILD.LAST_NAME, last).set(CHILD.BIRTH_DATE, birth)
+            .returningResult(CHILD.ID).fetchSingle().value1()!!
+        val id = dsl.insertInto(REGISTRATION)
+            .set(REGISTRATION.GATHERING_ID, gathering)
+            .set(REGISTRATION.CHILD_ID, childId)
+            .set(REGISTRATION.ACCOUNT_ID, owner)
+            .set(REGISTRATION.PHONE, phone)
+            .set(REGISTRATION.ATTENDANCE, if (days == null) RegistrationAttendance.all_days else RegistrationAttendance.days)
+            .set(REGISTRATION.STATUS, status)
+            .set(REGISTRATION.CUSTODY_TEXT, if (owner != null) custody else null)
+            .set(REGISTRATION.CUSTODY_TEXT_VERSION, if (owner != null) CustodyText.VERSION else null)
+            .set(REGISTRATION.CUSTODY_ACCEPTED_AT, if (owner != null) at else null)
+            .set(REGISTRATION.CUSTODY_ACCEPTED_BY_EMAIL, if (owner != null) email else null)
+            .set(REGISTRATION.CUSTODY_RELIGION_CONSENT, owner != null)
+            .set(REGISTRATION.PAPER_FORM_RECEIVED, paperReceived)
+            .set(REGISTRATION.ENTERED_BY_ACCOUNT_ID, if (owner == null) enteredBy else null)
+            .set(REGISTRATION.CREATED_AT, at)
+            .set(REGISTRATION.UPDATED_AT, at)
+            .returningResult(REGISTRATION.ID).fetchSingle().value1()!!
+        days?.forEach { (day, kind) ->
+            dsl.insertInto(REGISTRATION_DAY).set(REGISTRATION_DAY.REGISTRATION_ID, id).set(REGISTRATION_DAY.DAY, day)
+                .set(REGISTRATION_DAY.KIND, DayKind.ofCode(kind)!!.column).execute()
+        }
+        if (notes != null) {
+            dsl.insertInto(HEALTH_NOTE)
+                .set(HEALTH_NOTE.REGISTRATION_ID, id)
+                .set(HEALTH_NOTE.ALLERGIES, notes.allergies)
+                .set(HEALTH_NOTE.INTOLERANCES, notes.intolerances)
+                .set(HEALTH_NOTE.MEDICATIONS, notes.medications)
+                .set(HEALTH_NOTE.CONSENT_AT, at)
+                .set(HEALTH_NOTE.CONSENT_BY_ACCOUNT_ID, if (notesOnPaper) null else owner)
+                .set(HEALTH_NOTE.CONSENT_ON_PAPER, notesOnPaper)
+                .execute()
+        }
+        return id
+    }
+}

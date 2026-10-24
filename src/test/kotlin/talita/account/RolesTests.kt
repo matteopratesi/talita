@@ -60,7 +60,7 @@ class RolesTests(
             assertEquals(200, status(path, session), path)
             assertEquals(listOf("Home", "Convivenza", "Iscrizioni", "Arrivi"), navigation(html(path, session)), path)
         }
-        assertEquals("Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo.", Regex("""<p class="mt-2 max-w-sm text-ink-muted">(.*?)</p>""").find(html("/iscrizioni", session))?.groupValues?.get(1))
+        assertEquals("Iscrizioni", Regex("""<h1[^>]*>(.*?)</h1>""").find(html("/iscrizioni", session))?.groupValues?.get(1))
         // The home of the teacher: the three sections of the list, the welcome of always.
         val home = html("/", session)
         assertTrue(home.contains("Talità raccoglie le iscrizioni alla convivenza dei bambini e aiuta i maestri a organizzarla."))
@@ -78,7 +78,9 @@ class RolesTests(
         assertEquals("Talità", title(home))
         assertEquals("Ti diamo il benvenuto", heading(home))
         assertTrue(home.contains("Qui iscrivi i tuoi figli alla convivenza e controlli le loro iscrizioni."))
-        assertTrue(home.contains("<strong>Talità è in costruzione.</strong> Le iscrizioni arriveranno presto."))
+        // A parent who has registered nobody is told how to: the link of the teachers (TALITA-5). The home no longer says «in costruzione» to a parent.
+        assertTrue(home.contains("Non hai ancora iscritto nessun bambino. Per farlo, apri il link che ti hanno mandato i maestri."))
+        assertFalse(home.contains("in costruzione"))
         assertTrue(home.contains(">Cosa trovi qui</h2>"))
         // The list has only the registrations, with the line for a parent.
         assertEquals(listOf("/iscrizioni"), Regex("""<a href="(/[a-z]+)" class="flex min-h-16""").findAll(home).map { it.groupValues[1] }.toList())
@@ -88,7 +90,8 @@ class RolesTests(
         val registrations = html("/iscrizioni", session)
         assertEquals("Iscrizioni · Talità", title(registrations))
         assertEquals("Iscrizioni", heading(registrations))
-        assertTrue(registrations.contains("Qui troverai le iscrizioni dei tuoi figli."))
+        assertTrue(registrations.contains(">Nessuna iscrizione</h2>"))
+        assertTrue(registrations.contains("Quando iscrivi un bambino, lo trovi qui con i giorni, la quota e lo stato. Per iscriverlo apri il link che ti hanno mandato i maestri."))
         assertFalse(registrations.contains("modulo cartaceo"))
         assertEquals(listOf("Home", "Iscrizioni"), navigation(registrations))
         assertTrue(Regex("""<a href="/iscrizioni" aria-current="page"""").containsMatchIn(registrations))
@@ -238,30 +241,47 @@ class RolesTests(
         }
         assertEquals(listOf("AccessHandlers.kt", "CurrentAccountFilter.kt", "CurrentAccounts.kt"), readers)
         // The addresses of the teachers: one list, read by the security configuration.
-        assertEquals(listOf("/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome"), TeacherPaths.patterns)
+        assertEquals(
+            listOf(
+                "/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome",
+                "/iscrizioni/nuova", "/iscrizioni/nuova/quota", "/iscrizioni/{id:[0-9]+}", "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni", "/iscrizioni/{id:[0-9]+}/correggi",
+                "/iscrizioni/{id:[0-9]+}/correggi/quota", "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni", "/iscrizioni/{id:[0-9]+}/manleva",
+            ),
+            TeacherPaths.patterns,
+        )
         assertTrue(Files.readString(Path.of("src/main/kotlin/talita/account/SecurityConfiguration.kt")).contains("TeacherPaths.patterns.forEach"))
     }
 
     @Test
     fun `t3 c38 a parent is tried on every address of the teachers, with a page and with a form`() {
         val session = signIn.session()
-        val concrete = listOf(
-            "/convivenza", "/convivenza/x", "/convivenza/x/y", "/arrivi", "/arrivi/x", "/maestri", "/maestri/x", "/maestri/x/y",
-            // The correction of the name that a teacher makes in the profile: one address, not a branch.
-            "/profilo/nome",
-        )
         // Every pattern of the rule is covered by an address here, and every address here by a pattern.
-        assertEquals(
-            TeacherPaths.patterns.toSet(),
-            concrete.map { if (it == "/profilo/nome") it else "/" + it.removePrefix("/").substringBefore("/") + "/**" }.toSet(),
+        val byPattern = mapOf(
+            "/convivenza/**" to listOf("/convivenza", "/convivenza/x", "/convivenza/x/y"),
+            "/arrivi/**" to listOf("/arrivi", "/arrivi/x"),
+            "/maestri/**" to listOf("/maestri", "/maestri/x", "/maestri/x/y"),
+            // The correction of the name that a teacher makes in the profile: one address, not a branch.
+            "/profilo/nome" to listOf("/profilo/nome"),
+            // The registrations of the teachers (TALITA-5): the paper form, the detail with its notes, the corrections and the manleva.
+            "/iscrizioni/nuova" to listOf("/iscrizioni/nuova"),
+            "/iscrizioni/nuova/quota" to listOf("/iscrizioni/nuova/quota"),
+            "/iscrizioni/{id:[0-9]+}" to listOf("/iscrizioni/12"),
+            "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni" to listOf("/iscrizioni/12/mostra-segnalazioni"),
+            "/iscrizioni/{id:[0-9]+}/correggi" to listOf("/iscrizioni/12/correggi"),
+            "/iscrizioni/{id:[0-9]+}/correggi/quota" to listOf("/iscrizioni/12/correggi/quota"),
+            "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni" to listOf("/iscrizioni/12/correggi-segnalazioni"),
+            "/iscrizioni/{id:[0-9]+}/manleva" to listOf("/iscrizioni/12/manleva"),
         )
+        assertEquals(TeacherPaths.patterns.toSet(), byPattern.keys)
+        val concrete = byPattern.values.flatten()
 
         for (path in concrete) {
             assertTrue(TeacherPaths.matches(path), path)
             assertEquals(403, mockMvc.get(path) { this.session = session }.andReturn().response.status, "GET $path")
             assertEquals(403, mockMvc.post(path) { this.session = session; with(csrf()) }.andReturn().response.status, "POST $path")
         }
-        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/profilo", "/profilo/altro", "/invito")) {
+        // Open to every account: the home, the list (which is the cards of a parent), what a parent does with an id of their own, the profile.
+        for (path in listOf("/", "/iscrizioni", "/iscrizioni/x", "/iscrizioni/12/modifica", "/iscrizioni/12/segnalazioni", "/iscrizioni/12/segnalazioni/togli", "/iscrizioni/12/ritira", "/iscrizioni/12/modifica/quota", "/profilo", "/profilo/altro", "/invito")) {
             assertFalse(TeacherPaths.matches(path), path)
         }
     }

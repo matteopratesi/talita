@@ -11,7 +11,7 @@ package talita.ui
  * parent (`TeacherPaths`), so the navigation and the rule say the same thing.
  *
  * @property summary the line under the section in the list of the home page of a teacher
- * @property placeholder the sentence of the "in preparation" page of a teacher, until the section exists (none for the gathering, which exists)
+ * @property placeholder the sentence of the "in preparation" page of a teacher, until the section exists (none for the gathering and the registrations, which exist)
  * @property visibleToParents whether the entry is in the navigation of a parent
  * @property parentSummary the line under the section in the home of a parent
  * @property parentPlaceholder the sentence of the "in preparation" page of a parent
@@ -34,9 +34,7 @@ enum class Section(
     ISCRIZIONI(
         "Iscrizioni", "/iscrizioni", Icon.USERS_ROUND, visibleToParents = true,
         summary = "I bambini iscritti, anche quelli dal modulo cartaceo.",
-        placeholder = "Qui troverai i bambini iscritti e potrai inserire le iscrizioni arrivate sul modulo cartaceo.",
         parentSummary = "Le iscrizioni dei tuoi figli.",
-        parentPlaceholder = "Qui troverai le iscrizioni dei tuoi figli.",
     ),
     ARRIVI(
         "Arrivi", "/arrivi", Icon.CLIPBOARD_CHECK, visibleToParents = false,

@@ -1,6 +1,7 @@
 @import talita.ui.AlertVariant
 @import talita.ui.HomeEntry
 @import talita.ui.HomePage
+@import talita.ui.HomeRegistration
 @import talita.ui.Icon
 @import talita.ui.Shell
 @param Shell shell
@@ -26,7 +27,18 @@
   @endif
 
   @if(page.getParent())
-    @template.components.alert(content = @`<strong>Talità è in costruzione.</strong> Le iscrizioni arriveranno presto.`)
+    @if(page.getRegistrations().isEmpty())
+      @template.components.alert(content = @`Non hai ancora iscritto nessun bambino. Per farlo, apri il link che ti hanno mandato i maestri.`)
+    @else
+      <section aria-labelledby="iscrizioni-tue">
+        <h2 id="iscrizioni-tue" class="mb-3 text-xl font-semibold tracking-tight">Le tue iscrizioni</h2>
+        <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+          @for(HomeRegistration row : page.getRegistrations())
+            <li>@template.components.listLink(href = "/iscrizioni", icon = Icon.CALENDAR_DAYS, title = row.getTitle(), meta = row.getDetail(), badges = row.getBadges())</li>
+          @endfor
+        </ul>
+      </section>
+    @endif
   @else
     @template.components.alert(content = @`<strong>Talità è in costruzione.</strong> Le sezioni arriveranno una alla volta.`)
   @endif
