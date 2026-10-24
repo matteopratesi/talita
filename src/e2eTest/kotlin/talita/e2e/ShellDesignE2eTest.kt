@@ -12,14 +12,12 @@ import kotlin.test.assertTrue
 class ShellDesignE2eTest {
 
     private val sections = listOf(
-        // path, name, summary on the home, sentence of the placeholder (none for the gathering, which has its page: GatheringE2eTest)
-        Quadruple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori.", null),
-        // The registrations have their pages (TALITA-5, in EnrollmentE2eTest and MineE2eTest): the row of the home is the only thing that stays here.
-        Quadruple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo.", null),
-        Quadruple("/arrivi", "Arrivi", "Chi è arrivato e le liste da stampare.", "Qui potrai segnare chi è arrivato e stampare le liste."),
+        // path, name, summary on the home. Every section has its pages (the gathering in GatheringE2eTest, the registrations in EnrollmentE2eTest and MineE2eTest,
+        // the arrivals in ArrivalsE2eTest): the row of the home is the only thing that stays here.
+        Triple("/convivenza", "Convivenza", "Le date, i maestri e le informazioni per i genitori."),
+        Triple("/iscrizioni", "Iscrizioni", "I bambini iscritti, anche quelli dal modulo cartaceo."),
+        Triple("/arrivi", "Arrivi", "Chi è arrivato e le liste da stampare."),
     )
-
-    private data class Quadruple(val path: String, val name: String, val summary: String, val placeholder: String?)
 
     @E2eTest
     fun `the home shows the texts of the design`(e2e: E2e) {
@@ -37,27 +35,9 @@ class ShellDesignE2eTest {
         val rows = page.locator("main section ul a")
         assertEquals(sections.size, rows.count(), "rows of the list of the sections")
         for ((index, section) in sections.withIndex()) {
-            assertThat(rows.nth(index)).hasAttribute("href", section.path)
-            assertThat(rows.nth(index)).containsText(section.name)
-            assertThat(rows.nth(index)).containsText(section.summary)
-        }
-    }
-
-    @E2eTest
-    fun `every section that is not ready shows its empty state, with the text of the design and no buttons`(e2e: E2e) {
-        val page = e2e.page
-        for (section in sections.filter { it.placeholder != null }) {
-            e2e.open(section.path)
-            val where = section.path
-
-            assertThat(page).hasTitle("${section.name} · Talità")
-            assertThat(page.locator("h1")).hasText(section.name)
-            assertThat(page.locator("main h2").first()).hasText("In preparazione")
-            assertThat(page.locator("main")).containsText(section.placeholder!!)
-            assertEquals(0, page.locator("main a, main button").count(), "$where: the empty state has no buttons")
-            // The current entry is the one of the section, and only that one.
-            assertThat(page.locator("nav a[aria-current=page]")).hasText(section.name)
-            assertThat(page.locator("nav [aria-current]")).hasCount(1)
+            assertThat(rows.nth(index)).hasAttribute("href", section.first)
+            assertThat(rows.nth(index)).containsText(section.second)
+            assertThat(rows.nth(index)).containsText(section.third)
         }
     }
 
@@ -98,8 +78,8 @@ class ShellDesignE2eTest {
         val styles = page.evaluate(
             """() => {
                 const s = (el, p) => getComputedStyle(el)[p];
-                const current = document.querySelector('nav a[aria-current=page]');
-                const other = document.querySelector('nav a:not([aria-current])');
+                const current = document.querySelector('body > nav a[aria-current=page]');
+                const other = document.querySelector('body > nav a:not([aria-current])');
                 const h1 = document.querySelector('h1');
                 return {
                     bodySize: s(document.body, 'fontSize'), bodyBg: s(document.body, 'backgroundColor'),
@@ -171,7 +151,7 @@ class ShellDesignE2eTest {
         assertTrue(nav.height in 64.0..66.0, "navigation: $nav")
 
         // The four entries share the width equally.
-        val widths = page.locator("nav a").all().map { it.box().width }
+        val widths = page.mainNavigation().locator("a").all().map { it.box().width }
         assertTrue(widths.max() - widths.min() < 1, "entries of different width: $widths")
 
         // Scrolling down, the header stays at the top.
@@ -210,7 +190,7 @@ class ShellDesignE2eTest {
         assertTrue(left >= 40, "margin of the page: $left")
 
         // The entries are one under the other.
-        val ys = page.locator("nav a").all().map { it.box().y }
+        val ys = page.mainNavigation().locator("a").all().map { it.box().y }
         assertEquals(ys.sorted(), ys)
         assertEquals(ys.size, ys.toSet().size)
     }

@@ -32,6 +32,9 @@
     @if(page.getInserting())
       <input type="hidden" name="convivenza" value="${page.getGatheringId()}" data-quota>
     @endif
+    @if(page.getFromArrivals())
+      <input type="hidden" name="ritorno" value="arrivi">
+    @endif
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="modulo-titolo">
       <h2 id="modulo-titolo" class="text-lg font-semibold">${page.getInserting() ? "Il modulo" : "I dati dell’iscrizione"}</h2>
       <div class="mt-4 space-y-5">

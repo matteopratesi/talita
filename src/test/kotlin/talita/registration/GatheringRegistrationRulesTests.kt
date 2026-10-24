@@ -49,6 +49,7 @@ class GatheringRegistrationRulesTests(
     @Autowired private val clock: Clock,
     @Autowired private val gatherings: Gatherings,
     @Autowired private val usage: RegistrationUsage,
+    @Autowired private val arrivals: talita.gathering.ArrivalUsage,
 ) {
 
     private val kit = RegistrationTestKit(mockMvc, tokens, dsl, clock)
@@ -279,7 +280,7 @@ class GatheringRegistrationRulesTests(
                 }
             }
             assertTrue(sharing.await(10, TimeUnit.SECONDS))
-            val changing = pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, "Casa per ritiri di esempio", usage) }
+            val changing = pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, "Casa per ritiri di esempio", usage, arrivals) }
             Thread.sleep(700)
             assertFalse(changing.isDone, "the change of the dates waits for the registration that is being made")
             finish.countDown()

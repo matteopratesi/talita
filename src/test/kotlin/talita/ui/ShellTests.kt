@@ -108,20 +108,14 @@ class ShellTests(
     }
 
     @Test
-    fun `the section that is not ready has its placeholder page with its text and as the current entry`() {
-        val expected = mapOf(
-            "/arrivi" to ("Arrivi" to "Qui potrai segnare chi è arrivato e stampare le liste."),
-        )
-        for ((path, texts) in expected) {
-            val (name, sentence) = texts
-            val html = html(path)
+    fun `no section is in preparation any more, and the arrivals have their own page, as the current entry`() {
+        // The last placeholder went with the check-in (TALITA-6): a section whose page is not ready does not exist any more.
+        val html = html("/arrivi")
 
-            assertEquals("$name · Talità", title(html), path)
-            assertEquals(name, heading(html), path)
-            assertTrue(html.contains(">In preparazione</h2>"), path)
-            assertTrue(html.contains(sentence), path)
-            assertEquals(listOf(path), currentEntries(html), path)
-        }
+        assertEquals("Arrivi · Talità", title(html))
+        assertEquals("Arrivi", heading(html))
+        assertFalse(html.contains("In preparazione"), "the page of the arrivals is not a placeholder")
+        assertEquals(listOf("/arrivi"), currentEntries(html))
     }
 
     @Test

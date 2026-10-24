@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Elenco per la struttura · Talità</title>
+<link rel="stylesheet" href="talita-6.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-6: dati e testi sintetici, nessuna risorsa esterna. Criterio 25. Scelto un giorno, i bambini sono quelli presenti quel giorno. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">MB</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg></span><span class="nav__label">Convivenza</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+      <li><a href="arrivi.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg></span><span class="nav__label">Arrivi</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container container--wide">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Elenco per la struttura</h1>
+      <p class="lead">Convivenza di settembre 2027 · 17–19 settembre 2027</p>
+    </div>
+    <div class="toolbar no-print">
+      <form class="pick no-print" method="get" action="elenco.html">
+        <label class="label" for="chi">Chi mettere fra i bambini</label>
+        <div class="select-wrap"><select class="select" id="chi" name="giorno"><option value="">Tutte le iscrizioni confermate</option><option value="2027-09-17">Presenti venerdì 17 settembre</option><option value="2027-09-18" selected>Presenti sabato 18 settembre</option><option value="2027-09-19">Presenti domenica 19 settembre</option></select><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></div>
+        <div class="actions"><button class="btn btn--secondary btn--block" type="submit">Aggiorna l’elenco</button></div>
+      </form>
+      <div class="actions"><button class="btn btn--primary btn--block" type="button" data-azione="stampa"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /><rect x="6" y="14" width="12" height="8" rx="1" /></svg>Stampa</button></div>
+      <p class="toolbar__help">Contiene solo nome e cognome, per chi ospita la convivenza. Stampa su A4, in verticale.</p>
+    </div><p class="doc__meta">Stampato il 18 settembre 2027 alle 7:30.</p><h2 class="doc__title">Bambini presenti sabato 18 settembre · 14</h2><div class="scroll-x"><div class="blocco-stampa"><table class="tabella-stampa tabella-stampa--elenco"><caption>Elenco per la struttura · pagina 1 di 2</caption><thead><tr><th class="col-cognome" scope="col">Cognome</th><th scope="col">Nome</th></tr></thead><tbody><tr><td class="nome">Amato</td><td>Ilaria</td></tr><tr><td class="nome">Bruni</td><td>Riccardo</td></tr><tr><td class="nome">Conti</td><td>Sofia</td></tr><tr><td class="nome">Costa</td><td>Davide</td></tr><tr><td class="nome">Fabbri</td><td>Beatrice</td></tr><tr><td class="nome">Ferri</td><td>Giulia</td></tr><tr><td class="nome">Galli</td><td>Pietro</td></tr><tr><td class="nome">Giordano</td><td>Noemi</td></tr><tr><td class="nome">Greco</td><td>Tommaso</td></tr><tr><td class="nome">Longo</td><td>Federico</td></tr><tr><td class="nome">Moretti</td><td>Samuele</td></tr><tr><td class="nome">Pace</td><td>Ginevra</td></tr><tr><td class="nome">Villa</td><td>Aurora</td></tr><tr><td class="nome">Vitale</td><td>Alice</td></tr></tbody></table></div></div><h2 class="doc__title">Maestri · 2</h2><div class="scroll-x"><div class="blocco-stampa"><table class="tabella-stampa tabella-stampa--elenco"><caption>Elenco per la struttura · pagina 2 di 2</caption><thead><tr><th class="col-cognome" scope="col">Cognome</th><th scope="col">Nome</th></tr></thead><tbody><tr><td class="nome">Bianchi</td><td>Marta</td></tr><tr><td class="nome">Verdi</td><td>Paolo</td></tr><tr class="riga-vuota"><td></td><td></td></tr><tr class="riga-vuota"><td></td><td></td></tr><tr class="riga-vuota"><td></td><td></td></tr></tbody></table></div></div><p class="doc__foot">Gli adulti in più si scrivono a mano nelle righe vuote.</p>
+  </div>
+</main>
+</body>
+</html>

@@ -19,8 +19,8 @@ veri con i ticket indicati.
     con data e ora (il testo esatto, e l'indirizzo email di quel momento); anche i genitori **senza account**, che hanno
     compilato il modulo cartaceo, per il recapito che i maestri copiano dal modulo (il consenso alle segnalazioni resta sulla carta);
   - i **bambini**, che sono minori: nome e cognome, data di nascita, giorni di
-    presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, arrivi e quota pagata;
-  - i **maestri**: email dell'account, nome e cognome.
+    presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, presenze per giorno e pagamenti (TALITA-6);
+  - i **maestri**: email dell'account, nome e cognome, e, come chi ha segnato una presenza o registrato un pagamento, l'account che lo ha fatto (TALITA-6).
 
 ## Natura dei dati
 
@@ -42,6 +42,8 @@ verificare prima del rilascio (sotto).
 - **Iscrizione e organizzazione della convivenza** (dati comuni di genitori, bambini e maestri): è
   il servizio chiesto dal genitore con l'iscrizione. Ipotesi: esecuzione della richiesta
   dell'interessato (art. 6.1.b).
+- **Presenze e pagamenti** (TALITA-6): sono il servizio chiesto dal genitore con l'iscrizione, che serve a sapere chi c'è ogni giorno e quanto è stato pagato.
+  Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b), come per l'iscrizione; da verificare.
 - **Segnalazioni** (dati sanitari): **consenso esplicito** del genitore (art. 9.2.a), distinto
   dall'iscrizione, facoltativo e revocabile. Senza consenso la segnalazione non si raccoglie.
 - **Convinzioni religiose che si possono dedurre**: in Koinè la base è l'art. 9.2.d, che vale per un
@@ -69,6 +71,10 @@ CLAUDE.md). Niente analytics, CDN, font o script esterni: lo garantisce anche un
 | Hosting: Oracle Cloud Always Free, regione UE | Tutti i dati dell'app, nel database | Senza Pay As You Go: nessun costo possibile. Matteo, come titolare, accetta l'accordo sul trattamento dei dati (art. 28) quando apre l'account (TALITA-9). |
 | Invio email: Mailjet (Parigi, piano gratuito) | Indirizzo email del destinatario e testo del messaggio (il magic link, gli inviti) | Stessa cosa per l'accordo (TALITA-9). **Senza tracciamento di aperture e clic**: ogni mail porta le intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`, e il tracciamento si spegne anche nell'account (TALITA-9). Solo testo, senza immagini né link rimandati da Mailjet. |
 | Backup cifrati fuori sede | Una copia del database, **cifrata prima di lasciare la macchina**, con la chiave che resta al titolare | Fornitore da scegliere in TALITA-8. |
+
+**La struttura che ospita la convivenza** (TALITA-6) non è un fornitore dell'app: riceve **su carta** l'elenco per la struttura, con **solo nome e cognome**
+dei bambini e dei maestri affidatari, e niente altro (né recapiti, né segnalazioni, né quote). È un destinatario dei dati e va detto nell'informativa breve e in
+quella completa (`Chi li riceve`, TALITA-5): lo dicono entrambe. Quando la struttura avrà un suo modulo, si modella in un ticket a parte.
 
 Non ricevono dati personali degli interessati: il dominio e il servizio DNS (conoscono solo il nome
 del sito), GitHub e la CI (solo codice e dati sintetici) e Jira (nei ticket mai dati personali).
@@ -118,7 +124,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
 - **Segnalazioni** in una tabella separata, visibili ai maestri della convivenza e al genitore che le ha scritte e a nessun altro, con ogni lettura dei maestri
   registrata (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
   - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
-    un'altra classe usa le tabelle che jOOQ genera; il check-in e le cancellazioni passeranno di lì;
+    un'altra classe usa le tabelle che jOOQ genera; il check-in (TALITA-6) passa di lì e le cancellazioni (TALITA-7) passeranno di lì;
   - **il contenuto si vede solo a richiesta**: l'elenco e il dettaglio dei maestri non dicono nemmeno se ci sono segnalazioni; «Mostra le
     segnalazioni» scrive la lettura (maestro, iscrizione, data e ora) **prima** di rispondere, nella stessa transazione, e se non riesce a
     scriverla non si vede niente. Ogni risposta con segnalazioni e ogni modifica fatta da un maestro è una riga del registro; le letture del
@@ -134,11 +140,39 @@ Previste dal progetto, con il ticket in cui diventano vere:
   iscrizioni; a un indirizzo con un codice che non si indovina, mai indicizzata (`noindex` nella pagina e nell'intestazione), mai
   conservata (`Cache-Control`), senza cookie, senza script e senza nulla caricato da altri indirizzi; chi la riceve da un'app di
   messaggi vede un'anteprima con titolo, date e luogo e nessuna immagine. A convivenza finita dice solo titolo e date.
+- **Check-in e stampe** (TALITA-6): Arrivi, la scheda del bambino e le tre stampe sono solo per i maestri (403 a un genitore, anche a mano, con un test su ogni
+  indirizzo; un id che non esiste o che è di un'altra convivenza è una pagina che non esiste).
+  - **il filtro per nome gira nel browser** (`app.js`, sui nomi che sono già nella pagina): nessun nome negli indirizzi web né nei log, che a livello INFO e oltre
+    non hanno nomi, recapiti, importi né segnalazioni; l'elenco per la struttura prende nell'indirizzo solo un giorno della convivenza;
+  - **le segnalazioni** si leggono solo dalla classe che registra la lettura: «Mostra le segnalazioni» scrive la lettura (maestro, iscrizione, data e ora) e poi le mostra
+    **solo in quella risposta**; dopo qualunque altra azione la scheda è chiusa, e se la lettura non si scrive non si vede niente. Niente in lista, riepilogo, scheda
+    chiusa e stampe dice se un bambino ha segnalazioni: le stampe non le leggono, e quindi non possono scrivere una lettura;
+  - **ogni presenza e ogni pagamento ha il maestro che l'ha scritto e il momento**; i pagamenti non si riscrivono: uno sbagliato si toglie, e togliendolo sparisce con i
+    suoi dati;
+  - **le due informative lo dicono** (commento di CodeRabbit sulla PR di TALITA-6): quella completa elenca presenze e pagamenti fra i dati raccolti, fra gli scopi, fra
+    le cose che vedono solo i maestri e fra i tempi di conservazione; quella breve, al passo 2, li nomina in «A cosa servono» e in «Per quanto tempo». Un test (`t6 c31`)
+    lo verifica;
+  - **niente copie dei dati nel telefono**: nessun service worker e nessuna lista che si tenga offline; una pagina già aperta si stampa senza rete, ma per aprirla serve la
+    rete (la riserva è la carta, stampata prima di partire). Le pagine di Arrivi non si tengono nel browser (`Cache-Control: no-store`).
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
 - **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7).
 - **Sviluppo con dati sintetici**, mai dati reali in locale né nel repo; il database di produzione si
   tocca solo sul server. Il repo è pubblico: una build fallisce se ci sono PDF, documenti Office o
   immagini fuori dai posti previsti, e su GitHub sono attivi secret scanning e push protection.
+
+## Carta
+
+Le stampe di TALITA-6 portano **data e ora di stampa** su ogni documento e non hanno mai un testo libero. Che cosa contengono, e cosa se ne fa:
+
+| Stampa | Contenuto | Dopo l'uso |
+| --- | --- | --- |
+| **Registro arrivi** | per ogni iscrizione non ritirata: nome del bambino, giorni (con le presenze già segnate), quota dovuta, pagato, manleva, indicazioni dell'app (in forse, dal cartaceo, possibile doppione, giorno non previsto), spazio per scrivere a mano, totali. **Niente recapiti, niente segnalazioni** | lo conserva il titolare fra i documenti della convivenza, come quello dell'app: un anno |
+| **Elenco per la struttura** | solo cognome e nome dei bambini (confermati, o presenti in un giorno) e dei maestri affidatari, con righe vuote per gli altri adulti. **Nient'altro** | resta alla struttura |
+| **Foglio per i maestri** | nome del bambino e recapito del genitore, con la frase che dice di tenerlo fra i maestri. **Niente segnalazioni** | si distrugge alla fine della convivenza |
+
+**Segnalazioni su carta: no.** Matteo ha risposto no alla domanda 6 di TALITA-6: nessuna stampa le contiene (nemmeno il foglio per i maestri), quindi **non c'è
+nessuna deroga** alla regola 4 e le segnalazioni non escono dalla loro tabella. Senza rete le segnalazioni non si leggono dall'app (per i bambini iscritti dal
+cartaceo c'è il modulo di carta). La stampa non scrive nessuna lettura, perché non legge nessuna segnalazione.
 
 ## Conservazione
 
@@ -148,6 +182,8 @@ Tempi di TALITA-7:
   lettura registrata;
 - **iscrizione e manleva** (il testo accettato, con data, ora e indirizzo) e **registro delle letture**: tenuti **un anno** (il registro, un anno dalla
   fine: domanda approvata in TALITA-5);
+- **presenze e pagamenti** (TALITA-6): vanno via **con l'iscrizione** (cancellazione a cascata), quindi con la manleva, dopo un anno; il registro di carta lo conserva il
+  titolare per lo stesso tempo, il foglio per i maestri si distrugge alla fine della convivenza e l'elenco resta alla struttura;
 - **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole (TALITA-7); i bambini delle iscrizioni dal
   cartaceo non servono l'anno dopo e vanno via con la loro iscrizione; il recapito telefonico sta nella riga dell'iscrizione e per ora ne segue i tempi (un
   anno, come dice l'informativa breve): se debba andare via prima è da fissare con TALITA-7, qui sotto.
@@ -170,13 +206,15 @@ Il recapito del titolare non è più assegnato a TALITA-4.
 I testi devono contenere:
 
 - chi è il titolare e come contattarlo;
-- quali dati si raccolgono e a quale scopo, in parole di tutti i giorni;
+- quali dati si raccolgono e a quale scopo, in parole di tutti i giorni, **comprese le presenze segnate giorno per giorno e i pagamenti** (giorno o importo, ora e
+  maestro che li ha segnati: TALITA-6), e che li vedono solo i maestri;
 - la base su cui si trattano, e la distinzione fra l'iscrizione (necessaria) e le parti facoltative (art. 13.2.e: cosa succede se mancano);
 - **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile; e il consenso per le convinzioni religiose deducibili, che è
   un'**ipotesi di lavoro**: la casella c'è nell'iscrizione e nelle informative finché la verifica di «Prima del rilascio» (con la DPIA) non decide se
   serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
-- per quanto tempo si conservano;
+- per quanto tempo si conservano, **anche per presenze e pagamenti**: vanno via con l'iscrizione, un anno dopo la fine della convivenza (TALITA-7 ne prende il tempo da
+  `RetentionPolicy`);
 - i diritti dell'interessato e come esercitarli, e il reclamo al Garante;
 - che l'accettazione dell'affidamento comprende la dichiarazione che anche l'altro genitore è d'accordo (o che la responsabilità genitoriale è
   di uno solo), che data e ora si registrano, e che la dichiarazione **non sostituisce** il loro accordo.
@@ -207,6 +245,8 @@ ancora un segnaposto):
   segnalazioni; va allineato all'app, oppure l'eccezione va scritta in `docs/02-modello-dati.md` e qui, prima di usare l'inserimento dal cartaceo;
 - **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`;
 - **il registro dei trattamenti**, dovuto perché ci sono dati sanitari;
+- **le stampe di Arrivi da Safari su iPhone** (lo prova Matteo, perché la prova automatica usa Chromium): registro, elenco e foglio su A4, con i titoli delle
+  colonne su ogni foglio e senza righe spezzate (TALITA-6);
 - l'indirizzo vero del titolare (TALITA-9).
 
 ## Diritti degli interessati

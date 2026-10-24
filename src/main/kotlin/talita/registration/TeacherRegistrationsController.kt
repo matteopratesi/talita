@@ -28,6 +28,9 @@ import talita.ui.Flash
 import talita.ui.Section
 import talita.ui.ShellFactory
 
+/** The value of `ritorno` that says the paper form was opened from the arrivals: a word, no data. */
+private const val ARRIVALS = "arrivi"
+
 /** A row of the list of the teachers (criterion 20): the whole row leads to the detail. Nothing here is about health. */
 data class TeacherRow(val href: String, val initials: String, val name: String, val status: Badge, val manleva: Badge?, val duplicate: Boolean, val line: String)
 
@@ -86,6 +89,8 @@ data class TeacherDetailPage(
     val readings: List<ReadingView>,
     val alert: Alert?,
     val withdrawDialog: ConfirmModel,
+    /** The card of the same child in the arrivals (TALITA-6), when this registration is of the gathering that the arrivals are about; else none. */
+    val arrivalsHref: String? = null,
 )
 
 /** The form of a paper registration and of a correction: the data of the child, the phone, the paper form, and what surrounds them (design C 7, 8). */
@@ -112,6 +117,8 @@ data class PaperPage(
     /** For a correction of a paper registration: whether it has notes (the link says «Aggiungi» or the notice says to show them first). */
     val hasNotes: Boolean,
     val id: Long?,
+    /** The form was opened from the arrivals («Inserisci un’iscrizione» there): once saved it leads to the card of the new registration in the arrivals, and «Annulla» to the arrivals. */
+    val fromArrivals: Boolean = false,
 ) {
     /** What a request for the quota carries: the days of the block, the gathering when the form is for a new registration, and nothing else. */
     val quotaFields: String get() = offer.quotaFields(listOf(child.index), if (inserting) listOf("convivenza") else emptyList())
@@ -130,14 +137,16 @@ class TeacherPresenter(
 
     private fun quotaOf(gathering: GatheringInfo, registration: RegistrationData): Int? = Quota.due(presenter.offer(gathering), registration.presence)
 
-    private fun manleva(registration: RegistrationData): Badge? = when {
+    /** The label of the manleva (none for a withdrawn registration): the same words in the list, in the detail and in the card of the arrivals. */
+    fun manleva(registration: RegistrationData): Badge? = when {
         registration.status == Status.WITHDRAWN -> null
         !registration.onPaper -> Badge("Accettata online", "positive")
         registration.paperFormReceived -> Badge("Cartacea ricevuta", "positive")
         else -> Badge("Da ricevere", "warning")
     }
 
-    private fun statusBadge(registration: RegistrationData): Badge = Badge(
+    /** The label of the state of a registration. */
+    fun statusBadge(registration: RegistrationData): Badge = Badge(
         registration.status.label,
         when (registration.status) {
             Status.CONFIRMED -> "positive"
@@ -220,7 +229,7 @@ class TeacherPresenter(
         )
     }
 
-    fun detail(account: CurrentAccount, registration: RegistrationData, gathering: GatheringInfo, read: NotesRead?, alert: Alert?): TeacherDetailPage {
+    fun detail(account: CurrentAccount, registration: RegistrationData, gathering: GatheringInfo, read: NotesRead?, alert: Alert?, arrivalsHref: String? = null): TeacherDetailPage {
         val duplicates = registrations.duplicates(gathering.id)[registration.id].orEmpty().mapNotNull { registrations.find(it) }
         val withdrawn = registration.status == Status.WITHDRAWN
         val due = quotaOf(gathering, registration)
@@ -248,6 +257,7 @@ class TeacherPresenter(
             readings = readings(registration.id, account.id),
             alert = alert,
             withdrawDialog = withdrawDialog(registration),
+            arrivalsHref = arrivalsHref,
         )
     }
 }
@@ -315,8 +325,11 @@ class TeacherRegistrationsController(
     @GetMapping("/iscrizioni/{id:[0-9]{1,18}}")
     fun detail(account: CurrentAccount, @PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val registration = registration(id)
-        return page("registration/teacherDetail", registration.name, teacher.detail(account, registration, gatheringOf(registration), null, Flash.take(request)))
+        return page("registration/teacherDetail", registration.name, teacher.detail(account, registration, gatheringOf(registration), null, Flash.take(request), arrivalsHref(registration)))
     }
+
+    /** The card of this registration in the arrivals, if it is of the gathering that the arrivals are about (the registrations of an older one have no card there). */
+    private fun arrivalsHref(registration: RegistrationData): String? = if (registration.gatheringId == gatherings.latestNotDraft()?.id) "/arrivi/${registration.id}" else null
 
     /**
      * «Mostra le segnalazioni»: the reading is written and the notes are read in one transaction, and only then is anything shown. With htmx the answer is
@@ -327,7 +340,7 @@ class TeacherRegistrationsController(
         val registration = registration(id)
         val read = healthNotes.readForTeacher(id, account.id)
         val gathering = gatheringOf(registration)
-        val detail = teacher.detail(account, registration, gathering, read, null)
+        val detail = teacher.detail(account, registration, gathering, read, null, arrivalsHref(registration))
         return if (request.isHtmxFragment()) {
             ModelAndView("registration/notesCard", mapOf("page" to detail, "oob" to true))
         } else {
@@ -354,7 +367,7 @@ class TeacherRegistrationsController(
         return gathering
     }
 
-    private fun paperPage(gathering: GatheringInfo, form: FormInput, check: FormCheck?, received: Boolean, alert: Alert?, status: HttpStatus = HttpStatus.OK): ModelAndView {
+    private fun paperPage(gathering: GatheringInfo, form: FormInput, check: FormCheck?, received: Boolean, alert: Alert?, status: HttpStatus = HttpStatus.OK, fromArrivals: Boolean = false): ModelAndView {
         val offer = presenter.offer(gathering)
         val notice = if (!Rules.parentCanChange(gathering)) Alert(INFO, "Le iscrizioni sono chiuse: i genitori non possono più iscriversi, ma tu puoi inserire un modulo di carta.") else null
         val model = PaperPage(
@@ -372,20 +385,21 @@ class TeacherRegistrationsController(
             quotaAction = "/iscrizioni/nuova/quota",
             submit = "Inserisci l’iscrizione",
             busy = "Inserimento…",
-            cancelHref = "/iscrizioni?convivenza=${gathering.id}",
+            cancelHref = if (fromArrivals) "/arrivi" else "/iscrizioni?convivenza=${gathering.id}",
             gatheringId = gathering.id,
             inserting = true,
             paper = true,
             hasNotes = false,
             id = null,
+            fromArrivals = fromArrivals,
         )
         return page("registration/paper", model.title, model, status = status)
     }
 
     @GetMapping("/iscrizioni/nuova")
-    fun newPaper(@RequestParam(name = "convivenza", required = false) gatheringId: Long?): ModelAndView {
+    fun newPaper(@RequestParam(name = "convivenza", required = false) gatheringId: Long?, @RequestParam(name = "ritorno", required = false) back: String?): ModelAndView {
         val gathering = openGathering(gatheringId)
-        return paperPage(gathering, FormInput("", listOf(ChildInput())), null, false, null)
+        return paperPage(gathering, FormInput("", listOf(ChildInput())), null, false, null, fromArrivals = back == ARRIVALS)
     }
 
     @PostMapping("/iscrizioni/nuova")
@@ -393,13 +407,20 @@ class TeacherRegistrationsController(
         val gathering = openGathering(params["convivenza"]?.trim()?.toLongOrNull())
         val form = FormParser.parse(params).let { it.copy(children = it.children.take(1)) }
         val received = params["paperReceived"] == "true"
+        val fromArrivals = params["ritorno"] == ARRIVALS
         val check = RegistrationChecks.check(form, presenter.offer(gathering), gathering.start, gatherings.today(), withHealth = true, paper = true)
         if (!check.valid) {
             val errors = if (check.errorCount > 1) Alert(DANGER, "Controlla i ${check.errorCount} campi segnati in rosso.") else null
-            return paperPage(gathering, form, check, received, errors, HttpStatus.UNPROCESSABLE_ENTITY)
+            return paperPage(gathering, form, check, received, errors, HttpStatus.UNPROCESSABLE_ENTITY, fromArrivals)
         }
         return when (val result = registrations.insertPaper(account.id, gathering.id, check.phone, check.children.single(), received)) {
-            is Registrations.PaperResult.Created -> back(request, result.id, "Iscrizione inserita.")
+            // Opened from the arrivals, it leads back to them: to the card of the new registration there, with the same notice.
+            is Registrations.PaperResult.Created -> if (fromArrivals) {
+                Flash.put(request, Alert(SUCCESS, "Iscrizione inserita."))
+                seeOther("/arrivi/${result.id}")
+            } else {
+                back(request, result.id, "Iscrizione inserita.")
+            }
             is Registrations.PaperResult.NotAllowed, Registrations.PaperResult.NotFound -> notFound()
         }
     }

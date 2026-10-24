@@ -71,11 +71,10 @@ per conto suo: è una questione di Koinè, non di Talità.
 
 ## Cosa resta fuori dal primo rilascio
 
-Dall'esito di KOINE-29, non sono nel primo rilascio:
+**Camere, cucina e menù, solleciti via email sono nel primo rilascio.** Dall'esito di KOINE-29 ne erano fuori; il 24/10/2026 Matteo li ha messi dentro (`docs/05-decisioni.md`): camere (TALITA-11), cucina e menù (TALITA-12), solleciti via email (TALITA-13), tutti sotto l'epica TALITA-1 (M1 · Primo rilascio). Le analisi sono nei ticket, e i vincoli che vi sono già scritti restano.
 
-- camere;
-- cucina e menù;
-- solleciti via email;
+Dall'esito di KOINE-29, gli altri punti non sono nel primo rilascio:
+
 - rendiconto e raccolte;
 - funzionamento senza rete (la stampa del registro è la riserva);
 - firma con valore legale;

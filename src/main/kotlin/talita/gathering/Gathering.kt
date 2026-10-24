@@ -120,3 +120,15 @@ interface RegistrationUsage {
      */
     fun dayUsers(context: DSLContext, gatheringId: Long, days: Collection<LocalDate>): Map<LocalDate, Int>
 }
+
+/**
+ * What the arrivals tell the gathering (rule R3 of TALITA-4, criterion 29 of TALITA-6): a day with a presence marked cannot be taken away by changing the
+ * dates, whoever the presence belongs to (the registrations that were withdrawn since count too). Same shape as [RegistrationUsage]: the gathering asks,
+ * `talita.checkin` answers, and this package depends on neither. The function takes the [DSLContext] of the transaction that changes the dates, under the
+ * lock of the row of the gathering.
+ */
+interface ArrivalUsage {
+
+    /** For each of [days], how many presences of [gatheringId] are marked on it, whatever the state of the registration. A day nobody was marked on is not in the answer. */
+    fun presenceUsers(context: DSLContext, gatheringId: Long, days: Collection<LocalDate>): Map<LocalDate, Int>
+}

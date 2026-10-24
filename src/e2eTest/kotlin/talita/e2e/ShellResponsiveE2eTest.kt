@@ -40,7 +40,7 @@ class ShellResponsiveE2eTest {
         val viewport = page.viewport()
         val nav = page.mainNavigation().box()
         assertTrue(nav.x >= 0 && nav.x + nav.width <= viewport.width && nav.y + nav.height <= viewport.height + 1, "$where: the navigation is outside the screen: $nav")
-        for (link in page.locator("nav a").all()) {
+        for (link in page.mainNavigation().locator("a").all()) {
             val box = link.box()
             assertTrue(box.height >= minTouchHeight && box.width >= 44, "$where: ${link.innerText().trim()} is ${box.width}x${box.height}")
         }
@@ -62,7 +62,7 @@ class ShellResponsiveE2eTest {
                 // 48 px high (plus the border), icon and label side by side.
                 val nav = page.mainNavigation().box()
                 assertTrue(nav.height in 48.0..50.0, "$where: navigation $nav")
-                val link = page.locator("nav a").first()
+                val link = page.mainNavigation().locator("a").first()
                 assertTrue(link.box().height <= 48.0, "$where: entry ${link.box()}")
                 val icon = link.locator("svg").box()
                 val label = link.locator("span").last().box()
@@ -105,7 +105,7 @@ class ShellResponsiveE2eTest {
                 val where = "${width}px $path"
                 assertUsable(page, where)
                 // The labels never disappear: all four are there and visible (below 256 px they are shortened with dots).
-                val labels = page.locator("nav a > span:last-child")
+                val labels = page.mainNavigation().locator("a > span:last-child")
                 assertEquals(navigationLabels, labels.allInnerTexts().map { it.trim() }, where)
                 for (label in labels.all()) assertTrue(label.isVisible, "$where: label '${label.innerText()}' not visible")
             }
@@ -133,7 +133,7 @@ class ShellResponsiveE2eTest {
     private fun truncatedLabels(page: Page): List<String> {
         @Suppress("UNCHECKED_CAST")
         return page.evaluate(
-            "Array.from(document.querySelectorAll('nav a span:last-child')).filter(e => e.scrollWidth > e.clientWidth).map(e => e.textContent.trim())",
+            "Array.from(document.querySelectorAll('body > nav a span:last-child')).filter(e => e.scrollWidth > e.clientWidth).map(e => e.textContent.trim())",
         ) as List<String>
     }
 
@@ -182,7 +182,7 @@ class ShellResponsiveE2eTest {
             val nav = page.mainNavigation().box()
             assertEquals(844.0, nav.y + nav.height, "$where: the navigation does not reach the bottom")
             assertEquals("34px", page.evaluate("getComputedStyle(document.querySelector('nav')).paddingBottom"), where)
-            val lastEntry = page.locator("nav a").first().box()
+            val lastEntry = page.mainNavigation().locator("a").first().box()
             assertTrue(lastEntry.y + lastEntry.height <= 844 - 34, "$where: an entry is inside the home bar: $lastEntry")
             assertUsable(page, where)
         }
@@ -213,7 +213,7 @@ class ShellResponsiveE2eTest {
             val nav = page.mainNavigation().box()
             assertEquals(390.0, nav.y + nav.height, "$where: the navigation does not reach the bottom")
             assertEquals("21px", page.evaluate("getComputedStyle(document.querySelector('nav')).paddingBottom"), where)
-            val entry = page.locator("nav a").first().box()
+            val entry = page.mainNavigation().locator("a").first().box()
             assertTrue(entry.x >= 47 && entry.y + entry.height <= 390 - 21, "$where: an entry is in the safe area: $entry")
             assertUsable(page, where)
         }

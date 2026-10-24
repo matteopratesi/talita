@@ -62,14 +62,14 @@ class IdentityE2eTest {
         val page = e2e.page
         e2e.open("/")
 
-        val links = page.locator("nav a")
+        val links = page.mainNavigation().locator("a")
         assertEquals(navigationLabels, links.allInnerTexts().map { it.trim() })
         assertEquals(
             listOf("/", "/convivenza", "/iscrizioni", "/arrivi"),
             (0 until links.count()).map { links.nth(it).attr("href") },
             "addresses of the entries",
         )
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Home")
+        assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Home")
 
         val boxes = (0 until links.count()).map { links.nth(it).box() }
         val nav = page.mainNavigation().box()
@@ -154,7 +154,7 @@ class IdentityE2eTest {
     private fun truncatedLabels(page: Page): List<String> {
         @Suppress("UNCHECKED_CAST")
         return page.evaluate(
-            "Array.from(document.querySelectorAll('nav a span:last-child')).filter(e => e.scrollWidth > e.clientWidth).map(e => e.textContent.trim())",
+            "Array.from(document.querySelectorAll('body > nav a span:last-child')).filter(e => e.scrollWidth > e.clientWidth).map(e => e.textContent.trim())",
         ) as List<String>
     }
 
@@ -168,9 +168,9 @@ class IdentityE2eTest {
                 val where = "${width}px ${shellPage.name}"
 
                 assertEquals(emptyList<String>(), truncatedLabels(page), "$where: shortened labels")
-                assertEquals(navigationLabels, page.locator("nav a span:last-child").allInnerTexts().map { it.trim() }, where)
+                assertEquals(navigationLabels, page.mainNavigation().locator("a span:last-child").allInnerTexts().map { it.trim() }, where)
                 assertEquals(0, (page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") as Number).toInt(), "$where: horizontal scroll")
-                for (link in page.locator("nav a").all()) {
+                for (link in page.mainNavigation().locator("a").all()) {
                     val box = link.box()
                     assertTrue(box.width >= 44 && box.height >= 44, "$where: ${link.innerText().trim()} is ${box.width}x${box.height}")
                 }
@@ -179,7 +179,7 @@ class IdentityE2eTest {
             // The case of the design: "Convivenza" is the widest label, and wider still when it is the current one (bold).
             page.navigate(e2e.url("/convivenza"))
             page.waitForSettledContent()
-            val current: Locator = page.locator("nav a[aria-current=page] span:last-child")
+            val current: Locator = page.mainNavigation().locator("a[aria-current=page] span:last-child")
             assertThat(current).hasText("Convivenza")
             assertEquals("600", current.evaluate("e => getComputedStyle(e).fontWeight"), "the current entry is bold")
             val text = (current.evaluate("e => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect().width }") as Number).toDouble()

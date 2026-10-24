@@ -32,7 +32,7 @@ class HistoryConsistencyE2eTest {
     /** What the page shows, as a short line for the messages of a failure. */
     private fun shown(page: Page): String =
         "address ${URI(page.url()).path}, title '${page.title()}', heading '${page.locator("h1").first().innerText().trim()}', " +
-            "current ${page.locator("nav a[aria-current=page]").allInnerTexts().map { it.trim() }}"
+            "current ${page.mainNavigation().locator("a[aria-current=page]").allInnerTexts().map { it.trim() }}"
 
     /**
      * Waits (a back is answered a moment later) until address and page agree, and fails with what it saw
@@ -48,7 +48,7 @@ class HistoryConsistencyE2eTest {
             val together = !busy &&
                 page.title() == known.title &&
                 page.locator("h1").first().innerText().trim() == known.heading &&
-                page.locator("nav a[aria-current=page]").allInnerTexts().map { it.trim() } == listOf(known.current)
+                page.mainNavigation().locator("a[aria-current=page]").allInnerTexts().map { it.trim() } == listOf(known.current)
             if (together) return
             page.waitForTimeout(100.0)
         }

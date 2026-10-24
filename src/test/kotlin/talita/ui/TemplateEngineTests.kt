@@ -86,11 +86,8 @@ class TemplateEngineTests(
         val navigation = listOf(NavItem(label = "<u>n</u>", href = "/x", icon = Icon.HOUSE, current = false))
         val output = StringOutput()
         engine.render(
-            "pages/placeholder.jte",
-            mapOf(
-                "shell" to Shell(title = "<b>x</b><script>", assets = assets, navigation = navigation, profile = ProfileLink(initials = "<s>", current = false)),
-                "page" to PlaceholderPage(title = "<i>y</i>", text = "<em>z</em>"),
-            ),
+            "pages/notFound.jte",
+            mapOf("shell" to Shell(title = "<b>x</b><script>", assets = assets, navigation = navigation, profile = ProfileLink(initials = "<s>", current = false))),
             output,
         )
 
@@ -98,8 +95,6 @@ class TemplateEngineTests(
         for ((markup, escaped) in mapOf(
             "<b>x</b><script>" to "&lt;b&gt;x&lt;/b&gt;&lt;script&gt;",
             "<u>n</u>" to "&lt;u&gt;n&lt;/u&gt;",
-            "<i>y</i>" to "&lt;i&gt;y&lt;/i&gt;",
-            "<em>z</em>" to "&lt;em&gt;z&lt;/em&gt;",
             "<s>" to "&lt;s&gt;",
         )) {
             assertTrue(html.contains(escaped), "$markup is not escaped:\n$html")

@@ -12,6 +12,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-4/` sono i mockup della convivenza e della pagina informativa (TALITA-4, Grace Kerning): 27 pagine statiche con tutti gli stati e dati sintetici, da `index.html`; `talita-4.css` importa il CSS del mockup di origine. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-6/` sono i mockup di Arrivi, della scheda del bambino e delle tre stampe (TALITA-6, Grace Kerning): 82 pagine statiche con tutti gli stati e dati sintetici, da `index.html`; `talita-6.css` importa il CSS dei mockup precedenti e ha in fondo le regole di stampa. Le stampe si provano con Ctrl+P. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida (per esempio «Pagata Niente»: il mockup della scheda ha «0 €», la guida chiede lo zero in parole).
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -391,8 +393,9 @@ Niente `md:`, `xl:`, `2xl:` per il guscio: due layout bastano.
 
 Griglia: sul telefono una colonna con margini di 16 px. Su desktop la navigazione è larga
 `w-64` (256 px) e il contenuto sta in una colonna centrata larga al massimo `max-w-3xl` (768 px).
-Le pagine con tabelle larghe (in futuro) possono arrivare a `max-w-5xl` (1024 px), dichiarandolo
-nel loro design.
+Le pagine con tabelle larghe possono arrivare a `max-w-5xl` (1024 px), dichiarandolo nel loro
+design: il registro arrivi, l'elenco per la struttura e il foglio per i maestri (TALITA-6) lo fanno
+con `Shell.wide`, che il layout legge (`shell.getWide()`). Le altre pagine restano a `max-w-3xl`.
 
 ### 2.7 Schermi difficili
 
@@ -477,9 +480,13 @@ Icone assegnate (nomi di Lucide):
 | Ritira l'iscrizione | `circle-x` |
 | Rimetti l'iscrizione | `rotate-ccw` |
 | Togli le segnalazioni | `trash-2` |
-| Segna come ricevuta | `check` |
+| Segna come ricevuta, «Presente» | `check` |
 | Si apre in una nuova scheda | `external-link` |
 | Iscrizioni chiuse | `calendar-x` |
+| Chiama il genitore | `phone` |
+| Elenco per la struttura | `list` |
+| Registro arrivi | `clipboard-list` |
+| Torna agli arrivi | `chevron-left` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -502,6 +509,10 @@ Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'ap
   compare senza spostarsi, la barra di caricamento è ferma e piena.
 - L'indicatore di caricamento compare dopo **300 ms**: le risposte veloci non fanno lampeggiare
   niente.
+- Una pausa non è un movimento: `animate-touch-pause` (700 ms, `pointer-events: none` e niente
+  altro) vale anche con «riduci movimento» e non usa `motion-safe:`. Si mette sul blocco che contiene il
+  bottone di una risposta che lo sostituisce con un altro nello stesso punto (4.1, «Togli»), mai su
+  una pagina intera.
 
 ## 3. Guscio dell'app
 
@@ -630,7 +641,7 @@ Note:
 | 1 | Home | `/` | `house` | Maestro e genitore | pagina iniziale |
 | 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | la convivenza (stato, date, luogo, quote, maestri affidatari, informazioni e link per i genitori) e, sotto, «Maestri» |
 | 3 | Iscrizioni | `/iscrizioni` | `users-round` | Maestro e genitore | per il maestro elenco e inserimento dal modulo cartaceo; per il genitore le iscrizioni dei suoi figli |
-| 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | check-in e stampe |
+| 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | la lista del giorno con «Segna presente», la scheda del bambino (giorni, recapito, segnalazioni, quota e pagamenti, manleva) e le tre stampe: registro arrivi, elenco per la struttura, foglio per i maestri |
 
 Il maestro ha le quattro voci. Il **genitore ne ha due**, Home e Iscrizioni: ognuna occupa metà barra
 (le `<li>` hanno già `flex-1`), con etichette e icone di sempre, e non scatta mai la regola «più di
@@ -655,6 +666,8 @@ Regole:
   la pagina di una singola iscrizione ha corrente "Iscrizioni"). Nelle pagine di errore nessuna voce è
   corrente.
 - URL in italiano e senza accenti (li vede chi usa Talità, anche nei link condivisi).
+- «Arrivi» è la voce corrente in `/arrivi`, nelle schede dei bambini (`/arrivi/{id}`) e nelle tre stampe (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio`). Il selettore dei
+  giorni di Arrivi (4.20) è una seconda `nav`, con la sua etichetta: la navigazione principale è la `nav` che sta sotto il corpo della pagina.
 
 Voce della navigazione, classi esatte (la stessa `<li>` per telefono e desktop):
 
@@ -855,6 +868,10 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 | Pericolo | azioni che tolgono qualcosa per sempre o annullano un'iscrizione | base + `bg-danger text-white hover:bg-danger-strong active:bg-danger-strong` |
 | Testo | azioni minori dentro schede e liste ("Modifica") | `inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-base font-semibold text-brand transition-colors duration-150 hover:bg-brand-soft active:bg-brand-soft` |
 
+- **Azione rapida** («Segna presente», nella riga di una lista: 4.3): più alta e stretta, perché sta a destra del nome: `inline-flex min-h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-brand px-2 text-center text-sm leading-tight font-semibold text-white … sm:w-auto sm:min-w-36 sm:px-5 sm:text-base sm:whitespace-nowrap`. Durante la richiesta dice «Segno…» e il suo nome accessibile continua con il nome del bambino e il giorno (`sr-only`: «Segna presente Anna Rossi, sabato 18 settembre»). **Il bottone che arriva al suo posto non prende i tocchi per 700 ms** (vedi «Togli» qui sotto e 2.9).
+- **«Togli»** (di una presenza o di un pagamento): secondario più piccolo, `min-h-11 px-4 text-sm` (`sm:text-base`), senza riempimento. **Chi tocca due volte non annulla il primo tocco**, né da «Segna presente» a «Togli» né da «Togli» a «Segna presente»: il nuovo bottone sta dove stava il vecchio, e il secondo tocco ci cadrebbe sopra (il QA ha provato 80, 150, 250 e 400 ms). Perciò il bottone che arriva nella risposta a un tocco, nella riga della lista e nei giorni della scheda, non prende i tocchi per 700 ms (`animate-touch-pause` sulla riga o sul blocco del giorno, per il «pointer-events» che si eredita: sulla riga copre anche il nome, che col mouse può stare sotto il punto del primo clic quando il bottone nuovo è più stretto): il secondo tocco cade nel vuoto, un tocco solo dopo la pausa fa quello che faceva. Il fuoco resta sul bottone nuovo e il suo nome non cambia; la tastiera non è toccata. Per una presenza non ha dialogo (si rimedia con un tocco); per un pagamento il dialogo di 4.8 con il bottone di pericolo.
+- **«Chiama»**: un collegamento `tel:` con l'aspetto di un secondario (`border border-line-strong min-h-12 min-w-34 px-5`), icona `phone`, `hx-boost="false"` (il browser apre il telefono, non una pagina) e il numero nel nome accessibile (`sr-only`: «Chiama 333 123 4567»). Il numero da chiamare ha solo le cifre e un «+» iniziale, se il numero scritto comincia con uno.
+- **«Stampa»**: bottone primario con l'icona `printer` (`data-azione="stampa"`), che `app.js` mostra (è `hidden` nella pagina) e che chiama `window.print()`: senza JavaScript non c'è, e la riga di aiuto sotto dice che cosa fare. Sta in una barra che non si stampa (`print:hidden`).
 - Icona facoltativa a sinistra, `size-5`, con `aria-hidden="true"`.
 - Sul telefono i bottoni dei form e dei dialoghi sono larghi quanto lo schermo (`w-full sm:w-auto`).
 - Gruppo di bottoni: `flex flex-col gap-3 sm:flex-row-reverse sm:justify-start`, con il
@@ -907,7 +924,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
   usano invece `type="date"`.
 - Scelte: `fieldset` + `legend`; ogni opzione in `flex min-h-12 items-center gap-3`, con
   `size-6 accent-brand` sul controllo. Sotto le cinque opzioni radio; oltre, una `select` con le
-  stesse classi del campo di testo.
+  stesse classi del campo di testo (`components/selectField.jte`: `appearance-none`, `pr-10`, e la freccia `chevron-down` in un'icona `pointer-events-none` a destra, solo per gli occhi; l'etichetta è sempre visibile). Se il form è un GET (la scelta del giorno dell'elenco per la struttura), non porta niente di personale nell'indirizzo.
 - Campo di ricerca: `type="search"`, icona `search` a sinistra (`absolute left-3.5 top-1/2
   size-5 -translate-y-1/2 text-ink-muted`) e campo con `pl-11`; etichetta `sr-only` "Cerca una
   persona".
@@ -1011,8 +1028,22 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
   restringe la larghezza minima del blocco dentro un flex. Vale in questa lista, nei dialoghi (4.8), negli avvisi (4.6)
   e nel titolo della pagina (`pageHead`).
 - Lista vuota: si mostra lo stato vuoto (4.9), mai una lista senza righe.
-- Liste lunghe: ricerca in cima; la paginazione o il "Mostra altre" li decide il ticket della
+- Liste lunghe: ricerca in cima (4.22); la paginazione o il "Mostra altre" li decide il ticket della
   schermata.
+
+**Riga con azione rapida** (la lista di Arrivi, TALITA-6): il nome è un collegamento alla scheda a sinistra (`min-h-14`, nome in `font-semibold`, le etichette di stato sotto), il bottone a destra (azione rapida o «Togli», 4.1), niente iniziali né freccia. Quando l'azione è fatta la riga diventa verde (`bg-success-soft`, con l'etichetta «Presente» e la spunta: il significato non sta nel solo colore). Una nota sotto la riga (`basis-full`, `rounded-xl bg-brand-soft` o `bg-warning-soft` con icona) dice che cosa è successo quando non è quello che la persona si aspettava («Era già presente: l’ha segnata Paolo Verdi alle 9:12.»). La riga **non cambia posto dopo un tocco**: l'ordine si rifà al caricamento seguente. Un bambino che quel giorno non si può segnare (non è atteso, la convivenza non è iniziata, il giorno è dopo oggi) ha una riga di sola lettura con la freccia, che porta alla scheda. I filetti fra le righe si disegnano fra quelle che si vedono (`[&>li:not([hidden])~li:not([hidden])]:border-t`, non `divide-y`): la ricerca nasconde le righe, e un filetto sotto l'ultima rimasta raddoppierebbe il bordo della scheda.
+
+```html
+<li id="riga-12" data-filtro-riga class="flex flex-wrap items-center gap-x-3 py-2 pr-3 pl-4">
+  <a href="/arrivi/12?giorno=2027-09-18" class="flex min-h-14 min-w-0 flex-1 flex-col justify-center rounded-lg py-1.5">
+    <span class="font-semibold wrap-anywhere" data-filtro-testo>Anna Rossi</span>
+    <span class="mt-1 flex flex-wrap gap-x-1.5 gap-y-1">…etichette…</span>
+  </a>
+  <form method="post" action="/arrivi/12/presenze" hx-post="/arrivi/12/presenze" hx-target="closest li" hx-swap="outerHTML" hx-disabled-elt="find button">
+    …<button type="submit" class="…azione rapida…">Segna presente<span class="sr-only">Segna presente Anna Rossi, sabato 18 settembre</span></button>
+  </form>
+</li>
+```
 
 ### 4.4 Schede
 
@@ -1256,7 +1287,7 @@ una 403 per la persona e non mostra mai «Non puoi vedere questa pagina» (5).
 
 ### 4.12 Stampa
 
-Vale per la pagina informativa e per la sua anteprima (stesso componente). Da telefono la persona usa il menu del browser («Condividi → Stampa»), da desktop Ctrl+P; i maestri anche il bottone «Stampa la pagina» dell'anteprima (`data-azione="stampa"`, `app.js` chiama `window.print()`). La pagina pubblica non ha un bottone «Stampa»: servirebbe uno script.
+Vale per la pagina informativa e per la sua anteprima (stesso componente), e per le tre stampe di Arrivi (le **tabelle stampabili**, in fondo a questa sezione). Da telefono la persona usa il menu del browser («Condividi → Stampa»), da desktop Ctrl+P; i maestri anche il bottone «Stampa la pagina» dell'anteprima (`data-azione="stampa"`, `app.js` chiama `window.print()`). La pagina pubblica non ha un bottone «Stampa»: servirebbe uno script.
 
 | Cosa | Regola |
 |---|---|
@@ -1298,6 +1329,15 @@ L'indirizzo stampato è `talita.public-url` più `/info/{codice}`, completo e as
 ```
 
 Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga della pagina pubblica e sull'avviso e sui bottoni dell'anteprima; `break-inside-avoid` sulle schede brevi (date e quote: non su «Informazioni» e «Cosa portare»); `hidden … print:block` sul blocco dell'indirizzo; `print:border print:border-ink` sugli avvisi; sulla cornice dell'anteprima `print:border-0 print:bg-transparent print:p-0`. La stampa si prova con un PDF di Chromium (`Page.pdf`, scritto sotto `build/`, mai nel repo: lo fanno i test e2e).
+
+**Tabelle stampabili** (TALITA-6: registro arrivi, elenco per la struttura, foglio per i maestri). Sono pagine intere (`max-w-5xl`, 2.6) con una barra che non si stampa (`print:hidden`: i campi che si scelgono prima di stampare, il bottone «Stampa» di 4.1 e una riga di aiuto), «Stampato il 24 ottobre 2026 alle 11:24.» (l'ora del server alla richiesta) e il documento. Regole:
+
+- **Una pagina di carta è un blocco** (`.blocco-stampa`) con **la sua tabella e la sua intestazione**: Safari non ripete il `thead` fra le pagine, e chi legge un foglio da solo deve vedere che cos'è ogni colonna. Il server divide le righe in blocchi (`Pagination`: 20 righe sulla prima pagina e 24 sulle altre per il registro, 16 e 20 con più di quattro giorni, 20 e 26 per l'elenco, 18 e 24 per il foglio) e dà a ogni blocco la sua didascalia «Registro arrivi · pagina 1 di 2»; il blocco dopo il primo comincia su un foglio nuovo (`break-before: page`). Le capacità lasciano 15-25 mm liberi per foglio: un nome o una nota su due righe non fa traboccare. Ciò che segue la tabella (i totali del registro, i maestri dell'elenco, la frase finale del foglio) sta sull'ultimo foglio se c'è posto, altrimenti ha un foglio suo.
+- **I blocchi non evitano la rottura**: se una riga cresce più del previsto, le righe in più passano al foglio dopo (Chrome ripete il `thead`), invece di spostare tutto il blocco e lasciare un foglio vuoto. Le righe non si spezzano (`break-inside: avoid`).
+- **Nero su bianco**, tabelle a 8,5 pt, intestazioni a 8 pt, note a 7,5 pt; i bordi sono neri e nessun sfondo porta significato: la **X** nella casella (`.casella`, quadrata, 4 mm) vale in nero. La frase da distruggere del foglio per i maestri sta in un riquadro con bordo nero (`.riquadro-riservato`).
+- **A schermo** le tabelle stanno in un riquadro `relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0`; il solo registro ha `min-w-176` e, sul telefono, una riga di aiuto sopra («Scorri la tabella di lato per vedere tutte le colonne.», `lg:hidden print:hidden`). Il riquadro del registro, che scorre, è una regione con nome e `tabindex="0"` (senza, una persona che non usa il tocco non lo può scorrere, e axe lo segnala). `position: relative` serve: senza, i testi `sr-only` della tabella allargano la pagina.
+- **Cosa c'è in ogni stampa**: registro, una riga per iscrizione non ritirata (giorni `G`, `P` o `–` con la casella, quota dovuta o «Gratis», pagato, manleva «Online», «Cartacea» o una casella vuota, note dell'app) con cinque righe vuote e i totali (con «Incassato a mano» da scrivere), **mai recapiti né segnalazioni**; elenco, solo cognome e nome, i bambini e gli affidatari, con tre righe vuote; foglio, bambino e recapito come scritto. Nessuna stampa porta note libere.
+- Le colonne e le larghezze sono quelle del CSS in `app.css` (`.tabella-stampa`, `.col-nome`, `.col-giorno`, `.col-dovuta`, `.col-pagato`, `.col-manleva`, `.col-note`, `.totali-stampa`): la parte a schermo sta in `@layer components`, quella di stampa fuori da ogni `@layer`, dopo la stampa della pagina informativa. A 320 px la pagina non scorre di lato (la tabella sì, nel suo riquadro). **Safari su iPhone lo prova Matteo prima del rilascio**; la prova automatica usa un PDF di Chromium (A4, fuori dal repo) e conta i fogli.
 
 ### 4.13 Indirizzo da copiare
 
@@ -1393,6 +1433,35 @@ Le azioni di una scheda sono bottoni di testo (4.1) in fila, che vanno a capo, c
 
 L'azione che toglie qualcosa per sempre («Togli le segnalazioni») ha il suo dialogo (4.8) e nel dialogo il bottone di **pericolo**; il ritiro di un'iscrizione si può rimediare, quindi nel suo dialogo il bottone è primario. Il ritiro e la revoca sono due verbi diversi: il secondo cancella.
 
+### 4.20 Selettore di giorno
+
+I giorni della convivenza (da 1 a 7) in una riga di link a colonne uguali, uno per giorno, dentro una `nav` con la sua etichetta («Giorni della convivenza»). Il giorno scelto ha `aria-current="date"` (sfondo `brand-soft`, anello `brand`); sotto il numero, «oggi» sul giorno di oggi. Ogni link porta la data (`/arrivi?giorno=2027-09-18`): nessun nome in un indirizzo. Il nome accessibile dice il giorno intero («Sabato 18 settembre (oggi)»); l'abbreviazione («Sab») è solo per gli occhi.
+
+```html
+<nav aria-label="Giorni della convivenza"><ul class="grid auto-cols-fr grid-flow-col gap-1.5 rounded-2xl border border-line bg-surface p-1.5">
+  <li><a href="/arrivi?giorno=2027-09-18" aria-current="date" class="flex min-h-16 flex-col items-center justify-center rounded-xl text-center …">
+    <span class="text-xs font-medium"><span aria-hidden="true">Sab</span><span class="sr-only">Sabato</span></span>
+    <span class="text-lg font-semibold tabular-nums">18<span class="sr-only"> settembre (oggi)</span></span>
+    <span class="text-xs font-semibold" aria-hidden="true">oggi</span>
+  </a></li>…
+</ul></nav>
+```
+
+### 4.21 Riepilogo con numeri
+
+Quattro numeri in una griglia (`grid-cols-2 gap-2 sm:grid-cols-4`), ognuno in un riquadro `rounded-xl bg-canvas p-3` con la sua etichetta (`dt`, `text-sm text-ink-muted`) e il valore (`dd`, `text-2xl font-semibold tabular-nums`). **Lo zero è in parole** («Nessuno», «Nessuna», «Niente»), in un corpo più piccolo (`text-lg`), e il numero può avere una riga sotto («su 4 attesi»). I soldi stanno sotto, in righe «etichetta … valore» separate da un filetto: «Incassato in tutta la convivenza» (con sotto, per cognome, quanto ha incassato ogni maestro, solo chi ha incassato) e «Ancora da incassare». È una `section` con il suo titolo; le risposte a un tocco la sostituiscono fuori banda (`id="riepilogo"`, `hx-swap-oob`), e mentre si cerca un nome `app.js` la nasconde, per portare i risultati vicini alla cima.
+
+### 4.22 Ricerca in una lista
+
+Un campo `type="search"` senza `form`, con l'icona `search` a sinistra (4.2), nascosto nell'HTML (`hidden data-filtro`) e mostrato da `app.js`: senza JavaScript non c'è e la lista è intera. **Il filtro gira nel browser** sui nomi che sono già nella pagina (`data-filtro-riga`, `data-filtro-testo`) e non chiede niente al server: nessun nome negli indirizzi né nei log. Regola: maiuscole, accenti e apostrofi non contano; restano le righe in cui **ogni parola** scritta sta nel nome o nel cognome, in qualunque ordine («rossi luca», «dangelo» per D’Angelo). Un gruppo senza righe sparisce con il suo titolo. L'esito è annunciato (`role="status"`, dopo 250 ms dall'ultima lettera, «Trovati 2 bambini.») e, se non c'è nessuno, la lista è sostituita dallo stato vuoto di 4.9 («Nessun bambino con questo nome»). «Invio» chiude la tastiera e non segna nessuno.
+
+```html
+<div hidden data-filtro><label for="cerca" class="sr-only">Cerca un bambino</label>
+  <div class="relative"><svg class="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-ink-muted" aria-hidden="true">…search…</svg>
+    <input id="cerca" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="Cerca per nome o cognome" aria-describedby="cerca-esito" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface pr-4 pl-11 …"></div>
+  <p id="cerca-esito" role="status" class="mt-1.5 min-h-5.5 text-sm text-ink-muted"></p></div>
+```
+
 ## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
@@ -1465,6 +1534,14 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **Quota che si aggiorna**: un cambio in un gruppo di radio → `hx-post` con `hx-params` e l'elenco esatto dei campi che viaggiano (htmx 2 aggiunge a ogni POST tutti i campi del form e `hx-include` non ne toglie): la presenza e i giorni di ogni blocco, il codice CSRF e, solo con due bambini o più, nome e cognome (le righe della card «Quota»); mai data di nascita, telefono, stato né segnalazioni: i dati sanitari non viaggiano a ogni tocco. I campi della presenza portano `data-quota`, e un test confronta l'elenco con quelli marcati. `hx-swap="none"` e `hx-sync="closest form:replace"` (vale l'ultima richiesta). La risposta contiene la riga di ogni bambino e il totale **fuori banda** (`hx-swap-oob="innerHTML:#quota-0"`). Senza JavaScript la quota si vede al passo 2.
 - **Blocchi che si aggiungono e si tolgono dentro un form**: i bottoni «Aggiungi un figlio», «Togli», «Aggiungi» sono bottoni del form (`name="azione"`, `formaction`) che senza JavaScript mandano il form e ricevono la pagina intera; con htmx (`hx-post`, `hx-target="#figli"`, `hx-swap="outerHTML"`) si sostituisce **un pezzo solo**, e il fuoco va al blocco nuovo (`data-fuoco` sul suo primo campo).
 - **Un passo che non salva** (passo 2 dell'iscrizione): è la risposta al passo 1 (200, non un redirect), con `HX-Push-Url: false` così non lascia una voce nella cronologia; i dati viaggiano nei campi nascosti e il server li ricontrolla tutti all'invio.
+
+### Arrivi (TALITA-6)
+
+- **Una risposta con quello che è vero adesso**: un tocco su una riga risponde con la riga nuova (`hx-target="closest li"`), il riepilogo (fuori banda) e una frase per il lettore di schermo in `hx-swap-oob="innerHTML:#esito"` (la regione `role="status"` resta nella pagina); un'azione della scheda risponde con tutto il blocco `#scheda` (così niente resta vecchio, e le segnalazioni, che si aprono solo nella risposta al tocco che ha scritto la lettura, tornano chiuse). Dopo la sostituzione di una riga il fuoco va al suo nuovo bottone (`data-fuoco`, che c'è solo nelle risposte), e nella scheda sull'avviso.
+- **Le risposte 409 si sostituiscono come le 422**: la riga o la scheda com'è adesso, con la nota che dice perché non è stato fatto («Non segnata: nel frattempo l’iscrizione è stata ritirata.»); una richiesta che è già stata fatta (un'altra persona ha segnato un momento prima, un pagamento già tolto) è un 200 con una nota, mai un errore. Un POST rifiutato con 4xx per altre ragioni mostra «Qualcosa non ha funzionato»; un frammento chiesto con GET che risponde 4xx resta muto.
+- **Senza rete, scaduta o con un errore del server** la pagina non cambia: mai un «Presente» non salvato, il messaggio è quello di sopra (senza «Riprova»: basta toccare di nuovo il bottone) e il form di un pagamento resta compilato. Tornata la rete un nuovo tocco funziona senza doppioni: la presenza ha una sola riga per iscrizione e giorno, e il form di un pagamento porta un codice della richiesta che il server accetta una volta sola.
+- **I link `tel:` e i download** hanno `hx-boost="false"`: il browser apre il telefono o scarica, non una pagina.
+- **Senza JavaScript** ogni tocco è un form normale che risponde con un redirect alla scheda, con l'avviso che il server si porta dietro e mostra una volta sola; «Togli» un pagamento è un link a una pagina con le parole del dialogo; il campo di ricerca e il bottone «Stampa» non ci sono.
 
 ## 6. Scrivere i testi
 
@@ -1565,6 +1642,16 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **Modelli di testo** (l'affidamento): un solo testo con segnaposto, una versione (`affidamento-1`) e due regole d'accordo, `{b:suo|loro}` per i bambini e `{a:lo/la|li}` per i maestri affidatari; nessuno chiede il sesso, quindi la forma del singolare è le due insieme.
 - **Ritirare** e **togliere le segnalazioni** sono due verbi diversi, e nei testi non si scambiano.
 - Il **telefono** si legge come lo ha scritto chi lo ha scritto, con uno spazio per ogni separatore.
+
+### Arrivi (TALITA-6)
+
+- **«Presente»**, «Segna presente», «Presenza segnata.» e «Presenza tolta.»: mai «Arrivato/a». Una presenza segnata su un giorno non previsto dice che la quota dovuta non cambia finché non si corregge l'iscrizione.
+- **Saldo in parole**: «Da pagare 25 €», «Pagata», «Pagato 10 € in più», «Gratuita» (dovuta e pagata a zero), «Non dovuta» per una iscrizione ritirata, «Quota da definire» quando i giorni non sono fra quelli che le quote offrono.
+- **Importi** come sopra (`60 €`, `12,50 €`, migliaia `1.035 €`) e **zero in parole**: «Nessuno», «Nessuna» e «Niente» («Pagata Niente»: non «0 €»). Nel registro stampato la quota a zero è «Gratis» e un pagamento che non c'è è una cella vuota, da scrivere a mano.
+- **Il recapito** si mostra come è stato scritto, e il bottone che chiama dice «Chiama» (con il numero per il lettore di schermo).
+- **Segnalazioni**: «Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.»; il bottone «Mostra le segnalazioni» e, dopo, «Lettura registrata: Marta Bianchi, 18 settembre 2027 alle 10:05.»; «Nessuna segnalazione.» se non c'è niente. Si dice «segnalazioni», mai «dati sanitari» sul bottone.
+- **Stampe**: «Registro arrivi», «Elenco per la struttura», «Foglio per i maestri», «Stampato il … alle …»; la frase del foglio dice di tenerlo fra i maestri e di distruggerlo alla fine della convivenza.
+- **Un nome solo per ogni azione**: «Inserisci un’iscrizione» dall'elenco di TALITA-5 e dal modulo di Arrivi, «Segna come ricevuta» per la manleva cartacea.
 
 ## 7. Accessibilità: controlli prima della PR
 

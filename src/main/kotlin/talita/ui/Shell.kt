@@ -18,6 +18,8 @@ class Shell(
     val profile: ProfileLink? = null,
     /** The page asks not to be indexed (the preview of a page that is not public yet): `noindex` in the page. */
     val noindex: Boolean = false,
+    /** The page needs more width than the others (`max-w-5xl` and not `max-w-3xl`): the tables that are printed (design guide 2.6). */
+    val wide: Boolean = false,
 ) {
     val isSignedIn: Boolean get() = profile != null
 

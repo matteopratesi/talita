@@ -9,6 +9,8 @@ cartella icons/, senza modifiche ai tracciati.
 
 Aggiunte da TALITA-4: plus, pencil (convivenza), copy, share-2, printer, eye (link per i genitori e anteprima).
 
+Aggiunte da TALITA-6: phone (Chiama), list (elenco per la struttura), clipboard-list (registro arrivi), chevron-left (Torna agli arrivi), search (ricerca nella lista).
+
 Usate nel guscio: house, users-round, clipboard-check, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
 nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.

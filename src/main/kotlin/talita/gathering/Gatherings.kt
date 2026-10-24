@@ -73,13 +73,16 @@ sealed interface CustodiansResult {
     data object NeedsOne : CustodiansResult
 }
 
-/** What came of saving the dates: saved, or refused because registrations have days that the new dates would take away (rule R3). */
+/** A day that the new dates would take away, and what holds it: how many registrations (not withdrawn) chose it and how many presences are marked on it. */
+data class DayInUse(val day: LocalDate, val registrations: Int, val presences: Int)
+
+/** What came of saving the dates: saved, or refused because registrations or presences have days that the new dates would take away (rule R3). */
 sealed interface DatesResult {
     data object Saved : DatesResult
     data object NotFound : DatesResult
 
-    /** Each day that would go, with the number of registrations that have it. */
-    data class DaysInUse(val days: List<Pair<LocalDate, Int>>) : DatesResult
+    /** Each day that would go, with what holds it. */
+    data class DaysInUse(val days: List<DayInUse>) : DatesResult
 }
 
 /** What came of saving the fees: saved, or refused because registrations use a fee that would be emptied (rule R2). */
@@ -189,11 +192,12 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     // ---- Saving the parts -----------------------------------------------------------------------------------------------------
 
     /**
-     * Title, dates and place (criteria 17, 31). A day that a registration that is not withdrawn has cannot be taken away by changing the dates (rule R3):
-     * the answer says which days and how many registrations. Adding days is always possible. Dates of a gathering that is over are not passed (see the
-     * controller). The count is made in the same transaction, under the lock of the gathering.
+     * Title, dates and place (criteria 17, 31). A day that a registration that is not withdrawn has, or that has a presence marked on it (of any
+     * registration, withdrawn ones too), cannot be taken away by changing the dates (rule R3): the answer says which days and what holds them. Adding
+     * days is always possible. Dates of a gathering that is over are not passed (see the controller). The counts are made in the same transaction,
+     * under the lock of the gathering.
      */
-    fun saveDates(id: Long, title: String, start: LocalDate?, end: LocalDate?, place: String?, usage: RegistrationUsage): DatesResult = dsl.transactionResult { configuration ->
+    fun saveDates(id: Long, title: String, start: LocalDate?, end: LocalDate?, place: String?, usage: RegistrationUsage, arrivals: ArrivalUsage): DatesResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
         val row = lock(transaction, id) ?: return@transactionResult DatesResult.NotFound
         if (start != null && end != null) {
@@ -201,8 +205,10 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
             val kept = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toSet()
             val removed = old.days.filter { it !in kept }
             if (removed.isNotEmpty()) {
-                val users = usage.dayUsers(transaction, id, removed).filterValues { it > 0 }
-                if (users.isNotEmpty()) return@transactionResult DatesResult.DaysInUse(removed.mapNotNull { day -> users[day]?.let { day to it } })
+                val registrations = usage.dayUsers(transaction, id, removed).filterValues { it > 0 }
+                val presences = arrivals.presenceUsers(transaction, id, removed).filterValues { it > 0 }
+                val inUse = removed.filter { it in registrations || it in presences }.map { DayInUse(it, registrations[it] ?: 0, presences[it] ?: 0) }
+                if (inUse.isNotEmpty()) return@transactionResult DatesResult.DaysInUse(inUse)
             }
         }
         val update = transaction.update(GATHERING).set(GATHERING.TITLE, title).set(GATHERING.PLACE, place)

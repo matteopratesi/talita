@@ -11,10 +11,8 @@ package talita.ui
  * parent (`TeacherPaths`), so the navigation and the rule say the same thing.
  *
  * @property summary the line under the section in the list of the home page of a teacher
- * @property placeholder the sentence of the "in preparation" page of a teacher, until the section exists (none for the gathering and the registrations, which exist)
  * @property visibleToParents whether the entry is in the navigation of a parent
  * @property parentSummary the line under the section in the home of a parent
- * @property parentPlaceholder the sentence of the "in preparation" page of a parent
  */
 enum class Section(
     val label: String,
@@ -22,9 +20,7 @@ enum class Section(
     val icon: Icon,
     val visibleToParents: Boolean,
     val summary: String? = null,
-    val placeholder: String? = null,
     val parentSummary: String? = null,
-    val parentPlaceholder: String? = null,
 ) {
     HOME("Home", "/", Icon.HOUSE, visibleToParents = true),
     CONVIVENZA(
@@ -39,6 +35,5 @@ enum class Section(
     ARRIVI(
         "Arrivi", "/arrivi", Icon.CLIPBOARD_CHECK, visibleToParents = false,
         summary = "Chi è arrivato e le liste da stampare.",
-        placeholder = "Qui potrai segnare chi è arrivato e stampare le liste.",
     ),
 }

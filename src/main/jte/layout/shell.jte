@@ -58,7 +58,7 @@
     </nav>
 
     <main id="contenuto" tabindex="-1" class="block px-gutter pt-6 pb-above-nav transition-opacity duration-150 motion-safe:animate-enter nav-busy:opacity-60 nav-busy:delay-300 lg:ml-64 lg:px-10 lg:pt-10 lg:pb-16">
-      <div class="mx-auto w-full max-w-3xl">
+      <div class="mx-auto w-full ${shell.getWide() ? "max-w-5xl" : "max-w-3xl"}">
         ${content}
       </div>
     </main>
