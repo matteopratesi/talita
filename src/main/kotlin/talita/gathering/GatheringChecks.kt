@@ -27,6 +27,15 @@ data class FeeCheck(val typed: String, val cents: Int?, val error: String?) {
     val valid: Boolean get() = error == null
 }
 
+/** What an amount of euros typed in a field is: not an amount, more than the most that a field takes, or a number of cents. The payments of the arrivals read amounts the same way. */
+sealed interface Amount {
+    data object Malformed : Amount
+
+    data object TooMuch : Amount
+
+    data class Cents(val cents: Int) : Amount
+}
+
 /** The two dates as typed, as dates when they are good, and what is wrong with each. */
 data class DatesCheck(
     val startTyped: String,
@@ -110,6 +119,19 @@ object GatheringChecks {
     private val feeFormat = Regex("""(\d{1,4})(?:[.,](\d{1,2}))?""")
 
     /**
+     * An amount of euros as a person types it: whole euros of up to four digits and, after a comma or a dot, one or two decimals (`60`, `12,50`, `12.5`), up
+     * to 1000 €. Negatives, letters, thousands separators (`1.000` is a third decimal) and a third decimal are not amounts. [typed] is taken as it is: the
+     * caller takes the spaces away (a fee, the ends; a payment, all).
+     */
+    fun amount(typed: String): Amount {
+        val match = feeFormat.matchEntire(typed) ?: return Amount.Malformed
+        val units = match.groupValues[1].toInt()
+        val decimals = match.groupValues[2].let { if (it.length == 1) it.toInt() * 10 else if (it.isEmpty()) 0 else it.toInt() }
+        val cents = units * 100 + decimals
+        return if (cents > Limits.MAX_FEE_CENTS) Amount.TooMuch else Amount.Cents(cents)
+    }
+
+    /**
      * A fee: nothing typed is «not provided» (null), «0» is free, up to 1000 € with at most two decimals, a comma or a dot
      * (`60`, `12,50`, `12.5`). Negatives, letters, thousands separators and a third decimal are refused, with an example.
      * [required]: the full fee of a gathering that is no longer a draft cannot be empty.
@@ -117,11 +139,10 @@ object GatheringChecks {
     fun fee(raw: String?, required: Boolean = false): FeeCheck {
         val typed = raw.orEmpty().trim()
         if (typed.isEmpty()) return FeeCheck(typed, null, if (required) FULL_FEE_MISSING else null)
-        val match = feeFormat.matchEntire(typed) ?: return FeeCheck(typed, null, FEE_FORMAT)
-        val units = match.groupValues[1].toInt()
-        val decimals = match.groupValues[2].let { if (it.length == 1) it.toInt() * 10 else if (it.isEmpty()) 0 else it.toInt() }
-        val cents = units * 100 + decimals
-        return if (cents > Limits.MAX_FEE_CENTS) FeeCheck(typed, null, FEE_FORMAT) else FeeCheck(typed, cents, null)
+        return when (val amount = amount(typed)) {
+            Amount.Malformed, Amount.TooMuch -> FeeCheck(typed, null, FEE_FORMAT)
+            is Amount.Cents -> FeeCheck(typed, amount.cents, null)
+        }
     }
 
     private fun parse(typed: String): Result<LocalDate> = try {

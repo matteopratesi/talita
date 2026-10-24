@@ -69,6 +69,22 @@ sealed interface ChangeResult {
     data class Taken(val name: String) : ChangeResult
 }
 
+/** What came of «Rimetti confermata» (criterion 8 of TALITA-6). */
+sealed interface RestoreResult {
+    data object Done : RestoreResult
+
+    /** It was not withdrawn (a tap a moment before, or another teacher): the same confirmation, never an error. */
+    data object AlreadyDone : RestoreResult
+
+    data object NotFound : RestoreResult
+
+    /** A draft: no registration to put back. */
+    data object NotAllowed : RestoreResult
+
+    /** The days that it had are not those of the gathering any more (they were taken away while it was withdrawn): it has to be corrected, from the form of the corrections. */
+    data object MustBeCorrected : RestoreResult
+}
+
 /** A registration as the pages read it, with its child and its days. [presence] is what the child comes for. */
 data class RegistrationData(
     val id: Long,
@@ -308,6 +324,37 @@ class Registrations(
     }
 
     private fun allowed(gathering: GatheringInfo, teacher: Boolean): Boolean = if (teacher) Rules.teacherCanChange(gathering) else Rules.parentCanChange(gathering)
+
+    /**
+     * The registration [id] locked for update inside the transaction of [context], then its gathering locked for sharing: the order that every change of a
+     * registration follows (a withdrawal, a correction, and the presence of a child at the check-in), so that a presence and a withdrawal are never in the
+     * middle of each other: the presence is made before the withdrawal or it is not made. Null when there is no such registration.
+     */
+    fun lock(context: DSLContext, id: Long): Pair<RegistrationData, GatheringInfo>? = target(context, id, null)
+
+    /**
+     * «In forse» becomes «Confermata» inside the transaction of [context], which holds the row of the registration locked: a child who is there is coming,
+     * so marking the presence confirms the registration (criterion 8 of TALITA-6). Returns whether it changed.
+     */
+    fun confirmIn(context: DSLContext, id: Long): Boolean =
+        context.update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.confirmed).set(REGISTRATION.UPDATED_AT, now())
+            .where(REGISTRATION.ID.eq(id)).and(REGISTRATION.STATUS.eq(RegistrationStatus.maybe)).execute() > 0
+
+    /**
+     * «Rimetti confermata» (criterion 8 of TALITA-6): a withdrawn registration is confirmed again, with its acceptance as it was (the notes on health were
+     * deleted at the withdrawal: they are the parent's to write again). The teachers do it in every state but the draft, as they correct. Putting back what
+     * is not withdrawn is the same confirmation. If the days that it had are not days of the gathering any more it is not put back: the form of the
+     * corrections is where its days are chosen again.
+     */
+    fun restoreConfirmed(id: Long): RestoreResult = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        val (registration, gathering) = target(tx, id, null) ?: return@transactionResult RestoreResult.NotFound
+        if (registration.status != Status.WITHDRAWN) return@transactionResult RestoreResult.AlreadyDone
+        if (!Rules.teacherCanChange(gathering)) return@transactionResult RestoreResult.NotAllowed
+        if (Quota.due(Offer(gathering.fees, gathering.days), registration.presence) == null) return@transactionResult RestoreResult.MustBeCorrected
+        tx.update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.confirmed).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
+        RestoreResult.Done
+    }
 
     /**
      * Changes the registration [id] with the data of [block] (criteria 12 and 26): name and date of birth of the child, what it comes for, the status

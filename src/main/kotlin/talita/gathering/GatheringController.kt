@@ -34,6 +34,7 @@ class GatheringController(
     private val gatherings: Gatherings,
     private val presenter: GatheringPresenter,
     private val usage: RegistrationUsage,
+    private val arrivals: ArrivalUsage,
 ) {
 
     // ---- The section ---------------------------------------------------------------------------------------------------------
@@ -119,14 +120,12 @@ class GatheringController(
             )
             return datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, placeCheck.value.ifEmpty { null }, usage)) {
+        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, placeCheck.value.ifEmpty { null }, usage, arrivals)) {
             DatesResult.Saved -> savedAndBack(request, id, "Titolo, date e luogo salvati.")
             DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
             is DatesResult.DaysInUse -> {
                 // One sentence for each day that would go (rule R3), under the field that would lose it: the first day or the last.
-                val sentences = result.days.map { (day, count) ->
-                    day to "Non puoi togliere ${GatheringFormat.weekday(day)} ${GatheringFormat.date(day)}: " + if (count == 1) "l’ha scelto 1 iscrizione." else "l’hanno scelto $count iscrizioni."
-                }
+                val sentences = result.days.map { use -> use.day to "Non puoi togliere ${GatheringFormat.weekday(use.day)} ${GatheringFormat.date(use.day)}: " + holdsTheDay(use) }
                 val startError = sentences.filter { it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
                 val endError = sentences.filter { !it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
                 val form = DatesForm(
@@ -244,6 +243,21 @@ class GatheringController(
     /** The error of a fee that registrations use and that was left empty. */
     private fun inUse(count: Int): String =
         (if (count == 1) "La usa 1 iscrizione" else "La usano $count iscrizioni") + ": non puoi lasciarla vuota. Se diventa gratuita, scrivi 0."
+
+    /** What holds a day that the new dates would take away: the registrations that chose it, the presences marked on it, or both (one sentence). */
+    private fun holdsTheDay(use: DayInUse): String {
+        val registrations = when (use.registrations) {
+            0 -> null
+            1 -> "l’ha scelto 1 iscrizione"
+            else -> "l’hanno scelto ${use.registrations} iscrizioni"
+        }
+        val presences = when (use.presences) {
+            0 -> null
+            1 -> "c’è 1 presenza segnata"
+            else -> "ci sono ${use.presences} presenze segnate"
+        }
+        return listOfNotNull(registrations, presences).joinToString(" e ") + "."
+    }
 
     private fun hasRegistrations(id: Long): Boolean = usage.counts(id).active > 0
 
