@@ -5,13 +5,16 @@ import org.springframework.stereotype.Component
 import talita.gathering.Badge
 import talita.gathering.GatheringFormat
 import talita.registration.DayKind
+import talita.registration.NotesRead
 import talita.registration.RegistrationData
 import talita.registration.RegistrationFormat
 import talita.registration.Status
 import talita.registration.TeacherPresenter
 import talita.ui.AlertVariant
+import talita.ui.ConfirmModel
 import java.io.Serializable
 import java.time.LocalDate
+import java.util.UUID
 
 /**
  * What the last action says, at the top of the card of the child: a confirmation, a refusal, or something that was done already. [lead] is the first words in
@@ -82,8 +85,29 @@ data class RegistrationView(val status: Badge, val age: String, val openHref: St
 /** A child of the same parent, as a row of the card «Altri figli dello stesso genitore». */
 data class SiblingView(val href: String, val name: String, val labels: List<Badge>)
 
+/** The telephone of the parent as it was written, and its digits (with a «+» at the start, if there is one) for the link that calls. */
+data class ContactView(val phone: String, val telephone: String)
+
 /**
- * The card of a child (criteria 5-9; design part 2): everything about one registration in one block, `#scheda`, which every action of the card answers with
+ * The card «Segnalazioni» (criteria 17, 18): closed, it is the same for every child (it does not say whether there is anything); open, it shows who read and when,
+ * what is written, and the consent. It is open only in the answer to the touch that wrote the reading, and never after any other action.
+ */
+data class NotesView(val shown: Boolean, val readLine: String?, val rows: List<Pair<String, String>>, val consent: String?)
+
+/** A payment of the card: the amount, who registered it and when, and the dialog that takes it away (criterion 13). */
+data class PaymentRow(val id: Long, val amount: String, val meta: String, val removeHref: String, val removeLabel: String, val dialog: ConfirmModel)
+
+/** The form of a payment: the code of the request, the amount written in the field (what is still to pay, or what was typed), the help and the error under the field. */
+data class PaymentForm(val request: String, val value: String, val hint: String, val error: String?)
+
+/** What the card says of the money (criteria 10-13): what is due, what was paid, the balance in words, the payments and the form. */
+data class MoneyView(val due: String, val paid: String, val balance: Badge, val payments: List<PaymentRow>, val form: PaymentForm)
+
+/** What was typed in the form of a payment, when the answer is the form again with an error. */
+data class PaymentTyped(val value: String, val error: String)
+
+/**
+ * The card of a child (criteria 5-18; design part 2): everything about one registration in one block, `#scheda`, which every action of the card answers with
  * whole (the days, the labels under the title, the notices): so nothing is left old, and nothing that is health is ever left open.
  */
 data class CardPage(
@@ -100,6 +124,9 @@ data class CardPage(
     val duplicates: List<OtherCard>,
     val phaseNotice: String?,
     val days: List<CardDay>,
+    val contact: ContactView,
+    val notes: NotesView,
+    val money: MoneyView,
     val custody: CustodyView,
     val registration: RegistrationView,
     val siblings: List<SiblingView>,
@@ -107,7 +134,7 @@ data class CardPage(
 
 /** Builds the card of a child from what [ArrivalsData] read: the sentences are those of the design (part 2, tables 2 and 3). */
 @Component
-class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher: TeacherPresenter) {
+class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher: TeacherPresenter, private val payments: Payments) {
 
     private fun days(data: ArrivalsData, registration: RegistrationData, choice: DayChoice): List<CardDay> {
         val withdrawn = data.withdrawn(registration)
@@ -171,7 +198,72 @@ class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher
         Phase.DURING -> null
     }
 
-    fun page(data: ArrivalsData, registration: RegistrationData, choice: DayChoice, flash: CardAlert?): CardPage {
+    private fun notes(read: NotesRead?, reader: String): NotesView {
+        if (read == null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null)
+        val note = read.note
+        val rows = buildList {
+            note?.notes?.allergies?.let { add("Allergie" to it) }
+            note?.notes?.intolerances?.let { add("Intolleranze" to it) }
+            note?.notes?.medications?.let { add("Farmaci" to it) }
+        }
+        val consent = note?.let { if (it.onPaper) "Il genitore ha dato il consenso sul modulo cartaceo." else "Consenso dato dal genitore il ${RegistrationFormat.moment(it.consentAt)}." }
+        return NotesView(shown = true, readLine = "Lettura registrata: $reader, ${CheckinFormat.momentWithYear(read.at)}.", rows = rows, consent = consent)
+    }
+
+    private fun money(data: ArrivalsData, registration: RegistrationData, choice: DayChoice, typed: PaymentTyped?): MoneyView {
+        val withdrawn = data.withdrawn(registration)
+        val due = data.due(registration)
+        val paid = data.paid(registration)
+        val balance = data.balance(registration)
+        val rows = payments.ofRegistration(registration.id).map { payment ->
+            val amount = RegistrationFormat.money(payment.cents)
+            val by = arrivals.teacherName(payment.byAccountId)
+            val id = "togli-pagamento-${payment.id}"
+            PaymentRow(
+                id = payment.id,
+                amount = amount,
+                meta = "$by · ${CheckinFormat.moment(payment.at)}",
+                removeHref = "/arrivi/${registration.id}/pagamenti/${payment.id}/togli?giorno=${choice.selected}",
+                removeLabel = "Togli il pagamento di $amount",
+                dialog = removeDialog(registration, payment, choice, id, amount, by),
+            )
+        }
+        val missing = (balance as? Balance.ToPay)?.cents
+        val form = PaymentForm(
+            request = UUID.randomUUID().toString(),
+            value = typed?.value ?: missing?.let(GatheringFormat::amountField).orEmpty(),
+            hint = if (typed == null && missing != null) "Abbiamo scritto quanto manca: cambia l’importo se hai ricevuto una cifra diversa." else "Scrivi quanto hai ricevuto, per esempio 25 o 12,50.",
+            error = typed?.error,
+        )
+        return MoneyView(
+            due = if (withdrawn) "Non dovuta" else due?.let(RegistrationFormat::money) ?: "Da definire",
+            paid = if (paid == 0) "Niente" else RegistrationFormat.money(paid),
+            balance = balanceBadge(balance) ?: Badge("Quota da definire", "neutral"),
+            payments = rows,
+            form = form,
+        )
+    }
+
+    /** The dialog that takes a payment away (design part 2, «Dialogo Togli»): what goes, from whom, and what changes. The same words are the page without JavaScript. */
+    fun removeDialog(registration: RegistrationData, payment: Payment, choice: DayChoice, id: String, amount: String, by: String): ConfirmModel = ConfirmModel(
+        id = id,
+        title = "Togliere il pagamento di $amount?",
+        text = "Il pagamento di $amount registrato da $by il ${CheckinFormat.moment(payment.at)} sparisce da ${registration.name}. Il saldo e il totale incassato cambiano. Per rimetterlo lo devi registrare di nuovo.",
+        confirmLabel = "Togli il pagamento",
+        busyLabel = "Tolgo…",
+        action = "/arrivi/${registration.id}/pagamenti/${payment.id}/togli",
+        field = "giorno",
+        value = choice.selected.toString(),
+        target = "#scheda",
+        cancelHref = "/arrivi/${registration.id}?giorno=${choice.selected}",
+        danger = true,
+    )
+
+    /**
+     * The card. [read] is the notes of the touch that wrote their reading (null for any other answer: they are closed and nobody is told whether there are any);
+     * [reader] is who read. [typed] is what was typed in the form of the payment when the answer is the form again with an error.
+     */
+    fun page(data: ArrivalsData, registration: RegistrationData, choice: DayChoice, flash: CardAlert?, read: NotesRead? = null, reader: String = "", typed: PaymentTyped? = null): CardPage {
         val withdrawn = data.withdrawn(registration)
         val duplicates = data.duplicates[registration.id].orEmpty().mapNotNull { other -> data.registrations.firstOrNull { it.id == other } }
         val siblings = data.registrations.filter { it.accountId != null && it.accountId == registration.accountId && it.id != registration.id }
@@ -188,6 +280,9 @@ class CardPresenter(private val arrivals: ArrivalsPresenter, private val teacher
             duplicates = duplicates.map { OtherCard(arrivals.hrefOf(it.id, choice.selected), "Apri l’altra scheda, iscrizione fatta il ${RegistrationFormat.day(it.createdAt)}") },
             phaseNotice = phaseNotice(choice),
             days = days(data, registration, choice),
+            contact = ContactView(registration.phone, CheckinFormat.dialable(registration.phone)),
+            notes = notes(read, reader),
+            money = money(data, registration, choice, typed),
             custody = custody(registration),
             registration = RegistrationView(
                 status = teacher.statusBadge(registration),

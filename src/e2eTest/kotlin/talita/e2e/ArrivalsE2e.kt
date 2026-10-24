@@ -4,10 +4,13 @@ import talita.Addresses
 import talita.account.TestAccounts
 import talita.gathering.GatheringSupport
 import talita.jooq.enums.GatheringStatus
+import talita.jooq.tables.references.PAYMENT
 import talita.jooq.tables.references.TEACHER
 import talita.jooq.tables.references.TEACHER_INVITATION
 import java.time.Clock
 import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.util.UUID
 
 /**
  * A gathering for the tests of the arrivals: the days are around today (yesterday, today and tomorrow by default), because the presences are marked on the days that
@@ -41,4 +44,16 @@ internal fun E2e.someParent(): Long {
     val email = Addresses.unique("e2e-genitore")
     dsl().insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, email).execute()
     return accountId(email)
+}
+
+/** A payment written as it is kept, by the teacher [by], at this moment. */
+internal fun E2e.payment(registration: Long, cents: Int, by: Long) {
+    val clock = application.getBean(Clock::class.java)
+    dsl().insertInto(PAYMENT)
+        .set(PAYMENT.REGISTRATION_ID, registration)
+        .set(PAYMENT.AMOUNT_CENTS, cents)
+        .set(PAYMENT.RECORDED_AT, OffsetDateTime.now(clock))
+        .set(PAYMENT.RECORDED_BY_ACCOUNT_ID, by)
+        .set(PAYMENT.REQUEST_ID, UUID.randomUUID())
+        .execute()
 }

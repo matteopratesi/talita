@@ -21,7 +21,7 @@ if (hint != null && error != null) {
     <p id="${id}-aiuto" class="text-sm text-ink-muted">${hint}</p>
   @endif
   <div class="relative">
-    <input id="${id}" name="${name}" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" value="${value}" aria-describedby="${describedBy}" aria-invalid="${error != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface pr-12 pl-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+    <input id="${id}" name="${name}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false" value="${value}" aria-describedby="${describedBy}" aria-invalid="${error != null ? "true" : null}" class="block min-h-12 w-full rounded-xl border border-line-strong bg-surface pr-12 pl-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
     <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-muted">€</span>
   </div>
   @if(error != null)

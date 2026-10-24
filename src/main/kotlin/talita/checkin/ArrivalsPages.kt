@@ -68,6 +68,9 @@ object CheckinFormat {
     /** `settembre`. */
     fun monthName(day: LocalDate): String = day.month.getDisplayName(TextStyle.FULL, locale)
 
+    /** The number as the link that calls wants it: only the digits and a «+» at the start, if the number begins with one (`+39 333-123.4567` is `+393331234567`). */
+    fun dialable(phone: String): String = (if (phone.trimStart().startsWith("+")) "+" else "") + phone.filter { it.isDigit() }
+
     /** `Marta Bianchi`, or the words for a person who is not among the teachers any more. */
     fun teacher(name: String?): String = name ?: "un maestro che non è più tra i maestri"
 

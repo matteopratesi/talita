@@ -9,17 +9,22 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
+import talita.account.CurrentAccount
 import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.gathering.GatheringInfo
 import talita.registration.ChangeResult
+import talita.registration.HealthNotes
+import talita.registration.NotesRead
 import talita.registration.RegistrationData
+import talita.registration.RegistrationFormat
 import talita.registration.Registrations
 import talita.registration.RestoreResult
-import talita.ui.Flash
 import talita.ui.AlertVariant
+import talita.ui.Flash
 import talita.ui.Section
 import talita.ui.ShellFactory
+import java.util.UUID
 
 /**
  * The card of a child (`/arrivi/{id}`, only for the teachers): the days with their presences, the manleva, the registration and the other children of the same
@@ -36,15 +41,26 @@ class CardController(
     private val arrivals: Arrivals,
     private val registrations: Registrations,
     private val cards: CardPresenter,
+    private val presenter: ArrivalsPresenter,
+    private val payments: Payments,
+    private val healthNotes: HealthNotes,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
 
     private fun choice(gathering: GatheringInfo, typedDay: String?): DayChoice = DayChoice.of(gathering.days, typedDay, scope.today())
 
-    private fun view(registration: RegistrationData, gathering: GatheringInfo, typedDay: String?, flash: CardAlert?): CardPage {
+    private fun view(
+        registration: RegistrationData,
+        gathering: GatheringInfo,
+        typedDay: String?,
+        flash: CardAlert?,
+        read: NotesRead? = null,
+        reader: String = "",
+        typed: PaymentTyped? = null,
+    ): CardPage {
         val data = arrivals.load(gathering)
-        return cards.page(data, data.registrations.first { it.id == registration.id }, choice(gathering, typedDay), flash)
+        return cards.page(data, data.registrations.first { it.id == registration.id }, choice(gathering, typedDay), flash, read, reader, typed)
     }
 
     /** The card as a whole page: with the title of the child, the way back to the list of the same day and the notice that a redirect left. */
@@ -56,13 +72,33 @@ class CardController(
         return ModelAndView("checkin/childPage", mapOf("shell" to shells.shell(page = registration.name, current = Section.ARRIVI), "page" to page))
     }
 
-    /** The answer to an action of the card: the block with the notice (htmx), or a redirect to the card with the notice kept for it. */
+    private fun wholePage(registration: RegistrationData, page: CardPage, status: HttpStatus): ModelAndView =
+        ModelAndView("checkin/childPage", mapOf("shell" to shells.shell(page = registration.name, current = Section.ARRIVI), "page" to page)).also { it.status = status }
+
+    /**
+     * The card as an answer that is not a redirect: the block `#scheda` for htmx, and the whole page without it (a form without JavaScript that came back with an
+     * error, or the notes that were asked for). [read] is the notes of the touch that wrote their reading, [typed] what was typed in the form of the payment.
+     */
+    private fun block(
+        request: HttpServletRequest,
+        registration: RegistrationData,
+        gathering: GatheringInfo,
+        typedDay: String?,
+        flash: CardAlert?,
+        status: HttpStatus = HttpStatus.OK,
+        read: NotesRead? = null,
+        reader: String = "",
+        typed: PaymentTyped? = null,
+    ): ModelAndView {
+        val page = view(registration, gathering, typedDay, flash, read, reader, typed)
+        return if (request.isHtmxFragment()) ModelAndView("checkin/childCard", mapOf("page" to page)).also { it.status = status } else wholePage(registration, page, status)
+    }
+
+    /** The answer to an action that went well, or was done already: the block with the notice (htmx), or a redirect to the card with the notice kept for it. */
     private fun answer(request: HttpServletRequest, registration: RegistrationData, gathering: GatheringInfo, typedDay: String?, alert: CardAlert, status: HttpStatus = HttpStatus.OK): ModelAndView {
-        if (request.isHtmxFragment()) {
-            return ModelAndView("checkin/childCard", mapOf("page" to view(registration, gathering, typedDay, alert))).also { it.status = status }
-        }
+        if (request.isHtmxFragment()) return block(request, registration, gathering, typedDay, alert, status)
         CardFlash.put(request, alert)
-        return seeOther("/arrivi/${registration.id}?giorno=${choice(gathering, typedDay).selected}")
+        return seeOther("/arrivi/" + registration.id + "?giorno=" + choice(gathering, typedDay).selected)
     }
 
     // ---- The manleva and the registration (criteria 8, 9) ----------------------------------------------------------------------------
@@ -91,5 +127,68 @@ class CardController(
 
             RestoreResult.NotFound, RestoreResult.NotAllowed -> notFound()
         }
+    }
+
+    // ---- The money (criteria 10-15) ---------------------------------------------------------------------------------------------------
+
+    /**
+     * «Registra il pagamento»: the amount is read as the fees are (comma or dot, up to two decimals, from 0,01 to 1.000 euros); a wrong one is the card again with the
+     * amount still written and the error under the field (422). The form carries a request code that the server wrote: the same form sent twice is one payment, and
+     * the second answer is the same confirmation.
+     */
+    @PostMapping("/arrivi/{id:[0-9]{1,18}}/pagamenti")
+    fun pay(
+        account: CurrentAccount,
+        @PathVariable id: Long,
+        @RequestParam(name = "giorno", required = false) day: String?,
+        @RequestParam(name = "importo", defaultValue = "") amount: String,
+        @RequestParam(name = "richiesta", defaultValue = "") code: String,
+        http: HttpServletRequest,
+    ): ModelAndView {
+        val (registration, gathering) = scope.registration(id) ?: notFound()
+        val request = runCatching { UUID.fromString(code.trim()) }.getOrNull() ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST)
+        val check = PaymentAmount.check(amount)
+        val cents = check.cents ?: return block(http, registration, gathering, day, null, HttpStatus.UNPROCESSABLE_ENTITY, typed = PaymentTyped(check.typed, checkNotNull(check.error)))
+        return when (payments.register(id, request, cents, account.id)) {
+            is PaymentResult.Registered, is PaymentResult.AlreadyRegistered -> answer(http, registration, gathering, day, CardAlert(AlertVariant.SUCCESS, null, "Pagamento registrato."))
+            PaymentResult.RequestUsedElsewhere -> answer(http, registration, gathering, day, CardAlert(AlertVariant.WARNING, null, "Non è stato possibile registrare il pagamento. Riprova."), HttpStatus.CONFLICT)
+            PaymentResult.NotFound -> notFound()
+        }
+    }
+
+    /** Without JavaScript «Togli» is a link to this page, with the words of the dialog; the button on it sends the same post. */
+    @GetMapping("/arrivi/{id:[0-9]{1,18}}/pagamenti/{payment:[0-9]{1,18}}/togli")
+    fun confirmRemoval(@PathVariable id: Long, @PathVariable payment: Long, @RequestParam(name = "giorno", required = false) day: String?, http: HttpServletRequest): ModelAndView {
+        val (registration, gathering) = scope.registration(id) ?: notFound()
+        val found = payments.find(payment) ?: return answer(http, registration, gathering, day, CardAlert(AlertVariant.INFO, null, "Quel pagamento era già stato tolto."))
+        if (found.registrationId != id) notFound()
+        val amount = RegistrationFormat.money(found.cents)
+        val model = cards.removeDialog(registration, found, choice(gathering, day), "togli-pagamento-" + found.id, amount, presenter.teacherName(found.byAccountId)).copy(target = null)
+        return ModelAndView("pages/confirmAction", mapOf("shell" to shells.shell(page = model.title, current = Section.ARRIVI), "page" to model))
+    }
+
+    /** Takes the payment away: it goes with all its data, and the balance and the totals change. One that is gone already is the same answer (criterion 13). */
+    @PostMapping("/arrivi/{id:[0-9]{1,18}}/pagamenti/{payment:[0-9]{1,18}}/togli")
+    fun removePayment(@PathVariable id: Long, @PathVariable payment: Long, @RequestParam(name = "giorno", required = false) day: String?, http: HttpServletRequest): ModelAndView {
+        val (registration, gathering) = scope.registration(id) ?: notFound()
+        return when (payments.remove(id, payment)) {
+            is RemoveResult.Removed -> answer(http, registration, gathering, day, CardAlert(AlertVariant.SUCCESS, null, "Pagamento tolto."))
+            RemoveResult.AlreadyRemoved -> answer(http, registration, gathering, day, CardAlert(AlertVariant.INFO, null, "Quel pagamento era già stato tolto."))
+            RemoveResult.NotFound -> notFound()
+        }
+    }
+
+    // ---- The notes on health (criteria 17, 18) ------------------------------------------------------------------------------------------
+
+    /**
+     * «Mostra le segnalazioni»: the reading of the teacher is written and the notes are read in one transaction (`HealthNotes`, the only class that touches them),
+     * and only then are they shown, in this answer and in no other: whatever the next action answers, the card is closed again. If the reading cannot be written
+     * nothing is shown (an error, never the notes). Without htmx the answer is the whole page; it is never kept.
+     */
+    @PostMapping("/arrivi/{id:[0-9]{1,18}}/segnalazioni")
+    fun showNotes(account: CurrentAccount, @PathVariable id: Long, @RequestParam(name = "giorno", required = false) day: String?, http: HttpServletRequest): ModelAndView {
+        val (registration, gathering) = scope.registration(id) ?: notFound()
+        val read = healthNotes.readForTeacher(id, account.id)
+        return block(http, registration, gathering, day, null, read = read, reader = account.teacher?.full ?: "un maestro")
     }
 }

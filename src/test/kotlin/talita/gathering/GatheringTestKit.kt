@@ -68,5 +68,5 @@ internal fun errorOf(html: String, field: String): String? =
 internal fun valueOf(html: String, field: String): String? {
     val input = Regex("""<input id="$field"[^>]*?\svalue="([^"]*)"""").find(html)?.groupValues?.get(1)
     val area = Regex("""<textarea id="$field"[^>]*>([\s\S]*?)</textarea>""").find(html)?.groupValues?.get(1)
-    return (input ?: area)?.replace("&#39;", "'")?.replace("&quot;", "\"")?.replace("&lt;", "<")?.replace("&gt;", ">")?.replace("&amp;", "&")
+    return (input ?: area)?.replace("&#39;", "'")?.replace("&quot;", "\"")?.replace("&#34;", "\"")?.replace("&lt;", "<")?.replace("&gt;", ">")?.replace("&amp;", "&")
 }

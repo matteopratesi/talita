@@ -17,6 +17,7 @@ import talita.account.TeacherPaths
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.REGISTRATION
 import java.time.Clock
 import java.time.LocalDate
@@ -41,10 +42,14 @@ class ArrivalsAccessTests(
     private val kit = CheckinTestKit(mockMvc, tokens, dsl, clock)
 
     /** The pages of the arrivals as a link opens them, for the registration [id]. */
-    private fun pages(id: Long): List<String> = listOf("/arrivi", "/arrivi?giorno=2027-09-18", "/arrivi/$id", "/arrivi/$id?giorno=2027-09-18")
+    private fun pages(id: Long): List<String> =
+        listOf("/arrivi", "/arrivi?giorno=2027-09-18", "/arrivi/$id", "/arrivi/$id?giorno=2027-09-18", "/arrivi/$id/pagamenti/1/togli", "/arrivi/$id/pagamenti/1/togli?giorno=2027-09-18")
 
     /** The forms of the arrivals, as the pages send them. */
-    private fun forms(id: Long): List<String> = listOf("/arrivi/$id/presenze", "/arrivi/$id/presenze/togli", "/arrivi/$id/manleva", "/arrivi/$id/rimetti")
+    private fun forms(id: Long): List<String> = listOf(
+        "/arrivi/$id/presenze", "/arrivi/$id/presenze/togli", "/arrivi/$id/manleva", "/arrivi/$id/rimetti",
+        "/arrivi/$id/pagamenti", "/arrivi/$id/pagamenti/1/togli", "/arrivi/$id/segnalazioni",
+    )
 
     private inner class World {
         val setup = kit.start()
@@ -57,7 +62,7 @@ class ArrivalsAccessTests(
 
         /** What can be changed: if nothing is, the numbers are the same after the attempts. */
         fun state(): List<Any?> = listOf(
-            kit.presenceCount(), kit.paymentCount(), kit.statusOf(child), kit.statusOf(withdrawn),
+            kit.presenceCount(), kit.paymentCount(), dsl.fetchCount(HEALTH_NOTE_ACCESS), kit.statusOf(child), kit.statusOf(withdrawn),
             dsl.select(REGISTRATION.PAPER_FORM_RECEIVED).from(REGISTRATION).where(REGISTRATION.ID.eq(paper)).fetchSingle(REGISTRATION.PAPER_FORM_RECEIVED),
         )
     }

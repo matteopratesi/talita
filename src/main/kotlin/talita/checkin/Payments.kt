@@ -156,6 +156,10 @@ class Payments(private val dsl: DSLContext, private val clock: Clock) {
     private fun row(it: org.jooq.Record): Payment =
         Payment(it[PAYMENT.ID]!!, it[PAYMENT.REGISTRATION_ID]!!, it[PAYMENT.AMOUNT_CENTS]!!, it[PAYMENT.RECORDED_AT]!!, it[PAYMENT.RECORDED_BY_ACCOUNT_ID]!!)
 
+    /** One payment, whichever registration it is of; null when it is not there (any more). */
+    fun find(paymentId: Long): Payment? =
+        dsl.select(PAYMENT.ID, PAYMENT.REGISTRATION_ID, PAYMENT.AMOUNT_CENTS, PAYMENT.RECORDED_AT, PAYMENT.RECORDED_BY_ACCOUNT_ID).from(PAYMENT).where(PAYMENT.ID.eq(paymentId)).fetchOne(::row)
+
     /** The payments of one registration, in the order they were registered. */
     fun ofRegistration(registrationId: Long): List<Payment> =
         dsl.select(PAYMENT.ID, PAYMENT.REGISTRATION_ID, PAYMENT.AMOUNT_CENTS, PAYMENT.RECORDED_AT, PAYMENT.RECORDED_BY_ACCOUNT_ID).from(PAYMENT)

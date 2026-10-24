@@ -314,7 +314,7 @@ class ArrivalsE2eTest {
         e2e.open("/arrivi/${c.anna}")
 
         assertThat(page.locator("h1")).hasText("Anna Rossi")
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Giorni", "Manleva", "Iscrizione", "Altri figli dello stesso genitore"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Giorni", "Recapito del genitore", "Segnalazioni", "Quota e pagamenti", "Manleva", "Iscrizione", "Altri figli dello stesso genitore"))
         assertThat(page.locator("main").linkNamed("Torna agli arrivi")).hasAttribute("href", "/arrivi?giorno=${w.today}")
         assertTrue(page.noHorizontalScroll())
         page.setViewportSize(320, 800)
