@@ -44,7 +44,8 @@ class CheckinDocsTests {
             "**La struttura che ospita la convivenza** (TALITA-6) non è un fornitore dell'app: riceve **su carta** l'elenco per la struttura, con **solo nome e cognome**",
             "**Check-in e stampe** (TALITA-6)", "nessun nome negli indirizzi web né nei log", "**solo in quella risposta**", "nessun service worker",
             "## Carta", "**Registro arrivi**", "**Elenco per la struttura**", "**Foglio per i maestri**", "**Niente recapiti, niente segnalazioni**", "**Segnalazioni su carta: no.**", "**non c'è nessuna deroga** alla regola 4",
-            "**presenze e pagamenti** (TALITA-6): vanno via **con l'iscrizione**", "il foglio per i maestri si distrugge alla fine della convivenza", "le stampe di Arrivi da Safari su iPhone",
+            // The times are in the table of TALITA-7 (it replaced the list of the times of TALITA-6): presences and payments go with the registration, the sheet at the end.
+            "| Presenze, pagamenti, registro delle letture | con l'iscrizione (cascata)", "il foglio per i maestri alla fine della convivenza (TALITA-6)", "le stampe di Arrivi da Safari su iPhone",
         )) {
             assertTrue(privacy.contains(part), "docs/03 does not say: $part")
         }

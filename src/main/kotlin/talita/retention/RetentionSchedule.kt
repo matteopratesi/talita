@@ -1,5 +1,6 @@
 package talita.retention
 
+import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Configuration
@@ -21,10 +22,17 @@ import org.springframework.scheduling.annotation.Scheduled
 @ConditionalOnProperty(prefix = "talita.retention", name = ["automatic"], havingValue = "true", matchIfMissing = true)
 class RetentionSchedule(private val job: RetentionJob) {
 
-    /** At the start, when the application is ready to answer: what a night of a switched-off application did not do is done now. */
+    private val log = LoggerFactory.getLogger(RetentionSchedule::class.java)
+
+    /**
+     * At the start, when the application is ready to answer: what a night of a switched-off application did not do is done now. The log says that it ran (the smoke
+     * test of the jar looks for the line: the start and the cron are on without profiles) and when the next ones are; it says nothing of what was deleted, which
+     * the job writes by itself, rule by rule, with numbers only.
+     */
     @EventListener(ApplicationReadyEvent::class)
     fun atStart() {
-        job.run()
+        val report = job.run()
+        log.info("Retention: the job ran at the start ({} rules failed). It runs again every night at 4:15 of Rome.", report.failed.size)
     }
 
     /** Every night at 4:15, before the backup of the day (docs/03-privacy.md: the backup starts after this job). */

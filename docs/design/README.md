@@ -14,6 +14,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-6/` sono i mockup di Arrivi, della scheda del bambino e delle tre stampe (TALITA-6, Grace Kerning): 82 pagine statiche con tutti gli stati e dati sintetici, da `index.html`; `talita-6.css` importa il CSS dei mockup precedenti e ha in fondo le regole di stampa. Le stampe si provano con Ctrl+P. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida (per esempio «Pagata Niente»: il mockup della scheda ha «0 €», la guida chiede lo zero in parole).
 
+`docs/design/TALITA-7/` sono i mockup della conservazione dei dati e delle cancellazioni (TALITA-7, Grace Kerning): 25 pagine statiche più l'indice (`index.html`) e `talita-7.css`, con i dati sintetici di Luca e Anna Rossi e della «Convivenza di settembre 2027»: il Profilo con «I tuoi dati» e i dialoghi (si aprono con l'ancora, `profilo-genitore.html#cancella-luca`), «Le tue iscrizioni» che si guardano soltanto, la scheda «Conservazione dei dati» per i maestri, le segnalazioni e le iscrizioni cancellate e l'informativa. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -749,6 +751,8 @@ esci quando hai finito.». Dopo «Esci» si arriva a `/accedi` con l'avviso di c
 rientrare, chiedi un nuovo link.», una volta sola. Le pagine di chi è dentro hanno `Cache-Control: no-store`:
 il tasto indietro non le mostra più dopo l'uscita.
 
+**«I tuoi dati»** (TALITA-7, ogni persona dentro): una scheda (4.4) dopo «Il tuo accesso» (e dopo «Il tuo nome» per il maestro) con un'introduzione, il collegamento di testo «Per quanto tempo teniamo i dati» (icona `shield-check`, verso `/informativa#per-quanto-tempo` nella stessa scheda: `hx-boost="false"`, perché la pagina pubblica ha un altro guscio), il sottotitolo (`h3`, `text-base font-semibold`) «I tuoi figli» con una riga per figlio (4.3, «Riga di un figlio nel Profilo») e il sottotitolo «Il tuo account». Cancellare non è mai l'azione principale della pagina: il bottone è il **pericolo in contorno** (4.1), largo sul telefono, e apre il dialogo con gli elenchi (4.8); il pericolo pieno sta solo dentro il dialogo. Quando c'è qualcosa da fare prima, la spiegazione prende il posto del bottone, nello stesso punto (`text-sm text-ink-muted`, nessun colore di avviso: non è un errore) con un bottone di testo che porta dove si fa («Vai alle iscrizioni», «Vai a Maestri», «Togliti dagli affidatari»); per l'account, un elenco puntato sotto «Per cancellare il tuo account, prima:». Non c'è una voce di navigazione nuova: il Profilo è la pillola dell'intestazione. Una richiesta che non si può più fare (una pagina rimasta aperta) è il profilo com'è adesso, con 409 e l'avviso di attenzione «Non è stato cancellato niente. Le cose da fare prima sono scritte qui sotto.».
+
 **«Il tuo nome»** (solo il maestro): una seconda scheda (4.4) sotto «Il tuo accesso», con i due campi **Nome**
 e **Cognome** (come in «Accetta l’invito»: stesse regole, stessi errori, `novalidate`, nessun `required`,
 `maxlength` né `pattern`) compilati con il nome di adesso, e il bottone primario «Salva il nome» (in attesa:
@@ -864,6 +868,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 | Primario | l'azione principale, una sola per schermata | base + `bg-brand text-white hover:bg-brand-strong active:bg-brand-strong` |
 | Secondario | alternative, "Annulla" | base + `border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted` |
 | Pericolo | azioni che tolgono qualcosa per sempre o annullano un'iscrizione | base + `bg-danger text-white hover:bg-danger-strong active:bg-danger-strong` |
+| Pericolo in contorno | il bottone di una pagina che **apre un dialogo** che cancella dati: non cancella niente da solo e non è mai l'azione principale (TALITA-7). Sul telefono `w-full sm:w-auto`, con l'icona `trash-2` `size-5` | base + `border border-danger bg-surface text-danger hover:bg-danger-soft active:bg-danger-soft` (danger su bianco 6,57:1, su danger-soft 5,79:1) |
 | Testo | azioni minori dentro schede e liste ("Modifica") | `inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-base font-semibold text-brand transition-colors duration-150 hover:bg-brand-soft active:bg-brand-soft` |
 
 - **Azione rapida** («Segna presente», nella riga di una lista: 4.3): più alta e stretta, perché sta a destra del nome: `inline-flex min-h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-brand px-2 text-center text-sm leading-tight font-semibold text-white … sm:w-auto sm:min-w-36 sm:px-5 sm:text-base sm:whitespace-nowrap`. Durante la richiesta dice «Segno…» e il suo nome accessibile continua con il nome del bambino e il giorno (`sr-only`: «Segna presente Anna Rossi, sabato 18 settembre»).
@@ -1043,6 +1048,8 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 </li>
 ```
 
+**Riga di un figlio nel Profilo** (TALITA-7): `<li class="border-t border-line py-4 first:border-t-0 first:pt-2">`; il cerchio con le iniziali e il nome e cognome (che vanno a capo, mai tagliati: `wrap-anywhere`) sulla stessa riga (`flex items-center gap-3`); sotto, a `mt-3`, il bottone di pericolo in contorno (4.1) o la spiegazione. Il bottone dice il nome proprio («Cancella i dati di Luca»), o nome e cognome se due figli dell'account hanno lo stesso nome proprio; il suo `aria-label` ha sempre nome e cognome e comincia con le parole che si vedono. La riga non mostra altri dati (né data di nascita né telefono).
+
 ### 4.4 Schede
 
 ```html
@@ -1082,6 +1089,9 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 <div class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5"><dt class="text-ink-muted">Quando</dt><dd class="basis-full text-left font-semibold">Giornata: sabato 18. Solo pranzo: domenica 19.</dd></div>
 ```
 
+- **Riga di conservazione** (TALITA-7), sotto «Affidamento accettato il …» nella scheda di un'iscrizione di una convivenza finita: `mt-2 flex items-start gap-2 text-sm text-ink-muted` con l'icona `archive` `size-4 shrink-0`, e il testo «Conservata fino al 20 settembre 2028 come prova dell’affidamento».
+- **Scheda «Conservazione dei dati»** (TALITA-7, dettaglio della convivenza): titolo, una frase (`text-ink-muted`) e righe «etichetta · valore · spiegazione» in un `dl` (`space-y-3`; la riga `sm:grid sm:grid-cols-[11rem_1fr] sm:gap-x-6`; `<dt class="text-sm text-ink-muted">`; nel `<dd>` un `<p class="font-medium">` con la data e un `<p class="text-sm text-ink-muted">` con il motivo). È un'informazione, non un'azione: nessun bottone e nessun form.
+- **Riquadro neutro con icona** (TALITA-7, «Segnalazioni cancellate il …»): `grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted` con l'icona `trash-2` `size-6`, e accanto due frasi (la prima in `font-semibold`, la seconda `text-sm text-ink-muted`). Prende il posto del bottone «Mostra le segnalazioni», ed è uguale per ogni iscrizione.
 - **Il titolo della scheda e il suo «Modifica»** stanno sulla stessa riga (`flex items-center justify-between gap-3`), con il bottone di testo e l'icona `pencil`; il bottone ha un `aria-label` che dice cosa si modifica («Modifica le quote»), perché sulla pagina ce ne sono quattro.
 
 ### 4.5 Etichette di stato
@@ -1222,6 +1232,8 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   Se invece il server risponde con il blocco (422, 429), il blocco sostituisce anche il dialogo.
 - Dopo l'azione il fuoco va all'avviso del blocco (5); dopo «Annulla» o Esc, al bottone che aveva aperto il dialogo.
 
+**Dialogo con elenchi** (`erasureDialog`, TALITA-7): un dialogo che cancella dati. Dentro il `<dialog>` di sopra si aggiungono `max-h-[92dvh] overflow-y-auto` (scorre nel suo pannello se è più alto dello schermo) e il testo è un blocco `<div id="…-testo" class="mt-3 space-y-4">`, con `aria-describedby` che punta al blocco. Le sezioni hanno il titolo (`<h3 class="text-base font-semibold">`) e un elenco breve (`<ul class="mt-1 list-disc space-y-2 pl-5 text-ink-muted marker:text-ink-muted">`); la riga piccola è `text-sm text-ink-muted` e la chiusura `font-semibold`. La regola: **un dialogo che cancella dati dice, in quest'ordine, cosa si cancella subito («Cancelliamo subito»), cosa resta, con la data e il motivo («Resta»), oppure «Non resta niente.» in grassetto al posto dell'elenco; che le copie di sicurezza, cifrate, perdono quei dati entro il tempo della policy; e chiude con «Non si può annullare.» in grassetto.** Il bottone che conferma è di pericolo e ripete il verbo del titolo («Cancella i dati di Luca»); in attesa dice «Cancellazione…». L'`id` è `cancella-figlio-12` e `cancella-account`, mai un nome. Se resta un'iscrizione il dialogo dice che restano anche il nome e la data di nascita del bambino dentro quell'iscrizione: è così nel modello, e chi legge «cancelliamo i dati di Luca» deve saperlo. Senza JavaScript il bottone è un link a `GET` dello stesso indirizzo: una pagina con gli stessi testi (il titolo è l'`h1`), «Cancella i dati di Luca» e «Annulla» verso `/profilo`. Il testo si calcola quando si disegna la pagina e la cancellazione guarda lo stato del momento (il controllo sta nella transazione); l'avviso dopo dice cosa è rimasto davvero.
+
 ### 4.9 Stato vuoto
 
 Quando una lista non ha elementi o una sezione non è ancora pronta.
@@ -1239,6 +1251,8 @@ Quando una lista non ha elementi o una sezione non è ancora pronta.
 
 Titolo che dice cosa manca, una frase su cosa comparirà qui, e il bottone per crearlo se la
 persona può farlo. Se non può, niente bottone.
+
+**Variante neutra** (TALITA-7, per quello che c'era e è stato **cancellato**: «Iscrizioni cancellate», «Arrivi cancellati»): il cerchio è `bg-surface-muted text-ink-muted` al posto di `bg-brand-soft text-brand`, con l'icona `archive`; il testo dice quando e perché (le date vengono dalla policy: «sono state cancellate il 20 settembre 2028, un anno dopo la fine: servivano come prova dell’affidamento»), poi che restano le date e le informazioni della convivenza, senza nomi, e un bottone di testo «Vai alla convivenza» (icona `calendar-days`).
 
 ### 4.10 Indicatore di caricamento
 
@@ -1605,6 +1619,9 @@ Un errore dice cosa fare, non solo cosa non va. Senza colpe e senza codici.
 
 - Dopo un'azione riuscita: oggetto e participio, breve. "Convivenza salvata.", "Iscrizione ritirata."
 - Prima di un'azione con conseguenze: dialogo (4.8).
+- Una conferma può avere **una seconda frase** su cosa resta e fino a quando («Dati di Luca cancellati.», poi «Resta fino al 20 settembre 2028 l’iscrizione di Luca alla «Convivenza di settembre 2027», come prova dell’affidamento.»): un avviso (4.6) con due paragrafi (`space-y-2`), il primo in `font-semibold`, e se serve un bottone di testo sotto.
+- **«Cancella» e «Togli»** (TALITA-7): «Cancella» è per sempre e riguarda dati personali; «Togli» si può rimediare (si invita di nuovo, si riscrive). Non si scambiano.
+- **Il tempo del verbo** per le cancellazioni segue la data e non le righe del database: «Si cancellano il 20 ottobre 2027» prima della data, «Cancellate il 20 ottobre 2027» dal giorno stesso; mai «fra tre giorni».
 
 ### Stati vuoti
 

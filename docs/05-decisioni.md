@@ -740,3 +740,76 @@ pagamenti online e ricevute, uscite e orari; **la cucina e il menù non sono in 
 - Ogni criterio ha il suo test: unitari (regole, saldo, importi, divisione in fogli), pagine su Postgres vero (anche con due transazioni dove il criterio lo chiede: ritiro e segno, due maestri
   insieme, due pagamenti uguali), indirizzi provati con un genitore, un maestro e senza accesso, log, parole vietate e pagine senza stili né script nel markup, e e2e su telefono e desktop con axe
   (lista, scheda, pagamenti, segnalazioni, stampe e una giornata intera).
+
+## 2026-10-24: scelte di TALITA-7
+
+Conservazione dei dati e cancellazioni automatiche. Analisi e design approvati da Matteo il 22/10/2026, con le raccomandazioni delle nove domande aperte e il design
+così com'è, comprese le proposte della parte 4. **Il ticket non si spezza**: un branch e una PR, con cinque passi fatti come commit in quest'ordine: schema e
+regole, job, cancellazione su richiesta, pagine, chiusura. Il perimetro è quello dell'analisi; le camere (TALITA-11) aggiungeranno una regola al job e alla cancellazione su
+richiesta, e il modo per farlo è già pronto (sotto).
+
+**Valori approvati** (domande dell'analisi, risposta: la raccomandazione)
+
+- **Account senza figli né iscrizioni**: si cancellano 30 giorni dopo la creazione, con il solo giorno di creazione (`account.created_on`), non con l'ultimo accesso, che sarebbe un dato sull'attività.
+  **Inviti scaduti**: 30 giorni dopo la scadenza. **Account dei maestri tolti**: nessuna regola a parte, dopo «Togli» valgono quelle di tutti gli account; niente rimozione automatica di chi non viene più (per dopo, un promemoria in «Maestri»).
+- **Registro delle letture**: un anno dalla fine, con l'iscrizione; l'account di chi ha letto resta con il solo indirizzo finché restano le sue letture, anche se chiede di cancellarlo.
+- **Manleva quando il genitore chiede di cancellare tutto**: resta fino a un anno dalla fine (art. 17.3.e) solo se serve (iscrizione non ritirata di una convivenza finita, o con presenze o pagamenti); il resto va via subito. **Prima del
+  rilascio** la persona competente controlla se un anno basta (`docs/03-privacy.md`): cambiarlo vuol dire una costante.
+- **Backup**: nessuno più vecchio di 30 giorni; i requisiti per TALITA-8 sono in `docs/03-privacy.md`. **Nessuna mail prima di cancellare un account** (porterebbe l'indirizzo a Mailjet e somiglierebbe a un phishing). **Famiglie del cartaceo**: nessuna
+  azione nell'app, le richieste arrivano al titolare (risponde entro un mese). **Figli di chi non torna**: vanno via con l'ultima iscrizione.
+
+**A. Dati e regole**
+
+- **Pacchetto `talita.retention`**: `RetentionPolicy` (le costanti e le date, l'unico posto che fa conti con le date; è un `data class` con i valori del prodotto in `STANDARD`, così un test ne costruisce uno con altri periodi), `RetentionTexts` (le parole dei tempi: il
+  formattatore italiano `P1M` → «un mese», `P30D` → «30 giorni», le informative, gli stati «cancellati»), `RetentionRule` e le sue regole, `RetentionJob`, `RetentionSchedule`, `RetentionLog`, `ErasureService`, `YourDataPresenter` e `ErasureController`.
+- **`V7__retention.sql`**: `account.created_on` (senza default: lo scrive l'applicazione con il `Clock`; le righe che c'erano prendono il giorno della migrazione), `registration.entered_by_account_id`, `checkin.recorded_by_account_id` e `payment.recorded_by_account_id`
+  nullable con `on delete set null`, e il registro `retention_log` con i suoi vincoli. **Differenza dall'analisi**: la migrazione cambia anche tre vincoli di `registration` (V5). Quelli di V5 distinguevano la cartacea dall'iscrizione online con `account_id`
+  (nullo = cartacea) e chiedevano che la cartacea avesse sempre il maestro che l'ha inserita; ma un'iscrizione online il cui genitore cancella l'account resta senza account (con l'accettazione, fino alla sua data), e una cartacea perde il
+  maestro quando il suo account va via. Adesso **la cartacea è quella senza accettazione** (`RegistrationData.onPaper = custodyText == null`): `registration_paper_has_no_consent`, `registration_online_not_typed_in` e `registration_paper_form_is_paper` al posto dei tre di
+  V5; `registration_online_has_custody` (chi ha un account ha accettato) resta. Le altre chiavi verso `account` (`child`, `registration`, il consenso delle segnalazioni, il registro delle letture) **non hanno cascata**: le sistema `ErasureService` prima del `DELETE`,
+  e uno schema test prova che ognuna rifiuta.
+- **«Cancellate» dipende dalla data e non dalle righe**: `Registrations` e `HealthNotes` non leggono più un dato oltre la sua data, anche nelle ore fra la mezzanotte e il job, e le pagine dicono «Cancellate il …» dal giorno della data. Così un dato sulla salute scaduto non si
+  mostra mai e la pagina non cambia a seconda dell'ora. Per le iscrizioni è la regola consigliata dal design; l'ho fatta una volta sola, in `Registrations.select`.
+- **Chi segnò una presenza o un pagamento** può non esserci più: `Checkin.byAccountId`, `Payment.byAccountId` e `Collected.byAccountId` sono nulli, e le pagine dicono «un maestro che non è più tra i maestri» (che c'era già per un maestro tolto).
+
+**B. Il job**
+
+- **Un elenco ordinato di regole**: `RetentionRule` (`name` e `apply(tx, context)`), una classe per regola con `@Order`: segnalazioni, iscrizioni (con i legami con gli affidatari), figli, inviti, account, richieste da rifare, numeri scaduti. **Aggiungere una regola è aggiungere un bean**: il job
+  non cambia (le camere lo faranno così). Una regola è una transazione sotto un lock consultivo di Postgres (`pg_advisory_xact_lock` con la chiave del suo nome); non c'è ShedLock, perché l'istanza è una. Una regola che fallisce torna indietro e le altre girano.
+- **Quando gira**: a ogni avvio (`ApplicationReadyEvent`) e ogni notte alle 4:15 (`@Scheduled(cron = "0 15 4 * * *", zone = "Europe/Rome")`, con `@EnableScheduling` e lo scheduler di Spring Boot a un thread). Guarda il giorno di Roma dal `Clock` e mai l'ora. I test dell'applicazione
+  impostano `talita.retention.automatic=false` (il job gira a mano con un `Clock` fisso, e non cancella da solo sotto gli altri test); senza quell'impostazione, e senza profili, avvio e cron sono accesi, e un test lo prova. Lo smoke test del jar controlla il log dell'avvio.
+- **Il log dice solo numeri**: la regola e quante righe (`Retention: rule notes deleted 12 rows.`); un errore dice il nome della regola e il tipo dell'eccezione, mai il suo messaggio.
+- **Registro**: `notes`, `registrations`, `children`, `invitations`, `accounts` per le regole a tempo (una riga se hanno cancellato qualcosa), `child-request` e `account-request` per le richieste (con l'id), `child-redo` e `account-redo` per quelle rifatte (senza id). Il numero di righe è quello delle
+  tabelle dei dati personali (`registration`, `child`, `health_note`, `teacher`…), senza contare la cascata. I numeri scaduti non scrivono una riga: il log dice quanti ne ha tolti.
+
+**C. Cancellazione su richiesta**
+
+- **Una sola classe** per il piano dei dialoghi, la transazione e il rifacimento dopo un ripristino (`ErasureService`): le frasi non possono dire altro da quello che si fa. **Il controllo dei blocchi sta nella transazione**: l'account `for update`, le iscrizioni `for update` e le loro
+  convivenze `for share`, nell'ordine di ogni altra modifica di un'iscrizione; per il maestro, `Teachers.lockAndCheck` (lo stesso lock e le stesse regole di «Togli»: l'ultimo maestro, e l'affidatario di una convivenza non finita). Un test prova una richiesta che aspetta un ritiro non ancora salvato e poi lo trova.
+- **Differenze dall'analisi**: il piano si chiama `planChild` e `planAccount` (non `plan(child)`); il rifacimento dopo un ripristino scrive `child-redo` e `account-redo`, senza id, perché la richiesta originale ha ancora il suo. **Una protezione in più**: se un account è rimasto per le letture (solo l'indirizzo) e la persona è
+  rientrata e ha iscritto un bambino dopo la richiesta, il rifacimento non cancella quello che ha fatto dopo (si guarda il momento della richiesta, solo per gli account che hanno letture); senza, la notte dopo avrebbe cancellato i dati nuovi. Resta una cosa che non ho chiuso: le altre sessioni di un account che è rimasto per le letture restano
+  dentro come un account vuoto (non c'è un'ora di creazione delle sessioni da confrontare con la richiesta); nessun dato è visibile.
+- **Un figlio che resta è staccato dall'account** (`child.account_id = null`) e l'iscrizione resta a nome del genitore, in sola lettura; dopo la cancellazione dell'account l'iscrizione perde anche il legame (`registration.account_id = null`) e mantiene l'accettazione con l'indirizzo copiato. Lo
+  stesso `{id}` che non c'è più ma è nel registro risponde con il profilo e «Questi dati erano già stati cancellati.» (criterio 22); gli altri sono la 404.
+- **Le proposte del design fuori dai criteri, approvate, ci sono**: la riga «Su carta» della scheda «Conservazione dei dati»; «Account cancellato.» anche per l'altro telefono e la seconda frase «Se ti serve, puoi rientrare…»; e le tre cose «dopo la data» (parte 3, sezione 5): dopo un anno dalla fine «Inserisci un’iscrizione» (anche da Arrivi) è la 404,
+  e Iscrizioni e Arrivi hanno lo stato vuoto; dopo un mese dalla fine il modulo dal cartaceo non ha i campi delle segnalazioni, ma un avviso informativo, e non le scrive nemmeno se arrivano a mano; `…/correggi-segnalazioni` (GET e POST) risponde 303 al dettaglio con un avviso di attenzione, e «Aggiungi le segnalazioni» non c'è.
+
+**D. Pagine**
+
+- **«Cancella» e «Togli»** (vocabolario): «Cancella» è per sempre e riguarda dati personali; «Togli» si può rimediare. **«Account cancellato.» non ripete cosa resta**: l'ha detto il dialogo un attimo prima, e un avviso con le date su una pagina senza accesso porterebbe dati dell'iscrizione dove non c'è nessuno a leggerli; vale anche per l'altro telefono
+  (la sessione si chiude e `/accedi` dice la stessa cosa, e non «Dopo un po’ che non usi Talità…»).
+- **Il dialogo e le pagine** sono quelli del design: scheda «I tuoi dati» nel Profilo, bottone di pericolo in contorno, `erasureDialog` con le sezioni «Cancelliamo subito» e «Resta», avvisi con due paragrafi (`Alert` ha un `lead`, un'etichetta e un indirizzo opzionali), sola lettura con «Conservata fino al …» in «Iscrizioni», scheda «Conservazione dei dati»,
+  segnalazioni cancellate (uguale per tutte, nessuna lettura), stati vuoti neutri di «Iscrizioni», «Arrivi» e delle tre stampe. Le due icone nuove sono `archive` e `shield-check`. Nella guida (`docs/design/README.md`): il pericolo in contorno (4.1), il dialogo con elenchi (4.8), le schede (4.4), la riga di un figlio (4.3), lo stato vuoto neutro
+  (4.9), «Cancella» e «Togli», il tempo del verbo e le conferme con due frasi (6).
+- **Un errore del server su un form del dialogo** è la pagina di errore dell'app, come per ogni form di una pagina (`app.js`: un 500 su una richiesta che cambia pagina la sostituisce): non è un messaggio a comparsa. Il messaggio a comparsa («Nessuna connessione», senza «Riprova») c'è per la rete assente, e un test e2e lo prova.
+- **Informativa**: i tempi della breve e della completa vengono da `RetentionTexts` (i periodi della policy), e il termine aperto di TALITA-5 («Da fissare con TALITA-7») non c'è più; il collegamento dal Profilo porta alla scheda `#per-quanto-tempo` nella stessa scheda del browser.
+
+**E. Test**
+
+- Ogni criterio ha il suo test: unitari (le date: 31 gennaio + un mese, 29 febbraio + un anno), Postgres vero con un `Clock` fisso (23:59 del 19 ottobre contro 00:30 del 20, il job con due thread, un lock tenuto da un'altra transazione, una regola che fallisce con un messaggio che porta un nome, un
+  ripristino simulato con id esplicito), pagine (indirizzi provati con il genitore, un altro genitore, un maestro e senza accesso; le frasi dei dialoghi parola per parola; il log), schema (vincoli e chiavi) ed e2e su telefono e desktop con axe e a 320 px.
+- **Test dei vecchi ticket cambiati**: gli schemi di V5 e V6 (il maestro può mancare, la cartacea senza accettazione), la scheda di una convivenza finita in «Iscrizioni» (finisce con «Conservata fino al …»), l'elenco delle migrazioni e l'informativa (il termine aperto non c'è più).
+- **Axe non gira con JavaScript spento** (non può iniettarsi nella pagina): la pagina di conferma senza JavaScript si prova con le parole e con il form, non con axe.
+
+**F. Cosa resta fuori (per dopo, con un ticket se serve)**: cancellazione su richiesta delle cartacee dalla pagina del maestro, promemoria per togliere i maestri che non partecipano più, esportazione dei dati, cambio d'indirizzo, eliminare una convivenza. Le camere (TALITA-11): una regola del job (un bean) e, se serve, un passo in
+`ErasureService.deleteRegistrations`, l'unico punto che cancella le iscrizioni.

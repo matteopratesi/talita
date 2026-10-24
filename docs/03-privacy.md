@@ -6,8 +6,8 @@ competente prima del rilascio. Le parti da verificare sono segnate come tali.
 
 Gli scopi di ogni dato personale sono in `docs/02-modello-dati.md`, le regole di lavoro in
 `CLAUDE.md`. TALITA-2 (il repo e il guscio) non tocca nessun dato personale; con TALITA-3 nascono gli
-account (indirizzi email) e le misure dell'accesso descritte sotto. Le altre misure e i tempi diventano
-veri con i ticket indicati.
+account (indirizzi email) e le misure dell'accesso descritte sotto. Le altre misure diventano
+vere con i ticket indicati; i tempi di conservazione con TALITA-7.
 
 ## Titolare e interessati
 
@@ -70,7 +70,7 @@ CLAUDE.md). Niente analytics, CDN, font o script esterni: lo garantisce anche un
 | --- | --- | --- |
 | Hosting: Oracle Cloud Always Free, regione UE | Tutti i dati dell'app, nel database | Senza Pay As You Go: nessun costo possibile. Matteo, come titolare, accetta l'accordo sul trattamento dei dati (art. 28) quando apre l'account (TALITA-9). |
 | Invio email: Mailjet (Parigi, piano gratuito) | Indirizzo email del destinatario e testo del messaggio (il magic link, gli inviti) | Stessa cosa per l'accordo (TALITA-9). **Senza tracciamento di aperture e clic**: ogni mail porta le intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`, e il tracciamento si spegne anche nell'account (TALITA-9). Solo testo, senza immagini né link rimandati da Mailjet. |
-| Backup cifrati fuori sede | Una copia del database, **cifrata prima di lasciare la macchina**, con la chiave che resta al titolare | Fornitore da scegliere in TALITA-8. |
+| Backup cifrati fuori sede | Una copia del database, **cifrata prima di lasciare la macchina**, con la chiave che resta al titolare | Fornitore da scegliere in TALITA-8. Nessuna copia più vecchia di 30 giorni (sotto, «Backup»). |
 
 **La struttura che ospita la convivenza** (TALITA-6) non è un fornitore dell'app: riceve **su carta** l'elenco per la struttura, con **solo nome e cognome**
 dei bambini e dei maestri affidatari, e niente altro (né recapiti, né segnalazioni, né quote). È un destinatario dei dati e va detto nell'informativa breve e in
@@ -124,7 +124,8 @@ Previste dal progetto, con il ticket in cui diventano vere:
 - **Segnalazioni** in una tabella separata, visibili ai maestri della convivenza e al genitore che le ha scritte e a nessun altro, con ogni lettura dei maestri
   registrata (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
   - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
-    un'altra classe usa le tabelle che jOOQ genera; il check-in (TALITA-6) passa di lì e le cancellazioni (TALITA-7) passeranno di lì;
+    un'altra classe usa le tabelle che jOOQ genera; il check-in (TALITA-6) passa di lì e le cancellazioni (TALITA-7) passano di lì. Dalla data di cancellazione (un mese dopo la fine)
+    la classe non le legge più, nemmeno nelle ore fra la mezzanotte e il job: una pagina non mostra mai un dato sulla salute scaduto;
   - **il contenuto si vede solo a richiesta**: l'elenco e il dettaglio dei maestri non dicono nemmeno se ci sono segnalazioni; «Mostra le
     segnalazioni» scrive la lettura (maestro, iscrizione, data e ora) **prima** di rispondere, nella stessa transazione, e se non riesce a
     scriverla non si vede niente. Ogni risposta con segnalazioni e ogni modifica fatta da un maestro è una riga del registro; le letture del
@@ -152,10 +153,29 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **niente copie dei dati nel telefono**: nessun service worker e nessuna lista che si tenga offline; una pagina già aperta si stampa senza rete, ma per aprirla serve la
     rete (la riserva è la carta, stampata prima di partire). Le pagine di Arrivi non si tengono nel browser (`Cache-Control: no-store`).
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
-- **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7).
+- **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7). Come funziona:
+  - **un job** ogni notte alle 4:15 (ora di Roma) e a ogni avvio dell'applicazione, così un giorno in cui l'applicazione era spenta si recupera al primo avvio. Guarda il **giorno** di Roma e mai l'ora:
+    a mezzanotte e mezza del giorno della data i dati non ci sono più. Ogni regola (segnalazioni, iscrizioni, figli, inviti, account) è una transazione sotto un lock consultivo di Postgres:
+    due esecuzioni insieme cancellano ogni riga una volta. Una regola che fallisce torna indietro, le altre girano, il log ha un ERROR senza dati e la notte dopo riprova;
+  - **righe cancellate davvero** (`DELETE`), mai nascoste con un flag; niente `VACUUM FULL` (bloccherebbe le tabelle, e a questa scala non serve). Le righe cancellate restano nei file di Postgres finché lo spazio
+    non si riusa: non si leggono più né dall'app né in SQL, ed è per questo che i backup sono logici (sotto);
+  - **registro delle cancellazioni** (`retention_log`): momento, regola e numero di righe, mai un nome, un indirizzo o una data di nascita. L'unico dato che indica una persona è l'id interno del figlio o
+    dell'account cancellato su richiesta, tenuto 37 giorni per rifare la richiesta dopo un ripristino; il log dell'applicazione dice solo le regole e i numeri;
+  - **dopo un ripristino** le regole a tempo si riapplicano da sole al primo avvio; le richieste dei genitori si rifanno grazie all'id nel registro (requisiti per i backup, sotto).
 - **Sviluppo con dati sintetici**, mai dati reali in locale né nel repo; il database di produzione si
   tocca solo sul server. Il repo è pubblico: una build fallisce se ci sono PDF, documenti Office o
   immagini fuori dai posti previsti, e su GitHub sono attivi secret scanning e push protection.
+
+## Backup: requisiti per TALITA-8
+
+Un dato cancellato resta nei backup al più 30 giorni, cifrato e non usato; un ripristino riapplica le cancellazioni. Per questo TALITA-8 deve rispettare cinque requisiti:
+
+1. **Backup logici** (`pg_dump`), cifrati prima di uscire dalla macchina. Niente copie della cartella dei dati né del WAL: conterrebbero righe cancellate.
+2. **Nessun backup più vecchio di 30 giorni**, in nessun posto, macchina compresa. La rotazione scelta (per esempio 7 giornalieri e 3 settimanali) si scrive qui.
+3. **Il backup del giorno parte dopo il job delle 4:15** (per esempio alle 5:00), così non contiene quello che il job ha cancellato quella notte.
+4. **Ripristino dal backup più recente**: all'avvio il job riapplica le regole a tempo. Se il database di prima è ancora leggibile, prima di avviare l'app si copiano le sue righe del registro con `target_id` più recenti del
+   backup e si portano le sequenze ai suoi valori (un id non si riusa): il job rifà le richieste. Se non è leggibile, la finestra scoperta va dall'ultimo backup al guasto (al massimo un giorno), e si scrive in `docs/05-decisioni.md`.
+5. **Il log del proxy senza query string** (TALITA-3).
 
 ## Carta
 
@@ -173,23 +193,33 @@ cartaceo c'è il modulo di carta). La stampa non scrive nessuna lettura, perché
 
 ## Conservazione
 
-Tempi di TALITA-7:
+**La tabella è questa** (TALITA-7; Matteo ha approvato i tempi nell'intervista di apertura del progetto e le scelte il 22 ottobre 2026). «Finita» è il giorno dopo l'ultimo giorno della convivenza; tutte le date sono giorni
+di Roma e le calcola un solo punto del codice (`RetentionPolicy`), le stesse per il job, per le pagine e per le informative. Il job cancella **dal giorno della data**, di notte. Esempio: la «Convivenza di settembre 2027»,
+dal 17 al 19 settembre, è finita il 20; le segnalazioni vanno via il 20 ottobre 2027, il resto il 20 settembre 2028.
 
-- **segnalazioni**: cancellate in automatico **un mese dopo la fine** della convivenza, con ogni
-  lettura registrata;
-- **iscrizione e manleva** (il testo accettato, con data, ora e indirizzo) e **registro delle letture**: tenuti **un anno** (il registro, un anno dalla
-  fine: domanda approvata in TALITA-5);
-- **presenze e pagamenti** (TALITA-6): vanno via **con l'iscrizione** (cancellazione a cascata), quindi con la manleva, dopo un anno; il registro di carta lo conserva il
-  titolare per lo stesso tempo, il foglio per i maestri si distrugge alla fine della convivenza e l'elenco resta alla struttura;
-- **dati dei bambini**: tenuti per **l'anno dopo**, e il genitore li può cancellare quando vuole (TALITA-7); i bambini delle iscrizioni dal
-  cartaceo non servono l'anno dopo e vanno via con la loro iscrizione; il recapito telefonico sta nella riga dell'iscrizione e per ora ne segue i tempi (un
-  anno, come dice l'informativa breve): se debba andare via prima è da fissare con TALITA-7, qui sotto.
+| Dato | Quando si cancella | Chi | Note |
+| --- | --- | --- | --- |
+| Segnalazioni (`health_note`) | **un mese dopo la fine**; prima: ritiro e revoca del consenso (TALITA-5), cancellazione del figlio o dell'account | job, genitore | ogni lettura registrata; il consenso va via con loro |
+| Iscrizione: manleva (testo, versione, data e ora, indirizzo copiato), recapito, giorni, stato, cartacea, chi l'ha inserita | **un anno dopo la fine**; prima, su richiesta, solo se ritirata senza presenze né pagamenti | job, genitore | è la prova dell'affidamento (art. 17.3.e, da verificare) |
+| Presenze, pagamenti, registro delle letture | con l'iscrizione (cascata) | job | il maestro che li ha segnati si svuota quando il suo account va via |
+| Legami con gli affidatari | un anno dopo la fine; prima con «Togli» o con l'account cancellato (convivenze finite) | job, maestri | |
+| Figlio (nome, cognome, data di nascita) | quando non ha più iscrizioni: un anno dopo la fine della sua ultima convivenza (cartaceo: con la sua iscrizione); prima su richiesta | job, genitore | il genitore lo stacca dal suo account quando vuole; resta solo l'iscrizione che serve come prova |
+| Account (indirizzo, giorno di creazione) | vuoto (non maestro, senza figli né iscrizioni, non nel registro delle letture) **30 giorni dopo la creazione**; subito su richiesta | job, persona | chi ha letto segnalazioni resta con il solo indirizzo finché restano le sue letture |
+| Maestro (nome e cognome) | con «Togli» o con l'account cancellato | maestri, persona | |
+| Invito (indirizzo, scadenza) | **30 giorni dopo la scadenza**; prima: accettato o ritirato, o su richiesta | job, persona | per 30 giorni i maestri vedono «Scaduto» |
+| Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | |
+| Id nel registro delle cancellazioni | dopo **37 giorni** (rotazione dei backup più 7) | job | il resto del registro non ha dati personali e resta |
+| Backup | **entro 30 giorni** dalla cancellazione | TALITA-8 | requisiti sopra |
+| Carta: manleve firmate e registro stampato | un anno dopo la fine | titolare | il foglio per i maestri alla fine della convivenza (TALITA-6); l'elenco resta alla struttura |
 
-Ancora da fissare (TALITA-7): per quanto tempo si tiene l'email dei genitori, se il recapito telefonico debba andare via prima dell'iscrizione che lo
-contiene, gli account
-senza iscrizioni (nascono al primo accesso, anche di chi poi non iscrive nessuno), gli account dei
-maestri, gli inviti scaduti e i dati di chi non torna l'anno dopo. I link di accesso non servono qui: si
-cancellano quando si usano o entro un'ora dalla scadenza.
+Il recapito telefonico sta nell'iscrizione e ne segue i tempi (un anno). Una convivenza in bozza non ha iscrizioni, e nessuna regola la tocca. Una convivenza finita con le iscrizioni ancora aperte segue la sua fine come le altre.
+
+**Quando il genitore chiede di cancellare**: le segnalazioni vanno via subito; le iscrizioni ritirate senza presenze né pagamenti vanno via subito; **le altre restano fino alla loro data**, come prova dell'affidamento (o come registro
+della convivenza, se sono ritirate ma con presenze o pagamenti), con il nome e la data di nascita del bambino dentro quell'iscrizione. Il dialogo e l'informativa lo dicono. Un'iscrizione non ritirata di una convivenza non finita blocca
+la richiesta: prima si ritira (o si chiede ai maestri, se le iscrizioni sono chiuse). Chi cancella l'account perde anche il legame con quello che resta (l'accettazione, con l'indirizzo copiato, resta).
+
+I link di accesso non servono qui: si cancellano quando si usano o entro un'ora dalla scadenza. **Nessuna mail** prima di cancellare un account: si cancellano da soli solo account vuoti, che non hanno niente da perdere, e una mail in più porterebbe
+l'indirizzo a Mailjet e somiglierebbe a un phishing.
 
 ## Informativa e consenso
 
@@ -234,8 +264,8 @@ Da fare con una persona competente, e da chiudere prima di dare il link ai genit
 ancora un segnaposto):
 
 - **leggere i testi**: l'affidamento (`affidamento-1`), l'informativa breve, l'informativa completa e il consenso, anche per la casella sulle
-  convinzioni deducibili; l'informativa completa porta oggi la cornice «testo di prova» e un termine ancora aperto (quanto si tiene
-  l'indirizzo email dell'account, con TALITA-7);
+  convinzioni deducibili; l'informativa completa porta oggi la cornice «testo di prova»; i tempi sono quelli della tabella di «Conservazione», e **se un anno basta per la manleva**
+  (un'azione di risarcimento può prescriversi più tardi) lo dice la persona competente che legge il testo dell'affidamento: cambiarlo vuol dire una costante di `RetentionPolicy`;
 - **il modulo cartaceo** (lo decide Matteo): oggi chiede il luogo di nascita, che l'app non raccoglie, e non ha la casella di consenso alle
   segnalazioni; va allineato all'app, oppure l'eccezione va scritta in `docs/02-modello-dati.md` e qui, prima di usare l'inserimento dal cartaceo;
 - **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`;
@@ -252,10 +282,12 @@ reclamo all'autorità di controllo.
 Il genitore li esercita **dal suo account**, per i dati suoi e dei suoi figli:
 
 - corregge l'iscrizione finché le iscrizioni sono aperte (e cambia le segnalazioni fino all'ultimo giorno); dopo, lo chiede a un maestro;
-- cancella i dati dei figli quando vuole (TALITA-7);
+- **cancella i dati dei figli, o l'account, quando vuole** (TALITA-7), dal «Profilo»: cosa si cancella subito e cosa resta (la manleva e il registro, con la data in cui vanno via e il perché; l'indirizzo di chi ha letto segnalazioni,
+  finché restano le letture) lo dice il dialogo prima di confermare;
 - revoca il consenso alle segnalazioni, che vengono tolte.
 
-Per quello che l'app non permette di fare da sé, scrive al titolare, che risponde entro un mese. Il
+Per quello che l'app non permette di fare da sé (anche per le famiglie del cartaceo, che non hanno un account), scrive al titolare, che risponde **entro un mese** (art. 12.3), con una proroga di due mesi solo motivata; anche
+un rifiuto va motivato entro un mese. Il
 recapito di contatto del titolare **non sta sulla pagina informativa dei genitori** (`/info/{codice}`, che non mostra dati personali,
 nemmeno quelli di chi organizza): sta nell'informativa dell'iscrizione e in quella completa (`/informativa`), da `talita.privacy.contact`.
 L'indirizzo lo sceglie Matteo con TALITA-9: uno sul dominio di Talità richiede un servizio che riceva posta, oggi non elencato fra i fornitori.
