@@ -509,6 +509,10 @@ Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'ap
   compare senza spostarsi, la barra di caricamento è ferma e piena.
 - L'indicatore di caricamento compare dopo **300 ms**: le risposte veloci non fanno lampeggiare
   niente.
+- Una pausa non è un movimento: `animate-touch-pause` (700 ms, `pointer-events: none` e niente
+  altro) vale anche con «riduci movimento» e non usa `motion-safe:`. Si mette sul blocco che contiene il
+  bottone di una risposta che lo sostituisce con un altro nello stesso punto (4.1, «Togli»), mai su
+  una pagina intera.
 
 ## 3. Guscio dell'app
 
@@ -864,8 +868,8 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 | Pericolo | azioni che tolgono qualcosa per sempre o annullano un'iscrizione | base + `bg-danger text-white hover:bg-danger-strong active:bg-danger-strong` |
 | Testo | azioni minori dentro schede e liste ("Modifica") | `inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-base font-semibold text-brand transition-colors duration-150 hover:bg-brand-soft active:bg-brand-soft` |
 
-- **Azione rapida** («Segna presente», nella riga di una lista: 4.3): più alta e stretta, perché sta a destra del nome: `inline-flex min-h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-brand px-2 text-center text-sm leading-tight font-semibold text-white … sm:w-auto sm:min-w-36 sm:px-5 sm:text-base sm:whitespace-nowrap`. Durante la richiesta dice «Segno…» e il suo nome accessibile continua con il nome del bambino e il giorno (`sr-only`: «Segna presente Anna Rossi, sabato 18 settembre»).
-- **«Togli»** (di una presenza o di un pagamento): secondario più piccolo, `min-h-11 px-4 text-sm` (`sm:text-base`), senza riempimento: chi tocca due volte «Segna presente» non toglie la presenza per sbaglio, perché il secondo tocco cade su un bottone diverso. Per una presenza non ha dialogo (si rimedia con un tocco); per un pagamento il dialogo di 4.8 con il bottone di pericolo.
+- **Azione rapida** («Segna presente», nella riga di una lista: 4.3): più alta e stretta, perché sta a destra del nome: `inline-flex min-h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-brand px-2 text-center text-sm leading-tight font-semibold text-white … sm:w-auto sm:min-w-36 sm:px-5 sm:text-base sm:whitespace-nowrap`. Durante la richiesta dice «Segno…» e il suo nome accessibile continua con il nome del bambino e il giorno (`sr-only`: «Segna presente Anna Rossi, sabato 18 settembre»). **Il bottone che arriva al suo posto non prende i tocchi per 700 ms** (vedi «Togli» qui sotto e 2.9).
+- **«Togli»** (di una presenza o di un pagamento): secondario più piccolo, `min-h-11 px-4 text-sm` (`sm:text-base`), senza riempimento. **Chi tocca due volte non annulla il primo tocco**, né da «Segna presente» a «Togli» né da «Togli» a «Segna presente»: il nuovo bottone sta dove stava il vecchio, e il secondo tocco ci cadrebbe sopra (il QA ha provato 80, 150, 250 e 400 ms). Perciò il bottone che arriva nella risposta a un tocco, nella riga della lista e nei giorni della scheda, non prende i tocchi per 700 ms (`animate-touch-pause` sulla riga o sul blocco del giorno, per il «pointer-events» che si eredita: sulla riga copre anche il nome, che col mouse può stare sotto il punto del primo clic quando il bottone nuovo è più stretto): il secondo tocco cade nel vuoto, un tocco solo dopo la pausa fa quello che faceva. Il fuoco resta sul bottone nuovo e il suo nome non cambia; la tastiera non è toccata. Per una presenza non ha dialogo (si rimedia con un tocco); per un pagamento il dialogo di 4.8 con il bottone di pericolo.
 - **«Chiama»**: un collegamento `tel:` con l'aspetto di un secondario (`border border-line-strong min-h-12 min-w-34 px-5`), icona `phone`, `hx-boost="false"` (il browser apre il telefono, non una pagina) e il numero nel nome accessibile (`sr-only`: «Chiama 333 123 4567»). Il numero da chiamare ha solo le cifre e un «+» iniziale, se il numero scritto comincia con uno.
 - **«Stampa»**: bottone primario con l'icona `printer` (`data-azione="stampa"`), che `app.js` mostra (è `hidden` nella pagina) e che chiama `window.print()`: senza JavaScript non c'è, e la riga di aiuto sotto dice che cosa fare. Sta in una barra che non si stampa (`print:hidden`).
 - Icona facoltativa a sinistra, `size-5`, con `aria-hidden="true"`.

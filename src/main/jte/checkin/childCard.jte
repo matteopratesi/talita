@@ -61,7 +61,9 @@
               <span class="ml-auto text-sm ${day.getNotExpected() ? "font-semibold text-warning" : "text-ink-muted"}">${day.getPlan()}</span>
             </div>
             @if(day.getAction() != DayAction.NONE)
-              <div class="mt-2">
+              <%-- The answer to a touch (it has the notice) is a block with new buttons in the place of the old ones: for 700 ms they take no touch, so the second touch
+                   of whoever taps twice on «Segna presente» or on «Togli» does not undo the first (the focus goes to the notice, as always). --%>
+              <div class="mt-2${page.getFlash() != null ? " animate-touch-pause" : ""}">
                 @if(day.getAction() == DayAction.MARK)
                   <form method="post" action="${"/arrivi/" + page.getId() + "/presenze"}" hx-post="${"/arrivi/" + page.getId() + "/presenze"}" hx-target="#scheda" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
                     @template.components.csrf(csrf = csrf)
