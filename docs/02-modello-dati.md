@@ -8,7 +8,7 @@ Questo è il punto di partenza, preso dal perimetro di KOINE-29. Il dettaglio di
 vincoli, tabelle) lo fissa il ticket che la crea. TALITA-2 non introduce dati personali: nessuna
 tabella e nessun form. Lo schema comincia con TALITA-3 (account e link di accesso, maestri e inviti); TALITA-4 aggiunge la convivenza e i suoi
 affidatari; TALITA-5 i bambini (`child`), le iscrizioni (`registration` e `registration_day`), le segnalazioni (`health_note`) e il registro
-delle letture (`health_note_access`), con la migrazione `V5__registration.sql`; TALITA-7 aggiunge il giorno di nascita dell'account e il registro delle cancellazioni
+delle letture (`health_note_access`), con la migrazione `V5__registration.sql`; TALITA-7 aggiunge il giorno di creazione dell'account e il registro delle cancellazioni
 (`retention_log`), con `V7__retention.sql`, e fissa quanto si tiene ogni dato.
 
 Nessun `centro_id` e nessuna row-level security: Talità ha un solo titolare, e l'isolamento fra

@@ -168,8 +168,9 @@ class YourDataPresenter(private val erasures: ErasureService, private val texts:
     private fun stays(fate: RegistrationFate, name: String, own: Boolean): String {
         val withdrawn = if (fate.withdrawn) " ritirata" else ""
         val address = if (own) " e il tuo indirizzo email scritto lì dentro" else ""
-        val marked = if (fate.marked) " e le presenze e i pagamenti segnati dai maestri" else ""
-        val reason = if (fate.reason == KeepReason.REGISTER) "come registro della convivenza" else "come prova dell’affidamento"
+        // «più», not another «e»: the list already has one, and the presences and the payments are «presenze e pagamenti».
+        val marked = if (fate.marked) ", più le presenze e i pagamenti segnati dai maestri" else ""
+        val reason = texts.keptAs(fate.reason ?: KeepReason.PROOF)
         val whatItHolds = if (own) "il suo nome, la data di nascita, l’affidamento che hai accettato$address$marked" else "il suo nome, la data di nascita e l’affidamento che hai accettato$marked"
         return "L’iscrizione$withdrawn di $name alla ${quoted(fate.gatheringTitle)}, con $whatItHolds: resta fino al ${date(fate)}, $reason."
     }
@@ -257,8 +258,8 @@ class YourDataPresenter(private val erasures: ErasureService, private val texts:
         val lead = "Dati di $name cancellati."
         if (done.kept.isEmpty()) return Alert(AlertVariant.SUCCESS, "Non resta niente.", lead)
         val reason = when {
-            done.kept.all { it.reason == KeepReason.REGISTER } -> "come registro della convivenza"
-            done.kept.all { it.reason == KeepReason.PROOF } -> "come prova dell’affidamento"
+            done.kept.all { it.reason == KeepReason.REGISTER } -> texts.keptAs(KeepReason.REGISTER)
+            done.kept.all { it.reason == KeepReason.PROOF } -> texts.keptAs(KeepReason.PROOF)
             else -> "come prova dell’affidamento o come registro della convivenza"
         }
         val text = if (done.kept.size == 1) {

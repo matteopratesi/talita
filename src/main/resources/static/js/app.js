@@ -280,7 +280,13 @@
       if (!dialog || typeof dialog.showModal !== "function") return;
       event.preventDefault();
       event.stopPropagation();
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {
+        dialog.showModal();
+        // The first focus is on «Annulla», at the bottom of the panel, and the browser scrolls it into view: on a small phone, where the panel is taller than
+        // the screen, it would open already scrolled to the bottom, with the title and what is deleted now above the edge. The focus stays on «Annulla» (the
+        // screen reader reads the title all the same, it is the name of the dialog) and the panel goes back to its top.
+        dialog.scrollTop = 0;
+      }
     },
     true,
   );

@@ -99,7 +99,9 @@ class RetentionPagesTests(
         val page = words(html)
 
         assertTrue(page.contains("Affidamento accettato il"), page)
-        assertEquals(2, Regex("""Conservata fino al ${registrationsDate(setup)} come prova dell’affidamento""").findAll(page).count(), "on every card of a finished gathering")
+        // The same words as the dialogs of the profile: a withdrawn registration is the register of the gathering, the others the proof of the custody.
+        assertEquals(1, Regex("""Luca Rossi.*?Conservata fino al ${registrationsDate(setup)} come prova dell’affidamento""").findAll(page).count(), "on the card of a registration that is not withdrawn")
+        assertEquals(1, Regex("""Anna Rossi Ritirata.*?Conservata fino al ${registrationsDate(setup)} come registro della convivenza""").findAll(page).count(), "on the card of a withdrawn one")
         assertTrue(page.contains("Segnalazioni Scritte. Si cancellano il ${notesDate(setup)}."), page)
         assertTrue(page.contains("Segnalazioni Nessuna"), "Anna has none, and the date has not passed")
         assertFalse(Regex("""Modifica l’iscrizione|Ritira l’iscrizione|Rimetti l’iscrizione""").containsMatchIn(page), "a finished gathering is only looked at")
@@ -142,7 +144,7 @@ class RetentionPagesTests(
         val page = words(a.browser.get("/iscrizioni").body())
 
         assertTrue(page.contains("Anna Rossi Ritirata"), page)
-        assertTrue(page.contains("Conservata fino al ${registrationsDate(setup)} come prova dell’affidamento"), page)
+        assertTrue(page.contains("Conservata fino al ${registrationsDate(setup)} come registro della convivenza"), page)
         assertFalse(page.contains("Rimetti l’iscrizione") || page.contains("Modifica l’iscrizione"), "the child is not the parent's any more: nothing to change")
     }
 
@@ -218,6 +220,10 @@ class RetentionPagesTests(
             assertTrue(words(card).contains("Segnalazioni $main $second"), words(card))
             assertFalse(card.contains("Mostra le segnalazioni") || card.contains("<form") || card.contains("<button"), "no button")
             assertFalse(detail.contains("Arachidi"))
+            // «ancora» would promise that the notes can still be read: with them deleted the card of the readings does not say it.
+            val readings = Regex("""<section id="letture"[\s\S]*?</section>""").find(detail)!!.value
+            assertTrue(words(readings).contains("Nessuno le ha lette. Dal più recente."), words(readings))
+            assertFalse(readings.contains("ancora"), words(readings))
         }
         // The same card for the two, in the page of the detail and in the card of Arrivi.
         val one = Regex("""<section id="segnalazioni"[\s\S]*?</section>""").find(setup.marta.get("/iscrizioni/$withNotes").body())!!.value.replace(Regex("""/iscrizioni/\d+"""), "")

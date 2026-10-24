@@ -17,6 +17,7 @@ import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
 import talita.gathering.GatheringState
+import talita.retention.KeepReason
 import talita.retention.RetentionPolicy
 import talita.retention.RetentionTexts
 import talita.ui.Alert
@@ -71,7 +72,7 @@ data class RegistrationCard(
     /** The text of «Segnalazioni» is long («Cancellate il …, un mese dopo la fine della convivenza.»): it goes under its label, like «Quando». */
     val healthWide: Boolean,
     val accepted: String?,
-    /** «Conservata fino al 20 settembre 2028 come prova dell’affidamento»: on the card of a gathering that is finished, or of a child that was detached (TALITA-7); else none. */
+    /** «Conservata fino al 20 settembre 2028 come prova dell’affidamento» («come registro della convivenza» on a withdrawn one, like the dialogs of the profile): on the card of a gathering that is finished, or of a child that was detached (TALITA-7); else none. */
     val keptUntil: String?,
     val actions: List<CardAction>,
 )
@@ -266,7 +267,7 @@ class MinePresenter(
                 health = healthText,
                 healthWide = healthText != "Scritte" && healthText != "Nessuna",
                 accepted = registration.custodyAcceptedAt?.let { "Affidamento accettato il ${RegistrationFormat.moment(it)}" },
-                keptUntil = if (readOnly) "Conservata fino al ${GatheringFormat.date(policy.registrationsDeletionDate(gathering.end))} come prova dell’affidamento" else null,
+                keptUntil = if (readOnly) "Conservata fino al ${GatheringFormat.date(policy.registrationsDeletionDate(gathering.end))} ${texts.keptAs(if (withdrawn) KeepReason.REGISTER else KeepReason.PROOF)}" else null,
                 actions = actions,
             )
         }

@@ -45,6 +45,12 @@ class RetentionTexts(private val policy: RetentionPolicy) {
         "Talità le cancella da sola, per tutte le iscrizioni. Il registro delle letture resta fino al ${GatheringFormat.date(policy.registrationsDeletionDate(lastDay))}.",
     )
 
+    /**
+     * Why a registration stays, in the words of the dialogs and the notices of the profile and of the card in «Iscrizioni», so that they never say two things for the same
+     * registration: a withdrawn one is the register of the gathering ([KeepReason.REGISTER]), the others are the proof of the custody ([KeepReason.PROOF]).
+     */
+    fun keptAs(reason: KeepReason): String = if (reason == KeepReason.REGISTER) "come registro della convivenza" else "come prova dell’affidamento"
+
     private fun when_(lastDay: LocalDate): String = GatheringFormat.date(policy.registrationsDeletionDate(lastDay))
 
     private val untilNothing = "Restano le date e le informazioni della convivenza, senza nomi."

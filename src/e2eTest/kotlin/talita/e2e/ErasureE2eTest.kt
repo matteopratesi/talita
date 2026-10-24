@@ -1,6 +1,7 @@
 package talita.e2e
 
 import com.microsoft.playwright.APIResponse
+import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.FormData
@@ -553,7 +554,7 @@ class ErasureE2eTest {
         e2e.open("/profilo")
         e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
         page.waitForSettledDialog()
-        assertThat(page.openDialog()).containsText("L’iscrizione ritirata di Luca Rossi alla «Convivenza di settembre 2027», con il suo nome, la data di nascita e l’affidamento che hai accettato e le presenze e i pagamenti segnati dai maestri: resta fino al $until, come registro della convivenza.")
+        assertThat(page.openDialog()).containsText("L’iscrizione ritirata di Luca Rossi alla «Convivenza di settembre 2027», con il suo nome, la data di nascita e l’affidamento che hai accettato, più le presenze e i pagamenti segnati dai maestri: resta fino al $until, come registro della convivenza.")
         e2e.touch(page.openDialog().buttonNamed("Cancella i dati di Luca"))
         val notice = page.locator("main [role=status]")
         assertThat(notice).containsText("Dati di Luca cancellati.")
@@ -564,16 +565,16 @@ class ErasureE2eTest {
         e2e.touch(notice.linkNamed("Vai alle iscrizioni"))
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
         assertThat(page.locator("article").first()).containsText("Luca Rossi")
-        assertThat(page.locator("article").first()).containsText("Conservata fino al $until")
+        assertThat(page.locator("article").first()).containsText("Conservata fino al $until come registro della convivenza")
         assertThat(page.locator("main").linkNamed("Rimetti l’iscrizione di Luca Rossi")).hasCount(0)
         assertThat(page.locator("main").linkNamed("Modifica l’iscrizione di Luca Rossi")).hasCount(0)
         assertTrue(page.noHorizontalScroll())
         assertAccessible(page, "card of a registration that stays while the gathering goes on (${e2e.profile.label})")
     }
 
-    // The first focus is on «Annulla», at the bottom of the dialog: on a small phone, where the dialog is taller than the screen, the panel opens already scrolled to the
-    // bottom, so the title and «Cancelliamo subito» are above the edge and the person sees «Resta», «Non si può annullare.» and the two buttons first.
-    @org.junit.jupiter.api.Disabled("QA TALITA-7, defect D1: on a small phone the dialog opens scrolled to the bottom (the first focus is on Annulla) and its title and the list of what is deleted now are out of the screen")
+    // The first focus is on «Annulla», at the bottom of the dialog: on a small phone, where the dialog is taller than the screen, the browser used to scroll the panel to it,
+    // so the title and «Cancelliamo subito» were above the edge and the person saw «Resta», «Non si può annullare.» and the two buttons first (QA TALITA-7, defect D1).
+    // Now the panel opens at its top and the focus stays on «Annulla».
     @E2eTest(teacher = false, profiles = [Profile.PHONE])
     fun `c18 on a small phone the dialog opens showing its title and what is deleted now, not scrolled to the bottom`(e2e: E2e) {
         val page = e2e.page
@@ -585,13 +586,46 @@ class ErasureE2eTest {
             e2e.open("/profilo")
             e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
             page.waitForSettledDialog()
-
-            val dialog = page.openDialog()
-            fun onScreen(selector: String): Boolean = dialog.locator(selector).first().box().let { it.y >= 0 && it.y + it.height <= page.viewport().height }
-            assertTrue(onScreen("h2"), "${width}x$height: the title of the dialog is on the screen when it opens")
-            assertTrue(onScreen("h3"), "${width}x$height: «Cancelliamo subito» is on the screen when the dialog opens")
-            page.focusIs("document.activeElement.textContent.trim() === 'Annulla'")
+            page.assertDialogOpensAtItsTop("${width}x$height: dialog of the child")
             page.keyboard().press("Escape")
         }
+
+        // Two registrations: the dialog of a child and the one of the account, on a tall phone, are still taller than the screen.
+        e2e.rows().register(gathering.id, me, "Anna", "Rossi", LocalDate.of(2019, 1, 9), status = RegistrationStatus.withdrawn)
+        page.setViewportSize(375, 812)
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+        page.assertDialogOpensAtItsTop("375x812: dialog of a child with two registrations")
+        page.keyboard().press("Escape")
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        page.assertDialogOpensAtItsTop("375x812: dialog of the account with two registrations")
+        page.keyboard().press("Escape")
+    }
+
+    @E2eTest(teacher = false, profiles = [Profile.DESKTOP])
+    fun `c18 on the desktop the dialog opens showing its title and what is deleted now, with the focus on Annulla`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        e2e.twoChildren(gathering)
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+        page.assertDialogOpensAtItsTop("desktop: dialog of a child")
+        page.keyboard().press("Escape")
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        page.assertDialogOpensAtItsTop("desktop: dialog of the account")
+    }
+
+    /** The open dialog starts at its top: the title and «Cancelliamo subito» are in the screen, and the first focus is still on «Annulla». */
+    private fun Page.assertDialogOpensAtItsTop(label: String) {
+        val dialog = openDialog()
+        fun onScreen(selector: String): Boolean = dialog.locator(selector).first().box().let { it.y >= 0 && it.y + it.height <= viewport().height }
+        assertEquals(0, (dialog.evaluate("d => Math.round(d.scrollTop)") as Number).toInt(), "$label: the panel is at its top when it opens")
+        assertTrue(onScreen("h2"), "$label: the title of the dialog is on the screen when it opens")
+        assertTrue(onScreen("h3"), "$label: «Cancelliamo subito» is on the screen when the dialog opens")
+        focusIs("document.activeElement.textContent.trim() === 'Annulla'")
     }
 }

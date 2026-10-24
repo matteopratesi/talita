@@ -144,6 +144,8 @@ class RetentionE2eTest {
         assertThat(card.locator("button, form, a")).hasCount(0)
         assertThat(page.locator("main")).not().containsText("Arachidi")
         assertThat(page.locator("#letture")).isVisible()
+        assertThat(page.locator("#letture")).containsText("Nessuno le ha lette.")
+        assertThat(page.locator("#letture")).not().containsText("ancora")
         page.fits320(e2e.profile.isPhone)
         assertAccessible(page, "detail with the notes deleted (${e2e.profile.label})")
 
