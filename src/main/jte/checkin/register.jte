@@ -17,13 +17,13 @@
     @template.components.emptyState(icon = page.getEmpty().getIcon(), title = page.getEmpty().getTitle(), text = page.getEmpty().getText(), href = page.getEmpty().getHref(), label = page.getEmpty().getLabel(), variant = "secondary", buttonIcon = page.getEmpty().getButtonIcon())
   @else
     @template.checkin.printBar(help = "Stampa su fogli A4, in verticale. Da telefono puoi anche salvarlo in PDF dal menu di stampa.")
-    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getHead().getPrintedLine()}</p>
-    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getLegend()}</p>
+    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getHead().getPrintedLine()}</p>
+    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getLegend()}</p>
     <p class="mb-2 text-sm text-ink-muted lg:hidden print:hidden">Scorri la tabella di lato per vedere tutte le colonne.</p>
     <div tabindex="0" role="region" aria-label="Registro arrivi, tabella che scorre di lato" class="relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0">
       @for(RegisterBlock block : page.getBlocks())
         <div class="blocco-stampa">
-          <table class="tabella-stampa min-w-176 print:min-w-0${page.getSqueezed() ? " tabella-stampa--7" : ""}">
+          <table class="tabella-stampa ${page.getSqueezed() ? "tabella-stampa--7 " : ""}min-w-176 print:min-w-0">
             <caption>${block.getCaption()}</caption>
             <thead>
               <tr>
@@ -79,6 +79,6 @@
         </div>
       @endfor
     </div>
-    <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getFooter()}</p>
+    <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getFooter()}</p>
   @endif
 `)

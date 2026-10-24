@@ -285,6 +285,22 @@ class PrintPagesTests(
         }
     }
 
+    @Test
+    fun `t6 c24 every class of the three prints has its rule in the stylesheet that is served, so none is left that the scanner of Tailwind did not see`() {
+        val s = Scenario()
+        crowd(s.setup.id, 22)
+        val pages = listOf("/arrivi/registro", "/arrivi/elenco", "/arrivi/foglio", "/arrivi/elenco?giorno=${s.setup.today}").map { s.setup.marta.get(it).body() }
+        val css = s.setup.marta.get(Regex("""href="([^"]+\.css)"""").find(pages.first())!!.groupValues[1]).body()
+
+        // A marker for the tests that has no rule: the blank rows of the tables.
+        val markers = setOf("riga-vuota")
+        val missing = pages.flatMap { html -> Regex("""\sclass="([^"]*)"""").findAll(html).flatMap { it.groupValues[1].split(Regex("""\s+""")) }.toList() }
+            .filter { it.isNotBlank() && it !in markers }.toSet()
+            .filter { token -> !css.contains("." + token.replace(Regex("""([^a-zA-Z0-9_-])"""), """\\$1""")) }
+
+        assertEquals(emptyList(), missing, "classes of the prints with no rule in the CSS")
+    }
+
     // ---- The list for the venue (criterion 25) --------------------------------------------------------------------------------
 
     @Test

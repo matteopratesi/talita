@@ -18,7 +18,7 @@
         @template.components.button(label = "Aggiorna l’elenco", busyLabel = "Aggiorno…", variant = "secondary", width = "phone")
       </form>
     `)
-    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getHead().getPrintedLine()}</p>
+    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getHead().getPrintedLine()}</p>
     <h2 class="mt-5 mb-2 text-lg font-semibold print:mt-[4mm] print:mb-[1.5mm] print:text-[11pt]">${page.getChildrenTitle()}</h2>
     <div class="relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0">
       @for(NameBlock block : page.getChildren())
@@ -27,7 +27,7 @@
         </div>
       @endfor
     </div>
-    <div class="${page.getTeachers().getNewSheet() ? "print:break-before-page" : ""}">
+    <div class="${page.getTeachers().getNewSheet() ? "print:break-before-page" : null}">
       <h2 class="mt-5 mb-2 text-lg font-semibold print:mt-[4mm] print:mb-[1.5mm] print:text-[11pt]">${page.getTeachersTitle()}</h2>
       <div class="relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0">
         <div class="blocco-stampa">
@@ -35,6 +35,6 @@
         </div>
       </div>
     </div>
-    <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getFooter()}</p>
+    <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getFooter()}</p>
   @endif
 `)

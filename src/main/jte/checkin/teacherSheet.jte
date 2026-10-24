@@ -13,7 +13,7 @@
     @template.components.emptyState(icon = page.getEmpty().getIcon(), title = page.getEmpty().getTitle(), text = page.getEmpty().getText(), href = page.getEmpty().getHref(), label = page.getEmpty().getLabel(), variant = "secondary", buttonIcon = page.getEmpty().getButtonIcon())
   @else
     @template.checkin.printBar(help = "Contiene i recapiti dei genitori: stampalo solo se ti serve e tienilo con te. Stampa su A4, in verticale.")
-    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getHead().getPrintedLine()}</p>
+    <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getHead().getPrintedLine()}</p>
     <p class="riquadro-riservato">${page.getNotice()}</p>
     <div class="relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0">
       @for(SheetBlock block : page.getBlocks())
@@ -30,7 +30,7 @@
             </tbody>
           </table>
           @if(block.getClosing())
-            <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-black">${page.getClosing()}</p>
+            <p class="mt-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getClosing()}</p>
           @endif
         </div>
       @endfor
