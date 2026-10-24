@@ -499,7 +499,7 @@ class EnrollmentE2eTest {
         val gathering = e2e.openGathering()
         val me = e2e.accountId(checkNotNull(e2e.signedInAs))
         val earlier = GatheringSupport(e2e.dsl(), e2e.application.getBean(Clock::class.java))
-            .make(title = "Convivenza dell’anno scorso", start = e2e.today().minusDays(400), end = e2e.today().minusDays(398), status = GatheringStatus.closed)
+            .make(title = "Convivenza dell’anno scorso", start = e2e.today().minusDays(100), end = e2e.today().minusDays(98), status = GatheringStatus.closed)
         e2e.rows().register(earlier, me, "Luca", "Rossi", phone = "333 000 0000")
 
         e2e.open("/info/${gathering.code}/iscrizione")
