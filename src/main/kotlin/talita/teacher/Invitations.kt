@@ -59,12 +59,16 @@ class Invitations(private val dsl: DSLContext, private val clock: Clock, private
 
     /** Makes the invitation for [address], or renews it (a new expiry): there is one per address. Returns the expiry. */
     fun invite(address: EmailAddress): Instant {
-        val expiresAt = clock.instant().plus(settings.invitationValidity)
+        val now = clock.instant()
+        val expiresAt = now.plus(settings.invitationValidity)
+        // The moment of the invitation is renewed with the expiry: inviting again is a new invitation (the job that makes a request again looks at it).
         dsl.insertInto(TEACHER_INVITATION)
             .set(TEACHER_INVITATION.EMAIL, address.value)
             .set(TEACHER_INVITATION.EXPIRES_AT, expiresAt.toOffset())
+            .set(TEACHER_INVITATION.INVITED_AT, now.toOffset())
             .onConflict(TEACHER_INVITATION.EMAIL).doUpdate()
             .set(TEACHER_INVITATION.EXPIRES_AT, expiresAt.toOffset())
+            .set(TEACHER_INVITATION.INVITED_AT, now.toOffset())
             .execute()
         return expiresAt
     }
@@ -94,6 +98,7 @@ class Invitations(private val dsl: DSLContext, private val clock: Clock, private
             .set(TEACHER.ACCOUNT_ID, account.id)
             .set(TEACHER.FIRST_NAME, name.first)
             .set(TEACHER.LAST_NAME, name.last)
+            .set(TEACHER.CREATED_AT, clock.instant().toOffset())
             .onConflict(TEACHER.ACCOUNT_ID).doNothing()
             .execute()
         true

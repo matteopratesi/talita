@@ -11,16 +11,24 @@ import org.springframework.boot.test.system.CapturedOutput
 import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import talita.TestcontainersConfiguration
+import talita.account.CurrentAccount
+import talita.account.EmailAddress
+import talita.account.TeacherName
+import talita.account.TestAccounts
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.RETENTION_LOG
+import talita.jooq.tables.references.TEACHER
 import talita.jooq.tables.references.TEACHER_INVITATION
 import talita.registration.HealthNotes
 import talita.registration.Notes
+import talita.teacher.Invitations
+import talita.teacher.TeacherSettings
 import talita.teacher.Teachers
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -288,7 +296,7 @@ class ErasureTests(
         val anna = kit.registration(gathering, a, "Anna", "Rossi", RegistrationStatus.withdrawn, birth = LocalDate.of(2019, 1, 9))
         // N has an old invitation to the same address (and another address has one too), and has marked a presence, registered a payment and typed in a paper form.
         kit.invitation("altro", kit.moment("2027-10-12T10:00"))
-        dsl.insertInto(TEACHER_INVITATION).set(TEACHER_INVITATION.EMAIL, kit.emailOf(n)).set(TEACHER_INVITATION.EXPIRES_AT, kit.moment("2027-10-12T10:00")).execute()
+        kit.invitationTo(kit.emailOf(n), kit.moment("2027-10-05T10:00"), kit.moment("2027-10-12T10:00"))
         kit.presence(luca, LocalDate.of(2027, 9, 18), n)
         kit.payment(luca, 2500, n)
         val paper = kit.paper(gathering, n)
@@ -342,6 +350,34 @@ class ErasureTests(
         // Asked again, after a restore, there is nothing to change: no row in the register.
         assertEquals(1, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("account-request")))
         assertTrue(m > 0)
+    }
+
+    @Test
+    fun `t7 c24 the plan of the account has the blockers of a child that was detached, the same that the request finds`() {
+        val gathering = kit.september2027(status = GatheringStatus.open)
+        val a = kit.account("genitore-a")
+        val m = kit.teacher("maestro-m")
+        val luca = kit.registration(gathering, a, "Luca", "Rossi", RegistrationStatus.withdrawn)
+        kit.presence(luca, LocalDate.of(2027, 9, 18), m)
+        // During the gathering the parent deletes the data of Luca: the registration is withdrawn and has a presence, so it stays as the register, and the child is detached.
+        val during = service("2027-09-18T10:00")
+        assertIs<ChildErasure.Done>(during.eraseChild(a, kit.childOf(luca)))
+        assertEquals(emptyList(), during.childrenOf(a))
+        // A teacher puts the registration back while the gathering goes on («Rimetti confermata»).
+        dsl.update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.confirmed).where(REGISTRATION.ID.eq(luca)).execute()
+
+        val plan = assertNotNull(during.planAccount(a))
+
+        assertEquals(emptyList(), plan.children, "the child is not among «I tuoi figli»")
+        val blocker = plan.blockers.single()
+        assertEquals(luca, blocker.registrationId)
+        assertTrue(blocker.detached, "the parent can only look at it")
+        assertFalse(blocker.parentCanWithdraw, "so it is asked of the teachers, also with the registrations open")
+        assertTrue(plan.blocked)
+        val result = assertIs<AccountErasure.Blocked>(during.eraseAccount(a))
+        assertEquals(plan.blockers, result.children, "the plan says what the request finds")
+        assertTrue(kit.accountExists(a))
+        assertEquals(1, kit.registrations())
     }
 
     // ---- The requests made again after a restore (criterion 28) ----------------------------------------------------------------------
@@ -458,5 +494,87 @@ class ErasureTests(
         assertEquals(1, dsl.fetchCount(REGISTRATION, REGISTRATION.ID.eq(own)), "what the person registered after the request is theirs, and stays")
         assertEquals(reader, dsl.select(CHILD.ACCOUNT_ID).from(CHILD).where(CHILD.ID.eq(kit.childOf(own))).fetchSingle(CHILD.ACCOUNT_ID))
         assertTrue(m > 0)
+    }
+
+    /** M and the reader (a teacher who read the notes of a registration) are teachers; the reader asks to delete the account, and it stays, with the address alone, for the readings. */
+    private fun readerWhoLeft(): Pair<Long, Long> {
+        val gathering = kit.september2027()
+        val m = kit.teacher("maestro-m")
+        val reader = kit.teacher("maestro-lettore", first = "Paolo", last = "Verdi")
+        val registration = kit.registration(gathering, kit.account("genitore-a"), "Luca", "Rossi", notes = notes)
+        kit.reading(registration, reader)
+        assertIs<AccountErasure.Done>(service("2027-10-05T10:00").eraseAccount(reader))
+        assertTrue(kit.accountExists(reader))
+        assertFalse(kit.isTeacher(reader))
+        return m to reader
+    }
+
+    @Test
+    fun `t7 c28 an account that stayed for the readings and was invited to be a teacher again after the request keeps the invitation, and the request is not made again over it`() {
+        val (m, reader) = readerWhoLeft()
+
+        // The person is invited again the day after the request, and has not accepted yet.
+        kit.invitationTo(kit.emailOf(reader), kit.moment("2027-10-06T09:00"))
+        val report = job.run(kit.clockAt("2027-10-07T04:15"))
+
+        assertTrue(report.succeeded)
+        assertEquals(1, dsl.fetchCount(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(kit.emailOf(reader))), "what the person was given after the request is theirs")
+        assertTrue(kit.accountExists(reader))
+        assertEquals(0, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("account-redo")), "nothing was made again")
+        assertTrue(m > 0)
+    }
+
+    @Test
+    fun `t7 c28 an account that stayed for the readings and accepted the invitation after the request is a teacher still, and the request is not made again over it`() {
+        val (m, reader) = readerWhoLeft()
+
+        // The invitation is used up the day after the request: the person is a teacher again, with a row that is newer than the request.
+        TestAccounts.makeTeacher(dsl, kit.emailOf(reader), "Paolo", "Verdi")
+        kit.madeTeacherAt(reader, kit.moment("2027-10-06T10:00"))
+        val report = job.run(kit.clockAt("2027-10-07T04:15"))
+
+        assertTrue(report.succeeded)
+        assertTrue(kit.isTeacher(reader), "the teacher row of the person who came back is not taken away by the job")
+        assertTrue(kit.accountExists(reader))
+        assertEquals(0, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("account-redo")), "nothing was made again")
+        assertTrue(m > 0)
+    }
+
+    @Test
+    fun `t7 c28 a teacher row and an invitation that a backup brings back are older than the request, and the request is made again over them`() {
+        val (m, reader) = readerWhoLeft()
+
+        // The backup is older than the request: the teacher row is back (made in September), and so is an invitation (made on 1 October).
+        TestAccounts.makeTeacher(dsl, kit.emailOf(reader), "Paolo", "Verdi")
+        kit.madeTeacherAt(reader, kit.moment("2027-09-01T09:00"))
+        kit.invitationTo(kit.emailOf(reader), kit.moment("2027-10-01T09:00"))
+        val report = job.run(kit.clockAt("2027-10-06T04:15"))
+
+        assertTrue(report.succeeded)
+        assertFalse(kit.isTeacher(reader), "the request is made again: the teacher row goes as it did")
+        assertEquals(0, dsl.fetchCount(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(kit.emailOf(reader))))
+        assertTrue(kit.accountExists(reader), "the address stays for the readings")
+        assertEquals(1, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("account-redo")))
+        assertTrue(kit.isTeacher(m))
+    }
+
+    @Test
+    fun `t7 c28 an invitation and a teacher row have the moment they were made, and inviting again renews it with the expiry`() {
+        val first = kit.clockAt("2027-10-05T10:00")
+        val later = kit.clockAt("2027-10-06T11:30")
+        val settings = TeacherSettings(Duration.ofDays(7))
+        val account = kit.account("maestro-nuovo")
+        val address = EmailAddress.parse(kit.emailOf(account))!!
+
+        Invitations(dsl, first, settings).invite(address)
+        fun invitedAt() = dsl.select(TEACHER_INVITATION.INVITED_AT).from(TEACHER_INVITATION).where(TEACHER_INVITATION.EMAIL.eq(address.value)).fetchSingle(TEACHER_INVITATION.INVITED_AT)!!.toInstant()
+        assertEquals(first.instant(), invitedAt())
+
+        Invitations(dsl, later, settings).invite(address)
+        assertEquals(later.instant(), invitedAt(), "a new invitation: the moment is renewed with the expiry")
+
+        assertTrue(Invitations(dsl, later, settings).accept(CurrentAccount(account, address.value), TeacherName("Paolo", "Verdi")))
+        assertEquals(later.instant(), dsl.select(TEACHER.CREATED_AT).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(account)).fetchSingle(TEACHER.CREATED_AT)!!.toInstant())
+        assertEquals(0, dsl.fetchCount(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(address.value)), "the invitation is used up")
     }
 }

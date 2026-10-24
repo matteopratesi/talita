@@ -14,6 +14,8 @@ import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.RETENTION_LOG
+import talita.jooq.tables.references.TEACHER
+import talita.jooq.tables.references.TEACHER_INVITATION
 import talita.registration.Notes
 import java.time.Clock
 import java.time.LocalDate
@@ -56,6 +58,25 @@ class RetentionSchemaTests(
         )
         assertNull(
             dsl.resultQuery("select column_default from information_schema.columns where table_name = 'account' and column_name = 'created_on'").fetchSingle(0, String::class.java),
+        )
+    }
+
+    @Test
+    fun `t7 c28 a teacher and an invitation have the moment they were made, with the hour and no default, the application writes it`() {
+        for ((table, column) in listOf("teacher" to "created_at", "teacher_invitation" to "invited_at")) {
+            val where = "table_name = '$table' and column_name = '$column'"
+            assertEquals("timestamp with time zone", dsl.resultQuery("select data_type from information_schema.columns where $where").fetchSingle(0, String::class.java), "$table.$column")
+            assertEquals("NO", dsl.resultQuery("select is_nullable from information_schema.columns where $where").fetchSingle(0, String::class.java), "$table.$column")
+            assertNull(dsl.resultQuery("select column_default from information_schema.columns where $where").fetchSingle(0, String::class.java), "$table.$column")
+        }
+        val teacher = kit.account("senza-momento")
+        assertTrue(
+            refusedBy { dsl.insertInto(TEACHER).set(TEACHER.ACCOUNT_ID, teacher).set(TEACHER.FIRST_NAME, "Paolo").set(TEACHER.LAST_NAME, "Verdi").execute() }.contains("created_at"),
+        )
+        assertTrue(
+            refusedBy {
+                dsl.insertInto(TEACHER_INVITATION).set(TEACHER_INVITATION.EMAIL, Addresses.unique("invito")).set(TEACHER_INVITATION.EXPIRES_AT, OffsetDateTime.now(clock)).execute()
+            }.contains("invited_at"),
         )
     }
 

@@ -461,6 +461,37 @@ class ErasurePagesTests(
     }
 
     @Test
+    fun `t7 c24 a registration that a teacher put back after the child was detached blocks the account, and the profile says it and that only the teachers can withdraw it`() {
+        val setup = kit.start()
+        val a = parent("genitore-a")
+        val luca = rows.register(setup.id, a.id, "Luca", "Rossi", status = RegistrationStatus.withdrawn)
+        dsl.execute("insert into checkin (registration_id, day, recorded_at, recorded_by_account_id) values (?, ?, now(), ?)", luca, setup.friday, setup.martaId)
+        // During the gathering the parent deletes the data of Luca: the registration is withdrawn and has a presence, so it stays, and the child is detached.
+        assertEquals(303, a.browser.submit("/profilo", "/profilo/figli/${childId(luca)}/cancella", emptyMap()).status())
+        assertNull(dsl.select(CHILD.ACCOUNT_ID).from(CHILD).where(CHILD.ID.eq(childId(luca))).fetchSingle(CHILD.ACCOUNT_ID))
+        // A teacher puts it back («Rimetti confermata») while the registrations are open.
+        kit.setStatus(luca, RegistrationStatus.confirmed)
+        // The notice of the deletion of Luca is read once, on the first page that follows (it has its own link to «Iscrizioni»): the page that counts is the second.
+        profile(a.browser)
+
+        val html = profile(a.browser)
+        val page = words(html)
+
+        val line = "Per cancellare il tuo account, prima: chiedi ai maestri di ritirare l’iscrizione di Luca alla «Convivenza di settembre 2027»: un maestro l’ha rimessa dopo che avevi cancellato i dati di Luca."
+        assertTrue(page.contains(line), page)
+        assertFalse(page.contains("Cancella il mio account"), "the sentence takes the place of the button, as with any other block")
+        assertFalse(html.contains("cancella-account"), "no dialog for an account that cannot be deleted")
+        assertFalse(page.contains("Vai alle iscrizioni"), "«Iscrizioni» only shows the registration of a child that was detached: no link to a page where the parent cannot do it")
+        // The request by hand finds the same thing, and changes nothing: the page of the 409 has the line too.
+        val answer = a.browser.submit("/profilo", "/profilo/account/cancella", emptyMap())
+        assertEquals(409, answer.status())
+        assertTrue(words(answer.body()).contains("Non è stato cancellato niente."))
+        assertTrue(words(answer.body()).contains(line))
+        assertTrue(dsl.fetchExists(ACCOUNT, ACCOUNT.ID.eq(a.id)))
+        assertEquals(1, dsl.fetchCount(REGISTRATION, REGISTRATION.ID.eq(luca)))
+    }
+
+    @Test
     fun `t7 c25 the confirmation deletes the account, ends the session and leads to the access page, once, with Account cancellato`() {
         val setup = finished()
         val a = parent("genitore-a")

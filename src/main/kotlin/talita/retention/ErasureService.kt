@@ -74,6 +74,8 @@ class ErasureService(
         val childLastName: String,
         val gatheringId: Long,
         val withdrawn: Boolean,
+        /** The child is not attached to any account (its parent had its data deleted and the registration stayed). */
+        val detached: Boolean,
     )
 
     private class GatheringRow(val id: Long, val title: String, val end: LocalDate, val state: GatheringStatus)
@@ -85,11 +87,11 @@ class ErasureService(
      * them, the registrations are locked for update and then the gatherings for share, in the order of `Registrations.lock`.
      */
     private fun load(tx: DSLContext, condition: Condition, lock: Boolean): Scope {
-        val base = tx.select(REGISTRATION.ID, REGISTRATION.CHILD_ID, CHILD.FIRST_NAME, CHILD.LAST_NAME, REGISTRATION.GATHERING_ID, REGISTRATION.STATUS)
+        val base = tx.select(REGISTRATION.ID, REGISTRATION.CHILD_ID, CHILD.FIRST_NAME, CHILD.LAST_NAME, REGISTRATION.GATHERING_ID, REGISTRATION.STATUS, CHILD.ACCOUNT_ID)
             .from(REGISTRATION).join(CHILD).on(CHILD.ID.eq(REGISTRATION.CHILD_ID)).where(condition).orderBy(REGISTRATION.ID)
         val fetched = if (lock) base.forUpdate().of(REGISTRATION).fetch() else base.fetch()
         val rows = fetched.map {
-            Row(it[REGISTRATION.ID]!!, it[REGISTRATION.CHILD_ID]!!, it[CHILD.FIRST_NAME]!!, it[CHILD.LAST_NAME]!!, it[REGISTRATION.GATHERING_ID]!!, it[REGISTRATION.STATUS] == RegistrationStatus.withdrawn)
+            Row(it[REGISTRATION.ID]!!, it[REGISTRATION.CHILD_ID]!!, it[CHILD.FIRST_NAME]!!, it[CHILD.LAST_NAME]!!, it[REGISTRATION.GATHERING_ID]!!, it[REGISTRATION.STATUS] == RegistrationStatus.withdrawn, it[CHILD.ACCOUNT_ID] == null)
         }
         val gatheringIds = rows.map { it.gatheringId }.distinct()
         val gatheringQuery = tx.select(GATHERING.ID, GATHERING.TITLE, GATHERING.END_DATE, GATHERING.STATUS).from(GATHERING).where(GATHERING.ID.`in`(gatheringIds)).orderBy(GATHERING.ID)
@@ -136,7 +138,8 @@ class ErasureService(
             when {
                 row.withdrawn && !marked -> fates += fate(null, null)
                 !row.withdrawn && !over -> blockers += Blocker(
-                    row.id, row.childId, row.childFirstName, row.childLastName, row.gatheringId, gathering.title, parentCanWithdraw = gathering.state == GatheringStatus.open,
+                    row.id, row.childId, row.childFirstName, row.childLastName, row.gatheringId, gathering.title,
+                    parentCanWithdraw = gathering.state == GatheringStatus.open && !row.detached, detached = row.detached,
                 )
                 else -> fates += fate(policy.registrationsDeletionDate(gathering.end), if (row.withdrawn) KeepReason.REGISTER else KeepReason.PROOF)
             }
@@ -199,6 +202,7 @@ class ErasureService(
             kept = classified.fates.filter { !it.goes },
             readingsUntil = farthest(healthNotes.readGatheringEnds(dsl, accountId).filterNot { policy.registrationsExpired(it, today) }),
             markedUntil = farthest(endsOfWhatWasMarked(accountId, today)),
+            blockers = classified.blockers,
             teacherBlock = TeacherBlock(block is RemovalResult.LastTeacher, (block as? RemovalResult.IsCustodian)?.gatherings.orEmpty()),
         )
     }
@@ -322,12 +326,17 @@ class ErasureService(
 
     /**
      * An account that stayed after its request (it is in the register of the readings, so the address stayed) and was entered again afterwards is a person who
-     * came back: the registrations that were made after the request are theirs, and the request is not made again over them.
+     * came back: what they did after the request is theirs, and the request is not made again over it. After the moment of the request (the last one, if it was
+     * made more than once) the person registered a child, was invited to be a teacher again, or accepted the invitation (`teacher.created_at`,
+     * `teacher_invitation.invited_at`: a teacher row or an invitation that the backup brought back is older than the request, and goes as the request did).
      */
     private fun startedAgain(tx: DSLContext, accountId: Long): Boolean {
         if (!healthNotes.hasReadings(tx, accountId)) return false
         val done = tx.select(DSL.max(RETENTION_LOG.DONE_AT)).from(RETENTION_LOG)
             .where(RETENTION_LOG.RULE.eq(RetentionLog.ACCOUNT_REQUEST)).and(RETENTION_LOG.TARGET_ID.eq(accountId)).fetchOne(0, OffsetDateTime::class.java) ?: return false
-        return tx.fetchExists(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(accountId).and(REGISTRATION.CREATED_AT.gt(done)))
+        val email = tx.select(ACCOUNT.EMAIL).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.EMAIL) ?: return false
+        return tx.fetchExists(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(accountId).and(REGISTRATION.CREATED_AT.gt(done))) ||
+            tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId).and(TEACHER.CREATED_AT.gt(done))) ||
+            tx.fetchExists(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(email).and(TEACHER_INVITATION.INVITED_AT.gt(done)))
     }
 }

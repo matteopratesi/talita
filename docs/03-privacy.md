@@ -108,7 +108,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
     al tocco dopo, senza uscire e rientrare. Ogni account è un genitore; il maestro è un account con una riga
     in `teacher` (nome e cognome, scritti da lui). Gli indirizzi dei soli maestri rispondono 403 a un genitore,
     con una regola sola e un test su ognuno.
-  - **Un invito** è un indirizzo e una scadenza (7 giorni), senza token: chi entra con quell'indirizzo, con il
+  - **Un invito** è un indirizzo, una scadenza (7 giorni) e il momento in cui è stato fatto, senza token: chi entra con quell'indirizzo, con il
     suo link, trova l'invito. Un invito ritirato o scaduto non apre niente, e chi entra vale come genitore.
   - **L'elenco dei maestri** (pagina «Maestri», solo per i maestri) mostra nome e cognome, mai l'indirizzo email
     di un altro maestro; gli indirizzi si vedono solo negli inviti in attesa, che li hanno scritti i maestri
@@ -208,8 +208,8 @@ dal 17 al 19 settembre, è finita il 20; le segnalazioni vanno via il 20 ottobre
 | Legami con gli affidatari | un anno dopo la fine; prima con «Togli» o con l'account cancellato (convivenze finite) | job, maestri | |
 | Figlio (nome, cognome, data di nascita) | quando non ha più iscrizioni: un anno dopo la fine della sua ultima convivenza (cartaceo: con la sua iscrizione); prima su richiesta | job, genitore | il genitore lo stacca dal suo account quando vuole; resta solo l'iscrizione che serve come prova |
 | Account (indirizzo, giorno di creazione) | vuoto (non maestro, senza figli né iscrizioni, non nel registro delle letture) **30 giorni dopo la creazione**; subito su richiesta | job, persona | chi ha letto segnalazioni resta con il solo indirizzo finché restano le sue letture |
-| Maestro (nome e cognome) | con «Togli» o con l'account cancellato | maestri, persona | |
-| Invito (indirizzo, scadenza) | **30 giorni dopo la scadenza**; prima: accettato o ritirato, o su richiesta | job, persona | per 30 giorni i maestri vedono «Scaduto» |
+| Maestro (nome e cognome, momento in cui lo è diventato) | con «Togli» o con l'account cancellato | maestri, persona | |
+| Invito (indirizzo, scadenza, momento dell'invito) | **30 giorni dopo la scadenza**; prima: accettato o ritirato, o su richiesta | job, persona | per 30 giorni i maestri vedono «Scaduto» |
 | Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | |
 | Id nel registro delle cancellazioni | dopo **37 giorni** (rotazione dei backup più 7) | job | il resto del registro non ha dati personali e resta |
 | Backup | **entro 30 giorni** dalla cancellazione | TALITA-8 | requisiti sopra |

@@ -140,7 +140,15 @@ class YourDataPresenter(private val erasures: ErasureService, private val texts:
     /** The list under «Per cancellare il tuo account, prima:», in the order of the design: the children, the last teacher, the custodianships. */
     fun accountBlocks(plan: AccountPlan): List<BlockLine> = buildList {
         for (blocker in plan.blockers) {
-            if (blocker.parentCanWithdraw) {
+            if (blocker.detached) {
+                // The child is not among «I tuoi figli» and «Iscrizioni» only shows the registration: a teacher put it back, and only the teachers can withdraw it.
+                add(
+                    BlockLine(
+                        "chiedi ai maestri di ritirare l’iscrizione di ${blocker.childFirstName} alla ${quoted(blocker.gatheringTitle)}: un maestro l’ha rimessa dopo che avevi cancellato i dati di ${blocker.childFirstName}.",
+                        null, null, null,
+                    ),
+                )
+            } else if (blocker.parentCanWithdraw) {
                 add(
                     BlockLine(
                         "ritira l’iscrizione di ${blocker.childFirstName} alla ${quoted(blocker.gatheringTitle)}.",

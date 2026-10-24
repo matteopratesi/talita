@@ -4,6 +4,8 @@ import org.jooq.DSLContext
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
 import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 /**
  * Makes and unmakes teachers for the tests, straight in the database: the set-up of a test, like an
@@ -11,6 +13,9 @@ import java.time.LocalDate
  * link (see [MockSignIn] and `E2e.signIn`).
  */
 object TestAccounts {
+
+    /** The moment the teachers of the set-up were made teachers: long ago (the tests of the retention with a fixed clock make the one that matters by hand). */
+    val LONG_AGO: OffsetDateTime = OffsetDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)
 
     /** Makes [email] a teacher with this name, making the account first if it is not there. Returns the id of the account. */
     fun makeTeacher(dsl: DSLContext, email: String, first: String = "Elisa", last: String = "Conti"): Long {
@@ -20,6 +25,7 @@ object TestAccounts {
             .set(TEACHER.ACCOUNT_ID, id)
             .set(TEACHER.FIRST_NAME, first)
             .set(TEACHER.LAST_NAME, last)
+            .set(TEACHER.CREATED_AT, LONG_AGO)
             .onConflict(TEACHER.ACCOUNT_ID).doUpdate()
             .set(TEACHER.FIRST_NAME, first)
             .set(TEACHER.LAST_NAME, last)

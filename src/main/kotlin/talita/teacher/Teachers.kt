@@ -11,6 +11,7 @@ import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
 import java.time.Clock
 import java.time.LocalDate
+import java.time.OffsetDateTime
 
 /** What a teacher may write as name and surname: the rules of the invitation and of the profile are the same. */
 object PersonName {
@@ -92,6 +93,7 @@ class Teachers(private val dsl: DSLContext, private val clock: Clock) {
             .set(TEACHER.ACCOUNT_ID, accountId)
             .set(TEACHER.FIRST_NAME, name.first)
             .set(TEACHER.LAST_NAME, name.last)
+            .set(TEACHER.CREATED_AT, OffsetDateTime.now(clock))
             .onConflict(TEACHER.ACCOUNT_ID).doNothing()
             .execute()
     }

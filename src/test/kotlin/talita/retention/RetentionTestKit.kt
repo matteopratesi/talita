@@ -155,11 +155,21 @@ internal class RetentionTestKit(val dsl: DSLContext, val clock: Clock) {
             .set(HEALTH_NOTE_ACCESS.ACCESSED_AT, OffsetDateTime.now(clock)).execute()
     }
 
-    /** An invitation to be a teacher that expires (or expired) at [expiresAt]. */
-    fun invitation(name: String, expiresAt: OffsetDateTime): String {
+    /** An invitation to be a teacher that expires (or expired) at [expiresAt], made seven days before unless [invitedAt] says otherwise. */
+    fun invitation(name: String, expiresAt: OffsetDateTime, invitedAt: OffsetDateTime = expiresAt.minusDays(7)): String {
         val email = Addresses.unique(name)
-        dsl.insertInto(TEACHER_INVITATION).set(TEACHER_INVITATION.EMAIL, email).set(TEACHER_INVITATION.EXPIRES_AT, expiresAt).execute()
+        invitationTo(email, invitedAt, expiresAt)
         return email
+    }
+
+    /** An invitation to [email] (the address of an account that is there), made at [invitedAt] and valid for seven days. */
+    fun invitationTo(email: String, invitedAt: OffsetDateTime, expiresAt: OffsetDateTime = invitedAt.plusDays(7)) {
+        dsl.insertInto(TEACHER_INVITATION).set(TEACHER_INVITATION.EMAIL, email).set(TEACHER_INVITATION.EXPIRES_AT, expiresAt).set(TEACHER_INVITATION.INVITED_AT, invitedAt).execute()
+    }
+
+    /** The moment the teacher [account] was made a teacher (the set-up makes them long ago): a teacher who accepted after a request, or whom a backup brought back. */
+    fun madeTeacherAt(account: Long, at: OffsetDateTime) {
+        dsl.update(TEACHER).set(TEACHER.CREATED_AT, at).where(TEACHER.ACCOUNT_ID.eq(account)).execute()
     }
 
     // ---- What is there ------------------------------------------------------------------------------------------------------

@@ -35,9 +35,20 @@ data class RegistrationFate(
 
 /**
  * A registration that stops the deletion: not withdrawn, in a gathering that is not finished (criterion 17). [parentCanWithdraw] says which words and which link:
- * with the registrations open the parent withdraws it from «Iscrizioni», with them closed it has to be asked of the teachers.
+ * with the registrations open the parent withdraws it from «Iscrizioni», with them closed it has to be asked of the teachers. [detached]: the child is not among
+ * «I tuoi figli» (the parent had its data deleted and a teacher put the registration back), and «Iscrizioni» only shows the registration: the parent cannot withdraw it
+ * whatever the state of the registrations, and has to ask the teachers (it is never [parentCanWithdraw]).
  */
-data class Blocker(val registrationId: Long, val childId: Long, val childFirstName: String, val childLastName: String, val gatheringId: Long, val gatheringTitle: String, val parentCanWithdraw: Boolean) {
+data class Blocker(
+    val registrationId: Long,
+    val childId: Long,
+    val childFirstName: String,
+    val childLastName: String,
+    val gatheringId: Long,
+    val gatheringTitle: String,
+    val parentCanWithdraw: Boolean,
+    val detached: Boolean = false,
+) {
     val childName: String get() = "$childFirstName $childLastName"
 }
 
@@ -79,7 +90,8 @@ data class TeacherBlock(val lastTeacher: Boolean, val custodies: List<GatheringR
 /**
  * What the deletion of the account would do (criteria 23-25). [children] are the children of the account, each with its plan; [kept] every registration that stays
  * (also those of children that were detached before) with the address copied into it; [readingsUntil] is the day the register of the readings goes, if the account is in
- * it (the address stays until then); [markedUntil] the day what the teacher marked or typed in goes, if there is something.
+ * it (the address stays until then); [markedUntil] the day what the teacher marked or typed in goes, if there is something. [blockers] are **all** the registrations that
+ * stop the deletion, also those of children that were detached before (a teacher can put one back): the request counts them all, so the profile must say them all.
  */
 data class AccountPlan(
     val accountId: Long,
@@ -89,11 +101,10 @@ data class AccountPlan(
     val kept: List<RegistrationFate>,
     val readingsUntil: LocalDate?,
     val markedUntil: LocalDate?,
+    val blockers: List<Blocker>,
     val teacherBlock: TeacherBlock,
 ) {
-    /** The children that cannot go now, and the teacher block: the account cannot be deleted before. */
-    val blockers: List<Blocker> get() = children.flatMap { it.blockers }.distinctBy { it.registrationId }
-
+    /** The registrations that are not withdrawn and the teacher block: the account cannot be deleted before. */
     val blocked: Boolean get() = blockers.isNotEmpty() || teacherBlock.any
 
     /** The address stays, without a name, because the account is in the register of the readings. */
