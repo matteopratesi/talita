@@ -432,7 +432,10 @@ class ErasureTests(
         assertEquals(child, dsl.select(RETENTION_LOG.TARGET_ID).from(RETENTION_LOG).where(RETENTION_LOG.RULE.eq("child-request")).fetchSingle(RETENTION_LOG.TARGET_ID))
         val warnings = output.all.lines().filter { it.contains(" WARN ") && it.contains("cannot be made again now") }
         assertEquals(1, warnings.size, output.all)
-        for (word in listOf("Anna", "Rossi", "2019", "example.org", "$child")) assertFalse(warnings.single().substringAfter("]: ").contains(word), "the warning has data: $warnings")
+        // The message alone: the rest of the line is the time, the process and the thread, whose digits can be the number of the child (the line has no «]: », so the old cut kept all of it).
+        val message = warnings.single().substringAfter(" : ")
+        assertTrue(message.startsWith("Retention:"), warnings.single())
+        for (word in listOf("Anna", "Rossi", "2019", "example.org", "$child")) assertFalse(message.contains(word), "the warning has data: $warnings")
     }
 
     @Test
