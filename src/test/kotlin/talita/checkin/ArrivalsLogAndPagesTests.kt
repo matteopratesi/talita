@@ -192,4 +192,39 @@ class ArrivalsLogAndPagesTests(
         )
     }
 
+    @Test
+    fun `t6 c31 both notices say that the attendance by day and the payments are collected, who marks and sees them, and for how long`() {
+        val full = mockMvc.get("/informativa").andReturn().response.contentAsString
+        fun card(id: String): String = words(Regex("""<section[^>]*aria-labelledby="$id"[^>]*>(.*?)</section>""", RegexOption.DOT_MATCHES_ALL).find(full)!!.groupValues[1])
+
+        val data = card("dati")
+        assertTrue(data.contains("giorni di presenza e stato dell’iscrizione"), data)
+        assertTrue(
+            data.contains(
+                "Segnati dai maestri durante la convivenza: le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). " +
+                    "Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.",
+            ),
+            data,
+        )
+        assertTrue(
+            card("scopi").contains("Presenze e pagamenti: servono ai maestri per sapere chi c’è ogni giorno e quanto è stato pagato, e li usiamo perché fanno parte del servizio che ci chiedi"),
+            card("scopi"),
+        )
+        assertTrue(card("visibilita").contains("Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati."), card("visibilita"))
+        val time = Regex("""presenze.*pagamenti.*un anno dopo la fine della convivenza""", RegexOption.IGNORE_CASE)
+        assertTrue(time.containsMatchIn(card("tempi")), card("tempi"))
+
+        val registrations = RegistrationTestKit(mockMvc, tokens, dsl, clock)
+        val setup = registrations.start()
+        val second = words(registrations.parent().submit(setup.form, setup.form, registrations.form(registrations.child())).body())
+        assertTrue(
+            second.contains(
+                "Durante la convivenza i maestri segnano giorno per giorno chi c’è e i pagamenti, ognuno con il nome del maestro che l’ha segnato: li vedono solo i maestri e servono a sapere chi è presente e quanto è stato pagato.",
+            ),
+            second,
+        )
+        val brief = Regex("""Per quanto tempo (.*?) I tuoi diritti""").find(second)!!.groupValues[1]
+        assertTrue(time.containsMatchIn(brief), brief)
+    }
+
 }

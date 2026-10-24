@@ -726,6 +726,10 @@ pagamenti online e ricevute, uscite e orari; **la cucina e il menù non sono in 
 - **Differenze dal codice di TALITA-5**: `Registrations` ha in più `lock`, `confirmIn` (in forse → confermata dentro la transazione del segno) e `restoreConfirmed` («Rimetti
   confermata», con le regole di TALITA-5); il dettaglio dell'iscrizione ha «Apri in Arrivi» e il modulo dal cartaceo sa tornare ad Arrivi (`ritorno=arrivi`); la pagina segnaposto
   di Arrivi non c'è più. La nota «Chi li riceve» delle due informative dice che la struttura riceve su carta nome e cognome (`docs/03-privacy.md`).
+- **Le informative dicono presenze e pagamenti** (commento di CodeRabbit sulla PR #7, fuori dal diff, Major): `docs/03-privacy.md` li tratta come dati del servizio chiesto dal
+  genitore, ma né l'informativa completa né quella breve li nominavano. Ora la completa li ha fra i dati raccolti («Segnati dai maestri durante la convivenza»: presenze per
+  giorno e pagamenti, con il maestro che li ha segnati), fra gli scopi, in «Chi vede i dati» (solo i maestri) e in «Per quanto tempo» (con l'iscrizione, un anno dopo la fine); la
+  breve ne parla in «A cosa servono» e in «Per quanto tempo». I testi esistenti non cambiano, si aggiunge soltanto; un test (`t6 c31`) controlla entrambe le pagine.
 
 **C. Stampe**
 
