@@ -666,3 +666,77 @@ Restano i vincoli già scritti nei ticket:
 - **solleciti**: prima si decide a chi si scrive e con quale scopo per l'indirizzo email.
 
 Le analisi sono nei ticket.
+
+## 2026-10-24: scelte di TALITA-6
+
+Check-in dal telefono e stampe. Analisi e design approvati da Matteo il 23/10/2026. **Il ticket non si spezza**: un branch e una PR, con cinque passi fatti come commit in
+quest'ordine: schema e servizi, Arrivi e scheda, quota recapito e segnalazioni nella scheda, stampe, chiusura. Cosa non c'è in questo ticket: rendiconto e restituzioni,
+pagamenti online e ricevute, uscite e orari; **la cucina e il menù non sono in questo ticket: sono in TALITA-12**, e camere e solleciti in TALITA-11 e TALITA-13 (voce del
+24/10/2026).
+
+**Valori approvati**
+
+- **Segnalazioni mai su un foglio stampato** (domanda 6: no): il foglio per i maestri ha solo bambino e recapito; non c'è la colonna `from_sheet` né letture dal foglio, e non c'è
+  nessuna deroga alla regola 4. Le segnalazioni si vedono solo dalla scheda, con una lettura registrata (`docs/03-privacy.md`).
+- **La parrocchia del bambino non si raccoglie** (domanda 1: no). **Niente note libere nell'app** (domanda 3): la colonna «Note» del registro stampato ha le indicazioni
+  dell'app (in forse, dal cartaceo, possibile doppione, giorno non previsto) e lo spazio per scrivere a mano.
+- **Elenco per la struttura**: gli affidatari più righe vuote per gli altri adulti (domanda 2). **Più pagamenti per iscrizione**, con il saldo calcolato (domanda 4).
+  **«Presente» ogni giorno**, anche per chi dorme lì (domanda 5). Il design è approvato così com'è. Per l'inserimento dal cartaceo e per «Manleva cartacea ricevuta» valgono i
+  testi di TALITA-5.
+- **Un solo ticket e una PR**: il limite di CodeRabbit sono 100 file, e i mockup di `docs/design/TALITA-6/` non contano (sono esclusi da `.coderabbit.yaml`).
+
+**A. Dati e regole**
+
+- **Pacchetto `talita.checkin`**, template in `src/main/jte/checkin/`. La migrazione `V6__checkin.sql` ha `checkin` (una riga per iscrizione e giorno: la chiave è la coppia, e
+  si scrive con `on conflict do nothing`) e `payment` (importo da 1 centesimo a 1.000 euro, maestro, momento e un codice della richiesta unico), con i vincoli provati sul
+  database. Le chiavi verso `account` non hanno cascata (come in V5); verso l'iscrizione sì: presenze e pagamenti vanno via con lei (TALITA-7).
+- **Un solo ordine dei blocchi** (`Registrations.lock`): l'iscrizione `for update`, poi la convivenza `for share`. Lo usano il ritiro, la correzione, il segno e il «Togli» della
+  presenza, così un segno e un ritiro fatti insieme vanno in fila: la presenza nasce prima del ritiro o non nasce (due transazioni vere in un test). **Differenza dall'analisi**: l'analisi
+  diceva `for share` anche sull'iscrizione, ma «in forse → confermata» nella stessa transazione del segno chiede di scriverla, quindi la presenza prende `for update` come il ritiro;
+  i pagamenti, che non cambiano l'iscrizione, la leggono `for share`.
+- **R3 per le presenze**: `talita.gathering` ha un'interfaccia (`ArrivalUsage`) che implementa `talita.checkin`, e il cambio delle date dice quali giorni hanno presenze, anche di
+  iscrizioni ritirate: un giorno con presenze non si toglie. La quota dovuta resta la funzione di TALITA-5 (`Quota`): non si salva, e il saldo (dovuta meno pagata) nemmeno
+  (R2). Un segno su un giorno non previsto nasce con l'avviso, e la quota non cambia finché non si corregge l'iscrizione.
+- **L'importo si legge come le quote** (`GatheringChecks.amount`, virgola o punto, al più due decimali) e va da 0,01 a 1.000 euro. **Il form porta un codice della richiesta** che
+  scrive il server: lo stesso form mandato due volte (doppio tocco, rete che torna) è un pagamento solo e la seconda risposta mostra lo stato; lo stesso codice per un'altra
+  iscrizione non scrive niente (409).
+- **Il design diceva «già tolto da Paolo Verdi»**, ma il modello dei dati non tiene chi toglie un pagamento (un pagamento tolto sparisce con tutti i suoi dati): il testo è «Quel pagamento era
+  già stato tolto.». **Zero in parole**: «Pagata Niente» e non «0 €» (la guida e il commento di Grace lo chiedono; il mockup della scheda aveva «0 €»).
+- **Giorno scelto e convivenza di Arrivi**: Arrivi riguarda la convivenza non in bozza che comincia per ultima; il giorno è oggi (il giorno di Roma, con il `Clock`), il primo prima
+  dell'inizio e l'ultimo dopo la fine. Le presenze si segnano fino a oggi, non oltre; dopo la fine si correggono ancora (la trascrizione del registro di carta) con un avviso.
+
+**B. Arrivi e scheda**
+
+- **Una risposta per ogni tocco, con quello che è vero adesso**: la riga con il riepilogo (e una frase per il lettore di schermo), o per la scheda l'intero blocco `#scheda`; senza
+  JavaScript un redirect che si porta dietro la conferma (letta una volta sola). 200 per «fatto» e «già fatto» (un'altra persona ha segnato un momento prima: nessun errore),
+  409 per ciò che non si può più fare (ritirata nel frattempo, giorno dopo oggi o fuori dalle date), 422 per un importo sbagliato. Niente aggiornamento a tempo: ogni risposta è il database di quel momento.
+- **Il filtro gira nel browser** (`app.js`, sui nomi già nella pagina): senza lettere maiuscole, accenti e apostrofi, ogni parola nel nome o nel cognome; nessun nome negli indirizzi né nei
+  log; senza JavaScript il campo non c'è e la lista è intera. **Nessun service worker**: una pagina già aperta si stampa e si filtra senza rete, ma per aprirla serve la rete.
+- **Segnalazioni**: «Mostra le segnalazioni» è un POST che passa da `HealthNotes` (la lettura si scrive e poi le segnalazioni si leggono, in una transazione) e risponde con la scheda aperta
+  **solo in quella risposta**: ogni altra azione la richiude, e se la lettura non si scrive non si vede niente. Il test di TALITA-5 che fissa una sola classe resta com'era.
+  La scheda chiusa è uguale per ogni bambino (un test confronta il markup con e senza segnalazioni).
+- **`app.js`**: un POST rifiutato con 4xx (tranne 409, 422 e 429, che sono la risposta) mostra «Qualcosa non ha funzionato»; un frammento chiesto con GET che risponde 4xx resta muto.
+- **Differenze dal codice di TALITA-5**: `Registrations` ha in più `lock`, `confirmIn` (in forse → confermata dentro la transazione del segno) e `restoreConfirmed` («Rimetti
+  confermata», con le regole di TALITA-5); il dettaglio dell'iscrizione ha «Apri in Arrivi» e il modulo dal cartaceo sa tornare ad Arrivi (`ritorno=arrivi`); la pagina segnaposto
+  di Arrivi non c'è più. La nota «Chi li riceve» delle due informative dice che la struttura riceve su carta nome e cognome (`docs/03-privacy.md`).
+
+**C. Stampe**
+
+- **Pagine intere** (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio`) con il bottone «Stampa», nascosto nella pagina e mostrato da `app.js`; l'ora è quella del server alla richiesta. La
+  pagina è larga `max-w-5xl` (`Shell.wide`); nessuna stampa legge le segnalazioni, quindi nessuna scrive una lettura.
+- **Un foglio di carta è un blocco** con la sua tabella e la sua intestazione (Safari non ripete il `thead`) e un salto di pagina prima di ogni blocco dopo il primo; le righe non si
+  spezzano. **Il server divide le righe** (`Pagination`, con un test: nessuna riga persa, nessun foglio vuoto, l'ultimo con il posto per quello che segue) con le capacità misurate dal
+  design con Chromium, e conta il «di M» con la stessa regola; se l'ultimo foglio non ha posto per i totali, i maestri o la frase finale, vanno in un foglio a parte. Un test dei
+  fogli veri (il PDF di Chromium, fuori dal repo) confronta le pagine con il «di M» per il registro a tre e a sette giorni, per l'elenco e per il foglio, anche con nomi su due righe.
+  **Safari su iPhone lo prova Matteo prima del rilascio** (`docs/03-privacy.md`).
+- **Dove il design taceva**: l'elenco senza iscrizioni confermate ha uno stato vuoto («Nessuna iscrizione confermata») fatto come quello del giorno senza presenti; la riserva dei maestri
+  nell'elenco è 6 righe più gli affidatari (8 con due, come dice il design); l'elenco di un giorno ha i bambini presenti e non ritirati; un giorno che non è della convivenza è una pagina che non
+  esiste; il riquadro che scorre del registro è una regione con nome e `tabindex="0"` (senza, axe segnala che la tastiera non lo raggiunge).
+- **Nella guida** (`docs/design/README.md`): tre componenti nuovi, il selettore di giorno (4.20), il riepilogo con numeri (4.21) e la ricerca in una lista (4.22); la riga con azione rapida in 4.3, «Chiama» e «Stampa» in 4.1, le tabelle stampabili in 4.12 e la `select` in 4.2. **I test di navigazione** dei ticket precedenti
+  cercano la voce nella navigazione principale: il selettore dei giorni di Arrivi è una seconda `nav`.
+
+**D. Test**
+
+- Ogni criterio ha il suo test: unitari (regole, saldo, importi, divisione in fogli), pagine su Postgres vero (anche con due transazioni dove il criterio lo chiede: ritiro e segno, due maestri
+  insieme, due pagamenti uguali), indirizzi provati con un genitore, un maestro e senza accesso, log, parole vietate e pagine senza stili né script nel markup, e e2e su telefono e desktop con axe
+  (lista, scheda, pagamenti, segnalazioni, stampe e una giornata intera).

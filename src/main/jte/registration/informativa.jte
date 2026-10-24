@@ -44,7 +44,7 @@
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="visibilita">
       <h2 id="visibilita" class="text-lg font-semibold">Chi vede i dati</h2>
-      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli.</p>
+      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="fornitori">
