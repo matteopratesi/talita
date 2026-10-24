@@ -103,6 +103,38 @@ class ArrivalsE2eTest {
         assertAccessible(page, "list of a day that has not come (${e2e.profile.label})")
     }
 
+    @E2eTest
+    fun `t6 c01 c27 with seven days the selector has every day in one row at 320 px, the page does not scroll, and every day is a target of at least 24 by 44 px`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering(first = -3, last = 3)
+        e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9))
+        e2e.open("/arrivi")
+        val links = page.locator("nav[aria-label='Giorni della convivenza'] a")
+        assertThat(links).hasCount(7)
+
+        // The design asked for 44 px of width for each day «also at 320 px», which seven days cannot give (they get 34 px at 320 and 42 at 375): what the page keeps is the
+        // minimum of WCAG 2.2 (24 px), the height of 64 px, one row and no sideways scrolling. With the usual three days every target is much wider than 44 px.
+        for (width in listOf(320, 360)) {
+            page.setViewportSize(width, 800)
+            page.waitForSettledContent()
+            assertTrue(page.noHorizontalScroll(), "no sideways scrolling at $width px")
+            val boxes = links.all().map { it.box() }
+            assertTrue(boxes.all { Math.abs(it.y - boxes.first().y) < 1.0 }, "the seven days are in one row at $width px")
+            for (box in boxes) {
+                assertTrue(box.width >= 24.0 && box.height >= 44.0, "a day is $box at $width px")
+                assertTrue(box.x >= 0.0 && box.x + box.width <= width, "a day is out of the screen at $width px: $box")
+            }
+        }
+        page.setViewportSize(320, 800)
+        assertAccessible(page, "list of seven days at 320 px (${e2e.profile.label})")
+
+        // A day is chosen with a link that carries the date and nothing else, and the page says which day it is.
+        e2e.touch(links.first())
+        assertThat(page).hasURL(e2e.url("/arrivi?giorno=${w.today.minusDays(3)}"))
+        assertThat(page.locator("nav[aria-label='Giorni della convivenza'] a[aria-current=date]")).hasCount(1)
+        assertThat(page.locator("main")).containsText("un giorno passato")
+    }
+
     // ---- The search by name (criterion 3) ---------------------------------------------------------------------------------------------
 
     @E2eTest
@@ -196,6 +228,124 @@ class ArrivalsE2eTest {
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
         assertEquals(0, page.locator("dialog").count())
+    }
+
+    // ---- Two quick touches (criteria 4, 5, 6; design part 1, 3.4) -------------------------------------------------------------------------
+
+    /**
+     * The button that takes the place of the touched one is not touchable for a moment (`animate-touch-pause`): whoever taps twice on «Segna presente» does not take the presence
+     * away, and whoever taps twice on «Togli» does not put it back. The new button is centred where the old one was, so the second tap lands on it (QA of TALITA-6: with 80 ms
+     * or more between the taps, and the answer arrives in a few tens of milliseconds).
+     */
+    private fun Page.waitUntilTouchable() = waitUntil("Array.from(document.querySelectorAll('main form button')).every(b => getComputedStyle(b).pointerEvents !== 'none')")
+
+    /** A touch at a point of the screen, not on an element: a tap on the phone, a click on the desktop. The finger does not ask what is there by now. */
+    private fun E2e.touchAt(x: Double, y: Double) {
+        if (profile.isPhone) page.touchscreen().tap(x, y) else page.mouse().click(x, y)
+    }
+
+    /** Two touches on the same point of [button], [gapMs] apart. The point is the one of the button before the first touch; the second lands on what is there by then. */
+    private fun E2e.touchTwice(button: Locator, gapMs: Double) {
+        button.evaluate("e => e.scrollIntoView({ block: 'center' })")
+        val box = button.box()
+        val x = box.x + box.width / 2
+        val y = box.y + box.height / 2
+        touchAt(x, y)
+        page.waitForTimeout(gapMs)
+        touchAt(x, y)
+    }
+
+    /** A touch on the middle of [button] wherever it is now, as soon as it is there: the second touch of a person who did not see the answer come. */
+    private fun E2e.touchNow(button: Locator) {
+        val box = button.box()
+        touchAt(box.x + box.width / 2, box.y + box.height / 2)
+    }
+
+    private val gaps = listOf(80.0, 150.0, 250.0, 400.0)
+
+    private fun E2e.fourChildren(w: ArrivalsWorld): List<Pair<Long, String>> =
+        listOf("Luca", "Anna", "Sara", "Marco").map { name -> rows().register(w.id, someParent(), name, "Rossi", LocalDate.of(2016, 4, 4)) to "$name Rossi" }
+
+    @E2eTest
+    fun `t6 c04 a double tap on Segna presente leaves the child present, the second tap does not take the presence away`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val children = e2e.fourChildren(w)
+        e2e.open("/arrivi")
+
+        // The same point twice, 80, 150, 250 and 400 ms apart: two quick taps are one wish.
+        children.zip(gaps).forEach { (child, gap) -> e2e.touchTwice(page.locator("#riga-${child.first} form button"), gap) }
+        page.waitUntilTouchable()
+
+        children.forEach { (id, _) ->
+            assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(id)), "two quick taps on the same point are one wish: the child is present")
+            assertThat(page.locator("#riga-$id")).containsText("Presente")
+        }
+        assertThat(page.locator("#esito")).hasText("Presenza segnata: Marco Rossi.")
+        assertAccessible(page, "list after two quick taps (${e2e.profile.label})")
+    }
+
+    @E2eTest
+    fun `t6 c04 c06 a double tap on Togli takes the presence away once, the second tap does not mark it again, and one tap after the pause takes it away as before`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val children = e2e.fourChildren(w)
+        e2e.open("/arrivi")
+        children.forEach { (_, name) -> e2e.press(page.buttonNamed("Segna presente $name, ${day(w.today)}")) }
+        assertThat(page.locator("[data-filtro-riga].bg-success-soft")).hasCount(4)
+        assertEquals(4, e2e.dsl().fetchCount(CHECKIN))
+        page.waitUntilTouchable()
+
+        children.zip(gaps).forEach { (child, gap) -> e2e.touchTwice(page.locator("#riga-${child.first} form button"), gap) }
+        page.waitUntilTouchable()
+
+        children.forEach { (id, name) ->
+            assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(id)), "two quick taps on Togli are one wish: the child is not present")
+            assertThat(page.buttonNamed("Segna presente $name, ${day(w.today)}")).isVisible()
+        }
+        assertThat(page.locator("#esito")).hasText("Presenza tolta: Marco Rossi.")
+
+        // After the pause one tap does what it did: marks, and one tap more takes it away, with no question.
+        val luca = children.first().first
+        e2e.press(page.buttonNamed("Segna presente Luca Rossi, ${day(w.today)}"))
+        page.waitUntilTouchable()
+        e2e.press(page.buttonNamed("Togli la presenza di Luca Rossi, ${day(w.today)}"))
+        assertThat(page.buttonNamed("Segna presente Luca Rossi, ${day(w.today)}")).isVisible()
+        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(luca)))
+        assertEquals(0, page.locator("dialog").count())
+    }
+
+    @E2eTest
+    fun `t6 c05 c06 on the card a touch just after another does not undo it, whether it marks or takes away, and the next touch works`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val c = e2e.children(w)
+        e2e.open("/arrivi/${c.anna}")
+        val mark = "Segna presente Anna Rossi, ${day(w.today)}"
+        val unmark = "Togli la presenza di Anna Rossi, ${day(w.today)}"
+
+        e2e.press(page.buttonNamed(mark))
+        assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
+        e2e.touchNow(page.buttonNamed(unmark))
+        page.waitUntilTouchable()
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)), "the touch that came right after «Segna presente» did not take the presence away")
+        assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
+
+        e2e.press(page.buttonNamed(unmark))
+        assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza tolta.")
+        e2e.touchNow(page.buttonNamed(mark))
+        page.waitUntilTouchable()
+        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)), "the touch that came right after «Togli» did not mark the child again")
+        assertThat(page.buttonNamed(mark)).isVisible()
+
+        // The same point twice, as on the list, and after the pause one touch does what it did.
+        e2e.touchTwice(page.buttonNamed(mark), 80.0)
+        page.waitUntilTouchable()
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)))
+        e2e.press(page.buttonNamed(unmark))
+        assertThat(page.buttonNamed(mark)).isVisible()
+        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)))
+        assertAccessible(page, "card after quick touches (${e2e.profile.label})")
     }
 
     @E2eTest

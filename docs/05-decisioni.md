@@ -716,6 +716,13 @@ pagamenti online e ricevute, uscite e orari; **la cucina e il menù non sono in 
   **solo in quella risposta**: ogni altra azione la richiude, e se la lettura non si scrive non si vede niente. Il test di TALITA-5 che fissa una sola classe resta com'era.
   La scheda chiusa è uguale per ogni bambino (un test confronta il markup con e senza segnalazioni).
 - **`app.js`**: un POST rifiutato con 4xx (tranne 409, 422 e 429, che sono la risposta) mostra «Qualcosa non ha funzionato»; un frammento chiesto con GET che risponde 4xx resta muto.
+- **Un doppio tocco non annulla il primo** (difetto del QA, commento 10948; il design, parte 1, punto 3.4, lo voleva e non era vero): il bottone nuovo, «Togli» al posto di «Segna presente» o
+  l'inverso, sta dove stava il vecchio, quindi il secondo tocco (anche 80 ms dopo il primo) ci cadeva sopra e toglieva la presenza, o la rimetteva, senza domanda. **La correzione è solo CSS**:
+  nella risposta a un tocco la riga della lista (`RowView.focus`) e il blocco del giorno della scheda (c'è l'avviso) hanno la classe `animate-touch-pause`, un'animazione di 700 ms che tiene
+  `pointer-events: none` (si eredita fino al bottone e al nome, che col mouse sta sotto il punto del primo clic) e poi torna `auto` da sola. Nessun `disabled` (il fuoco `data-fuoco` si perderebbe e il nome accessibile direbbe «non disponibile»), nessun
+  `aria-disabled`, nessun codice in `app.js`: il fuoco e il nome non cambiano. Senza JavaScript la classe non c'è nella riga (la prima pagina non ha `focus`) e nella scheda c'è con l'avviso:
+  la pagina intera si comporta come prima, con la stessa pausa. Il tocco singolo dopo la pausa toglie la presenza come prima, e il criterio 6 resta: nessuna conferma. **Il limite**: la pausa
+  è per il dito e per il mouse; chi preme Invio due volte sulla tastiera non è protetto. Gli e2e con Playwright aspettano da soli (il bottone non è il bersaglio del tocco finché dura la pausa).
 - **Differenze dal codice di TALITA-5**: `Registrations` ha in più `lock`, `confirmIn` (in forse → confermata dentro la transazione del segno) e `restoreConfirmed` («Rimetti
   confermata», con le regole di TALITA-5); il dettaglio dell'iscrizione ha «Apri in Arrivi» e il modulo dal cartaceo sa tornare ad Arrivi (`ritorno=arrivi`); la pagina segnaposto
   di Arrivi non c'è più. La nota «Chi li riceve» delle due informative dice che la struttura riceve su carta nome e cognome (`docs/03-privacy.md`).

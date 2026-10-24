@@ -78,6 +78,8 @@
   --animate-toast-in: toast-in 200ms ease-out;
   --animate-sheet-in: sheet-in 200ms ease-out;
   --animate-progress: progress 1.2s ease-in-out infinite;
+  /* Una pausa, non un movimento: per questo si usa anche con «riduci movimento». Vedi il commento di @keyframes touch-pause. */
+  --animate-touch-pause: touch-pause 700ms;
 
   @keyframes enter {
     from { opacity: 0; transform: translateY(4px); }
@@ -91,6 +93,13 @@
   @keyframes progress {
     from { transform: translateX(-100%); }
     to { transform: translateX(300%); }
+  }
+  /* Il bottone che prende il posto di quello toccato (la risposta di «Segna presente» o di «Togli») non prende i tocchi per 700 ms: un secondo
+     tocco sullo stesso punto, a pochi decimi di secondo dal primo, cade nel vuoto e non annulla il primo. `pointer-events` si eredita, quindi basta
+     la classe sul form o sul blocco che contiene il bottone. Il fuoco, il nome accessibile e la tastiera non cambiano; finita l'animazione il valore
+     torna `auto` da solo, senza codice. */
+  @keyframes touch-pause {
+    from, to { pointer-events: none; }
   }
 }
 

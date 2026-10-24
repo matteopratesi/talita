@@ -6,10 +6,12 @@
 @param RowView row
 @param CsrfToken csrf
 <%-- A row of the list of the day (criteria 1, 4; design 1, 3.4). The name is a link to the card; for a child who is expected on a day that can be marked the button is
-     at the right: «Segna presente» before, «Togli» after (smaller and without fill on purpose: whoever touched «Segna presente» twice does not take the presence away
-     by mistake, the second touch lands on another button). The other rows are only a link, with the arrow. The row does not change place after a touch: the order is
-     made again at the next load. The id is the number of the registration, never a name; the name is in `data-filtro-testo`, which the search in `app.js` reads and
-     which goes nowhere. In the answer to a touch the new button has `data-fuoco`; in the page that is drawn first no row has it (the focus goes to the title). --%>
+     at the right: «Segna presente» before, «Togli» after (smaller and without fill on purpose). The new button takes the place of the touched one, so the second touch
+     of whoever taps twice would land on it and undo the first. So the row that comes in the answer to a touch has `animate-touch-pause`: for 700 ms it takes no touch
+     (the button, and the link to the card, which a click of the mouse may reach when the new button is narrower; the focus, the name and the keyboard stay as they are).
+     The other rows are only a link, with the arrow. The row does not change place after a touch: the order is made again at the next load. The id is the number of the
+     registration, never a name; the name is in `data-filtro-testo`, which the search in `app.js` reads and which goes nowhere. In the answer to a touch the new button
+     has `data-fuoco`; in the page that is drawn first no row has it (the focus goes to the title). --%>
 @if(row.getKind() == RowKind.LINK)
   <li id="riga-${row.getId()}" data-filtro-riga>
     <a href="${row.getHref()}" class="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-surface-muted active:bg-surface-muted busy:bg-surface-muted">
@@ -33,7 +35,7 @@
     @endif
   </li>
 @else
-  <li id="riga-${row.getId()}" data-filtro-riga class="flex flex-wrap items-center gap-x-3 py-2 pr-3 pl-4${row.getPresent() ? " bg-success-soft" : ""}">
+  <li id="riga-${row.getId()}" data-filtro-riga class="flex flex-wrap items-center gap-x-3 py-2 pr-3 pl-4${row.getPresent() ? " bg-success-soft" : ""}${row.getFocus() ? " animate-touch-pause" : ""}">
     <a href="${row.getHref()}" class="flex min-h-14 min-w-0 flex-1 flex-col justify-center rounded-lg py-1.5">
       <span class="font-semibold wrap-anywhere" data-filtro-testo>${row.getName()}</span>
       @if(!row.getLabels().isEmpty())
