@@ -43,4 +43,9 @@ enum class Icon {
     CHECK,
     EXTERNAL_LINK,
     CALENDAR_X,
+    PHONE,
+    LIST,
+    CLIPBOARD_LIST,
+    CHEVRON_LEFT,
+    SEARCH,
 }

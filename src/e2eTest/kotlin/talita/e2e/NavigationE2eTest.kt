@@ -31,8 +31,8 @@ class NavigationE2eTest {
             assertThat(page).hasTitle(title)
             assertThat(page.locator("h1")).hasText(if (label == "Home") "Ti diamo il benvenuto" else label)
             // Only the touched entry is the current one.
-            assertThat(page.locator("nav [aria-current]")).hasCount(1)
-            assertThat(page.locator("nav a[aria-current=page]")).hasText(label)
+            assertThat(page.mainNavigation().locator("[aria-current]")).hasCount(1)
+            assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText(label)
             // The page was not reloaded: what was put in window before the touch is still there.
             assertEquals("still-here", page.evaluate("window.__marker"), "$label: the page was reloaded")
         }
@@ -51,13 +51,13 @@ class NavigationE2eTest {
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
         assertThat(page).hasTitle("Iscrizioni · Talità")
         assertThat(page.locator("h1")).hasText("Iscrizioni")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Iscrizioni")
+        assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Iscrizioni")
 
         page.goBack()
         assertThat(page).hasURL(e2e.url("/convivenza"))
         assertThat(page).hasTitle("Convivenza · Talità")
         assertThat(page.locator("h1")).hasText("Convivenza")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
+        assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Convivenza")
 
         assertEquals(0, (page.evaluate("localStorage.length") as Number).toInt(), "localStorage is not empty")
         assertEquals(
@@ -76,7 +76,7 @@ class NavigationE2eTest {
 
         assertThat(page).hasURL(e2e.url("/convivenza"))
         assertThat(page.locator("h1")).hasText("Convivenza")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
+        assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -164,6 +164,6 @@ class NavigationE2eTest {
         assertEquals(e2e.url("/iscrizioni"), page.url(), "the late answer of the first touch took over")
         assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertThat(page.messages()).hasCount(0)
-        assertTrue(page.locator("nav a[aria-current=page]").innerText().contains("Iscrizioni"))
+        assertTrue(page.mainNavigation().locator("a[aria-current=page]").innerText().contains("Iscrizioni"))
     }
 }

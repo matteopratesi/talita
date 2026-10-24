@@ -25,9 +25,9 @@ class ShellLayoutE2eTest {
 
             assertEquals(1, page.locator("h1").count(), "$where: h1")
             assertEquals(1, page.locator("main").count(), "$where: main")
-            assertEquals(1, page.locator("nav").count(), "$where: nav")
-            assertEquals("Navigazione principale", page.locator("nav").attr("aria-label"), where)
-            assertEquals(navigationLabels, page.locator("nav a").allInnerTexts().map { it.trim() }, "$where: voci della navigazione")
+            assertEquals(1, page.mainNavigation().count(), "$where: nav")
+            assertEquals("Navigazione principale", page.mainNavigation().attr("aria-label"), where)
+            assertEquals(navigationLabels, page.mainNavigation().locator("a").allInnerTexts().map { it.trim() }, "$where: voci della navigazione")
         }
     }
 
@@ -49,7 +49,7 @@ class ShellLayoutE2eTest {
             assertTrue(nav.y > viewportHeight / 2, "$where: the navigation is not at the bottom: $nav")
 
             // Every entry is at least 44x44 CSS pixels.
-            for (link in page.locator("nav a").all()) {
+            for (link in page.mainNavigation().locator("a").all()) {
                 val box = link.box()
                 assertTrue(box.width >= 44 && box.height >= 44, "$where: ${link.innerText()} is ${box.width}x${box.height}")
             }
@@ -85,7 +85,7 @@ class ShellLayoutE2eTest {
             assertTrue(nav.isVisible, "$where: navigation not visible")
             val box = nav.box()
             assertTrue(box.x >= 0 && box.y >= 0 && box.y + box.height <= page.viewport().height, "$where: the navigation is not inside the screen: $box")
-            assertEquals(navigationLabels, page.locator("nav a").allInnerTexts().map { it.trim() }, where)
+            assertEquals(navigationLabels, page.mainNavigation().locator("a").allInnerTexts().map { it.trim() }, where)
 
             val noHorizontalScroll = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth") as Boolean
             assertTrue(noHorizontalScroll, "$where: horizontal scroll")

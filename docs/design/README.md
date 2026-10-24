@@ -477,9 +477,13 @@ Icone assegnate (nomi di Lucide):
 | Ritira l'iscrizione | `circle-x` |
 | Rimetti l'iscrizione | `rotate-ccw` |
 | Togli le segnalazioni | `trash-2` |
-| Segna come ricevuta | `check` |
+| Segna come ricevuta, «Presente» | `check` |
 | Si apre in una nuova scheda | `external-link` |
 | Iscrizioni chiuse | `calendar-x` |
+| Chiama il genitore | `phone` |
+| Elenco per la struttura | `list` |
+| Registro arrivi | `clipboard-list` |
+| Torna agli arrivi | `chevron-left` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):

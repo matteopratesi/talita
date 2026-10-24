@@ -90,7 +90,7 @@ class HistoryE2eTest {
         assertEquals("true", request.allHeaders()["hx-history-restore-request"], "the page was not asked for as a restoration of the history")
         assertThat(page.locator("h1")).hasText("Convivenza")
         assertThat(page).hasTitle("Convivenza · Talità")
-        assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
+        assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Convivenza")
     }
 
     @E2eTest
@@ -115,7 +115,7 @@ class HistoryE2eTest {
         assertThat(page.locator("h1")).hasText("Convivenza")
         assertThat(page.messages()).hasCount(0)
         page.settled()
-        assertEquals("Convivenza", page.locator("nav a[aria-current=page]").innerText().trim())
+        assertEquals("Convivenza", page.mainNavigation().locator("a[aria-current=page]").innerText().trim())
     }
 
     @E2eTest
@@ -135,7 +135,7 @@ class HistoryE2eTest {
         page.waitForTimeout(500.0)
         assertThat(page.messages()).hasCount(0)
         assertThat(page.locator("h1")).hasText("Iscrizioni")
-        assertEquals(1, page.locator("nav a[aria-current=page]").count())
+        assertEquals(1, page.mainNavigation().locator("a[aria-current=page]").count())
         page.settled()
     }
 
@@ -148,8 +148,8 @@ class HistoryE2eTest {
         assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
         assertThat(page.locator("main")).containsText("L’indirizzo potrebbe essere sbagliato, oppure la pagina non esiste più.")
-        assertEquals(navigationLabels, page.locator("nav a").allInnerTexts().map { it.trim() })
-        assertEquals(0, page.locator("nav [aria-current]").count())
+        assertEquals(navigationLabels, page.mainNavigation().locator("a").allInnerTexts().map { it.trim() })
+        assertEquals(0, page.mainNavigation().locator("[aria-current]").count())
         // (Playwright cannot wait for the entrance animation to be "stable" with the scripts off: force the click.)
         page.locator("main a").filter(com.microsoft.playwright.Locator.FilterOptions().setHasText("Vai alla home")).click(com.microsoft.playwright.Locator.ClickOptions().setForce(true))
         assertThat(page).hasURL(e2e.url("/"))
@@ -189,7 +189,7 @@ class HistoryE2eTest {
         assertThat(page).hasURL(e2e.url("/altra-pagina-che-non-esiste"))
         assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
-        assertEquals(0, page.locator("nav [aria-current]").count())
+        assertEquals(0, page.mainNavigation().locator("[aria-current]").count())
     }
 
     @E2eTest
@@ -204,7 +204,7 @@ class HistoryE2eTest {
         assertThat(page).hasURL(e2e.url("/indirizzo-che-non-esiste"))
         assertThat(page).hasTitle("Pagina non trovata · Talità")
         assertThat(page.locator("h1")).hasText("Pagina non trovata")
-        assertEquals(0, page.locator("nav [aria-current]").count())
+        assertEquals(0, page.mainNavigation().locator("[aria-current]").count())
     }
 
     @E2eTest
@@ -215,7 +215,7 @@ class HistoryE2eTest {
         assertThat(page).hasURL(e2e.url("/test/errore"))
         assertThat(page).hasTitle("Qualcosa non ha funzionato · Talità")
         assertThat(page.locator("h1")).hasText("Qualcosa non ha funzionato")
-        assertEquals(0, page.locator("nav [aria-current]").count())
+        assertEquals(0, page.mainNavigation().locator("[aria-current]").count())
     }
 
     @E2eTest
@@ -292,6 +292,6 @@ class HistoryE2eTest {
         assertThat(page.locator("h1")).hasText("Arrivi")
         assertThat(page.messages()).hasCount(0)
         page.settled()
-        assertEquals("Arrivi", page.locator("nav a[aria-current=page]").innerText().trim())
+        assertEquals("Arrivi", page.mainNavigation().locator("a[aria-current=page]").innerText().trim())
     }
 }

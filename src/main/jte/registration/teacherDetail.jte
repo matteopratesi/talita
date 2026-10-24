@@ -51,6 +51,9 @@
         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 last:pb-0"><dt class="text-ink-muted">Telefono</dt><dd><a href="${"tel:" + page.getTelephone()}" class="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-2">${page.getPhone()}</a></dd></div>
       </dl>
       <div class="-mb-2 -ml-3 mt-3 flex flex-wrap gap-1">
+        @if(page.getArrivalsHref() != null)
+          @template.components.linkButton(href = page.getArrivalsHref(), label = "Apri in Arrivi", variant = "text", icon = Icon.CLIPBOARD_CHECK)
+        @endif
         @if(page.getWithdrawn())
           @template.components.linkButton(href = "/iscrizioni/" + page.getId() + "/correggi", label = "Rimetti l’iscrizione", variant = "text", icon = Icon.ROTATE_CCW)
         @else

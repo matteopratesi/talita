@@ -12,12 +12,19 @@ import talita.jooq.tables.references.CHECKIN
 import talita.jooq.tables.references.PAYMENT
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.TEACHER
+import talita.registration.RegistrationFormat
 import talita.registration.RegistrationRows
 import talita.teacher.Person
 import java.time.Clock
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
+
+/** The visible text of a page, roughly (tags out, spaces squeezed), with the non-breaking spaces as plain ones: the amounts have one before the euro sign. */
+internal fun words(html: String): String = talita.gathering.text(html).replace('\u00a0', ' ')
+
+/** An amount as the pages write it, with a plain space before the euro sign (`60 €`). */
+internal fun euro(cents: Int): String = RegistrationFormat.money(cents).replace('\u00a0', ' ')
 
 /**
  * A gathering as the tests of the arrivals need it: open, three days with today in the middle (yesterday, today, tomorrow), Marta Bianchi and Paolo Verdi as
@@ -96,6 +103,15 @@ internal class CheckinTestKit(private val mockMvc: MockMvc, tokens: OneTimeToken
             .set(PAYMENT.RECORDED_BY_ACCOUNT_ID, by)
             .set(PAYMENT.REQUEST_ID, request)
             .returningResult(PAYMENT.ID).fetchSingle().value1()!!
+
+    /** The id of the registration that was made last. */
+    fun lastRegistrationId(): Long = dsl.select(REGISTRATION.ID).from(REGISTRATION).orderBy(REGISTRATION.ID.desc()).limit(1).fetchSingle(REGISTRATION.ID)!!
+
+    /** The presence of a registration on a day, as it is kept; fails when there is none. */
+    fun presenceOf(registration: Long, day: LocalDate): Checkin =
+        dsl.select(CHECKIN.REGISTRATION_ID, CHECKIN.DAY, CHECKIN.RECORDED_AT, CHECKIN.RECORDED_BY_ACCOUNT_ID).from(CHECKIN)
+            .where(CHECKIN.REGISTRATION_ID.eq(registration)).and(CHECKIN.DAY.eq(day))
+            .fetchSingle { Checkin(it[CHECKIN.REGISTRATION_ID]!!, it[CHECKIN.DAY]!!, it[CHECKIN.RECORDED_AT]!!, it[CHECKIN.RECORDED_BY_ACCOUNT_ID]!!) }
 
     fun presenceCount(): Int = dsl.fetchCount(CHECKIN)
 

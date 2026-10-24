@@ -13,6 +13,8 @@
 // - touching another link while a page change is on its way: the last touch wins;
 // - the address of the information page of a gathering can be copied and shared (`data-azione="copia"` and `"condividi"`, shown only if the
 //   browser can) and the preview can be printed (`"stampa"`): the texts are in the template, the code only does;
+// - the list of the arrivals can be searched by name (`data-filtro`, shown only here: without JavaScript the list is whole): the search runs in the
+//   browser on the names that are in the page, asks the server nothing and writes no name in an address or in a log;
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
 //   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
@@ -183,7 +185,9 @@
         // The error pages of the app replace the page like any other, with their own address and title.
         event.detail.shouldSwap = true;
         event.detail.isError = false;
-      } else if (status >= 500 || request.boosted) {
+      } else if (status >= 500 || request.boosted || request.verb !== "get") {
+        // A server error; or a refusal of a form of a piece of a page (a 404 for a registration that is not there, asked by a touch on a button): a request that
+        // changes something is never left without an answer. A read of a piece of a page that gets a 4xx is left to htmx, as before.
         event.detail.shouldSwap = false;
         showMessage("server", request);
       }
@@ -279,6 +283,71 @@
     },
     true,
   );
+
+  // ---- The search by name in the list of the arrivals ----
+
+  const SEARCH_ANNOUNCE_MS = 250;
+  let searchTimer = null;
+
+  /** How a name and what is typed are compared: no capitals, no accents, no apostrophes (so «dangelo» finds D'Angelo and «nicolo» finds Nicolò). */
+  function plain(text) {
+    return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/['\u2019\u02bc]/g, "");
+  }
+
+  /**
+   * Shows the rows in which every word that was typed is in the name or in the surname, and nothing else: the group without rows goes away, with no result the
+   * card «Nessun bambino con questo nome» comes, and the summary gives way to the results. [announce]: say how many were found, after a pause in the typing.
+   * Run again after every replacement of a piece of the page, so that a row that came back is shown or hidden like the others.
+   */
+  function applySearch(announce) {
+    const field = document.getElementById("cerca");
+    const block = document.querySelector("[data-filtro]");
+    if (!field || !block) return;
+    block.hidden = false;
+    const typed = plain(field.value).split(/\s+/).filter(Boolean);
+    let found = 0;
+    document.querySelectorAll("[data-filtro-riga]").forEach((row) => {
+      const target = row.querySelector("[data-filtro-testo]");
+      const name = target ? plain(target.textContent) : "";
+      const shown = typed.every((word) => name.includes(word));
+      row.hidden = !shown;
+      if (shown) found += 1;
+    });
+    document.querySelectorAll("[data-filtro-gruppo]").forEach((group) => {
+      group.hidden = !group.querySelector("[data-filtro-riga]:not([hidden])");
+    });
+    const none = document.querySelector("[data-filtro-vuoto]");
+    if (none) none.hidden = !(typed.length > 0 && found === 0);
+    const summary = document.getElementById("riepilogo");
+    if (summary) summary.hidden = typed.length > 0;
+    if (!announce) return;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      const status = document.getElementById("cerca-esito");
+      if (!status) return;
+      if (typed.length === 0) {
+        status.textContent = "";
+      } else if (found === 0) {
+        status.textContent = "Nessun bambino con questo nome.";
+      } else {
+        status.textContent = found === 1 ? "Trovato 1 bambino." : "Trovati " + found + " bambini.";
+      }
+    }, SEARCH_ANNOUNCE_MS);
+  }
+
+  document.addEventListener("input", (event) => {
+    if (event.target && event.target.id === "cerca") applySearch(true);
+  });
+  // «Invio» closes the keyboard and marks nobody: the field is not in a form.
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.target && event.target.id === "cerca") {
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
+  document.addEventListener("htmx:afterSettle", () => applySearch(false));
+  document.addEventListener("DOMContentLoaded", () => applySearch(false));
+  applySearch(false);
 
   // ---- Copy, share and print the information page ----
 
