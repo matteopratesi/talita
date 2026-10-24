@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Arrivi · Talità</title>
+<link rel="stylesheet" href="talita-6.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-6: dati e testi sintetici, nessuna risorsa esterna. Criterio 3. «Nessun bambino con questo nome» e «Iscrivi dal cartaceo». -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="index.html"><span class="profile-pill__initials" aria-hidden="true">MB</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg></span><span class="nav__label">Convivenza</span></a></li>
+      <li><a href="index.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+      <li><a href="arrivi.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg></span><span class="nav__label">Arrivi</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Arrivi</h1>
+      <p class="lead">Convivenza di settembre 2027 · 17–19 settembre 2027</p>
+    </div>
+    <nav aria-label="Giorni della convivenza"><ul class="days"><li><a href="arrivi-giorno-passato.html"><span class="days__dow"><span aria-hidden="true">Ven</span><span class="sr-only">Venerdì</span></span><span class="days__num">17<span class="sr-only"> settembre</span></span><span class="days__today days__today--none" aria-hidden="true">·</span></a></li><li><a href="arrivi.html" aria-current="date"><span class="days__dow"><span aria-hidden="true">Sab</span><span class="sr-only">Sabato</span></span><span class="days__num">18<span class="sr-only"> settembre (oggi)</span></span><span class="days__today">oggi</span></a></li><li><a href="arrivi-giorno-futuro.html"><span class="days__dow"><span aria-hidden="true">Dom</span><span class="sr-only">Domenica</span></span><span class="days__num">19<span class="sr-only"> settembre</span></span><span class="days__today days__today--none" aria-hidden="true">·</span></a></li></ul></nav>
+    <div class="filter" data-filtro>
+      <label class="sr-only" for="cerca">Cerca un bambino</label>
+      <div class="input-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg><input class="input" id="cerca" type="search" name="cerca" placeholder="Cerca per nome o cognome" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-describedby="cerca-esito" value="zanetti"></div>
+      <p class="filter__status" id="cerca-esito" role="status">Nessun bambino con questo nome.</p>
+    </div>
+    <p class="updated"><span>Aggiornato alle 10:05</span><a class="btn btn--text" href="arrivi.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>Aggiorna</a></p>
+    
+    <div id="elenco-bambini"><div class="empty card">
+      <span class="empty__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg></span>
+      <h2 class="empty__title">Nessun bambino con questo nome</h2>
+      <p class="empty__text">Controlla come l’hai scritto. Se il bambino non è iscritto, puoi inserirlo dal modulo di carta.</p>
+      <div class="actions"><a class="btn btn--secondary btn--block" href="index.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg>Iscrivi dal cartaceo</a></div>
+    </div></div>
+    <p class="sr-only" id="esito" role="status"></p>
+    <div class="stack-3 mt-6"><section class="card" aria-labelledby="carta-t">
+      <h2 class="card__title" id="carta-t">Un bambino non è in elenco?</h2>
+      <p class="mt-2">Se un genitore ha compilato il modulo di carta, inseriscilo tu: poi lo trovi qui.</p>
+      <div class="actions mt-3"><a class="btn btn--secondary btn--block" href="index.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg>Iscrivi dal cartaceo</a></div>
+    </section><section class="card card--tight" aria-labelledby="stampe-t" id="stampe">
+      <div class="card__head"><h2 class="card__title" id="stampe-t">Da stampare</h2></div>
+      <ul class="list"><li>
+      <a class="list__row" href="registro.html">
+        <span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></svg></span>
+        <span class="list__text">
+          <span class="list__head"><span class="list__title">Registro arrivi</span></span>
+          <span class="list__meta">Una riga per bambino, con giorni, quota e manleva. Per segnare a mano.</span>
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="list__chevron"><path d="m9 18 6-6-6-6" /></svg>
+      </a>
+    </li><li>
+      <a class="list__row" href="elenco.html">
+        <span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01" /><path d="M3 12h.01" /><path d="M3 19h.01" /><path d="M8 5h13" /><path d="M8 12h13" /><path d="M8 19h13" /></svg></span>
+        <span class="list__text">
+          <span class="list__head"><span class="list__title">Elenco per la struttura</span></span>
+          <span class="list__meta">Solo nome e cognome, per chi ospita la convivenza.</span>
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="list__chevron"><path d="m9 18 6-6-6-6" /></svg>
+      </a>
+    </li><li>
+      <a class="list__row" href="foglio.html">
+        <span class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg></span>
+        <span class="list__text">
+          <span class="list__head"><span class="list__title">Foglio per i maestri</span></span>
+          <span class="list__meta">Bambini e recapiti dei genitori. Resta fra i maestri.</span>
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="list__chevron"><path d="m9 18 6-6-6-6" /></svg>
+      </a>
+    </li></ul>
+      <p class="kv-note tight-hint">Stampa il registro e il foglio prima di partire: se manca la rete, segni a mano e trascrivi dopo.</p>
+    </section></div>
+  </div>
+</main>
+</body>
+</html>
