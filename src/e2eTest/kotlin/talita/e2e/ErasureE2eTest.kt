@@ -1,18 +1,27 @@
 package talita.e2e
 
+import com.microsoft.playwright.APIResponse
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import com.microsoft.playwright.options.FormData
+import com.microsoft.playwright.options.LoadState
+import com.microsoft.playwright.options.RequestOptions
 import talita.Addresses
+import talita.account.TestAccounts
+import talita.gathering.GatheringSupport
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
+import talita.jooq.tables.references.CHECKIN
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.RETENTION_LOG
 import talita.registration.Notes
+import java.time.Clock
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.regex.Pattern
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -289,5 +298,300 @@ class ErasureE2eTest {
         assertThat(plain.locator("[role=status]")).containsText("Dati di Luca cancellati.")
         assertEquals(0, e2e.dsl().fetchCount(HEALTH_NOTE))
         assertEquals(1, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.ID.eq(luca)))
+    }
+
+    // ---- Added by the QA of TALITA-7: permissions, a page left open, another phone, the keyboard, the register that stays ------------------------
+
+    private fun E2e.childOf(registration: Long): Long =
+        dsl().select(REGISTRATION.CHILD_ID).from(REGISTRATION).where(REGISTRATION.ID.eq(registration)).fetchSingle(REGISTRATION.CHILD_ID)!!
+
+    private fun E2e.requestsFor(child: Long): Int = dsl().fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("child-request").and(RETENTION_LOG.TARGET_ID.eq(child)))
+
+    /** A request made by hand, as an old page or a script would: with the code of CSRF of the page that is open, and without the dialog. The answer is not followed. */
+    private fun E2e.byHand(path: String): APIResponse {
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
+        return page.request().post(url(path), RequestOptions.create().setForm(FormData.create().set("_csrf", csrf)).setMaxRedirects(0))
+    }
+
+    /** Another page in its own context (another phone) that is inside with the same address, and shows [path]. */
+    private fun E2e.anotherPhone(path: String = "/profilo"): com.microsoft.playwright.Page {
+        val phone = newPage(signedIn = false, teacher = false)
+        signIn(phone, checkNotNull(signedInAs), teacher = false)
+        phone.navigate(url(path))
+        phone.waitForLoadState(LoadState.LOAD)
+        phone.settled()
+        return phone
+    }
+
+    @E2eTest(teacher = false)
+    fun `c21 a parent who asks to delete the child of someone else, with a link or by hand, gets the page that does not exist and nothing changes`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        val owner = e2e.someParent()
+        val luca = e2e.rows().register(gathering.id, owner, "Luca", "Rossi", notes = Notes("Arachidi", null, null))
+        val lucaChild = e2e.childOf(luca)
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        e2e.rows().register(gathering.id, me, "Marco", "Verdi")
+        val requests = e2e.dsl().fetchCount(RETENTION_LOG)
+
+        // The profile has only the children of this person.
+        e2e.open("/profilo")
+        assertThat(page.locator("main").linkNamed("Cancella i dati di Marco Verdi")).isVisible()
+        assertThat(page.locator("main")).not().containsText("Luca")
+        assertThat(page.locator("main")).not().containsText("Rossi")
+
+        // A link (the page without JavaScript, or the address typed): the page of an id that does not exist.
+        val response = e2e.open("/profilo/figli/$lucaChild/cancella")
+        assertEquals(404, response.status())
+        assertThat(page).hasTitle("Pagina non trovata · Talità")
+        assertThat(page.locator("h1")).hasText("Pagina non trovata")
+        assertThat(page.locator("main")).not().containsText("Luca")
+        assertTrue(page.noHorizontalScroll())
+        assertAccessible(page, "page that does not exist for the child of someone else (${e2e.profile.label})")
+
+        // By hand: the same, and nothing changes.
+        e2e.open("/profilo")
+        assertEquals(404, e2e.byHand("/profilo/figli/$lucaChild/cancella").status())
+        assertEquals(owner, e2e.dsl().select(CHILD.ACCOUNT_ID).from(CHILD).where(CHILD.ID.eq(lucaChild)).fetchSingle(CHILD.ACCOUNT_ID), "the child is still of the other parent")
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE), "the notes are still there")
+        assertEquals(1, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.ID.eq(luca)))
+        assertEquals(requests, e2e.dsl().fetchCount(RETENTION_LOG), "nothing in the register")
+    }
+
+    @E2eTest(signedIn = false)
+    fun `c21 c26 without access the pages that delete lead to the access page`(e2e: E2e) {
+        val page = e2e.page
+        for (path in listOf("/profilo/figli/1/cancella", "/profilo/account/cancella", "/profilo")) {
+            e2e.open(path)
+            assertThat(page).hasURL(e2e.url("/accedi"))
+            assertThat(page.locator("h1")).hasText("Accedi a Talità")
+        }
+    }
+
+    @E2eTest(teacher = false)
+    fun `c16 c21 a teacher who is also a parent has in the profile only their own children, and for the child of someone else the page does not exist`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        TestAccounts.makeTeacher(e2e.dsl(), checkNotNull(e2e.signedInAs), "Elisa", "Conti")
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        e2e.rows().register(gathering.id, me, "Giulia", "Blu")
+        val luca = e2e.rows().register(gathering.id, e2e.someParent(), "Luca", "Rossi")
+        val lucaChild = e2e.childOf(luca)
+
+        e2e.open("/profilo")
+
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Il tuo nome", "I tuoi dati"))
+        assertThat(page.locator("main").linkNamed("Cancella i dati di Giulia Blu")).isVisible()
+        assertThat(page.locator("main")).not().containsText("Luca")
+        // The dialog of the account has the words of both roles, and the child who is theirs.
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        val dialog = page.openDialog()
+        assertThat(dialog).containsText("Il tuo nome e cognome dall’elenco dei maestri: non gestirai più la convivenza né vedrai i bambini.")
+        assertThat(dialog).containsText("L’iscrizione di Giulia Blu alla «Convivenza di settembre 2027»")
+        assertThat(dialog).containsText("e il tuo indirizzo email scritto lì dentro: resta fino al ${e2e.until(gathering)}")
+        assertThat(dialog).not().containsText("Luca")
+        assertAccessible(page, "dialog of the account of a teacher who is a parent (${e2e.profile.label})")
+        e2e.touch(dialog.buttonNamed("Annulla"))
+
+        // A teacher has no way to delete the data of the children of the others: for them too it is the page that does not exist.
+        assertEquals(404, e2e.open("/profilo/figli/$lucaChild/cancella").status())
+        e2e.open("/profilo")
+        assertEquals(404, e2e.byHand("/profilo/figli/$lucaChild/cancella").status())
+        assertEquals(1, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.ID.eq(luca)))
+        assertEquals(0, e2e.requestsFor(lucaChild))
+    }
+
+    @E2eTest(teacher = false)
+    fun `c22 a second request for the same child, from a page left open on another phone, is the profile with a notice that it was done already, and the register has one row`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        val (luca, _) = e2e.twoChildren(gathering)
+        val child = e2e.childOf(luca)
+        e2e.open("/profilo")
+        val other = e2e.anotherPhone()
+        // Both phones have the dialog open.
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+        e2e.press(other.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        other.waitForSettledDialog()
+
+        e2e.touch(page.openDialog().buttonNamed("Cancella i dati di Luca"))
+        assertThat(page.locator("[role=status]")).containsText("Dati di Luca cancellati.")
+
+        // The other phone still shows the dialog: the answer is the profile with a notice of information, and no error.
+        assertThat(other.openDialog()).isVisible()
+        e2e.touch(other.openDialog().buttonNamed("Cancella i dati di Luca"))
+        assertThat(other).hasURL(e2e.url("/profilo"))
+        assertThat(other.locator("main [role=status]")).containsText("Questi dati erano già stati cancellati.")
+        assertThat(other.locator("main")).not().containsText("Dati di Luca cancellati.")
+        assertEquals(0, other.messages().count(), "no message of error")
+        assertThat(other.locator("h1")).hasText("Profilo")
+        assertThat(other.locator("main").linkNamed("Cancella i dati di Luca Rossi")).hasCount(0)
+        assertEquals(1, e2e.requestsFor(child), "one row in the register for the child")
+        assertAccessible(other, "profile after a second request (${e2e.profile.label})")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c22 two touches in a row on the confirmation delete once, and the answer is the profile`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        val (_, anna) = e2e.twoChildren(gathering)
+        val child = e2e.childOf(anna)
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Anna Rossi"))
+        page.waitForSettledDialog()
+
+        page.evaluate("() => { const b = document.querySelector('dialog[open] button[type=submit]'); b.click(); b.click(); }")
+
+        assertThat(page.locator("main [role=status]")).containsText(Pattern.compile("Dati di Anna cancellati\\.|Questi dati erano già stati cancellati\\."))
+        assertThat(page.locator("h1")).hasText("Profilo")
+        assertEquals(0, page.messages().count())
+        assertEquals(1, e2e.requestsFor(child), "one row in the register")
+        assertEquals(0, e2e.dsl().fetchCount(CHILD, CHILD.FIRST_NAME.eq("Anna")))
+    }
+
+    @E2eTest(teacher = false)
+    fun `c17 c22 a request that became impossible while the page was open changes nothing, and the profile says what to do first`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        val (luca, _) = e2e.twoChildren(gathering)
+        val child = e2e.childOf(luca)
+        val requests = e2e.dsl().fetchCount(RETENTION_LOG)
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+
+        // Meanwhile Luca is registered for a gathering that has still to happen.
+        val next = GatheringSupport(e2e.dsl(), e2e.application.getBean(Clock::class.java))
+            .make(title = "Convivenza di novembre 2027", start = e2e.today().plusDays(30), status = GatheringStatus.open, code = GatheringSupport.nextCode(), custodians = listOf(gathering.martaId))
+        e2e.dsl().execute(
+            "insert into registration (gathering_id, child_id, account_id, phone, attendance, status, custody_text, custody_text_version, custody_accepted_at, custody_accepted_by_email, " +
+                "custody_religion_consent, created_at, updated_at) select ?, child_id, account_id, phone, attendance, status, custody_text, custody_text_version, custody_accepted_at, " +
+                "custody_accepted_by_email, custody_religion_consent, created_at, updated_at from registration where id = ?",
+            next, luca,
+        )
+
+        e2e.touch(page.openDialog().buttonNamed("Cancella i dati di Luca"))
+
+        val alert = page.locator("main [role=alert]")
+        assertThat(alert).containsText("Non è stato cancellato niente. Le cose da fare prima sono scritte qui sotto.")
+        assertThat(page.locator("main")).containsText("Per cancellare i dati di Luca, ritira prima la sua iscrizione alla «Convivenza di novembre 2027».")
+        assertThat(page.locator("main").linkNamed("Cancella i dati di Luca Rossi")).hasCount(0)
+        assertThat(page.locator("dialog[open]")).hasCount(0)
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE), "the notes are still there")
+        assertEquals(2, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.CHILD_ID.eq(child)))
+        assertEquals(requests, e2e.dsl().fetchCount(RETENTION_LOG), "nothing in the register")
+        assertTrue(page.noHorizontalScroll())
+        assertAccessible(page, "profile after a request that was refused (${e2e.profile.label})")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c26 another phone with the session of an account that was deleted goes to the access page as a whole page, from a touch on the navigation and from a dialog left open, never with an error`(e2e: E2e) {
+        val page = e2e.page
+        e2e.dsl().deleteFrom(RETENTION_LOG).execute()
+        e2e.open("/profilo")
+        val dialogLeftOpen = e2e.anotherPhone()
+        val navigating = e2e.anotherPhone()
+        e2e.press(dialogLeftOpen.locator("main").linkNamed("Cancella il mio account"))
+        dialogLeftOpen.waitForSettledDialog()
+
+        // The first phone deletes the account.
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Cancella il mio account"))
+        assertThat(page).hasURL(e2e.url("/accedi"))
+
+        // A touch on the navigation of the second phone: the access page, whole (no navigation, no message), not a piece of it inside the old page.
+        e2e.touch(navigating.navLink("Iscrizioni"))
+        navigating.waitForURL(e2e.url("/accedi"))
+        assertThat(navigating.locator("h1")).hasText("Accedi a Talità")
+        assertThat(navigating.mainNavigation()).hasCount(0)
+        assertEquals(0, navigating.messages().count(), "no message of error")
+        assertThat(navigating.locator("#email")).isVisible()
+
+        // The dialog that was left open on the third phone: a second tap on «Cancella il mio account» ends in the same place.
+        e2e.touch(dialogLeftOpen.openDialog().buttonNamed("Cancella il mio account"))
+        dialogLeftOpen.waitForURL(e2e.url("/accedi"))
+        assertThat(dialogLeftOpen.locator("h1")).hasText("Accedi a Talità")
+        assertThat(dialogLeftOpen.mainNavigation()).hasCount(0)
+        assertEquals(0, dialogLeftOpen.messages().count(), "no message of error")
+        assertEquals(1, e2e.dsl().fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("account-request")), "the register has one row for the account")
+        assertAccessible(navigating, "access page on another phone (${e2e.profile.label})")
+    }
+
+    @E2eTest(teacher = false, profiles = [Profile.DESKTOP])
+    fun `c18 Escape closes the dialog, the focus goes back to the button that opened it, and nothing is deleted`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        e2e.twoChildren(gathering)
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+
+        page.keyboard().press("Escape")
+
+        assertThat(page.locator("dialog[open]")).hasCount(0)
+        page.focusIs("document.activeElement.getAttribute('aria-label') === 'Cancella i dati di Luca Rossi'")
+        assertEquals(1, e2e.dsl().fetchCount(HEALTH_NOTE), "nothing was deleted")
+        assertEquals(2, e2e.dsl().fetchCount(CHILD, CHILD.ACCOUNT_ID.eq(e2e.accountId(checkNotNull(e2e.signedInAs)))), "both children are still among the children of the parent")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c19 c20 a withdrawn registration that has presences stays as the register of the gathering, and its card is only to look at while the gathering goes on`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.openGathering()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        val luca = e2e.rows().register(gathering.id, me, "Luca", "Rossi", status = RegistrationStatus.withdrawn)
+        e2e.dsl().insertInto(CHECKIN).set(CHECKIN.REGISTRATION_ID, luca).set(CHECKIN.DAY, gathering.friday).set(CHECKIN.RECORDED_AT, OffsetDateTime.now())
+            .set(CHECKIN.RECORDED_BY_ACCOUNT_ID, gathering.martaId).execute()
+        val until = e2e.until(gathering)
+
+        // Withdrawn registrations do not block: the dialog says that the registration stays as the register of the gathering.
+        e2e.open("/iscrizioni")
+        assertThat(page.locator("main").linkNamed("Rimetti l’iscrizione di Luca Rossi")).isVisible()
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+        page.waitForSettledDialog()
+        assertThat(page.openDialog()).containsText("L’iscrizione ritirata di Luca Rossi alla «Convivenza di settembre 2027», con il suo nome, la data di nascita e l’affidamento che hai accettato e le presenze e i pagamenti segnati dai maestri: resta fino al $until, come registro della convivenza.")
+        e2e.touch(page.openDialog().buttonNamed("Cancella i dati di Luca"))
+        val notice = page.locator("main [role=status]")
+        assertThat(notice).containsText("Dati di Luca cancellati.")
+        assertThat(notice).containsText("Resta fino al $until l’iscrizione ritirata di Luca alla «Convivenza di settembre 2027», come registro della convivenza. La trovi in «Iscrizioni».")
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(luca)), "the presence stays")
+
+        // The card is still in «Iscrizioni», only to look at: no way to put it back, and the date.
+        e2e.touch(notice.linkNamed("Vai alle iscrizioni"))
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertThat(page.locator("article").first()).containsText("Luca Rossi")
+        assertThat(page.locator("article").first()).containsText("Conservata fino al $until")
+        assertThat(page.locator("main").linkNamed("Rimetti l’iscrizione di Luca Rossi")).hasCount(0)
+        assertThat(page.locator("main").linkNamed("Modifica l’iscrizione di Luca Rossi")).hasCount(0)
+        assertTrue(page.noHorizontalScroll())
+        assertAccessible(page, "card of a registration that stays while the gathering goes on (${e2e.profile.label})")
+    }
+
+    // The first focus is on «Annulla», at the bottom of the dialog: on a small phone, where the dialog is taller than the screen, the panel opens already scrolled to the
+    // bottom, so the title and «Cancelliamo subito» are above the edge and the person sees «Resta», «Non si può annullare.» and the two buttons first.
+    @org.junit.jupiter.api.Disabled("QA TALITA-7, defect D1: on a small phone the dialog opens scrolled to the bottom (the first focus is on Annulla) and its title and the list of what is deleted now are out of the screen")
+    @E2eTest(teacher = false, profiles = [Profile.PHONE])
+    fun `c18 on a small phone the dialog opens showing its title and what is deleted now, not scrolled to the bottom`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.finished()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        e2e.rows().register(gathering.id, me, "Luca", "Rossi", notes = Notes("Arachidi", null, null))
+        for ((width, height) in listOf(375 to 667, 360 to 640, 320 to 568)) {
+            page.setViewportSize(width, height)
+            e2e.open("/profilo")
+            e2e.press(page.locator("main").linkNamed("Cancella i dati di Luca Rossi"))
+            page.waitForSettledDialog()
+
+            val dialog = page.openDialog()
+            fun onScreen(selector: String): Boolean = dialog.locator(selector).first().box().let { it.y >= 0 && it.y + it.height <= page.viewport().height }
+            assertTrue(onScreen("h2"), "${width}x$height: the title of the dialog is on the screen when it opens")
+            assertTrue(onScreen("h3"), "${width}x$height: «Cancelliamo subito» is on the screen when the dialog opens")
+            page.focusIs("document.activeElement.textContent.trim() === 'Annulla'")
+            page.keyboard().press("Escape")
+        }
     }
 }

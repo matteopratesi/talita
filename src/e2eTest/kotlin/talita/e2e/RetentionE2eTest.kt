@@ -1,19 +1,29 @@
 package talita.e2e
 
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import com.microsoft.playwright.options.FormData
+import com.microsoft.playwright.options.RequestOptions
+import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
+import org.springframework.security.authentication.ott.OneTimeTokenService
 import talita.account.TestAccounts
 import talita.gathering.GatheringFormat
 import talita.jooq.enums.GatheringStatus
+import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHECKIN
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.GATHERING_CUSTODIAN
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
+import talita.jooq.tables.references.RETENTION_LOG
+import talita.jooq.tables.references.TEACHER
 import talita.registration.Notes
 import talita.retention.RetentionPolicy
+import talita.retention.RetentionTexts
 import java.time.LocalDate
+import java.time.Duration
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -255,5 +265,152 @@ class RetentionE2eTest {
         assertFalse(page.locator("script:not([src])").count() > 0, "no inline script")
         page.fits320(e2e.profile.isPhone)
         assertAccessible(page, "complete notice (${e2e.profile.label})")
+    }
+
+    // ---- Added by the QA of TALITA-7 ---------------------------------------------------------------------------------------------------------
+
+    @E2eTest
+    fun `c29 before the end the dates of the card follow the end of the gathering, when it changes`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.gathering()
+        val card = page.locator("section[aria-labelledby=conservazione]")
+        val notesBefore = e2e.notesDate(gathering)
+        val registrationsBefore = e2e.registrationsDate(gathering)
+        e2e.open("/convivenza/${gathering.id}")
+        assertThat(card).containsText("Si cancellano il $notesBefore")
+        assertThat(card).containsText("Si cancellano il $registrationsBefore")
+
+        // The gathering lasts two days more: the dates follow it (the card says it).
+        e2e.dsl().update(GATHERING).set(GATHERING.END_DATE, e2e.end(gathering).plusDays(2)).where(GATHERING.ID.eq(gathering.id)).execute()
+        val notesAfter = e2e.notesDate(gathering)
+        val registrationsAfter = e2e.registrationsDate(gathering)
+        assertNotEquals(notesBefore, notesAfter)
+        e2e.open("/convivenza/${gathering.id}")
+        assertThat(card).containsText("Si cancellano il $notesAfter")
+        assertThat(card).containsText("Si cancellano il $registrationsAfter")
+        assertThat(card).not().containsText("Si cancellano il $notesBefore")
+        assertThat(card).not().containsText("Si cancellano il $registrationsBefore")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c20 the card says until when the registration is kept, and from its date the registration is not there any more, before the job has run`(e2e: E2e) {
+        val page = e2e.page
+        val gathering = e2e.openGathering()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        e2e.rows().register(gathering.id, me, "Luca", "Rossi")
+        val today = e2e.today()
+        fun endsOn(end: LocalDate) {
+            e2e.dsl().update(GATHERING).set(GATHERING.START_DATE, end.minusDays(2)).set(GATHERING.END_DATE, end).set(GATHERING.STATUS, GatheringStatus.closed)
+                .where(GATHERING.ID.eq(gathering.id)).execute()
+        }
+
+        // A few days before the date.
+        endsOn(today.minusYears(1).plusDays(3))
+        assertFalse(policy.registrationsExpired(e2e.end(gathering), today))
+        e2e.open("/iscrizioni")
+        assertThat(page.locator("article").first()).containsText("Conservata fino al ${e2e.registrationsDate(gathering)} come prova dell’affidamento")
+        assertThat(page.locator("main")).not().containsText("Nessuna iscrizione")
+
+        // A few days after: the job has not run (the tests of the application have it off), and the page does not show the registration all the same.
+        endsOn(today.minusYears(1).minusDays(3))
+        assertTrue(policy.registrationsExpired(e2e.end(gathering), today))
+        e2e.open("/iscrizioni")
+        assertThat(page.locator("main")).containsText("Nessuna iscrizione")
+        assertThat(page.locator("main")).not().containsText("Luca")
+        assertThat(page.locator("main")).not().containsText("Conservata fino al")
+        page.fits320(e2e.profile.isPhone)
+        assertAccessible(page, "registrations of the parent after the date (${e2e.profile.label})")
+    }
+
+    @E2eTest
+    fun `c24 the only teacher is told to invite another one before deleting the account, and a request by hand changes nothing and says the same`(e2e: E2e) {
+        val page = e2e.page
+        e2e.gathering()
+        val me = e2e.accountId(checkNotNull(e2e.signedInAs))
+        e2e.dsl().deleteFrom(TEACHER).where(TEACHER.ACCOUNT_ID.ne(me)).execute()
+        val requests = e2e.dsl().fetchCount(RETENTION_LOG)
+
+        e2e.open("/profilo")
+
+        assertThat(page.locator("main")).containsText("Per cancellare il tuo account, prima:")
+        assertThat(page.locator("main")).containsText("invita un altro maestro: ora sei l’unico.")
+        assertThat(page.locator("main").linkNamed("Vai a Maestri")).hasAttribute("href", "/maestri")
+        assertThat(page.locator("main").linkNamed("Cancella il mio account")).hasCount(0)
+        assertThat(page.locator("dialog")).hasCount(0)
+        page.fits320(e2e.profile.isPhone)
+        assertAccessible(page, "profile of the only teacher (${e2e.profile.label})")
+
+        // By hand: the same, with the notice of refusal, and the account is as it was.
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
+        val post = page.request().post(e2e.url("/profilo/account/cancella"), RequestOptions.create().setForm(FormData.create().set("_csrf", csrf)).setMaxRedirects(0))
+        assertEquals(409, post.status())
+        assertTrue(post.text().contains("Non è stato cancellato niente. Le cose da fare prima sono scritte qui sotto."))
+        assertTrue(post.text().contains("invita un altro maestro: ora sei l’unico."))
+        assertTrue(e2e.dsl().fetchExists(ACCOUNT, ACCOUNT.ID.eq(me)))
+        assertTrue(e2e.dsl().fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(me)))
+        assertEquals(requests, e2e.dsl().fetchCount(RETENTION_LOG), "nothing in the register")
+
+        e2e.touch(page.locator("main").linkNamed("Vai a Maestri"))
+        assertThat(page).hasURL(e2e.url("/maestri"))
+    }
+
+    @E2eTest
+    fun `c25 c26 a teacher who deletes the account is no longer a teacher, and the same address comes back to an empty account with no section of the teachers`(e2e: E2e) {
+        val page = e2e.page
+        e2e.gathering()
+        val email = checkNotNull(e2e.signedInAs)
+        val me = e2e.accountId(email)
+        // A link asked before the deletion and not used: it is still good afterwards, and opens a new account.
+        val link = e2e.application.getBean(OneTimeTokenService::class.java).generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue
+        val teachers = e2e.dsl().fetchCount(TEACHER)
+
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        val dialog = page.openDialog()
+        assertThat(dialog).containsText("Il tuo nome e cognome dall’elenco dei maestri: non gestirai più la convivenza né vedrai i bambini.")
+        assertThat(dialog).containsText("Non resta niente.")
+        e2e.touch(dialog.buttonNamed("Cancella il mio account"))
+
+        assertThat(page).hasURL(e2e.url("/accedi"))
+        assertThat(page.locator("[role=status]")).containsText("Account cancellato.")
+        assertFalse(e2e.dsl().fetchExists(ACCOUNT, ACCOUNT.ID.eq(me)), "the account is gone")
+        assertFalse(e2e.dsl().fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(me)), "and so is the teacher")
+        assertEquals(teachers - 1, e2e.dsl().fetchCount(TEACHER), "the other teachers are still there")
+
+        // The same address comes back: an account that is new and empty, a parent, with nothing of the teachers.
+        page.navigate(e2e.url("/accedi/conferma?token=$link"))
+        page.waitForSettledContent()
+        e2e.touch(page.buttonNamed("Entra"))
+        page.waitForURL(e2e.url("/"))
+        assertThat(page.mainNavigation().locator("a")).hasText(arrayOf("Home", "Iscrizioni"))
+        assertTrue(e2e.accountId(email) != me, "a new account")
+        assertFalse(TestAccounts.isTeacher(e2e.dsl(), email), "not a teacher")
+        assertEquals(403, e2e.open("/convivenza").status())
+        assertThat(page.locator("h1")).hasText("Non puoi vedere questa pagina")
+        assertEquals(403, e2e.open("/arrivi").status())
+        e2e.open("/profilo")
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "I tuoi dati"))
+        assertThat(page.locator("main")).not().containsText("Il tuo nome")
+    }
+
+    @E2eTest(teacher = false)
+    fun `c32 step 2 of the registration has the short notice, with the times and the rights of the policy`(e2e: E2e) {
+        val page = e2e.page
+        val code = e2e.openGathering().code
+        e2e.open("/info/$code/iscrizione")
+        page.settled()
+        page.locator("#telefono").fill("333 123 4567")
+        page.fillBlock(0, "Luca", "Rossi", "4", "4", "2016")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        e2e.press(page.locator("main").buttonNamed("Controlla e accetta"))
+        assertThat(page.locator("h1")).hasText("Controlla e accetta")
+
+        val texts = RetentionTexts(policy)
+        assertThat(page.locator("main")).containsText(texts.briefTime())
+        assertThat(page.locator("main")).containsText(texts.briefRights)
+        assertThat(page.locator("main")).containsText("30 giorni")
+        assertTrue(page.noHorizontalScroll())
+        assertAccessible(page, "step 2 with the short notice (${e2e.profile.label})")
     }
 }
