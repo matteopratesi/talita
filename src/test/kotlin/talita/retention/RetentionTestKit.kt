@@ -102,6 +102,39 @@ internal class RetentionTestKit(val dsl: DSLContext, val clock: Clock) {
         dsl.deleteFrom(ACCOUNT).whereNotExists(org.jooq.impl.DSL.selectOne().from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(ACCOUNT.ID))).execute()
     }
 
+    fun setState(gathering: Long, status: GatheringStatus) {
+        dsl.update(GATHERING).set(GATHERING.STATUS, status).where(GATHERING.ID.eq(gathering)).execute()
+    }
+
+    /** Nobody is a teacher (the database is shared, and the rule of the last teacher counts them all). After [reset]. */
+    fun removeAllTeachers() {
+        dsl.deleteFrom(TEACHER).execute()
+    }
+
+    /**
+     * What a restore of a backup does to a child: the row is back, **with the number it had** (`overriding system value`), attached to [account]. The register of the
+     * deletions remembers that number. The registrations that came back are made by the test with [registration].
+     */
+    fun restoreChild(id: Long, account: Long, first: String, last: String, birth: LocalDate = LocalDate.of(2016, 4, 4)) {
+        dsl.execute(
+            "insert into child (id, account_id, first_name, last_name, birth_date) overriding system value values (?, ?, ?, ?, ?)",
+            id, account, first, last, birth,
+        )
+    }
+
+    /** What a restore does to an account: the row is back with its number and its address. */
+    fun restoreAccount(id: Long, email: String, bornOn: LocalDate = LocalDate.of(2027, 1, 1)) {
+        dsl.execute("insert into account (id, email, created_on) overriding system value values (?, ?, ?)", id, email, bornOn)
+    }
+
+    /** A registration for a child that already exists (a restore brings the child back, and its registrations). Returns the id. */
+    fun registrationOfChild(gathering: Long, child: Long, owner: Long?, status: RegistrationStatus = RegistrationStatus.confirmed): Long =
+        dsl.fetchOne(
+            "insert into registration (gathering_id, child_id, account_id, phone, attendance, status, custody_text, custody_text_version, custody_accepted_at, " +
+                "custody_accepted_by_email, created_at, updated_at) values (?, ?, ?, '333 123 4567', 'all_days', ?::registration_status, 'Testo di prova', 'affidamento-1', ?::timestamptz, ?, ?::timestamptz, ?::timestamptz) returning id",
+            gathering, child, owner, status.literal, OffsetDateTime.now(clock), "nome@example.org", OffsetDateTime.now(clock), OffsetDateTime.now(clock),
+        )!!.get(0, Long::class.java)
+
     fun childOf(registration: Long): Long = dsl.select(REGISTRATION.CHILD_ID).from(REGISTRATION).where(REGISTRATION.ID.eq(registration)).fetchSingle(REGISTRATION.CHILD_ID)!!
 
     /** A presence marked by [teacher] (null: by a teacher whose account is gone). */

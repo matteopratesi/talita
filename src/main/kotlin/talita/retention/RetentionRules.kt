@@ -5,13 +5,13 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
-import talita.ClockConfiguration
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.GATHERING_CUSTODIAN
 import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.RETENTION_LOG
 import talita.jooq.tables.references.TEACHER
 import talita.jooq.tables.references.TEACHER_INVITATION
 import talita.registration.HealthNotes
@@ -139,5 +139,43 @@ class AccountsRule(private val policy: RetentionPolicy, private val healthNotes:
     }
 }
 
-/** The day of Rome of a moment: what the rules look at. */
-internal fun OffsetDateTime.dayOfRome(): LocalDate = atZoneSameInstant(ClockConfiguration.ZONE).toLocalDate()
+/**
+ * The requests of a parent that the register remembers, made again (criterion 28): after a backup older than a request is restored, the data that the request
+ * deleted are back, and so is the number of the request in the rows that the holder copied from the register of before. Each one is made again with the code of the
+ * request itself ([ErasureService]), and what is there is deleted again. It writes its own lines of the register (`child-redo`, `account-redo`), inside its transaction.
+ */
+@Component
+@Order(60)
+class RedoRequestsRule(private val erasures: ErasureService) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(RedoRequestsRule::class.java)
+
+    override val name: String = "redo"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        for (line in erasures.redo(tx, context.now)) log.info("Retention: rule {} deleted {} rows.", line.rule, line.rows)
+        return emptyList()
+    }
+}
+
+/**
+ * The numbers of the children and of the accounts deleted on request, taken out of the register 37 days after the request (criterion 27): the rotation of the backups
+ * and a week. The row of the register stays, without the number: it says that a request was made, never whose.
+ */
+@Component
+@Order(70)
+class ExpireRequestIdsRule(private val policy: RetentionPolicy) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(ExpireRequestIdsRule::class.java)
+
+    override val name: String = "request-numbers"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val gone = tx.select(RETENTION_LOG.ID, RETENTION_LOG.DONE_AT).from(RETENTION_LOG).where(RETENTION_LOG.TARGET_ID.isNotNull).fetch()
+            .filter { !policy.requestIdDeletionDate(it[RETENTION_LOG.DONE_AT]!!.toInstant()).isAfter(context.today) }.map { it[RETENTION_LOG.ID]!! }
+        if (gone.isEmpty()) return emptyList()
+        val rows = tx.update(RETENTION_LOG).set(RETENTION_LOG.TARGET_ID, null as Long?).where(RETENTION_LOG.ID.`in`(gone)).execute()
+        log.info("Retention: rule {} took {} numbers out of the register.", name, rows)
+        return emptyList()
+    }
+}
