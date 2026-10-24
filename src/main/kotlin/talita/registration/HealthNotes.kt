@@ -159,8 +159,12 @@ class HealthNotes(private val dsl: DSLContext, private val clock: Clock, private
     fun removeOfRegistrations(context: DSLContext, registrationIds: Collection<Long>): Int =
         if (registrationIds.isEmpty()) 0 else context.deleteFrom(HEALTH_NOTE).where(HEALTH_NOTE.REGISTRATION_ID.`in`(registrationIds)).execute()
 
-    /** Deletes the notes to which [accountId] gave the consent (an account that is deleted takes with it the consent it gave). Returns how many rows went. */
-    fun removeConsentedBy(context: DSLContext, accountId: Long): Int = context.deleteFrom(HEALTH_NOTE).where(HEALTH_NOTE.CONSENT_BY_ACCOUNT_ID.eq(accountId)).execute()
+    /**
+     * Deletes the notes to which [accountId] gave the consent (an account that is deleted takes with it the consent it gave). With [until], only those whose consent was given
+     * up to that moment: a request that is made again after a restore leaves the consent that the person gave after it. Returns how many rows went.
+     */
+    fun removeConsentedBy(context: DSLContext, accountId: Long, until: OffsetDateTime? = null): Int =
+        context.deleteFrom(HEALTH_NOTE).where(HEALTH_NOTE.CONSENT_BY_ACCOUNT_ID.eq(accountId)).and(if (until == null) DSL.trueCondition() else HEALTH_NOTE.CONSENT_AT.le(until)).execute()
 
     /**
      * The condition «this account is in the register of the readings, or gave the consent to some notes»: [account] is the column of the account in the query that

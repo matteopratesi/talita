@@ -164,7 +164,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
     non si riusa: non si leggono più né dall'app né in SQL, ed è per questo che i backup sono logici (sotto);
   - **registro delle cancellazioni** (`retention_log`): momento, regola e numero di righe, mai un nome, un indirizzo o una data di nascita. L'unico dato che indica una persona è l'id interno del figlio o
     dell'account cancellato su richiesta, tenuto 37 giorni per rifare la richiesta dopo un ripristino; il log dell'applicazione dice solo le regole e i numeri;
-  - **dopo un ripristino** le regole a tempo si riapplicano da sole al primo avvio; le richieste dei genitori si rifanno grazie all'id nel registro (requisiti per i backup, sotto).
+  - **dopo un ripristino** le regole a tempo si riapplicano da sole al primo avvio; le richieste dei genitori si rifanno grazie all'id nel registro (requisiti per i backup, sotto). Per un account rimasto per le letture si rifà solo quello che è più vecchio della richiesta: quello che la persona ha fatto dopo (un figlio iscritto, un invito, il ruolo di maestro) resta, con l'account.
 - **Sviluppo con dati sintetici**, mai dati reali in locale né nel repo; il database di produzione si
   tocca solo sul server. Il repo è pubblico: una build fallisce se ci sono PDF, documenti Office o
   immagini fuori dai posti previsti, e su GitHub sono attivi secret scanning e push protection.

@@ -2,6 +2,7 @@ package talita.retention
 
 import org.jooq.Condition
 import org.jooq.DSLContext
+import org.jooq.Field
 import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -252,23 +253,36 @@ class ErasureService(
         eraseAccountIn(DSL.using(configuration), accountId, now(), RetentionLog.ACCOUNT_REQUEST)
     }
 
-    internal fun eraseAccountIn(tx: DSLContext, accountId: Long, at: OffsetDateTime, rule: String): AccountErasure {
+    /**
+     * The deletion of the account, for the request of the person ([since] null: everything is theirs to delete) and for the request made again after a restore
+     * ([since] is the moment of the request, see [redo]): then **only what is older than it** is deleted, what the person did after (a registration of a child, the
+     * teacher row, an invitation, the consent to some notes) is theirs and stays, with the account that holds it. Same steps, same code: the rows that [since] spares
+     * are left out of the registrations that are loaded, out of the teacher that is checked and deleted, and out of the invitation, the children and the consents.
+     */
+    internal fun eraseAccountIn(tx: DSLContext, accountId: Long, at: OffsetDateTime, rule: String, since: OffsetDateTime? = null): AccountErasure {
         val email = tx.select(ACCOUNT.EMAIL).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).forUpdate().fetchOne(ACCOUNT.EMAIL) ?: return AccountErasure.NotFound
         val today = dayOf(at)
-        val scope = load(tx, ofAccount(accountId), lock = true)
+        // The registrations that [since] spares are not even loaded: they are not classified, never block and are never deleted.
+        fun upToRequest(moment: Field<OffsetDateTime?>): Condition = if (since == null) DSL.trueCondition() else moment.le(since)
+        val scope = load(tx, ofAccount(accountId).and(upToRequest(REGISTRATION.CREATED_AT)), lock = true)
         val classified = classify(scope, today)
         // The teachers are locked after the registrations and their gatherings, as `Gatherings.saveCustodians` takes them (the gathering, then the teachers).
-        val teacherCheck = if (tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId))) teachers.lockAndCheck(tx, accountId, today) else Teachers.TeacherCheck.NotATeacher
+        // A teacher row made after the request is not taken away, so there is nothing to check: it is not the last one that goes, nor a custodian that is left.
+        val teacherKept = since != null && tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId).and(TEACHER.CREATED_AT.gt(since)))
+        val teacherCheck =
+            if (!teacherKept && tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId))) teachers.lockAndCheck(tx, accountId, today) else Teachers.TeacherCheck.NotATeacher
         val block = (teacherCheck as? Teachers.TeacherCheck.Blocked)?.result
         val teacherBlock = TeacherBlock(block is RemovalResult.LastTeacher, (block as? RemovalResult.IsCustodian)?.gatherings.orEmpty())
         if (classified.blockers.isNotEmpty() || teacherBlock.any) return AccountErasure.Blocked(classified.blockers, teacherBlock)
 
         // Whatever the person has on file goes with the notes: the consent they gave points at the account.
-        var rows = healthNotes.removeOfRegistrations(tx, scope.rows.map { it.id }) + healthNotes.removeConsentedBy(tx, accountId)
+        var rows = healthNotes.removeOfRegistrations(tx, scope.rows.map { it.id }) + healthNotes.removeConsentedBy(tx, accountId, until = since)
         rows += deleteRegistrations(tx, classified.hidden + classified.fates.filter { it.goes }.map { it.registrationId })
         // What stays loses the link with the account (the acceptance, with the address copied into it, stays).
-        tx.update(REGISTRATION).set(REGISTRATION.ACCOUNT_ID, null as Long?).where(REGISTRATION.ACCOUNT_ID.eq(accountId)).execute()
+        tx.update(REGISTRATION).set(REGISTRATION.ACCOUNT_ID, null as Long?).where(REGISTRATION.ACCOUNT_ID.eq(accountId)).and(upToRequest(REGISTRATION.CREATED_AT)).execute()
         for (child in tx.select(CHILD.ID).from(CHILD).where(CHILD.ACCOUNT_ID.eq(accountId)).orderBy(CHILD.ID).forUpdate().fetch(CHILD.ID).map { it!! }) {
+            // A child with a registration made after the request is the person's, with that registration: it stays attached (the older ones of it went or lost the link above).
+            if (since != null && tx.fetchExists(REGISTRATION, REGISTRATION.CHILD_ID.eq(child).and(REGISTRATION.CREATED_AT.gt(since)))) continue
             if (tx.fetchExists(REGISTRATION, REGISTRATION.CHILD_ID.eq(child))) {
                 tx.update(CHILD).set(CHILD.ACCOUNT_ID, null as Long?).where(CHILD.ID.eq(child)).execute()
             } else {
@@ -279,14 +293,23 @@ class ErasureService(
             teachers.deleteRow(tx, accountId)
             rows += 1
         }
-        rows += tx.deleteFrom(TEACHER_INVITATION).where(TEACHER_INVITATION.EMAIL.eq(email)).execute()
-        // The register of the readings must say who read: the account stays, with the address alone, until the readings go.
-        val stays = healthNotes.hasReadings(tx, accountId)
+        rows += tx.deleteFrom(TEACHER_INVITATION).where(TEACHER_INVITATION.EMAIL.eq(email)).and(upToRequest(TEACHER_INVITATION.INVITED_AT)).execute()
+        // The register of the readings must say who read: the account stays, with the address alone, until the readings go. It stays also for what it was left with after a
+        // request made again: `teacher` goes with the account (`on delete cascade`) and the other keys have no cascade.
+        val stays = healthNotes.hasReadings(tx, accountId) || (since != null && holdsNewerActivity(tx, accountId, email))
         if (!stays) rows += tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).execute()
         // A request that finds nothing to change (an account that only stays for the readings, asked again after a restore) leaves nothing in the register.
         if (rule == RetentionLog.ACCOUNT_REQUEST || rows > 0) RetentionLog.write(tx, at, rule, rows, if (rule == RetentionLog.ACCOUNT_REQUEST) accountId else null)
         return AccountErasure.Done(stays, rows)
     }
+
+    /** What the account is left with after the older part of a request was made again: a registration or a child in its name, a teacher row, an invitation, the consent to some notes. */
+    private fun holdsNewerActivity(tx: DSLContext, accountId: Long, email: String): Boolean =
+        tx.fetchExists(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(accountId)) ||
+            tx.fetchExists(CHILD, CHILD.ACCOUNT_ID.eq(accountId)) ||
+            tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId)) ||
+            tx.fetchExists(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(email)) ||
+            tx.fetchExists(ACCOUNT, ACCOUNT.ID.eq(accountId).and(healthNotes.holdsAccount(ACCOUNT.ID)))
 
     // ---- The requests made again after a restore (criterion 28) ------------------------------------------------------------------
 
@@ -296,6 +319,13 @@ class ErasureService(
      * there is deleted as the request did. A request that is blocked now (the backup has a registration that was not withdrawn yet) is left, with a WARNING without any
      * data: the holder decides. The register is written here, inside the transaction of the request (`child-redo`, `account-redo`, without a number); the lines that
      * come back are what the job says in the log. [at] is the moment of the job.
+     *
+     * **An account that stayed after its request** (it is in the register of the readings, so the address stayed) is a person who can come back: what they did after
+     * the request is theirs. The request is made again for **what is older than it** (what a backup brought back: the children and their registrations, the notes, the
+     * teacher row, the invitation) and the rest is left: a registration made after the request with its child, a teacher row or an invitation made after it, and the
+     * account that holds them ([eraseAccountIn], `since`: the last request of that account, `teacher.created_at`, `teacher_invitation.invited_at`,
+     * `registration.created_at`, `health_note.consent_at`). A child has no such case: after its request it is gone or detached for good, so a child that is of an
+     * account again is one that a backup brought back, whole.
      */
     internal fun redo(tx: DSLContext, at: OffsetDateTime): List<Deleted> {
         val requests = tx.select(RETENTION_LOG.RULE, RETENTION_LOG.TARGET_ID).from(RETENTION_LOG)
@@ -313,8 +343,9 @@ class ErasureService(
                 }
             } else {
                 if (!tx.fetchExists(ACCOUNT, ACCOUNT.ID.eq(target))) continue
-                if (startedAgain(tx, target)) continue
-                when (val result = eraseAccountIn(tx, target, at, RetentionLog.ACCOUNT_REDO)) {
+                val requestedAt = tx.select(DSL.max(RETENTION_LOG.DONE_AT)).from(RETENTION_LOG)
+                    .where(RETENTION_LOG.RULE.eq(RetentionLog.ACCOUNT_REQUEST)).and(RETENTION_LOG.TARGET_ID.eq(target)).fetchOne(0, OffsetDateTime::class.java) ?: continue
+                when (val result = eraseAccountIn(tx, target, at, RetentionLog.ACCOUNT_REDO, since = requestedAt)) {
                     is AccountErasure.Done -> if (result.rows > 0) done += Deleted(RetentionLog.ACCOUNT_REDO, result.rows)
                     is AccountErasure.Blocked -> log.warn("Retention: a request that the register remembers cannot be made again now, because something has to be done first. The holder decides.")
                     AccountErasure.NotFound -> Unit
@@ -322,21 +353,5 @@ class ErasureService(
             }
         }
         return done
-    }
-
-    /**
-     * An account that stayed after its request (it is in the register of the readings, so the address stayed) and was entered again afterwards is a person who
-     * came back: what they did after the request is theirs, and the request is not made again over it. After the moment of the request (the last one, if it was
-     * made more than once) the person registered a child, was invited to be a teacher again, or accepted the invitation (`teacher.created_at`,
-     * `teacher_invitation.invited_at`: a teacher row or an invitation that the backup brought back is older than the request, and goes as the request did).
-     */
-    private fun startedAgain(tx: DSLContext, accountId: Long): Boolean {
-        if (!healthNotes.hasReadings(tx, accountId)) return false
-        val done = tx.select(DSL.max(RETENTION_LOG.DONE_AT)).from(RETENTION_LOG)
-            .where(RETENTION_LOG.RULE.eq(RetentionLog.ACCOUNT_REQUEST)).and(RETENTION_LOG.TARGET_ID.eq(accountId)).fetchOne(0, OffsetDateTime::class.java) ?: return false
-        val email = tx.select(ACCOUNT.EMAIL).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.EMAIL) ?: return false
-        return tx.fetchExists(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(accountId).and(REGISTRATION.CREATED_AT.gt(done))) ||
-            tx.fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(accountId).and(TEACHER.CREATED_AT.gt(done))) ||
-            tx.fetchExists(TEACHER_INVITATION, TEACHER_INVITATION.EMAIL.eq(email).and(TEACHER_INVITATION.INVITED_AT.gt(done)))
     }
 }
