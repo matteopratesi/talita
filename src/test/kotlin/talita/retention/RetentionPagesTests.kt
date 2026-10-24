@@ -305,6 +305,79 @@ class RetentionPagesTests(
         assertFalse(list.contains("Iscrizioni cancellate"))
     }
 
+    // ---- What cannot be written after the dates (design part 3, 5: approved proposals) -------------------------------------------------------
+
+    private fun paperForm(setup: Setup, vararg more: Pair<String, String>): Map<String, String> =
+        kit.form(kit.child(0, "Elena", "Marino", "1", "10", "2016", "all_days", "confirmed", *more), phone = "333 987 6543") + ("convivenza" to setup.id.toString())
+
+    @Test
+    fun `t7 c31 a year after the end nobody can type in a paper form, the page and the post of the form, from the list or from Arrivi, do not exist`() {
+        val setup = endedDaysAgo(400)
+        val form = paperForm(setup)
+
+        for (path in listOf("/iscrizioni/nuova?convivenza=${setup.id}", "/iscrizioni/nuova?convivenza=${setup.id}&ritorno=arrivi", "/iscrizioni/nuova")) {
+            assertEquals(404, setup.marta.get(path).status(), path)
+        }
+        val csrf = checkNotNull(MockBrowser.csrfIn(setup.marta.get("/profilo").body()))
+        assertEquals(404, setup.marta.post("/iscrizioni/nuova", form, csrf).status())
+        assertEquals(404, setup.marta.post("/iscrizioni/nuova/quota", form, csrf).status())
+        assertEquals(0, dsl.fetchCount(REGISTRATION))
+    }
+
+    @Test
+    fun `t7 c30 a month after the end the paper form has no fields for the notes, says why, and does not write them even if they arrive`() {
+        val setup = endedDaysAgo(40)
+        val gone = "Le segnalazioni di questa convivenza sono state cancellate il ${notesDate(setup)}: non si possono più scrivere."
+
+        val page = setup.marta.get("/iscrizioni/nuova?convivenza=${setup.id}")
+        val html = page.body()
+
+        assertEquals(200, page.status())
+        assertTrue(words(html).contains(gone), words(html))
+        assertFalse(html.contains("children[0].allergies") || html.contains("healthConsent"), "no field for the notes, no box of the consent")
+
+        // A request made by hand with the notes writes the registration and not the notes.
+        val answer = setup.marta.submit("/iscrizioni/nuova?convivenza=${setup.id}", "/iscrizioni/nuova", paperForm(setup, "allergies" to "Arachidi", "healthConsent" to "true"))
+        assertEquals(303, answer.status())
+        assertEquals(1, dsl.fetchCount(REGISTRATION))
+        assertEquals(0, dsl.fetchCount(talita.jooq.tables.references.HEALTH_NOTE))
+    }
+
+    @Test
+    fun `t7 c30 before the date the paper form has the fields for the notes as it had`() {
+        val setup = endedDaysAgo(3)
+
+        val html = setup.marta.get("/iscrizioni/nuova?convivenza=${setup.id}").body()
+
+        assertTrue(html.contains("children[0].allergies"), "the fields are there")
+        assertFalse(words(html).contains("sono state cancellate il"))
+    }
+
+    @Test
+    fun `t7 c30 after the date the notes of a paper registration cannot be written or corrected, the address leads back to the detail with a notice, and the link is not there`() {
+        val setup = endedDaysAgo(3)
+        val paper = rows.register(setup.id, null, "Elena", "Marino", enteredBy = setup.martaId)
+        val before = words(setup.marta.get("/iscrizioni/$paper/correggi").body())
+        assertTrue(before.contains("Aggiungi le segnalazioni"), "before the date the link is there")
+
+        // The gathering ended 40 days ago: the notes are past their date.
+        val older = endedDaysAgo(40)
+        val old = rows.register(older.id, null, "Elena", "Marino", enteredBy = older.martaId)
+        val sentence = "Le segnalazioni sono state cancellate il ${notesDate(older)}: non si possono più scrivere né correggere."
+
+        assertFalse(words(older.marta.get("/iscrizioni/$old/correggi").body()).contains("Aggiungi le segnalazioni"), "the link is gone")
+        val shown = older.marta.get("/iscrizioni/$old/correggi-segnalazioni")
+        assertEquals(303, shown.status())
+        assertEquals("/iscrizioni/$old", shown.response.getHeader("Location"))
+        val flash = (older.marta.cookie as org.springframework.mock.web.MockHttpSession).getAttribute("talita.flash") as talita.ui.Alert
+        assertEquals(sentence, flash.text)
+        assertEquals(talita.ui.AlertVariant.WARNING, flash.variant)
+        val saved = older.marta.submit("/iscrizioni/$old", "/iscrizioni/$old/correggi-segnalazioni", mapOf("allergies" to "Polline", "healthConsent" to "true"))
+        assertEquals(303, saved.status())
+        assertEquals("/iscrizioni/$old", saved.response.getHeader("Location"))
+        assertEquals(0, dsl.fetchCount(talita.jooq.tables.references.HEALTH_NOTE), "nothing was written")
+    }
+
     // ---- The notices of privacy (criterion 32) ------------------------------------------------------------------------------------------
 
     @Test

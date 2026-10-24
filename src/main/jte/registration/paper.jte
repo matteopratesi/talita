@@ -49,7 +49,10 @@
             </p>
           @endif
         </div>
-        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), quotaAction = page.getQuotaAction(), quotaFields = page.getQuotaFields(), withHealth = page.getInserting(), paper = true)
+        @template.registration.childFields(child = page.getChild(), offer = page.getOffer(), quotaAction = page.getQuotaAction(), quotaFields = page.getQuotaFields(), withHealth = page.getInserting() && page.getNotesDeleted() == null, paper = true)
+        @if(page.getNotesDeleted() != null)
+          @template.components.alert(variant = AlertVariant.INFO, content = @`${page.getNotesDeleted()}`)
+        @endif
         @if(page.getPaper())
           <fieldset>
             <legend class="font-semibold">Manleva</legend>
@@ -61,7 +64,7 @@
             @template.components.alert(variant = AlertVariant.INFO, content = @`L’affidamento accettato online non si cambia, e nemmeno le segnalazioni: le cambia solo il genitore.`)
           @elseif(page.getHasNotes())
             @template.components.alert(variant = AlertVariant.INFO, content = @`Ci sono segnalazioni. Per cambiarle mostrale prima dal dettaglio: la lettura resta registrata.`)
-          @else
+          @elseif(!page.getNotesGone())
             <div>
               @template.components.linkButton(href = "/iscrizioni/" + page.getId() + "/correggi-segnalazioni", label = "Aggiungi le segnalazioni", variant = "text", icon = Icon.HEART_PULSE)
             </div>

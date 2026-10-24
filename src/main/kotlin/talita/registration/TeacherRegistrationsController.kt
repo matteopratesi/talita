@@ -128,6 +128,10 @@ data class PaperPage(
     val id: Long?,
     /** The form was opened from the arrivals («Inserisci un’iscrizione» there): once saved it leads to the card of the new registration in the arrivals, and «Annulla» to the arrivals. */
     val fromArrivals: Boolean = false,
+    /** The notes of this gathering are past their date (a month after the end): the form has no fields for them, and this says why (TALITA-7, design part 3, 5). */
+    val notesDeleted: String? = null,
+    /** The same, for a correction: the link «Aggiungi le segnalazioni» is not there any more. */
+    val notesGone: Boolean = false,
 ) {
     /** What a request for the quota carries: the days of the block, the gathering when the form is for a new registration, and nothing else. */
     val quotaFields: String get() = offer.quotaFields(listOf(child.index), if (inserting) listOf("convivenza") else emptyList())
@@ -390,11 +394,24 @@ class TeacherRegistrationsController(
     private fun openGathering(id: Long?): GatheringInfo {
         val gathering = (if (id != null) gatherings.byId(id) else gatherings.latestNotDraft()) ?: notFound()
         if (!Rules.teacherCanChange(gathering)) notFound()
+        // A year after the end the registrations are gone: there is nothing to type in, and the page of «Iscrizioni» says when and why (TALITA-7, design part 3, 5).
+        if (policy.registrationsExpired(gathering.end, gatherings.today())) notFound()
         return gathering
     }
 
+    /** The notes of this gathering are past their date: they would be deleted the next night, so they are not written any more. */
+    private fun notesGone(gathering: GatheringInfo): Boolean = policy.notesExpired(gathering.end, gatherings.today())
+
+    private fun notesDeletedSentence(gathering: GatheringInfo): String = "Le segnalazioni di questa convivenza sono state cancellate il ${GatheringFormat.date(policy.notesDeletionDate(gathering.end))}: non si possono più scrivere."
+
+    private fun notesDeletedRedirect(request: HttpServletRequest, id: Long, gathering: GatheringInfo): ModelAndView = back(
+        request, id,
+        "Le segnalazioni sono state cancellate il ${GatheringFormat.date(policy.notesDeletionDate(gathering.end))}: non si possono più scrivere né correggere.", WARNING,
+    )
+
     private fun paperPage(gathering: GatheringInfo, form: FormInput, check: FormCheck?, received: Boolean, alert: Alert?, status: HttpStatus = HttpStatus.OK, fromArrivals: Boolean = false): ModelAndView {
         val offer = presenter.offer(gathering)
+        val gone = notesGone(gathering)
         val notice = if (!Rules.parentCanChange(gathering)) Alert(INFO, "Le iscrizioni sono chiuse: i genitori non possono più iscriversi, ma tu puoi inserire un modulo di carta.") else null
         val model = PaperPage(
             title = "Inserisci un’iscrizione",
@@ -404,7 +421,7 @@ class TeacherRegistrationsController(
             alert = alert,
             phone = form.phone,
             phoneError = check?.phoneError,
-            child = presenter.childView(0, 1, form.children.first(), check?.children?.firstOrNull(), offer),
+            child = presenter.childView(0, 1, form.children.first(), check?.children?.firstOrNull(), offer, withHealth = !gone),
             offer = presenter.offerView(offer),
             received = received,
             formAction = "/iscrizioni/nuova",
@@ -418,6 +435,7 @@ class TeacherRegistrationsController(
             hasNotes = false,
             id = null,
             fromArrivals = fromArrivals,
+            notesDeleted = if (gone) notesDeletedSentence(gathering) else null,
         )
         return page("registration/paper", model.title, model, status = status)
     }
@@ -434,7 +452,7 @@ class TeacherRegistrationsController(
         val form = FormParser.parse(params).let { it.copy(children = it.children.take(1)) }
         val received = params["paperReceived"] == "true"
         val fromArrivals = params["ritorno"] == ARRIVALS
-        val check = RegistrationChecks.check(form, presenter.offer(gathering), gathering.start, gatherings.today(), withHealth = true, paper = true)
+        val check = RegistrationChecks.check(form, presenter.offer(gathering), gathering.start, gatherings.today(), withHealth = !notesGone(gathering), paper = true)
         if (!check.valid) {
             val errors = if (check.errorCount > 1) Alert(DANGER, "Controlla i ${check.errorCount} campi segnati in rosso.") else null
             return paperPage(gathering, form, check, received, errors, HttpStatus.UNPROCESSABLE_ENTITY, fromArrivals)
@@ -487,6 +505,7 @@ class TeacherRegistrationsController(
             paper = registration.onPaper,
             hasNotes = hasNotes,
             id = registration.id,
+            notesGone = notesGone(gathering),
         )
         return page("registration/paper", title, model, status = status)
     }
@@ -570,11 +589,12 @@ class TeacherRegistrationsController(
 
     /** Shows the notes of a paper registration to correct them: the page shows them, so the reading is written first; with no notes there is nothing to read. */
     @GetMapping("/iscrizioni/{id:[0-9]{1,18}}/correggi-segnalazioni")
-    fun correctNotes(account: CurrentAccount, @PathVariable id: Long): ModelAndView {
+    fun correctNotes(account: CurrentAccount, @PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val registration = registration(id)
         if (!registration.onPaper) notFound()
         val gathering = gatheringOf(registration)
         if (!Rules.teacherCanChange(gathering) || registration.status == Status.WITHDRAWN) notFound()
+        if (notesGone(gathering)) return notesDeletedRedirect(request, id, gathering)
         val exists = healthNotes.existing(listOf(id)).isNotEmpty()
         val note = if (exists) healthNotes.readForTeacher(id, account.id).note else null
         val input = ChildInput(allergies = note?.notes?.allergies.orEmpty(), intolerances = note?.notes?.intolerances.orEmpty(), medications = note?.notes?.medications.orEmpty(), healthConsent = note != null)
@@ -586,6 +606,7 @@ class TeacherRegistrationsController(
         val registration = registration(id)
         if (!registration.onPaper) notFound()
         val gathering = gatheringOf(registration)
+        if (notesGone(gathering)) return notesDeletedRedirect(request, id, gathering)
         val input = ChildInput(
             allergies = params["allergies"].orEmpty().take(5000), intolerances = params["intolerances"].orEmpty().take(5000),
             medications = params["medications"].orEmpty().take(5000), healthConsent = params["healthConsent"] == "true",
