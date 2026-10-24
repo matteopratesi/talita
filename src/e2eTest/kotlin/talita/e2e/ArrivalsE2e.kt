@@ -42,7 +42,7 @@ internal fun E2e.arrivalsGathering(first: Long = -1, last: Long = 1, status: Gat
 /** An account that nobody enters with: the owner of an online registration made straight in the table. */
 internal fun E2e.someParent(): Long {
     val email = Addresses.unique("e2e-genitore")
-    dsl().insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, email).execute()
+    dsl().insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, email).set(talita.jooq.tables.references.ACCOUNT.CREATED_ON, java.time.LocalDate.now()).execute()
     return accountId(email)
 }
 

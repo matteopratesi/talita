@@ -16,8 +16,11 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
-/** A presence as it is kept: the registration, the day, who marked it and when (the one row of that pair). */
-data class Checkin(val registrationId: Long, val day: LocalDate, val at: OffsetDateTime, val byAccountId: Long)
+/**
+ * A presence as it is kept: the registration, the day, who marked it and when (the one row of that pair). [byAccountId] is null when the account of the teacher
+ * who marked it was deleted (TALITA-7): the pages say «un maestro che non è più tra i maestri».
+ */
+data class Checkin(val registrationId: Long, val day: LocalDate, val at: OffsetDateTime, val byAccountId: Long?)
 
 /** The registration comes on [day]: every day of the gathering, or the days that it chose. */
 fun RegistrationData.includes(day: LocalDate): Boolean = presence.allDays || day in presence.days
@@ -28,7 +31,7 @@ sealed interface MarkResult {
     data class Marked(val confirmed: Boolean, val notExpected: Boolean) : MarkResult
 
     /** It was marked already, by another teacher a moment before or by the same one twice: the same answer, never an error. */
-    data class AlreadyMarked(val byAccountId: Long, val at: OffsetDateTime) : MarkResult
+    data class AlreadyMarked(val byAccountId: Long?, val at: OffsetDateTime) : MarkResult
 
     /** No such registration (or it belongs to nobody the caller can see: the caller decides). */
     data object NotFound : MarkResult
@@ -82,7 +85,7 @@ class Checkins(
 
     private fun find(context: DSLContext, id: Long, day: LocalDate): Checkin? =
         context.selectFrom(CHECKIN).where(CHECKIN.REGISTRATION_ID.eq(id)).and(CHECKIN.DAY.eq(day))
-            .fetchOne { Checkin(it.registrationId!!, it.day!!, it.recordedAt!!, it.recordedByAccountId!!) }
+            .fetchOne { Checkin(it.registrationId!!, it.day!!, it.recordedAt!!, it.recordedByAccountId) }
 
     private enum class DayProblem { OUTSIDE_THE_DATES, NOT_YET }
 
@@ -139,7 +142,7 @@ class Checkins(
     private fun fetch(condition: org.jooq.Condition): List<Checkin> =
         dsl.select(CHECKIN.REGISTRATION_ID, CHECKIN.DAY, CHECKIN.RECORDED_AT, CHECKIN.RECORDED_BY_ACCOUNT_ID).from(CHECKIN).join(REGISTRATION).on(REGISTRATION.ID.eq(CHECKIN.REGISTRATION_ID))
             .where(condition).orderBy(CHECKIN.DAY, CHECKIN.RECORDED_AT, CHECKIN.REGISTRATION_ID)
-            .fetch { Checkin(it[CHECKIN.REGISTRATION_ID]!!, it[CHECKIN.DAY]!!, it[CHECKIN.RECORDED_AT]!!, it[CHECKIN.RECORDED_BY_ACCOUNT_ID]!!) }
+            .fetch { Checkin(it[CHECKIN.REGISTRATION_ID]!!, it[CHECKIN.DAY]!!, it[CHECKIN.RECORDED_AT]!!, it[CHECKIN.RECORDED_BY_ACCOUNT_ID]) }
 
     /** Every presence of the gathering, in every state of every registration (the pages choose what to show). */
     fun ofGathering(gatheringId: Long): List<Checkin> = fetch(REGISTRATION.GATHERING_ID.eq(gatheringId))

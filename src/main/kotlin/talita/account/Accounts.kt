@@ -4,6 +4,8 @@ import org.jooq.DSLContext
 import org.springframework.stereotype.Component
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
+import java.time.Clock
+import java.time.LocalDate
 
 /** The name of a teacher, as the teacher wrote it when accepting the invitation (or corrected it in the profile). */
 data class TeacherName(val first: String, val last: String) {
@@ -36,14 +38,19 @@ data class CurrentAccount(val id: Long, val email: String, val teacher: TeacherN
         get() = if (teacher != null) (teacher.first.take(1) + teacher.last.take(1)).uppercase() else email.take(1).uppercase()
 }
 
-/** The accounts: one row per email address, born at the first successful login. */
+/**
+ * The accounts: one row per email address, born at the first successful login. The row has the address and the day it was born (the day of Rome, from the
+ * one clock: TALITA-7 deletes the accounts that stay empty 30 days later). Nothing else about the use of an account is kept: no last access, no hour, no
+ * address of the network, no browser.
+ */
 @Component
-class Accounts(private val dsl: DSLContext) {
+class Accounts(private val dsl: DSLContext, private val clock: Clock) {
 
-    /** The id of the account of [email]; the account is created if the address has none. */
+    /** The id of the account of [email]; the account is created, with today's date, if the address has none. */
     fun findOrCreate(email: EmailAddress): Long {
         dsl.insertInto(ACCOUNT)
             .set(ACCOUNT.EMAIL, email.value)
+            .set(ACCOUNT.CREATED_ON, LocalDate.now(clock))
             .onConflict(ACCOUNT.EMAIL).doNothing()
             .execute()
         return dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email.value)).fetchSingle(ACCOUNT.ID)!!

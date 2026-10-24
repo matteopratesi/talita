@@ -12,11 +12,11 @@ import java.time.Clock
 import java.time.OffsetDateTime
 import java.util.UUID
 
-/** A payment as it is kept: an amount that a teacher received for a registration, and when. */
-data class Payment(val id: Long, val registrationId: Long, val cents: Int, val at: OffsetDateTime, val byAccountId: Long)
+/** A payment as it is kept: an amount that a teacher received for a registration, and when. [byAccountId] is null when the account of the teacher was deleted (TALITA-7). */
+data class Payment(val id: Long, val registrationId: Long, val cents: Int, val at: OffsetDateTime, val byAccountId: Long?)
 
-/** How much a teacher has collected in a gathering; the name is null when the person is not among the teachers any more. */
-data class Collected(val byAccountId: Long, val first: String?, val last: String?, val cents: Int) {
+/** How much a teacher has collected in a gathering; the name is null when the person is not among the teachers any more, and so is [byAccountId] when the account was deleted. */
+data class Collected(val byAccountId: Long?, val first: String?, val last: String?, val cents: Int) {
     /** Name and surname, or null for someone who is not a teacher any more. */
     val name: String? get() = if (first != null && last != null) "$first $last" else null
 }
@@ -154,7 +154,7 @@ class Payments(private val dsl: DSLContext, private val clock: Clock) {
     // ---- Reading ----------------------------------------------------------------------------------------------------------------------
 
     private fun row(it: org.jooq.Record): Payment =
-        Payment(it[PAYMENT.ID]!!, it[PAYMENT.REGISTRATION_ID]!!, it[PAYMENT.AMOUNT_CENTS]!!, it[PAYMENT.RECORDED_AT]!!, it[PAYMENT.RECORDED_BY_ACCOUNT_ID]!!)
+        Payment(it[PAYMENT.ID]!!, it[PAYMENT.REGISTRATION_ID]!!, it[PAYMENT.AMOUNT_CENTS]!!, it[PAYMENT.RECORDED_AT]!!, it[PAYMENT.RECORDED_BY_ACCOUNT_ID])
 
     /** One payment, whichever registration it is of; null when it is not there (any more). */
     fun find(paymentId: Long): Payment? =
@@ -178,6 +178,6 @@ class Payments(private val dsl: DSLContext, private val clock: Clock) {
             .leftJoin(TEACHER).on(TEACHER.ACCOUNT_ID.eq(PAYMENT.RECORDED_BY_ACCOUNT_ID))
             .where(REGISTRATION.GATHERING_ID.eq(gatheringId))
             .groupBy(PAYMENT.RECORDED_BY_ACCOUNT_ID, TEACHER.FIRST_NAME, TEACHER.LAST_NAME)
-            .fetch { Collected(it[PAYMENT.RECORDED_BY_ACCOUNT_ID]!!, it[TEACHER.FIRST_NAME], it[TEACHER.LAST_NAME], it.value4()!!.toInt()) }
+            .fetch { Collected(it[PAYMENT.RECORDED_BY_ACCOUNT_ID], it[TEACHER.FIRST_NAME], it[TEACHER.LAST_NAME], it.value4()!!.toInt()) }
             .sortedWith(compareBy<Collected>({ it.name == null }, { it.last?.lowercase() }, { it.first?.lowercase() }, { it.byAccountId }))
 }

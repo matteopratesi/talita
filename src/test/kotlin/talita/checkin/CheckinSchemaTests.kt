@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -99,17 +100,16 @@ class CheckinSchemaTests(
             .set(CHECKIN.RECORDED_BY_ACCOUNT_ID, by).onConflict(CHECKIN.REGISTRATION_ID, CHECKIN.DAY).doNothing().execute()
 
     @Test
-    fun `t6 c32 a presence needs its registration and the teacher that marked it, and the moment`() {
+    fun `t6 c32 a presence needs its registration and the moment, and the teacher who marked it if there is one`() {
         val setup = kit.start()
         val registration = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
 
         assertEquals("checkin_registration_id_fkey", refusedBy { kit.presence(registration + 1000, setup.today, setup.martaId) })
         assertEquals("checkin_recorded_by_account_id_fkey", refusedBy { kit.presence(registration, setup.today, -1) })
-        assertTrue(
-            refusedBy {
-                dsl.insertInto(CHECKIN).set(CHECKIN.REGISTRATION_ID, registration).set(CHECKIN.DAY, setup.today).set(CHECKIN.RECORDED_AT, OffsetDateTime.now(clock)).execute()
-            }.contains("recorded_by_account_id"),
-        )
+        // TALITA-7: the teacher is optional in the row, because the account of the teacher can be deleted and the presence stays.
+        dsl.insertInto(CHECKIN).set(CHECKIN.REGISTRATION_ID, registration).set(CHECKIN.DAY, setup.today).set(CHECKIN.RECORDED_AT, OffsetDateTime.now(clock)).execute()
+        assertEquals(1, kit.presenceCount())
+        dsl.deleteFrom(CHECKIN).execute()
         assertTrue(
             refusedBy {
                 dsl.insertInto(CHECKIN).set(CHECKIN.REGISTRATION_ID, registration).set(CHECKIN.DAY, setup.today).set(CHECKIN.RECORDED_BY_ACCOUNT_ID, setup.martaId).execute()
@@ -145,15 +145,19 @@ class CheckinSchemaTests(
     }
 
     @Test
-    fun `t6 c32 presences and payments go with their registration, and the teacher who marked them cannot be deleted from under them`() {
+    fun `t6 c32 presences and payments go with their registration, and when the teacher who marked them is deleted they stay and have no teacher`() {
         val setup = kit.start()
         val registration = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
         kit.presence(registration, setup.today, setup.martaId)
         kit.payment(registration, 2500, setup.paoloId)
 
-        // The reference to the teacher has no cascade (as in V5): what happens to the accounts is for TALITA-7.
-        assertEquals("checkin_recorded_by_account_id_fkey", refusedBy { dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(setup.martaId)).execute() })
-        assertEquals("payment_recorded_by_account_id_fkey", refusedBy { dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(setup.paoloId)).execute() })
+        // TALITA-7: the key to the teacher is `on delete set null`. A teacher has to stop being one before the account goes (the teacher row cascades from the account).
+        dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(setup.martaId)).execute()
+        dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(setup.paoloId)).execute()
+        assertEquals(1, kit.presenceCount())
+        assertEquals(1, kit.paymentCount())
+        assertNull(dsl.select(CHECKIN.RECORDED_BY_ACCOUNT_ID).from(CHECKIN).fetchSingle(CHECKIN.RECORDED_BY_ACCOUNT_ID))
+        assertNull(dsl.select(PAYMENT.RECORDED_BY_ACCOUNT_ID).from(PAYMENT).fetchSingle(PAYMENT.RECORDED_BY_ACCOUNT_ID))
 
         dsl.deleteFrom(REGISTRATION).where(REGISTRATION.ID.eq(registration)).execute()
         assertEquals(0, kit.presenceCount())

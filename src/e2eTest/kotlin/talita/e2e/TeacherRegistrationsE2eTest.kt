@@ -37,7 +37,7 @@ class TeacherRegistrationsE2eTest {
 
     private fun E2e.parent(): Long {
         val email = talita.Addresses.unique("e2e-genitore")
-        dsl().insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, email).execute()
+        dsl().insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, email).set(talita.jooq.tables.references.ACCOUNT.CREATED_ON, java.time.LocalDate.now()).execute()
         return accountId(email)
     }
 

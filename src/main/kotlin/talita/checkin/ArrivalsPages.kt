@@ -156,7 +156,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
 
     fun hrefOf(registration: Long, day: LocalDate): String = "/arrivi/$registration?giorno=$day"
 
-    fun teacherName(accountId: Long): String = CheckinFormat.teacher(registrations.teacherName(accountId))
+    fun teacherName(accountId: Long?): String = CheckinFormat.teacher(accountId?.let { registrations.teacherName(it) })
 
     // ---- The selector and the notice --------------------------------------------------------------------------------------------------
 

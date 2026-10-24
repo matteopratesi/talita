@@ -3,6 +3,7 @@ package talita.account
 import org.jooq.DSLContext
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.TEACHER
+import java.time.LocalDate
 
 /**
  * Makes and unmakes teachers for the tests, straight in the database: the set-up of a test, like an
@@ -13,7 +14,7 @@ object TestAccounts {
 
     /** Makes [email] a teacher with this name, making the account first if it is not there. Returns the id of the account. */
     fun makeTeacher(dsl: DSLContext, email: String, first: String = "Elisa", last: String = "Conti"): Long {
-        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).onConflict(ACCOUNT.EMAIL).doNothing().execute()
+        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).set(ACCOUNT.CREATED_ON, LocalDate.now()).onConflict(ACCOUNT.EMAIL).doNothing().execute()
         val id = dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email)).fetchSingle(ACCOUNT.ID)!!
         dsl.insertInto(TEACHER)
             .set(TEACHER.ACCOUNT_ID, id)

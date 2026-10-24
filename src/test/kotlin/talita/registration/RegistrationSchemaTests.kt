@@ -49,7 +49,7 @@ class RegistrationSchemaTests(
 
     private fun account(name: String = "genitore"): Long {
         val email = Addresses.unique(name)
-        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).execute()
+        dsl.insertInto(ACCOUNT).set(ACCOUNT.EMAIL, email).set(ACCOUNT.CREATED_ON, java.time.LocalDate.now()).execute()
         return dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email)).fetchSingle(ACCOUNT.ID)!!
     }
 
@@ -139,17 +139,20 @@ class RegistrationSchemaTests(
     }
 
     @Test
-    fun `t5 c38 the database refuses a paper registration that has a custody, or no teacher who typed it in, and an online one that has a teacher`() {
+    fun `t5 c38 the database refuses a paper registration that has the box of the beliefs, and an online one that was typed in by a teacher`() {
         support.reset()
         val gathering = gathering()
         val owner = account()
         val teacher = account("maestro")
 
-        assertEquals("registration_paper_has_no_custody", refusedBy { registration(gathering, child(), null, custody = true, enteredBy = teacher) })
-        assertEquals("registration_paper_has_a_teacher", refusedBy { registration(gathering, child(), null, custody = false) })
-        assertEquals("registration_paper_has_a_teacher", refusedBy { registration(gathering, child(owner), owner, enteredBy = teacher) })
-        assertEquals("registration_paper_has_no_custody", refusedBy { registration(gathering, child(), null, custody = false, enteredBy = teacher, religion = true) })
+        // What tells a paper registration from an online one is the acceptance (TALITA-7: the account of an online registration can be deleted, the acceptance stays).
+        assertEquals("registration_online_not_typed_in", refusedBy { registration(gathering, child(), null, custody = true, enteredBy = teacher) })
+        assertEquals("registration_online_not_typed_in", refusedBy { registration(gathering, child(owner), owner, enteredBy = teacher) })
+        assertEquals("registration_paper_has_no_consent", refusedBy { registration(gathering, child(), null, custody = false, enteredBy = teacher, religion = true) })
         registration(gathering, child(), null, custody = false, enteredBy = teacher, paperReceived = true)
+        // A paper registration whose teacher is gone (the account was deleted) has no teacher, and an online one whose parent is gone has no account and keeps its acceptance.
+        registration(gathering, child(), null, custody = false)
+        registration(gathering, child(), null, custody = true)
         support.reset()
     }
 

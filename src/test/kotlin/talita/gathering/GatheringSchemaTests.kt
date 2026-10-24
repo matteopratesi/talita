@@ -155,7 +155,7 @@ class GatheringSchemaTests(
         support.reset()
         val me = Addresses.unique("schema-maestro")
         val teacher = TestAccounts.makeTeacher(dsl, me, "Marta", "Bianchi")
-        val parent = dsl.insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, Addresses.unique("schema-genitore")).returningResult(talita.jooq.tables.references.ACCOUNT.ID).fetchSingle().value1()!!
+        val parent = dsl.insertInto(talita.jooq.tables.references.ACCOUNT).set(talita.jooq.tables.references.ACCOUNT.EMAIL, Addresses.unique("schema-genitore")).set(talita.jooq.tables.references.ACCOUNT.CREATED_ON, java.time.LocalDate.now()).returningResult(talita.jooq.tables.references.ACCOUNT.ID).fetchSingle().value1()!!
         val id = support.make(custodians = listOf(teacher))
 
         // Somebody who is only a parent is not a teacher: the key says no.
