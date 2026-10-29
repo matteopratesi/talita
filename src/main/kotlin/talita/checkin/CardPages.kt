@@ -312,7 +312,7 @@ class CardPresenter(
                     listOf(teacher.statusBadge(sibling)) + (balanceBadge(balance)?.let { listOf(it) } ?: emptyList()),
                 )
             },
-            room = if (withdrawn) null else rooms.cardOf(data.gathering, registration.id),
+            room = if (withdrawn) null else rooms.cardOf(data.gathering, registration),
         )
     }
 

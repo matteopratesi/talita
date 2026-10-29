@@ -13,7 +13,11 @@ import talita.checkin.card
 import talita.checkin.touch
 import talita.checkin.words
 import talita.gathering.body
+import talita.jooq.enums.RegistrationAttendance
+import talita.jooq.enums.RegistrationDayKind
 import talita.jooq.enums.RegistrationStatus
+import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.REGISTRATION_DAY
 import talita.jooq.tables.references.ROOM_CHILD
 import talita.jooq.tables.references.ROOM_TEACHER
 import java.time.Clock
@@ -33,6 +37,7 @@ class RoomCardTests(
     @Autowired tokens: OneTimeTokenService,
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
+    @Autowired private val rooms: Rooms,
 ) {
 
     private val kit = RoomTestKit(mockMvc, tokens, dsl, clock)
@@ -71,6 +76,44 @@ class RoomCardTests(
         assertTrue(words(card(answer.body())).contains("Camera Senza camera"), "the block of the card has the room")
         kit.put(anna, setup.id, kit.roomId(setup.id, "Camera 2"))
         assertTrue(words(card(setup.marta.touch(setup, "/arrivi/$anna/presenze/togli", mapOf("da" to "scheda")).body())).contains("Camera Camera 2"))
+    }
+
+    @Test
+    fun `t11 c15 c06 a registration for lunch only and without a room has no card of the room, because the page of the rooms does not list it, and the others without a room still have it`() {
+        val setup = kit.start()
+        kit.room(setup.id, "Camera 2", 4)
+        val nicolo = kit.rows.register(setup.id, null, "Nicolò", "Ferri", enteredBy = setup.martaId, days = mapOf(setup.today to "lunch"))
+        val samuele = kit.rows.register(setup.id, null, "Samuele", "Moretti", enteredBy = setup.martaId, days = mapOf(setup.yesterday to "full", setup.tomorrow to "lunch"))
+
+        // Lunch only: «Senza camera» and «Vai alle camere» would lead to a page where he is not (criterion 6), so the card is not there.
+        val lunch = setup.marta.card(nicolo)
+        assertFalse(lunch.contains("""aria-labelledby="camera-titolo""""), "no card of the room")
+        assertFalse(words(lunch).contains("Senza camera") || words(lunch).contains("Vai alle camere"), words(lunch))
+        // One whole day among the lunches is a night: he is in the list of who has no room, and the card leads there.
+        assertTrue(words(card(setup.marta.card(samuele))).contains("Camera Senza camera Vai alle camere"))
+        assertTrue(rooms.board(setup.id)!!.freeChildren.any { it.id == samuele } && rooms.board(setup.id)!!.freeChildren.none { it.id == nicolo }, "the page says the same")
+        // After the end, with rooms and nobody in them, who slept there has the sentence of the deletion and who came for lunch only has no card.
+        kit.endedDaysAgo(setup.id, 1)
+        assertTrue(words(card(setup.marta.card(samuele))).contains("Chi dormiva dove è stato cancellato"))
+        assertFalse(setup.marta.card(nicolo).contains("""aria-labelledby="camera-titolo""""), "he did not sleep there: nothing was deleted for him")
+    }
+
+    @Test
+    fun `t11 c15 c12 a child in a room whose registration becomes lunch only keeps the card of the room, and without a room the card goes away`() {
+        val setup = kit.start()
+        val one = kit.room(setup.id, "Camera 2", 4)
+        val luca = kit.rows.register(setup.id, kit.checkin.account(), "Luca", "Rossi")
+        val anna = kit.rows.register(setup.id, kit.checkin.account(), "Anna", "Rossi")
+        kit.put(luca, setup.id, one)
+        assertTrue(words(card(setup.marta.card(anna))).contains("Camera Senza camera Vai alle camere"), "every day, without a room")
+
+        // Both become lunch only on one day: the one in the room stays there (only the withdrawal takes him out), the other has nothing to choose.
+        for (id in listOf(luca, anna)) {
+            dsl.update(REGISTRATION).set(REGISTRATION.ATTENDANCE, RegistrationAttendance.days).where(REGISTRATION.ID.eq(id)).execute()
+            dsl.insertInto(REGISTRATION_DAY).set(REGISTRATION_DAY.REGISTRATION_ID, id).set(REGISTRATION_DAY.DAY, setup.today).set(REGISTRATION_DAY.KIND, RegistrationDayKind.lunch).execute()
+        }
+        assertTrue(words(card(setup.marta.card(luca))).contains("Camera Camera 2"), "he is still in the room (criterion 12)")
+        assertFalse(setup.marta.card(anna).contains("""aria-labelledby="camera-titolo""""), "the card of the room is not there")
     }
 
     @Test
