@@ -4,6 +4,9 @@ import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.context.annotation.Import
 import org.springframework.core.env.Environment
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
@@ -34,6 +37,7 @@ import kotlin.test.assertTrue
  * The client is the one of the JDK, with a cookie jar and no redirect followed: it enters with the link (the real way in), asks for the page of the form for the
  * code against forgery, and sends the form by hand as a browser does (`multipart/form-data`, the code first and then the file).
  */
+@ExtendWith(OutputCaptureExtension::class)
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MenuOversizeTests(
@@ -116,6 +120,18 @@ class MenuOversizeTests(
         // Once: the next time the page is the page.
         assertEquals(null, errorOf(me.get("/convivenza/$id/menu").body(), "menu-file"))
         assertTrue(before.contentEquals(stored(id)!!.get(GATHERING_MENU.CONTENT)), "the menu that was there stays")
+    }
+
+    @Test
+    fun `t12 c11 a file past the limit of the container is in the log with its size and the address, never its name`(output: CapturedOutput) {
+        val id = gathering()
+        val me = enter(teacher = true)
+
+        me.sendFile("/convivenza/$id/menu", csrfIn(me.get("/convivenza/$id/menu").body()), "Zuppa-Quagliotti-Segreta.pdf", 22 * 1024 * 1024)
+
+        val log = output.all
+        assertTrue(Regex("""Upload refused: 2\d{7} bytes is over the limit of the request, on /convivenza/$id/menu\.""").containsMatchIn(log), log.lines().filter { it.contains("Upload") }.joinToString("\n"))
+        for (secret in listOf("Zuppa-Quagliotti-Segreta", "Quagliotti", "grande.pdf")) assertFalse(log.contains(secret), "the log has '$secret'")
     }
 
     @Test

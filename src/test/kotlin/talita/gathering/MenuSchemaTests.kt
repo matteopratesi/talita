@@ -88,6 +88,16 @@ class MenuSchemaTests(
     }
 
     @Test
+    fun `t12 c12 the migration says the same number as the constant, and the sentences of the pages are made from the constant`() {
+        val migration = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/db/migration/V10__menu.sql"))
+
+        assertEquals(MenuFile.MAX_BYTES, Regex("""octet_length\(content\) between 1 and (\d+)""").find(migration)!!.groupValues[1].toInt(), "the table and the application say one limit")
+        assertEquals("10 MB", MenuFile.LIMIT_LABEL)
+        assertEquals("Il file è troppo grande: al massimo ${MenuFile.LIMIT_LABEL}.", MenuTexts.TOO_BIG)
+        assertTrue(MenuTexts.HELP.contains("Al massimo ${MenuFile.LIMIT_LABEL}."), MenuTexts.HELP)
+    }
+
+    @Test
     fun `t12 c12 the name goes from 1 to 104 characters, with no control characters, and the date is required`() {
         support.reset()
         val id = support.make()

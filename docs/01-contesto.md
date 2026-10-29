@@ -73,6 +73,8 @@ per conto suo: è una questione di Koinè, non di Talità.
 
 **Camere, cucina e menù, solleciti via email sono nel primo rilascio.** Dall'esito di KOINE-29 ne erano fuori; il 24/10/2026 Matteo li ha messi dentro (`docs/05-decisioni.md`): camere (TALITA-11), cucina e menù (TALITA-12), solleciti via email (TALITA-13), tutti sotto l'epica TALITA-1 (M1 · Primo rilascio). Le analisi sono nei ticket, e i vincoli che vi sono già scritti restano.
 
+**Cucina e menù entra solo come file** (TALITA-12, decisione di Matteo del 24/10/2026: «Keep it simple per ora mettiamolo solo come caricamento di un file per averlo sempre disponibile»). Un maestro carica il file del menù della convivenza (un PDF, o la foto del foglio), lo sostituisce o lo toglie, e i maestri lo scaricano, anche dal telefono durante la convivenza: la scheda «Menù» nel dettaglio e un collegamento in Arrivi. Lo vedono solo i maestri, non i genitori né la pagina informativa. Restano fuori, per un ticket futuro: pasti e menù per pasto, coperti calcolati dalle presenze, una vista per la cucina sulle segnalazioni (mostrando il minimo, mai nomi accanto ai dati sanitari) e le stampe per la cucina e per i tavoli.
+
 Dall'esito di KOINE-29, gli altri punti non sono nel primo rilascio:
 
 - rendiconto e raccolte;
@@ -80,7 +82,7 @@ Dall'esito di KOINE-29, gli altri punti non sono nel primo rilascio:
 - firma con valore legale;
 - sesso e luogo di nascita (mai: vedi `docs/02-modello-dati.md`);
 - dati dei maestri per la struttura, oltre a nome e cognome;
-- caricamento di documenti.
+- caricamento di documenti, tranne il file del menù (sopra): manleve, elenchi e registri si tengono fuori dall'app.
 
 Fuori anche tutto ciò che è di Koinè: anagrafe delle comunità, appartenenze, fusioni, permessi per
 ruolo e ambito, più centri.

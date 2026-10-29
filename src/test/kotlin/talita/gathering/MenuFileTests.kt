@@ -194,7 +194,7 @@ class MenuFileTests {
 }
 
 /** Files built in memory for the tests: the build refuses a PDF or an image in the repository, and none of these is a real document. */
-internal object MenuSamples {
+object MenuSamples {
     /** A PDF of a few hundred bytes: the header of a PDF 1.4, a page that says what it is, and the end. Not meant to be opened. */
     fun pdf(extra: Int = 0): ByteArray =
         ("%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +

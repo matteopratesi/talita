@@ -218,6 +218,18 @@ class MenuDownloadTests(
     }
 
     @Test
+    fun `t12 c10 a teacher opens every address of the menu, with a page and with a form`() {
+        val w = menus.World()
+        menus.put(w.id)
+
+        for (path in pages(w.id)) {
+            assertEquals(200, w.marta.get(path).status(), "GET $path")
+        }
+        assertEquals(303, menus.upload(w.paolo, w.id, menus.file("nuovo.pdf", MenuSamples.pdf(5), "application/pdf")).status(), "POST /convivenza/${w.id}/menu")
+        assertEquals(303, w.marta.submit("/convivenza/${w.id}/menu/togli", "/convivenza/${w.id}/menu/togli", mapOf("from" to "detail")).status(), "POST togli")
+    }
+
+    @Test
     fun `t12 c10 whoever has no access is sent to the access page, with a page and with a form`() {
         val w = menus.World()
         menus.put(w.id)
