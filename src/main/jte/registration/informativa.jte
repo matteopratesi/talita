@@ -19,7 +19,7 @@
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="dati">
       <h2 id="dati" class="text-lg font-semibold">Quali dati raccogliamo</h2>
       <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
-        <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento.</li>
+        <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento, e se l’ha chiesto la data e l’ora della richiesta di avviso o dello stop ai promemoria.</li>
         <li class="pl-1"><span class="font-semibold">Dei bambini:</span> nome, cognome, data di nascita, giorni di presenza e stato dell’iscrizione.</li>
         <li class="pl-1"><span class="font-semibold">Segnati dai maestri durante la convivenza:</span> le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.</li>
         <li class="pl-1"><span class="font-semibold">Facoltativi:</span> allergie, intolleranze e farmaci dei bambini, solo con il consenso del genitore.</li>
@@ -35,6 +35,7 @@
         <li class="pl-1">Presenze e pagamenti: servono ai maestri per sapere chi c’è ogni giorno e quanto è stato pagato, e li usiamo perché fanno parte del servizio che ci chiedi iscrivendo i bambini.</li>
         <li class="pl-1">Allergie, intolleranze e farmaci: li usiamo solo con il tuo consenso esplicito, per la sicurezza dei bambini durante la convivenza.</li>
         <li class="pl-1">Partecipare a una convivenza organizzata da parrocchie può far capire le convinzioni religiose della famiglia: per questo, nell’iscrizione, ti chiediamo il consenso con una casella a parte.</li>
+        <li class="pl-1">Il tuo indirizzo email serve anche a ricordarti di confermare un’iscrizione in forse: lo facciamo perché hai fatto l’iscrizione. L’avviso per una nuova convivenza ti arriva solo se lo chiedi: ci vuole il tuo consenso, e lo togli quando vuoi. In ogni mail c’è il modo per smettere.</li>
         <li class="pl-1">I dati dei maestri servono a organizzare la convivenza insieme.</li>
       </ul>
     </section>
@@ -51,7 +52,7 @@
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="fornitori">
       <h2 id="fornitori" class="text-lg font-semibold">Chi li riceve per far funzionare Talità</h2>
-      <p class="mt-3">Chi ospita il sito, nell’Unione europea; il servizio che manda le email, che riceve l’indirizzo e il testo del messaggio; chi tiene le copie di sicurezza, cifrate prima di lasciare il server. Nessun altro: niente pubblicità, niente statistiche, niente servizi esterni nelle pagine.</p>
+      <p class="mt-3">Chi ospita il sito, nell’Unione europea; il servizio che manda le email, che riceve l’indirizzo e il testo del messaggio (anche dei promemoria, mai con dati dei bambini) e che per proteggersi da spam e frodi usa l’indirizzo come titolare autonomo, secondo la sua informativa; chi tiene le copie di sicurezza, cifrate prima di lasciare il server. Nessun altro: niente pubblicità, niente statistiche, niente servizi esterni nelle pagine.</p>
     </section>
 
     <section id="per-quanto-tempo" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="tempi">

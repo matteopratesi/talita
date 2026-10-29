@@ -88,6 +88,7 @@ class RetentionTexts(private val policy: RetentionPolicy) {
             "Finché ci sono bambini o iscrizioni collegati al tuo account. Quando non ce ne sono più, l’account si cancella da solo, purché siano passati $emptyAccounts da quando " +
                 "l’hai creato. Lo puoi cancellare quando vuoi dal tuo profilo.",
         ),
+        TimeRow("La richiesta di avviso e lo stop ai promemoria", "Finché non li cambi o non cancelli l’account."),
         TimeRow(
             "Dati dei maestri",
             "Nome, cognome e indirizzo email finché sono tra i maestri o finché non cancellano l’account. Un invito non accettato si cancella $invitations dopo la scadenza.",
@@ -105,7 +106,8 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     /** The three paragraphs of the card «I tuoi diritti» of the complete notice. */
     val rights: List<String> = listOf(
         "Puoi chiedere di vedere, correggere, cancellare o limitare l’uso dei dati, riceverne una copia, opporti e togliere il consenso quando vuoi.",
-        "Dalla pagina «Iscrizioni» correggi l’iscrizione finché le iscrizioni sono aperte e togli le segnalazioni con un tocco. Dal «Profilo» cancelli i dati dei tuoi figli o " +
+        "Dalla pagina «Iscrizioni» correggi l’iscrizione finché le iscrizioni sono aperte e togli le segnalazioni con un tocco. I promemoria li fermi con un tocco dalla mail o dal profilo, e la richiesta di avviso la togli quando vuoi. " +
+            "Dal «Profilo» cancelli i dati dei tuoi figli o " +
             "il tuo account: resta solo l’iscrizione con l’affidamento accettato, fino alla data scritta, perché serve come prova dell’affidamento.",
         "Per il resto scrivi al titolare, anche se non hai un account: risponde entro un mese.",
     )
@@ -116,11 +118,11 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     fun briefTime(): String =
         "Le segnalazioni le cancelliamo $notes dopo la fine della convivenza. L’iscrizione, l’accettazione, le presenze segnate e i pagamenti si conservano per $registrations dopo la fine della convivenza, poi si cancellano. " +
             "I dati dei bambini restano finché c’è un’iscrizione, e li puoi cancellare quando vuoi dal tuo profilo. Un account senza bambini né iscrizioni si cancella da solo dopo " +
-            "$emptyAccounts, gli inviti ai maestri non accettati $invitations dopo la scadenza e le copie di sicurezza durano al massimo $backups."
+            "$emptyAccounts, gli inviti ai maestri non accettati $invitations dopo la scadenza e le copie di sicurezza durano al massimo $backups. La richiesta di avviso, finché non la togli."
 
     /** «I tuoi diritti» of the short notice. */
     val briefRights: String =
-        "Puoi vedere, correggere o cancellare i dati e togliere il consenso quando vuoi, dalle pagine «Iscrizioni» e «Profilo» o scrivendo al titolare. " +
+        "Puoi vedere, correggere o cancellare i dati e togliere il consenso quando vuoi, dalle pagine «Iscrizioni» e «Profilo» o scrivendo al titolare. I promemoria li fermi con un tocco dalla mail o dal profilo. " +
             "Se pensi che i dati non siano trattati bene, puoi rivolgerti al Garante per la protezione dei dati personali."
 }
 
