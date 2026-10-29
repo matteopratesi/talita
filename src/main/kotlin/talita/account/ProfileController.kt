@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.servlet.ModelAndView
+import talita.reminder.EmailCard
+import talita.reminder.NoticePresenter
 import talita.retention.YourData
 import talita.retention.YourDataPresenter
 import talita.ui.Alert
@@ -21,9 +23,10 @@ data class NameForm(val first: String, val last: String, val firstError: String?
  * Model of the profile page: what the person sees about their own access. [role] is «Maestro» for a teacher; a
  * parent has no row (every account is a parent, it does not need saying). [nameForm] is the card «Il tuo nome»,
  * only for a teacher. [alert] is the notice at the top: a confirmation («Nome salvato.», «Dati di Luca cancellati.») or the count of errors.
- * [data] is the card «I tuoi dati» (TALITA-7): the children, with the way to delete their data, and the account.
+ * [data] is the card «I tuoi dati» (TALITA-7): the children, with the way to delete their data, and the account. [emailCard] is the card «Email da Talità» (TALITA-13): the avviso and the stop,
+ * for who has children and for who stopped the reminders (null for anyone else).
  */
-data class ProfilePage(val email: String, val role: String?, val nameForm: NameForm?, val alert: Alert?, val data: YourData)
+data class ProfilePage(val email: String, val role: String?, val nameForm: NameForm?, val alert: Alert?, val data: YourData, val emailCard: EmailCard? = null)
 
 /**
  * The profile, two taps from every page (the pill in the header, then "Esci"): the address with which
@@ -31,7 +34,7 @@ data class ProfilePage(val email: String, val role: String?, val nameForm: NameF
  * and of the account, with the way to delete them (`talita.retention`, TALITA-7). Every account has one.
  */
 @Controller
-class ProfileController(private val shells: ShellFactory, private val yourData: YourDataPresenter) {
+class ProfileController(private val shells: ShellFactory, private val yourData: YourDataPresenter, private val notices: NoticePresenter) {
 
     @GetMapping("/profilo")
     fun profile(account: CurrentAccount, request: HttpServletRequest): ModelAndView = page(account, Flash.take(request), HttpStatus.OK)
@@ -53,6 +56,7 @@ class ProfileController(private val shells: ShellFactory, private val yourData: 
                     nameForm = nameForm,
                     alert = alert,
                     data = yourData.forProfile(account),
+                    emailCard = notices.card(account.id, full = true),
                 ),
             ),
         ).also { it.status = status }

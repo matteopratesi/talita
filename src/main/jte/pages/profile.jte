@@ -53,6 +53,10 @@
       </section>
     @endif
 
+    @if(page.getEmailCard() != null)
+      @template.reminder.emailCard(card = page.getEmailCard(), csrf = csrf)
+    @endif
+
     @template.profile.yourData(data = page.getData(), csrf = csrf)
   </div>
 `)
