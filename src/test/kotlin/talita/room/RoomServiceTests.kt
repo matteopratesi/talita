@@ -160,8 +160,10 @@ class RoomServiceTests(
             }
             assertTrue(written.await(30, TimeUnit.SECONDS))
             val second = pool.submit<CopyResult> { rooms.copyPrevious(setup.id) }
+            // Wait until the second copy is really blocked on the lock of the first (a backend of this database that waits for a transaction to end): committing before that
+            // would let it find the rooms at its check, and the case that this test is about would not happen.
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
-            while (dsl.fetchValue("select count(*) from pg_stat_activity where wait_event_type = 'Lock'", Int::class.java) == 0) {
+            while (dsl.fetch("select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
                 assertTrue(System.nanoTime() < deadline && !second.isDone, "the second copy should wait for the first (${if (second.isDone) second.get() else "still running"})")
                 Thread.sleep(20)
             }
