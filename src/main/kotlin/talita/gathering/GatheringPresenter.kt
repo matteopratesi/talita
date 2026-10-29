@@ -21,6 +21,7 @@ class GatheringPresenter(
     private val usage: RegistrationUsage,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
+    private val roomSummaries: RoomSummaries,
 ) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
@@ -92,7 +93,24 @@ class GatheringPresenter(
             ),
             registrations = registrations(gathering, today),
             retention = if (draft) null else retention(gathering, over, today),
+            rooms = roomsCard(gathering),
         )
+    }
+
+    /**
+     * The card «Camere» (TALITA-11, criterion 16): a row that leads to the page, with how many rooms, how many beds and how many children have no room, and never a name. While there
+     * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms). A draft has no children, and after the end the people of the rooms
+     * are deleted: those two say only the house.
+     */
+    private fun roomsCard(gathering: Gathering): RoomsCard? {
+        val summary = roomSummaries.summary(gathering.id)
+        if (summary.rooms == 0 && gathering.days.size == 1) return null
+        val href = "/convivenza/${gathering.id}/camere"
+        if (summary.rooms == 0) return RoomsCard("Scrivi le camere", href, "Nessuna camera per ora.")
+        val rooms = if (summary.rooms == 1) "1 camera" else "${summary.rooms} camere"
+        val beds = if (summary.beds == 1) "1 posto" else "${summary.beds} posti"
+        val free = summary.unassigned?.let { if (it == 0) "Tutti hanno una camera" else if (it == 1) "1 bambino senza camera" else "$it bambini senza camera" }
+        return RoomsCard("Vedi le camere", href, listOfNotNull(rooms, beds, free).joinToString(" · "))
     }
 
     /**

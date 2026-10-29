@@ -79,6 +79,8 @@ data class DetailPage(
     val registrations: RegistrationsCard,
     /** The card «Conservazione dei dati» (TALITA-7): null for a draft, which has no registrations. */
     val retention: RetentionCard?,
+    /** The card «Camere» (TALITA-11): null for a gathering of a single day that has no rooms. */
+    val rooms: RoomsCard? = null,
 )
 
 /** A row of the card «Conservazione dei dati»: the data, when they go (in the tense of the date), and why. */

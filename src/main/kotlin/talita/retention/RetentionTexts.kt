@@ -32,6 +32,13 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     fun capital(text: String): String = text.replaceFirstChar { it.uppercase() }
 
     val notes: String get() = words(policy.notes)
+
+    /**
+     * When who sleeps in which room goes (TALITA-11): «alla fine della convivenza» with the policy of the product, which has a period of zero (Matteo's decision: the rooms
+     * are tied to the house); with a period, «un mese dopo la fine della convivenza» as the other texts. The words follow the policy and nothing is written by hand.
+     */
+    val roomsWhen: String get() = if (policy.rooms.isZero) "alla fine della convivenza" else "${words(policy.rooms)} dopo la fine della convivenza"
+
     val registrations: String get() = words(policy.registrations)
     val invitations: String get() = words(policy.invitations)
     val emptyAccounts: String get() = words(policy.emptyAccounts)
@@ -50,6 +57,18 @@ class RetentionTexts(private val policy: RetentionPolicy) {
      * registration: a withdrawn one is the register of the gathering ([KeepReason.REGISTER]), the others are the proof of the custody ([KeepReason.PROOF]).
      */
     fun keptAs(reason: KeepReason): String = if (reason == KeepReason.REGISTER) "come registro della convivenza" else "come prova dell’affidamento"
+
+    /**
+     * What «Camere» says once who slept where is deleted (TALITA-11, criterion 20): when and why, and that the rooms stay for the copy of the year after. The first sentence
+     * is the notice, the second says what is left.
+     */
+    fun roomsDeleted(lastDay: LocalDate): RoomsDeleted = RoomsDeleted(
+        "Chi dormiva dove è stato cancellato il ${GatheringFormat.date(policy.roomsDeletionDate(lastDay))}, $roomsWhen.",
+        "Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.",
+    )
+
+    /** The line of the card «Camera» of a child in Arrivi once who slept where is deleted. */
+    fun roomsDeletedOn(lastDay: LocalDate): String = "Chi dormiva dove è stato cancellato il ${GatheringFormat.date(policy.roomsDeletionDate(lastDay))}."
 
     private fun when_(lastDay: LocalDate): String = GatheringFormat.date(policy.registrationsDeletionDate(lastDay))
 
@@ -129,6 +148,9 @@ data class TimeRow(val what: String, val time: String)
 
 /** The two sentences of the card «Segnalazioni» when the notes are gone: the first in bold, the second smaller. */
 data class NotesDeleted(val main: String, val second: String)
+
+/** The two sentences of «Camere» when who slept where is deleted: the first in the notice, the second says what is left. */
+data class RoomsDeleted(val main: String, val second: String)
 
 /** A page that says that some data are gone, when and why: the title, two paragraphs, and the link to the gathering. */
 data class DeletedState(val title: String, val text: String, val text2: String, val href: String, val label: String)

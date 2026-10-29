@@ -40,6 +40,13 @@ internal class RoomTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService, privat
     fun room(gathering: Long, name: String, beds: Int): Long =
         dsl.insertInto(ROOM).set(ROOM.GATHERING_ID, gathering).set(ROOM.NAME, name).set(ROOM.BEDS, beds.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
 
+    /** The rooms of a gathering as name and beds, in the order they were written. */
+    fun roomsOf(gathering: Long): List<Pair<String, Int>> =
+        dsl.select(ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.GATHERING_ID.eq(gathering)).orderBy(ROOM.ID).fetch { it[ROOM.NAME]!! to it[ROOM.BEDS]!!.toInt() }
+
+    /** The id of the room with this name in the gathering. */
+    fun roomId(gathering: Long, name: String): Long = dsl.select(ROOM.ID).from(ROOM).where(ROOM.GATHERING_ID.eq(gathering)).and(ROOM.NAME.eq(name)).fetchSingle(ROOM.ID)!!
+
     /** A child in a room, as the table keeps it. */
     fun put(registration: Long, gathering: Long, room: Long) {
         dsl.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.ROOM_ID, room).execute()

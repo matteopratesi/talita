@@ -491,6 +491,7 @@ Icone assegnate (nomi di Lucide):
 | Torna agli arrivi | `chevron-left` |
 | Conservata fino al…, quello che è stato cancellato (stato vuoto neutro) | `archive` |
 | Per quanto tempo teniamo i dati | `shield-check` |
+| Camere (TALITA-11): la scheda nella Convivenza, la pagina, lo stato vuoto e la scheda del bambino in Arrivi | `bed-double` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
