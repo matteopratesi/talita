@@ -45,7 +45,7 @@ le pubblica come 1026 e 8026.
 
 ## Posta
 
-Talità manda due tipi di mail (il link per entrare e l'invito a un maestro), solo testo, con un
+Talità manda tre tipi di mail (il link per entrare, l'invito a un maestro e i promemoria delle iscrizioni, TALITA-13), solo testo, con un
 server SMTP configurabile. Mai un servizio vero in sviluppo e nei test.
 
 - **Sviluppo**: `./gradlew bootRun` avvia anche **Mailpit** (`compose.yaml`, immagine con la versione
@@ -66,8 +66,12 @@ server SMTP configurabile. Mai un servizio vero in sviluppo e nei test.
 - **Senza posta l'app parte lo stesso**: senza `SPRING_MAIL_HOST` (come nello smoke test) il log
   avvisa che la posta non è configurata e chi chiede un link vede che l'invio non è riuscito. La posta
   non fa parte di `/actuator/health`: un server di posta fermo non rende «giù» l'app.
-- **Limiti** (valori nella configurazione, contatori solo in memoria): al massimo 150 mail ogni 24
-  ore, link e inviti insieme (`talita.mail.daily-limit`: il piano gratuito di Mailjet ne manda 200).
+- **Limiti** (valori nella configurazione, contatori solo in memoria): due conti separati, ognuno sulle ultime 24 ore. **150 mail** per i link e gli inviti insieme (`talita.mail.daily-limit`) e **40 per i
+  promemoria** (`talita.mail.reminder-daily-limit`), così un invio dei maestri non toglie mai un link di accesso a un genitore. Insieme sono 190, sotto le 200 al giorno e le 6.000 al mese del piano
+  gratuito di Mailjet, che valgono per tutto l'account. Un invio di promemoria che supera quello che resta della quota non parte: la pagina dice quanti se ne possono ancora mandare.
+- **Provare i promemoria in sviluppo**: con `./gradlew bootRun` e Mailpit (`http://localhost:8026`) un maestro apre il dettaglio di una convivenza con le iscrizioni aperte e tocca «Manda il promemoria»; le mail
+  arrivano in Mailpit, con il collegamento per smettere (`http://localhost:8081/promemoria/smetti?codice=…`) e l'intestazione `List-Unsubscribe`. In produzione servono il dominio verificato in Mailjet, con SPF e DKIM
+  (TALITA-9): fino ad allora i promemoria si provano solo con Mailpit. Il collegamento per smettere e il codice non vanno mai nel log.
 
 ## Variabili d'ambiente
 
