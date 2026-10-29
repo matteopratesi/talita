@@ -36,13 +36,13 @@ class TalitaApplicationTests(
     }
 
     @Test
-    fun `the migrations are V1 extensions, V2 accounts, V3 teachers, V4 gathering, V5 registration, V6 check-in, V7 retention and V8 teacher moments, and the only extension is unaccent`() {
+    fun `the migrations are V1 to V8 and V10 menu, V9 is another ticket's, and the only extension is unaccent`() {
         val applied = dsl.resultQuery("select version, script from flyway_schema_history where success order by installed_rank")
             .fetch { it.get(0, String::class.java) to it.get(1, String::class.java) }
-        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql", "4" to "V4__gathering.sql", "5" to "V5__registration.sql", "6" to "V6__checkin.sql", "7" to "V7__retention.sql", "8" to "V8__teacher_moments.sql"), applied)
+        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql", "4" to "V4__gathering.sql", "5" to "V5__registration.sql", "6" to "V6__checkin.sql", "7" to "V7__retention.sql", "8" to "V8__teacher_moments.sql", "10" to "V10__menu.sql"), applied)
 
-        val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").mapNotNull { it.filename }.sorted()
-        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql", "V4__gathering.sql", "V5__registration.sql", "V6__checkin.sql", "V7__retention.sql", "V8__teacher_moments.sql"), files)
+        val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").mapNotNull { it.filename }.sortedBy { it.substringAfter('V').substringBefore("__").toInt() }
+        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql", "V4__gathering.sql", "V5__registration.sql", "V6__checkin.sql", "V7__retention.sql", "V8__teacher_moments.sql", "V10__menu.sql"), files)
 
         val installed = dsl.resultQuery("select extname from pg_extension").fetch(0, String::class.java)
         assertTrue("unaccent" in installed, "installed: $installed")
