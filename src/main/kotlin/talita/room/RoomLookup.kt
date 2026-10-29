@@ -28,9 +28,12 @@ class RoomLookup(private val dsl: DSLContext, private val texts: RetentionTexts)
             .where(ROOM_CHILD.REGISTRATION_ID.eq(registrationId)).and(ROOM_CHILD.GATHERING_ID.eq(gathering.id)).fetchOne()
         val base = "/convivenza/${gathering.id}/camere"
         if (room != null) return ChildRoomCard(room[ROOM.NAME]!!, "$base#camera-${room[ROOM.ID]}", null)
-        // After the end, nobody in any room: what was there was deleted (the job does it the first run of the day after the last day).
-        val nobody = !dsl.fetchExists(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering.id)) && !dsl.fetchExists(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering.id))
-        if (gathering.over && nobody) return ChildRoomCard(null, base, texts.roomsDeletedOn(gathering.end))
+        // After the end, with rooms and nobody in any of them: what was there was deleted (the job does it the first run of the day after the last day). The same rule as
+        // `RoomBoard.peopleDeleted`: with no rooms there was nothing to delete, and the child is «Senza camera» (criterion 13).
+        if (gathering.over && dsl.fetchExists(ROOM, ROOM.GATHERING_ID.eq(gathering.id))) {
+            val nobody = !dsl.fetchExists(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering.id)) && !dsl.fetchExists(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering.id))
+            if (nobody) return ChildRoomCard(null, base, texts.roomsDeletedOn(gathering.end))
+        }
         return ChildRoomCard(null, "$base#senza-camera", null)
     }
 }

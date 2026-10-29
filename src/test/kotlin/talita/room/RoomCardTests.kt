@@ -119,4 +119,21 @@ class RoomCardTests(
             assertFalse(text.contains("Vai alle camere"), "nothing to choose any more")
         }
     }
+
+    @Test
+    fun `t11 c15 c13 after the end with no rooms the card says Senza camera, not that anything was deleted, and with rooms and nobody in them it says the deletion`() {
+        val setup = kit.start()
+        val anna = kit.rows.register(setup.id, kit.checkin.account(), "Anna", "Rossi")
+        kit.endedDaysAgo(setup.id, 1)
+
+        // No rooms were ever written: there was nothing to delete.
+        val text = words(card(setup.marta.card(anna)))
+        assertTrue(text.contains("Camera Senza camera"), text)
+        assertFalse(text.contains("cancellato"), text)
+
+        // With a room and nobody in it, as the job leaves it: the sentence of the deletion.
+        kit.room(setup.id, "Camera 1", 4)
+        val deleted = words(card(setup.marta.card(anna)))
+        assertTrue(Regex("""Camera Chi dormiva dove è stato cancellato il \d{1,2} [a-zà-ù]+ \d{4}\.""").containsMatchIn(deleted), deleted)
+    }
 }
