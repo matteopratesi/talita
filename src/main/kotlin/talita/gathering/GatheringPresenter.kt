@@ -122,6 +122,8 @@ class GatheringPresenter(
         val registrationsDate = GatheringFormat.date(policy.registrationsDeletionDate(gathering.endDate))
         val notesGone = policy.notesExpired(gathering.endDate, today)
         val registrationsGone = policy.registrationsExpired(gathering.endDate, today)
+        val roomsDate = GatheringFormat.date(policy.roomsDeletionDate(gathering.endDate))
+        val roomsGone = policy.roomsExpired(gathering.endDate, today)
         val lines = listOf(
             RetentionLine(
                 "Segnalazioni",
@@ -130,6 +132,15 @@ class GatheringPresenter(
                     "${texts.capital(texts.notes)} dopo la fine della convivenza."
                 } else {
                     "${texts.capital(texts.notes)} dopo la fine della convivenza, perché servono se durante l’evento succede qualcosa."
+                },
+            ),
+            RetentionLine(
+                "Chi dorme dove",
+                if (roomsGone) "È stato cancellato il $roomsDate" else "Si cancella il $roomsDate",
+                if (roomsGone) {
+                    "${texts.capital(texts.roomsWhen)}. Le camere restano, senza nomi, per copiarle l’anno dopo."
+                } else {
+                    "${texts.capital(texts.roomsWhen)}, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano, senza nomi, per copiarle l’anno dopo."
                 },
             ),
             RetentionLine(

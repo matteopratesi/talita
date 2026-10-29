@@ -94,6 +94,10 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     fun completeRows(): List<TimeRow> = listOf(
         TimeRow("Segnalazioni su allergie, intolleranze e farmaci", "${capital(notes)} dopo la fine della convivenza. Le puoi togliere prima, quando vuoi."),
         TimeRow(
+            "Chi dorme in quale camera",
+            "${capital(roomsWhen)}. Le camere restano, senza nomi, per la convivenza dell’anno dopo.",
+        ),
+        TimeRow(
             "Iscrizione, accettazione dell’affidamento, presenze, pagamenti e registro delle letture",
             "${capital(registrations)} dopo la fine della convivenza: servono come prova dell’affidamento.",
         ),

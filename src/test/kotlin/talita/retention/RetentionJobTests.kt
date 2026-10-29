@@ -67,10 +67,11 @@ class RetentionJobTests(
     // ---- The rules in order, and the register (criteria 14, 15) -------------------------------------------------------------------
 
     @Test
-    fun `t7 c14 the rules are in the order notes, registrations, children, invitations, accounts, then the requests to make again and the numbers to take out`() {
+    fun `t7 c14 the rules are in the order notes, rooms, registrations, children, invitations, accounts, then the requests to make again and the numbers to take out`() {
+        // The rooms of TALITA-11 are a rule more, between the notes and the registrations: nothing else in the job changed.
         assertEquals(
-            listOf("notes", "registrations", "children", "invitations", "accounts"),
-            rules.map { it.name }.take(5),
+            listOf("notes", "rooms", "registrations", "children", "invitations", "accounts"),
+            rules.map { it.name }.take(6),
         )
     }
 
