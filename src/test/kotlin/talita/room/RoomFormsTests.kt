@@ -218,6 +218,24 @@ class RoomFormsTests(
     }
 
     @Test
+    fun `t11 c05 the page of confirmation of a room that another teacher emptied meanwhile says that nobody sleeps there, with the zero in words`() {
+        val setup = kit.start()
+        val one = kit.room(setup.id, "Camera 1", 4)
+        val two = kit.room(setup.id, "Camera 2", 4)
+        kit.put(kit.rows.register(setup.id, kit.checkin.account(), "Luca", "Rossi"), setup.id, one)
+        val page = "/convivenza/${setup.id}/camere"
+
+        // The link of «Togli» was drawn when Camera 1 had a person and is followed after the person has been taken out.
+        val empty = words(setup.marta.get("$page/$two/togli").body())
+        assertTrue(empty.contains("Togliere Camera 2? Camera 2 sparisce dall’elenco. Nessuno ci dorme. Togli la camera Tolgo… Annulla"), empty)
+        assertFalse(empty.contains("0 persone") || empty.contains("Le 0"), empty)
+        // One person and several are as they were.
+        assertTrue(words(setup.marta.get("$page/$one/togli").body()).contains("Camera 1 sparisce dall’elenco. La persona che ci dorme torna fra quelle senza camera."))
+        kit.put(kit.rows.register(setup.id, kit.checkin.account(), "Anna", "Rossi"), setup.id, one)
+        assertTrue(words(setup.marta.get("$page/$one/togli").body()).contains("Camera 1 sparisce dall’elenco. Le 2 persone che ci dormono tornano fra quelle senza camera."))
+    }
+
+    @Test
     fun `t11 c05 taking a room away answers with the block, Camera tolta and the people among those without a room, and an empty room goes at once`() {
         val setup = kit.start()
         val one = kit.room(setup.id, "Camera 1", 4)

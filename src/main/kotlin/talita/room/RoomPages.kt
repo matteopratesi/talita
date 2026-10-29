@@ -237,12 +237,19 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
         )
     }
 
-    /** The dialog that «Togli» opens for a room with people (a room that is empty has none: the request goes at once). The same words are the page without JavaScript. */
+    /**
+     * The dialog that «Togli» opens for a room with people (a room that is empty has none: the request goes at once). The same words are the page without JavaScript, which an empty room
+     * can also have: another teacher may empty it between the page of the rooms and the page of the confirmation.
+     */
     fun removalDialog(gatheringId: Long, room: Room, people: Int): ConfirmModel = ConfirmModel(
         id = "togli-${room.id}",
         title = "Togliere ${room.name}?",
-        text = "${room.name} sparisce dall’elenco. " +
-            if (people == 1) "La persona che ci dorme torna fra quelle senza camera." else "Le $people persone che ci dormono tornano fra quelle senza camera.",
+        text = "${room.name} sparisce dall’elenco. " + when (people) {
+            // Nobody: another teacher emptied the room before this page (without JavaScript) was opened. The zero is in words.
+            0 -> "Nessuno ci dorme."
+            1 -> "La persona che ci dorme torna fra quelle senza camera."
+            else -> "Le $people persone che ci dormono tornano fra quelle senza camera."
+        },
         confirmLabel = "Togli la camera",
         busyLabel = "Tolgo…",
         action = href(gatheringId, "/${room.id}/togli"),
