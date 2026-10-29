@@ -108,6 +108,12 @@ class RoomBoard(
     /** Nobody is in any room: what was there was deleted at the end of the gathering, or nobody was put in. */
     val nobodyInRooms: Boolean get() = childRoom.isEmpty() && teacherRoom.isEmpty()
 
+    /**
+     * After the end, who slept where was deleted: the gathering is over, it has rooms and nobody is in any of them. With **no rooms** there was nothing to delete, and the pages
+     * say that the gathering is over (criterion 13), not that «chi dormiva dove è stato cancellato».
+     */
+    val peopleDeleted: Boolean get() = over && rooms.isNotEmpty() && nobodyInRooms
+
     companion object {
         /** The child sleeps there: it has every day, or at least one whole day (and not only lunch). */
         fun comesAtNight(registration: RegistrationData): Boolean =

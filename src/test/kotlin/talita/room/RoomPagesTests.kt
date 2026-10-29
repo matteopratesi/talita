@@ -469,6 +469,38 @@ class RoomPagesTests(
         assertTrue(Regex("""role="status"[^>]*tabindex="-1"[^>]*data-fuoco|data-fuoco""").containsMatchIn(block.substringBefore("La convivenza è finita")), "the notice takes the focus")
     }
 
+    @Test
+    fun `t11 c13 a gathering that is over and has no rooms says that it is over, not that anything was deleted or that rooms can be written, and so does its print`() {
+        val setup = kit.start()
+        val page = "/convivenza/${setup.id}/camere"
+        // Before the end the empty state invites to write them.
+        assertTrue(words(setup.marta.get(page).body()).contains("Nessuna camera Scrivi le camere della casa"))
+
+        kit.endedDaysAgo(setup.id, 1)
+        val response = setup.marta.get(page)
+        assertEquals(200, response.status())
+        val html = response.body()
+        val text = words(html)
+        assertTrue(text.contains("La convivenza è finita: le camere non si cambiano più."), text)
+        assertTrue(text.contains("Nessuna camera In questa convivenza non sono state scritte camere."), text)
+        // The sentences of the deletion (there was nothing to delete and nothing to copy) and the invitation to write are false after the end.
+        for (sentence in listOf("Chi dormiva dove è stato cancellato", "Le camere restano, senza nomi", "le puoi copiare", "Scrivi le camere", "Aggiungi una camera", "Copia le camere")) {
+            assertFalse(text.contains(sentence), "«$sentence» after the end with no rooms: $text")
+        }
+        assertEquals(0, Regex("""<(select|form|button)\b""").findAll(html.substringAfter("<main").substringBefore("</main>")).count(), "no choice, no form")
+
+        // The same for the print: nothing to print, and the reason is the end.
+        val print = words(setup.marta.get("$page/stampa").body())
+        assertTrue(print.contains("Nessuna camera da stampare In questa convivenza non sono state scritte camere."), print)
+        assertFalse(print.contains("Quando scrivi le camere") || print.contains("è stato cancellato"), print)
+
+        // With rooms and nobody in them the sentence of the deletion stays: it is true there.
+        kit.room(setup.id, "Camera 1", 4)
+        val deleted = words(setup.marta.get(page).body())
+        assertTrue(deleted.contains("Chi dormiva dove è stato cancellato il") && deleted.contains("Le camere restano, senza nomi"), deleted)
+        assertFalse(deleted.contains("La convivenza è finita: le camere non si cambiano più."), "the deletion says it already")
+    }
+
     // ---- The card in the detail of the gathering (criterion 16) -----------------------------------------------------------------------------------
 
     @Test

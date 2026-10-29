@@ -77,6 +77,11 @@ class RoomsReviewQaE2eTest {
         val response = e2e.open("$detail/camere")
         assertEquals(200, response.status())
         assertThat(page.locator("main h2:visible").first()).hasText("Nessuna camera")
+        // Criterion 13: it says that the gathering is over, not that something was deleted (there was nothing) or that rooms can be written (nobody can).
+        assertThat(page.locator("main")).containsText("La convivenza è finita: le camere non si cambiano più.")
+        assertThat(page.locator("main")).containsText("In questa convivenza non sono state scritte camere.")
+        assertThat(page.locator("main")).not().containsText("è stato cancellato")
+        assertThat(page.locator("main")).not().containsText("Scrivi le camere")
         assertEquals(0, page.locator("select, details, form").count(), "no choice, no form")
         assertEquals(0, page.getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName(Pattern.compile("Aggiungi|Modifica|Togli|Copia"))).count(), "no link of an action")
         assertEquals(0, page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(Pattern.compile("Aggiungi|Copia|Metti|Sposta"))).count(), "no button of an action")

@@ -26,7 +26,7 @@
         @template.components.icon(icon = Icon.BED_DOUBLE, classes = "size-8")
       </span>
       <h2 class="mt-4 text-xl font-semibold tracking-tight">Nessuna camera</h2>
-      <p class="mt-2 max-w-sm text-ink-muted">Scrivi le camere della casa, poi metti ogni bambino e ogni maestro nella sua. Le camere le vedono solo i maestri.</p>
+      <p class="mt-2 max-w-sm text-ink-muted">${block.getEmptyText()}</p>
       @if(block.getCanAct())
         @if(block.getCopy() != null)
           <div class="mt-6 w-full max-w-sm rounded-xl bg-canvas p-4 text-left">

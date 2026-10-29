@@ -50,7 +50,7 @@ class RoomPrintPresenter(private val texts: RetentionTexts) {
     /** The print «Camere» (criterion 14): rooms with who sleeps in them, then who has none. No age, no presence, no contact and no notes. */
     fun print(board: RoomBoard, now: OffsetDateTime): PrintPage {
         val gathering = board.gathering
-        val deleted = board.over && board.nobodyInRooms
+        val deleted = board.peopleDeleted
         val head = "${gathering.title} · ${GatheringFormat.range(gathering.start, gathering.end)}"
         val printed = "Stampato il ${RoomFormat.moment(now)}."
         val notice = "Questo foglio dice dove dorme ogni persona. Tienilo fra i maestri e distruggilo alla fine della convivenza."
@@ -59,7 +59,7 @@ class RoomPrintPresenter(private val texts: RetentionTexts) {
             val empty = if (deleted) {
                 PrintEmpty(Icon.ARCHIVE, "Niente da stampare", texts.roomsDeleted(gathering.end).main)
             } else {
-                PrintEmpty(Icon.BED_DOUBLE, "Nessuna camera da stampare", nothing)
+                PrintEmpty(Icon.BED_DOUBLE, "Nessuna camera da stampare", if (board.over) RoomsPresenter.EMPTY_OVER_TEXT else nothing)
             }
             return PrintPage(gathering.id, "Camere", head, printed, notice, emptyList(), null, footer, empty)
         }

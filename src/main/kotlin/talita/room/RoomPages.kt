@@ -130,6 +130,8 @@ data class RoomsBlock(
     val newHref: String,
     /** What a screen reader says after an action (the same words as its message), in the region `#esito` of the page. */
     val announcement: String? = null,
+    /** What the empty state says under «Nessuna camera»: to write them, or, once the gathering is over, that none was written. */
+    val emptyText: String = RoomsPresenter.EMPTY_TEXT,
 )
 
 /** The page «Camere»: the head, the introduction and the block. */
@@ -273,8 +275,9 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
     /** The block of the page for [board]: [feedback] is what the last action says, and where. */
     fun block(board: RoomBoard, feedback: Feedback = Feedback.NONE, flash: Alert? = null): RoomsBlock {
         val gathering = board.gathering
-        // After the end: who slept where was deleted (nobody is in any room) or is about to be. The rooms stay, without names, with their beds.
-        val deleted = board.over && board.nobodyInRooms
+        // After the end: who slept where was deleted (nobody is in any room) or is about to be. The rooms stay, without names, with their beds. With no rooms there was
+        // nothing to delete: the gathering is over, and that is all the page says (criterion 13).
+        val deleted = board.peopleDeleted
         val canAct = !board.over
         val previous = if (board.rooms.isEmpty() && canAct) rooms.previous(gathering.id) else null
         val top = (if (feedback.spot == Spot.Top) feedback.alert else null) ?: flash
@@ -289,7 +292,7 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
                     "Copia le camere",
                 )
             }
-            return RoomsBlock(gathering.id, BlockKind.EMPTY, standing, top, null, emptyList(), null, copy, canAct, newHref, announcement)
+            return RoomsBlock(gathering.id, BlockKind.EMPTY, standing, top, null, emptyList(), null, copy, canAct, newHref, announcement, if (canAct) EMPTY_TEXT else EMPTY_OVER_TEXT)
         }
         val rooms = board.rooms.map { roomView(board, it, feedback, canAct, deleted) }
         val free = if (deleted) null else free(board, feedback, canAct)
@@ -363,6 +366,10 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
     companion object {
         const val BEDS_HINT = "Quanti letti ci sono nella camera."
         const val FINISHED = "La convivenza è finita: le camere non si cambiano più."
+        const val EMPTY_TEXT = "Scrivi le camere della casa, poi metti ogni bambino e ogni maestro nella sua. Le camere le vedono solo i maestri."
+
+        /** The empty state of a gathering that is over: it does not invite to write rooms (nobody can any more) and does not offer a copy (the page has no action). */
+        const val EMPTY_OVER_TEXT = "In questa convivenza non sono state scritte camere."
         const val DRAFT = "La convivenza è ancora in bozza: le camere si scrivono già, i bambini compaiono quando i genitori li iscrivono."
     }
 }
