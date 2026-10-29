@@ -19,8 +19,8 @@ vere con i ticket indicati; i tempi di conservazione con TALITA-7.
     con data e ora (il testo esatto, e l'indirizzo email di quel momento); anche i genitori **senza account**, che hanno
     compilato il modulo cartaceo, per il recapito che i maestri copiano dal modulo (il consenso alle segnalazioni resta sulla carta);
   - i **bambini**, che sono minori: nome e cognome, data di nascita, giorni di
-    presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, presenze per giorno e pagamenti (TALITA-6);
-  - i **maestri**: email dell'account, nome e cognome, e, come chi ha segnato una presenza o registrato un pagamento, l'account che lo ha fatto (TALITA-6).
+    presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, presenze per giorno e pagamenti (TALITA-6), e la camera in cui dormono (TALITA-11);
+  - i **maestri**: email dell'account, nome e cognome, e, come chi ha segnato una presenza o registrato un pagamento, l'account che lo ha fatto (TALITA-6), e la camera in cui dormono (TALITA-11).
 
 ## Natura dei dati
 
@@ -44,6 +44,7 @@ verificare prima del rilascio (sotto).
   dell'interessato (art. 6.1.b).
 - **Presenze e pagamenti** (TALITA-6): sono il servizio chiesto dal genitore con l'iscrizione, che serve a sapere chi c'è ogni giorno e quanto è stato pagato.
   Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b), come per l'iscrizione; da verificare.
+- **Camere** (TALITA-11, chi dorme in quale camera): per i bambini è il servizio chiesto dal genitore con l'iscrizione, come l'iscrizione stessa. Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b); per i maestri il legittimo interesse, come i loro account, a organizzare la convivenza insieme. Da verificare.
 - **Segnalazioni** (dati sanitari): **consenso esplicito** del genitore (art. 9.2.a), distinto
   dall'iscrizione, facoltativo e revocabile. Senza consenso la segnalazione non si raccoglie.
 - **Convinzioni religiose che si possono dedurre**: in Koinè la base è l'art. 9.2.d, che vale per un
@@ -155,6 +156,11 @@ Previste dal progetto, con il ticket in cui diventano vere:
     lo verifica;
   - **niente copie dei dati nel telefono**: nessun service worker e nessuna lista che si tenga offline; una pagina già aperta si stampa senza rete, ma per aprirla serve la
     rete (la riserva è la carta, stampata prima di partire). Le pagine di Arrivi non si tengono nel browser (`Cache-Control: no-store`).
+- **Camere** (TALITA-11): chi dorme in quale camera lo vedono e lo stampano **solo i maestri** (403 a un genitore su ogni indirizzo, anche a mano, con un test; il genitore non vede la camera di un figlio né di altri, e la struttura niente oltre l'elenco di TALITA-6).
+  - **Niente sesso, niente motivo della scelta, niente note**: la tabella ha solo la persona e la camera, e un test fissa le colonne. Il nome della camera è controllato (un elenco di parole sul sesso, nel codice, con il suo test) e l'aiuto sotto il campo dice di scrivere il nome della casa; il nome di una persona («Camera di Paolo») non si riconosce.
+  - **Nessun dato dei bambini verso un'IA esterna o un altro servizio, nemmeno con le sigle**: con 30 bambini conosciuti una sigla con l'età resta un dato personale (art. 4.5, cons. 26) e il fornitore sarebbe un destinatario (art. 28, trasferimenti fuori UE, artt. 44-46). Niente esportazione in file.
+  - **Il log** a livello INFO e oltre non ha nomi di persone accanto alle camere né nomi di camere, e gli indirizzi hanno solo il numero della convivenza (la persona e la camera stanno nel corpo della richiesta); le pagine non si tengono nel browser (`Cache-Control: no-store`).
+  - **La cancellazione** è del job (regola `rooms`, alla fine della convivenza) e, prima, del ritiro dell'iscrizione, della cancellazione dei dati di un figlio e del maestro tolto dai maestri.
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
 - **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7). Come funziona:
   - **un job** ogni notte alle 4:15 (ora di Roma) e a ogni avvio dell'applicazione, così un giorno in cui l'applicazione era spenta si recupera al primo avvio. Guarda il **giorno** di Roma e mai l'ora:
@@ -189,6 +195,7 @@ Le stampe di TALITA-6 portano **data e ora di stampa** su ogni documento e non h
 | **Registro arrivi** | per ogni iscrizione non ritirata: nome del bambino, giorni (con le presenze già segnate), quota dovuta, pagato, manleva, indicazioni dell'app (in forse, dal cartaceo, possibile doppione, giorno non previsto), spazio per scrivere a mano, totali. **Niente recapiti, niente segnalazioni** | lo conserva il titolare fra i documenti della convivenza, come quello dell'app: un anno |
 | **Elenco per la struttura** | solo cognome e nome dei bambini (confermati, o presenti in un giorno) e dei maestri affidatari, con righe vuote per gli altri adulti. **Nient'altro** | resta alla struttura |
 | **Foglio per i maestri** | nome del bambino e recapito del genitore, con la frase che dice di tenerlo fra i maestri. **Niente segnalazioni** | si distrugge alla fine della convivenza |
+| **Camere** (TALITA-11) | per ogni camera il nome, i posti e chi ci dorme (nome e cognome dei bambini, «in forse», i maestri a parte), e chi non ha camera in fondo; con la frase che dice di tenerlo fra i maestri e di distruggerlo alla fine. **Niente età, presenze, recapiti né segnalazioni** | si distrugge alla fine della convivenza, come il foglio per i maestri |
 
 **Segnalazioni su carta: no.** Matteo ha risposto no alla domanda 6 di TALITA-6: nessuna stampa le contiene (nemmeno il foglio per i maestri), quindi **non c'è
 nessuna deroga** alla regola 4 e le segnalazioni non escono dalla loro tabella. Senza rete le segnalazioni non si leggono dall'app (per i bambini iscritti dal
@@ -198,11 +205,12 @@ cartaceo c'è il modulo di carta). La stampa non scrive nessuna lettura, perché
 
 **La tabella è questa** (TALITA-7; Matteo ha approvato i tempi nell'intervista di apertura del progetto e le scelte il 22 ottobre 2026). «Finita» è il giorno dopo l'ultimo giorno della convivenza; tutte le date sono giorni
 di Roma e le calcola un solo punto del codice (`RetentionPolicy`), le stesse per il job, per le pagine e per le informative. Il job cancella **dal giorno della data**, di notte. Esempio: la «Convivenza di settembre 2027»,
-dal 17 al 19 settembre, è finita il 20; le segnalazioni vanno via il 20 ottobre 2027, il resto il 20 settembre 2028.
+dal 17 al 19 settembre, è finita il 20; chi dorme dove va via il 20 settembre 2027 (TALITA-11), le segnalazioni il 20 ottobre 2027, il resto il 20 settembre 2028.
 
 | Dato | Quando si cancella | Chi | Note |
 | --- | --- | --- | --- |
 | Segnalazioni (`health_note`) | **un mese dopo la fine**; prima: ritiro e revoca del consenso (TALITA-5), cancellazione del figlio o dell'account | job, genitore | ogni lettura registrata; il consenso va via con loro |
+| Chi dorme dove (`room_child`, `room_teacher`, TALITA-11) | **alla fine della convivenza** (dal giorno dopo l'ultimo giorno); prima: ritiro dell'iscrizione, cancellazione dei dati del figlio, maestro tolto dai maestri | job, maestri, genitore | decisione di Matteo (le camere sono legate alla struttura, quindi si svuotano alla fine; non un mese dopo come le segnalazioni); le camere (nome e posti) restano, senza nomi, per copiarle l'anno dopo |
 | Iscrizione: manleva (testo, versione, data e ora, indirizzo copiato), recapito, giorni, stato, cartacea, chi l'ha inserita | **un anno dopo la fine**; prima, su richiesta, solo se ritirata senza presenze né pagamenti | job, genitore | è la prova dell'affidamento (art. 17.3.e, da verificare) |
 | Presenze, pagamenti, registro delle letture | con l'iscrizione (cascata) | job | il maestro che li ha segnati si svuota quando il suo account va via |
 | Legami con gli affidatari | un anno dopo la fine; prima con «Togli» o con l'account cancellato (convivenze finite) | job, maestri | |
@@ -244,7 +252,7 @@ I testi devono contenere:
   serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
 - per quanto tempo si conservano, **anche per presenze e pagamenti**: vanno via con l'iscrizione, un anno dopo la fine della convivenza (TALITA-7 ne prende il tempo da
-  `RetentionPolicy`);
+  `RetentionPolicy`), e **chi dorme in quale camera**, che va via alla fine della convivenza (TALITA-11, stessa fonte: la riga «Chi dorme in quale camera» della scheda «Per quanto tempo»);
 - i diritti dell'interessato e come esercitarli, e il reclamo al Garante;
 - che l'accettazione dell'affidamento comprende la dichiarazione che anche l'altro genitore è d'accordo (o che la responsabilità genitoriale è
   di uno solo), che data e ora si registrano, e che la dichiarazione **non sostituisce** il loro accordo.
@@ -273,7 +281,7 @@ ancora un segnaposto):
   (un'azione di risarcimento può prescriversi più tardi) lo dice la persona competente che legge il testo dell'affidamento: cambiarlo vuol dire una costante di `RetentionPolicy`;
 - **il modulo cartaceo** (lo decide Matteo): oggi chiede il luogo di nascita, che l'app non raccoglie, e non ha la casella di consenso alle
   segnalazioni; va allineato all'app, oppure l'eccezione va scritta in `docs/02-modello-dati.md` e qui, prima di usare l'inserimento dal cartaceo;
-- **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`;
+- **la DPIA**, o il motivo scritto per non farla (minori e dati sanitari, su scala piccola): il risultato va in `docs/05-decisioni.md`. **Comprende le camere** (TALITA-11): minori e dati sanitari sono due criteri delle linee guida WP248, che il Garante richiama nel provvedimento 467/2018, e di norma la DPIA si fa, oppure si scrive perché no; trenta persone da sole non fanno «larga scala» (da verificare);
 - **il registro dei trattamenti**, dovuto perché ci sono dati sanitari;
 - **le stampe di Arrivi da Safari su iPhone** (lo prova Matteo, perché la prova automatica usa Chromium): registro, elenco e foglio su A4, con i titoli delle
   colonne su ogni foglio e senza righe spezzate (TALITA-6);

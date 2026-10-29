@@ -16,6 +16,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-7/` sono i mockup della conservazione dei dati e delle cancellazioni (TALITA-7, Grace Kerning): 25 pagine statiche più l'indice (`index.html`) e `talita-7.css`, con i dati sintetici di Luca e Anna Rossi e della «Convivenza di settembre 2027»: il Profilo con «I tuoi dati» e i dialoghi (si aprono con l'ancora, `profilo-genitore.html#cancella-luca`), «Le tue iscrizioni» che si guardano soltanto, la scheda «Conservazione dei dati» per i maestri, le segnalazioni e le iscrizioni cancellate e l'informativa. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-11/` sono i mockup delle camere (TALITA-11, Grace Kerning): 20 pagine statiche più l'indice (`index.html`) e `talita-11.css`, con i dati sintetici della «Convivenza di settembre 2027» (Camera 1, Camera 2, Stanza azzurra): la pagina «Camere» con tutti i suoi stati, il modulo della camera, il dialogo «Togli», la stampa, la scheda del bambino di Arrivi con la camera e la scheda «Conservazione dei dati» con la riga delle camere. Le righe sulla cancellazione dicono «alla fine della convivenza» (decisione di Matteo: chi dorme dove si cancella dal giorno dopo la fine). «Camera dei maschi» in `camera-nuova-errori.html` è il valore sbagliato che mostra l'errore, non un testo dell'app. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -671,6 +673,7 @@ Regole:
   la pagina di una singola iscrizione ha corrente "Iscrizioni"). Nelle pagine di errore nessuna voce è
   corrente.
 - URL in italiano e senza accenti (li vede chi usa Talità, anche nei link condivisi).
+- «Convivenza» è la voce corrente anche in `/convivenza/{id}/camere`, nelle pagine sotto (la camera nuova, la modifica, «Togli la camera») e nella stampa, come in «Maestri» (TALITA-11).
 - «Arrivi» è la voce corrente in `/arrivi`, nelle schede dei bambini (`/arrivi/{id}`) e nelle tre stampe (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio`). Il selettore dei
   giorni di Arrivi (4.20) è una seconda `nav`, con la sua etichetta: la navigazione principale è la `nav` che sta sotto il corpo della pagina.
 
@@ -991,6 +994,18 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 
 - **Telefono**: `type="tel"` con `autocomplete="tel"` e `autocorrect="off"`, **senza** `inputmode="numeric"`: la tastiera numerica di iOS non ha il «+».
 - **Appunti di sanità** (`registration/noteField.jte`): area di testo da due righe (`min-h-22`), che cresce, con l'esempio nell'aiuto sotto l'etichetta.
+- **Select** (`room/roomSelect.jte`, TALITA-11): lo stesso campo di testo con la freccia (`chevron-down`, `pointer-events-none`, `aria-hidden`) e `appearance-none`. Il primo `option` non ha valore e dice cosa si sceglie («Scegli la camera», «Scegli il maestro»): è l'etichetta che si vede. **Nelle righe che si ripetono l'etichetta vera è `sr-only` e porta il nome della persona** («Camera di Davide Costa»); dove c'è una sola scelta (il modulo di «Cambia», «Aggiungi un maestro») è visibile sopra. Le opzioni
+  sono «Nome · n su posti posti» (le persone che ci sono su quelli che ci stanno), e una camera piena o oltre si può scegliere: l'avviso c'è dopo. **Il select non parte da solo** al cambio: da tastiera le frecce cambiano il valore a ogni pressione (WCAG 3.2.2) e un tocco sbagliato su una lista lunga sposterebbe un bambino senza che nessuno se ne accorga; servono due tocchi, la scelta e il bottone («Metti», «Sposta»), e un messaggio che dice cosa è stato fatto.
+  L'errore sta sotto il select, con l'icona, e il select ha `aria-invalid="true"` e `aria-describedby`. Il campo «Posti letto» è un campo di testo con `inputmode="numeric"` e larghezza `w-24` (`field.jte` ha i parametri `inputmode` e `width`); mai `required`, `maxlength` né `pattern`: gli errori sono i nostri.
+
+```html
+<div class="relative">
+  <select id="camera-b9" name="camera" class="block min-h-12 w-full appearance-none rounded-xl border border-line-strong bg-surface pr-11 pl-4 text-base text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+    <option value="">Scegli la camera</option><option value="2">Camera 2 · 4 su 4 posti</option>
+  </select>
+  <svg class="pointer-events-none absolute top-1/2 right-3.5 size-5 -translate-y-1/2 text-ink-muted" aria-hidden="true">…chevron-down…</svg>
+</div>
+```
 
 ### 4.3 Liste
 
@@ -1054,6 +1069,11 @@ La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
 ```
 
 **Riga di un figlio nel Profilo** (TALITA-7): `<li class="border-t border-line py-4 first:border-t-0 first:pt-2">`; il cerchio con le iniziali e il nome e cognome (che vanno a capo, mai tagliati: `wrap-anywhere`) sulla stessa riga (`flex items-center gap-3`); sotto, a `mt-3`, il bottone di pericolo in contorno (4.1) o la spiegazione. Il bottone dice il nome proprio («Cancella i dati di Luca»), o nome e cognome se due figli dell'account hanno lo stesso nome proprio; il suo `aria-label` ha sempre nome e cognome e comincia con le parole che si vedono. La riga non mostra altri dati (né data di nascita né telefono).
+
+**Persona con «Cambia»** (`room/personInRoom.jte`, TALITA-11): il nome e le etichette a sinistra, la riga sotto (età e presenza, o «Maestro»), e «Cambia» in alto a destra, un `details` nativo. **Finché è chiuso il suo `summary` sta fuori dal flusso** (`absolute top-0.5 -right-3`, `min-h-11`), così una riga non è più alta del suo testo; la riga ha `pr-21` (84 px) per lasciargli il posto, e a 320 px il nome ha ancora circa 170 px e va a capo, non si taglia. Aperto, il modulo scende sotto il testo a tutta
+larghezza (`-mr-21`): il select delle altre camere, «Sposta» (primario) e «Togli dalla camera» (secondario). I `details` tornano chiusi dopo ogni risposta, perché la risposta è una pagina nuova; restano aperti solo con un errore.
+
+**Riga con scelta** (`room/freeRow.jte`): il nome e le etichette sopra, la riga di dettaglio, poi il select e il bottone «Metti» **secondario** (venti bottoni primari in fila sarebbero rumore, e la pagina non ha un'azione principale: il lavoro è scegliere). Su desktop il testo sta a sinistra e la scelta a destra (`sm:flex sm:w-80`). La riga che ha appena avuto la sua camera resta al suo posto per quella risposta, con il messaggio al posto della scelta.
 
 ### 4.4 Schede
 
@@ -1239,6 +1259,8 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
 
 **Dialogo con elenchi** (`erasureDialog`, TALITA-7): un dialogo che cancella dati. Dentro il `<dialog>` di sopra si aggiungono `max-h-[92dvh] overflow-y-auto` (scorre nel suo pannello se è più alto dello schermo) e il testo è un blocco `<div id="…-testo" class="mt-3 space-y-4">`, con `aria-describedby` che punta al blocco. Le sezioni hanno il titolo (`<h3 class="text-base font-semibold">`) e un elenco breve (`<ul class="mt-1 list-disc space-y-2 pl-5 text-ink-muted marker:text-ink-muted">`); la riga piccola è `text-sm text-ink-muted` e la chiusura `font-semibold`. La regola: **un dialogo che cancella dati dice, in quest'ordine, cosa si cancella subito («Cancelliamo subito»), cosa resta, con la data e il motivo («Resta»), oppure «Non resta niente.» in grassetto al posto dell'elenco; che le copie di sicurezza, cifrate, perdono quei dati entro il tempo della policy; e chiude con «Non si può annullare.» in grassetto.** Il bottone che conferma è di pericolo e ripete il verbo del titolo («Cancella i dati di Luca»); in attesa dice «Cancellazione…». L'`id` è `cancella-figlio-12` e `cancella-account`, mai un nome. Se resta un'iscrizione il dialogo dice che restano anche il nome e la data di nascita del bambino dentro quell'iscrizione: è così nel modello, e chi legge «cancelliamo i dati di Luca» deve saperlo. Senza JavaScript il bottone è un link a `GET` dello stesso indirizzo: una pagina con gli stessi testi (il titolo è l'`h1`), «Cancella i dati di Luca» e «Annulla» verso `/profilo`. Il testo si calcola quando si disegna la pagina e la cancellazione guarda lo stato del momento (il controllo sta nella transazione); l'avviso dopo dice cosa è rimasto davvero.
 
+**Un dialogo c'è solo se l'azione ha qualcosa da perdere** (TALITA-11): «Togli» una camera con persone ha il suo (`Togliere Camera 1?`, con quante persone tornano fra quelle senza camera, e il bottone principale: non si perde niente che non si rimetta con due tocchi); una camera vuota si toglie subito, con il solo messaggio «Camera tolta.». Senza JavaScript il dialogo è la pagina `pages/confirmAction.jte`.
+
 ### 4.9 Stato vuoto
 
 Quando una lista non ha elementi o una sezione non è ancora pronta.
@@ -1355,6 +1377,10 @@ Sugli elementi, con le utility (non nel CSS): `print:hidden` su bottone e riga d
 - **A schermo** le tabelle stanno in un riquadro `relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0`; il solo registro ha `min-w-176` e, sul telefono, una riga di aiuto sopra («Scorri la tabella di lato per vedere tutte le colonne.», `lg:hidden print:hidden`). Il riquadro del registro, che scorre, è una regione con nome e `tabindex="0"` (senza, una persona che non usa il tocco non lo può scorrere, e axe lo segnala). `position: relative` serve: senza, i testi `sr-only` della tabella allargano la pagina.
 - **Cosa c'è in ogni stampa**: registro, una riga per iscrizione non ritirata (giorni `G`, `P` o `–` con la casella, quota dovuta o «Gratis», pagato, manleva «Online», «Cartacea» o una casella vuota, note dell'app) con cinque righe vuote e i totali (con «Incassato a mano» da scrivere), **mai recapiti né segnalazioni**; elenco, solo cognome e nome, i bambini e gli affidatari, con tre righe vuote; foglio, bambino e recapito come scritto. Nessuna stampa porta note libere.
 - Le colonne e le larghezze sono quelle del CSS in `app.css` (`.tabella-stampa`, `.col-nome`, `.col-giorno`, `.col-dovuta`, `.col-pagato`, `.col-manleva`, `.col-note`, `.totali-stampa`): la parte a schermo sta in `@layer components`, quella di stampa fuori da ogni `@layer`, dopo la stampa della pagina informativa. A 320 px la pagina non scorre di lato (la tabella sì, nel suo riquadro). **Safari su iPhone lo prova Matteo prima del rilascio**; la prova automatica usa un PDF di Chromium (A4, fuori dal repo) e conta i fogli.
+
+**Stampa a blocchi** (TALITA-11: la stampa «Camere»). Una pagina intera (`max-w-5xl`) con la barra che non si stampa (`room/print.jte` usa `checkin/printBar.jte`) e il foglio sotto: titolo, date, «Stampato il … alle …», la frase che dice di tenerlo fra i maestri, un blocco per camera e «Senza camera» in fondo. A4 verticale, margini 16 e 18 mm, nero su bianco, senza intestazione, navigazione né bottoni; nessun significato in uno sfondo.
+**Ogni camera è un blocco che non si spezza** (`break-inside-avoid`, bordo `border-ink`, `print:border-[0.3mm]`, nome a 12 pt in grassetto, nomi a 10,5 pt) e i titoli stanno attaccati al testo (`break-after-avoid`). **Il blocco lungo, «Senza camera», si può spezzare** fra due fogli, con bordo tratteggiato, l'elenco su due colonne (`print:columns-2`) e ogni riga intera (`break-inside-avoid`); il titolo non resta solo in fondo.
+Niente età, presenze, recapiti né segnalazioni, e mai il numero delle persone di una camera. Si prova con Chromium (il PDF sta in una cartella temporanea, mai nel repo); Safari su iPhone lo prova Matteo prima del rilascio.
 
 ### 4.13 Indirizzo da copiare
 
@@ -1560,6 +1586,15 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **I link `tel:` e i download** hanno `hx-boost="false"`: il browser apre il telefono o scarica, non una pagina.
 - **Senza JavaScript** ogni tocco è un form normale che risponde con un redirect alla scheda, con l'avviso che il server si porta dietro e mostra una volta sola; «Togli» un pagamento è un link a una pagina con le parole del dialogo; il campo di ricerca e il bottone «Stampa» non ci sono.
 
+### Camere (TALITA-11)
+
+- **Un blocco che risponde intero a ogni azione** (`#camere-contenuto`, `hx-swap="outerHTML"`): «Metti», «Sposta», «Togli dalla camera», «Aggiungi un maestro», «Togli la camera» e «Copia le camere» sono `hx-post` verso il proprio indirizzo e rispondono con riepilogo, camere e senza camera sempre dal database di adesso: con due maestri che lavorano insieme la risposta di ognuno è vera, e non c'è un pezzo che può restare vecchio.
+- **Un solo messaggio, dove si è toccato**: nella riga del bambino per «Metti» (la riga resta al suo posto per quella risposta), nella camera da cui parte la persona per «Sposta» e «Togli dalla camera», nella camera per «Aggiungi un maestro», in cima per la copia e per «Togli la camera». La stessa frase va nella regione `#esito` (`hx-swap-oob="innerHTML:#esito"`) per il lettore di schermo.
+- **Il fuoco non salta**: dopo la sostituzione di un blocco `app.js` mette il fuoco sul primo campo sbagliato o sul primo messaggio con `focus({ preventScroll: true })` se l'elemento è già in vista (fra le barre del telefono), con lo scorrimento normale altrimenti. Così chi mette venti bambini di fila non torna ogni volta in cima.
+- **Rete assente, lenta, errore del server, accesso negato**: il blocco resta com'era e compare il messaggio di 4.7, senza «Riprova» (è un invio) e con il select che tiene la scelta. **409** (la convivenza è finita nel frattempo, o l'iscrizione è stata ritirata): si sostituisce, con la frase che dice perché; **422**: l'errore sotto il select; **404** (una camera, un'iscrizione o un maestro che non ci sono, o sono di un'altra convivenza): «Qualcosa non ha funzionato» e non si sostituisce niente.
+- **Idempotenza**: mettere nella camera dov'è già, o togliere chi è già tolto, risponde 200 con il blocco e il messaggio che dice com'è, mai un errore.
+- **Senza JavaScript** ogni modulo è un `POST` che risponde 303 a `#senza-camera` («Metti»), alla camera da cui parte la persona o alla pagina, con il messaggio lasciato in sessione e letto una volta, in cima; un modulo che torna con l'errore è la pagina intera, all'indirizzo del modulo. Nessun nome, e nessun numero di una persona, in un indirizzo: la persona e la camera stanno nel corpo.
+
 ## 6. Scrivere i testi
 
 ### Tono
@@ -1672,6 +1707,16 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **Segnalazioni**: «Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.»; il bottone «Mostra le segnalazioni» e, dopo, «Lettura registrata: Marta Bianchi, 18 settembre 2027 alle 10:05.»; «Nessuna segnalazione.» se non c'è niente. Si dice «segnalazioni», mai «dati sanitari» sul bottone.
 - **Stampe**: «Registro arrivi», «Elenco per la struttura», «Foglio per i maestri», «Stampato il … alle …»; la frase del foglio dice di tenerlo fra i maestri e di distruggerlo alla fine della convivenza.
 - **Un nome solo per ogni azione**: «Inserisci un’iscrizione» dall'elenco di TALITA-5 e dal modulo di Arrivi, «Segna come ricevuta» per la manleva cartacea.
+
+### Camere (TALITA-11)
+
+- **Parole**: «camera» (`Camera 1`, `Stanza azzurra`: il nome è quello della casa, mai chi ci dorme), «posti» (`1 posto`, `4 posti`), «persone» (`1 persona`, `5 persone`), «Senza camera», «Maestro», «Vuota». **Mai «maschi» né «femmine», mai forme accordate al sesso** nei testi: nessuno chiede il sesso, e il controllo del nome della camera lo rifiuta.
+- **Le camere**: «5 persone · 4 posti», «Vuota · 4 posti» e «Nessuno ci dorme, per ora.»; l'avviso «5 persone per 4 posti.» e, nel riepilogo, «Più persone dei posti. Puoi tenerle così, ma controlla.»; le opzioni «Camera 1 · 5 su 4 posti». Lo zero in parole: «Nessuna», «Nessuno», «Vuota».
+- **Le persone**: i bambini per cognome e nome, scritti «Nome Cognome»; la riga dice l'età al primo giorno e la presenza, `10 anni · Tutti i giorni`, `9 anni · Sab 18 · Dom 19`, `12 anni · Ven 17 · Sab 18 · pranzo Dom 19` (i giorni intorno al punto, i pranzi dopo); «In forse» è un'etichetta di attenzione; il maestro dice «Maestro». Non si dice mai altro: né sesso, né motivo di una scelta, né note.
+- **Le azioni**: «Metti», «Cambia», «Sposta», «Togli dalla camera», «Aggiungi un maestro», «Aggiungi una camera», «Modifica», «Togli», «Salva la camera», «Copia le camere», «Stampa». I nomi accessibili dicono di chi si parla («Metti Davide Costa in camera», «Cambia la camera di Luca Rossi», «Aggiungi un maestro a Camera 2», «Modifica Camera 1», «Togli Camera 1», «Stampa le camere»).
+- **I messaggi**: «Davide Costa è in Stanza azzurra.» (con «Prima era in Camera 2.» quando un altro l'aveva già messo), «Federico Longo è senza camera.», «Luca Rossi era già senza camera.», «Camera salvata.», «Camera tolta.», «Camere copiate.». Gli errori: «Scrivi il nome della camera.», «Usa al massimo 50 caratteri.», «C’è già una camera con questo nome.», «Scrivi il nome della camera nella casa, non chi ci dorme.» (non ripete la parola trovata), «Scrivi quanti posti ci sono, da 1 a 50.», «Scegli la camera.», «Scegli il maestro.».
+- **Gli stati**: «La convivenza è ancora in bozza: le camere si scrivono già, i bambini compaiono quando i genitori li iscrivono.»; «La convivenza è finita: le camere non si cambiano più.»; «Chi dormiva dove è stato cancellato il 20 settembre 2027, alla fine della convivenza.» con «Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.».
+- **La stampa**: «Questo foglio dice dove dorme ogni persona. Tienilo fra i maestri e distruggilo alla fine della convivenza.» e, in fondo, «Alla fine della convivenza questo foglio va distrutto. Non ha età, presenze, recapiti né segnalazioni.»
 
 ## 7. Accessibilità: controlli prima della PR
 
