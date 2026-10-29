@@ -519,6 +519,28 @@ class RoomPagesTests(
     }
 
     @Test
+    fun `t11 c16 a gathering that is over and has no rooms has no card because the page does not let write them any more, and with rooms the card stays`() {
+        val setup = kit.start()
+        val detail = "/convivenza/${setup.id}"
+        assertTrue(setup.marta.get(detail).body().contains("aria-labelledby=\"camere\""), "before the end the card says to write them")
+
+        kit.endedDaysAgo(setup.id, 1)
+        val html = setup.marta.get(detail).body()
+        assertFalse(html.contains("aria-labelledby=\"camere\""), "after the last day the card does not offer what the page refuses")
+        assertFalse(words(html).contains("Scrivi le camere") || words(html).contains("Nessuna camera per ora"), words(html))
+        // The page is still there by its address, and has nothing to do.
+        val response = setup.marta.get("$detail/camere")
+        val page = words(response.body())
+        assertEquals(200, response.status())
+        assertTrue(page.contains("Nessuna camera") && !page.contains("Aggiungi una camera"), page)
+
+        // With rooms the card stays, with the house only.
+        kit.room(setup.id, "Camera 1", 4)
+        val withRooms = words(setup.marta.get(detail).body())
+        assertTrue(withRooms.contains("Camere Vedi le camere 1 camera · 4 posti"), withRooms)
+    }
+
+    @Test
     fun `t11 c16 the page of the rooms is not found for a gathering that does not exist`() {
         val setup = kit.start()
         assertEquals(404, setup.marta.get("/convivenza/${setup.id + 100_000}/camere").status())

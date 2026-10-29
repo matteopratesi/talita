@@ -93,18 +93,18 @@ class GatheringPresenter(
             ),
             registrations = registrations(gathering, today),
             retention = if (draft) null else retention(gathering, over, today),
-            rooms = roomsCard(gathering),
+            rooms = roomsCard(gathering, over),
         )
     }
 
     /**
      * The card «Camere» (TALITA-11, criterion 16): a row that leads to the page, with how many rooms, how many beds and how many children have no room, and never a name. While there
-     * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms). A draft has no children, and after the end the people of the rooms
-     * are deleted: those two say only the house.
+     * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms), and neither has one that is over: after the last day rooms are not
+     * written any more, so the card would offer what the page refuses. A draft has no children, and after the end the people of the rooms are deleted: those two say only the house.
      */
-    private fun roomsCard(gathering: Gathering): RoomsCard? {
+    private fun roomsCard(gathering: Gathering, over: Boolean): RoomsCard? {
         val summary = roomSummaries.summary(gathering.id)
-        if (summary.rooms == 0 && gathering.days.size == 1) return null
+        if (summary.rooms == 0 && (gathering.days.size == 1 || over)) return null
         val href = "/convivenza/${gathering.id}/camere"
         if (summary.rooms == 0) return RoomsCard("Scrivi le camere", href, "Nessuna camera per ora.")
         val rooms = if (summary.rooms == 1) "1 camera" else "${summary.rooms} camere"
