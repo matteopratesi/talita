@@ -5,6 +5,9 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.TransactionTemplate
 import talita.account.PublicUrl
 import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
@@ -102,8 +105,10 @@ sealed interface SendResult {
  *
  * **Sending** ([send]) is one transaction under an advisory lock of Postgres on the gathering and the kind, so that a double tap or two teachers at the same moment send
  * once: the second finds the row of the first. Inside it, in this order: the gathering is open, the last one of this kind is [WAIT_DAYS] days old or more, the people are
- * worked out **there** (not before: who is in forse when the lock is held is who gets the mail), the day has enough reminders left, the mails leave in one connection,
- * and the row of the register is written only if at least one mail left. The log has the gathering, the kind and the numbers, never an address, a code or a link.
+ * worked out **there** (not before: who is in forse when the lock is held is who gets the mail), the day has enough reminders left, **the codes to stop are written and
+ * committed in a transaction of their own** (a code that is in a mailbox must exist whatever happens next: a rollback after the mails left would leave a link that stops
+ * nobody), the mails leave in one connection, and the row of the register is written only if at least one mail left. The log has the gathering, the kind and the numbers,
+ * never an address, a code or a link.
  */
 @Service
 class Reminders(
@@ -113,9 +118,16 @@ class Reminders(
     private val mailer: Mailer,
     private val quota: MailQuota,
     private val publicUrl: PublicUrl,
+    transactions: PlatformTransactionManager,
 ) {
 
     private val log = LoggerFactory.getLogger(Reminders::class.java)
+
+    /**
+     * A transaction that is **never** the one around it: it commits when its block ends, whatever the caller does after. `dsl.transaction` is not that: the one of Spring Boot
+     * is `PROPAGATION_NESTED`, a savepoint inside the transaction that is already there, which a later rollback takes away with everything else.
+     */
+    private val ofItsOwn = TransactionTemplate(transactions).apply { propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW }
 
     // ---- Who ---------------------------------------------------------------------------------------------------------------------
 
@@ -181,7 +193,9 @@ class Reminders(
                 return@transactionResult SendResult.QuotaLow(remaining, people.size)
             }
 
-            val codes = codesFor(tx, people)
+            // Committed before any mail leaves (not with `tx`: a failure after the mails left, say the row of the register, would take the codes away with it, and the links
+            // «Non mandarmi più promemoria» of the mails in the mailboxes would point to codes that no account has). It writes only for people who are going to be written to.
+            val codes = checkNotNull(ofItsOwn.execute { codesFor(dsl, people) })
             val mails = people.mapNotNull { person -> codes[person.accountId]?.let { mail(type, gathering, person, it) } }
             val results = mailer.sendAll(mails, MailKind.REMINDER)
             val reached = results.count { it == MailResult.SENT }
@@ -218,7 +232,8 @@ class Reminders(
 
     /**
      * The code to stop of each of [people]: the one they have, or a new one (96 random bits, written at the first reminder: `update … where reminder_code is null`, so two
-     * requests cannot give an account two). An account that is gone in the meantime has none and is left out.
+     * requests cannot give an account two). An account that is gone in the meantime has none and is left out. It runs in [ofItsOwn], with the [DSLContext] of the application
+     * (which reads the connection of the transaction that is current, that one).
      */
     private fun codesFor(tx: DSLContext, people: List<Recipient>): Map<Long, String> {
         val ids = people.map { it.accountId }

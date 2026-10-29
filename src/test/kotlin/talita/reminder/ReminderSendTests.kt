@@ -15,6 +15,7 @@ import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.ClockConfiguration
 import talita.TestcontainersConfiguration
+import talita.account.MockBrowser
 import talita.gathering.text
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.ReminderKind
@@ -34,8 +35,10 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -147,6 +150,58 @@ class ReminderSendTests(
 
         assertEquals(code, kit.codeOf(s.a.id), "the link of the first mail still works")
         assertEquals(2, Mailbox.sentTo(s.a.email).size)
+    }
+
+    /** The code that a mail has in the address to stop. */
+    private fun stopCodeIn(text: String): String = Regex("""/promemoria/smetti\?codice=([A-Za-z0-9_-]{16})""").find(text)?.groupValues?.get(1) ?: error("no address to stop in the mail")
+
+    /**
+     * Runs [block] with a trigger that makes every insert in the register of the sends fail (a statement that fails after the mails left: a connection lost, a timeout), and takes
+     * it away at the end. The tests of a class run one at a time, so no other test finds it.
+     */
+    private fun <T> withTheRegisterFailing(block: () -> T): T {
+        dsl.execute("create function t13_forced_failure() returns trigger language plpgsql as 'begin raise exception ''forced by the test''; end'")
+        dsl.execute("create trigger t13_forced_failure before insert on reminder_batch for each row execute function t13_forced_failure()")
+        try {
+            return block()
+        } finally {
+            dsl.execute("drop trigger if exists t13_forced_failure on reminder_batch")
+            dsl.execute("drop function if exists t13_forced_failure()")
+        }
+    }
+
+    @Test
+    fun `t13 c04 when the sending fails after the mails left the code in the mail still stops the account (the codes are committed before the mails leave)`() {
+        val s = kit.scenario()
+
+        // The mails leave, and then the transaction fails on the row of the register: it is rolled back, and nothing says that the mails went.
+        withTheRegisterFailing { assertFailsWith<Exception> { reminders.send(s.gathering, ReminderType.MAYBE) } }
+
+        val received = Mailbox.waitForMail(s.a.email)
+        val code = stopCodeIn(received.text)
+        assertTrue(kit.batches(s.gathering).isEmpty(), "the row of the register was rolled back")
+        assertEquals(code, kit.codeOf(s.a.id), "the code of the mail that is in the mailbox is the one of the account")
+        val tap = MockBrowser(mockMvc).submit("/promemoria/smetti?codice=$code", "/promemoria/smetti", mapOf("codice" to code))
+        assertEquals(200, tap.response.status)
+        assertNotNull(kit.stopOf(s.a.id), "the link of a mail that left stops the account, as the page says")
+    }
+
+    @Test
+    fun `t13 c04 the codes are written in a transaction of their own, so a transaction around the sending that is rolled back does not take them away`() {
+        val s = kit.scenario()
+        class Forced : RuntimeException("forced by the test")
+
+        // `send` called inside a transaction (it is not, from the controller, but nothing in the code says that it cannot be): the savepoint of `dsl.transaction` would not be enough.
+        assertFailsWith<Forced> {
+            dsl.transaction { _ ->
+                assertTrue(reminders.send(s.gathering, ReminderType.MAYBE) is SendResult.Sent)
+                throw Forced()
+            }
+        }
+
+        val code = stopCodeIn(Mailbox.waitForMail(s.a.email).text)
+        assertTrue(kit.batches(s.gathering).isEmpty(), "everything of the transaction around was rolled back")
+        assertEquals(code, kit.codeOf(s.a.id), "but the code was committed before the mail left")
     }
 
     @Test
