@@ -166,7 +166,21 @@ class PrintE2eTest {
         assertEquals(8, headers.size, "the child, three days, due, paid, manleva and notes: $headers")
         assertEquals(listOf("Bambino"), headers.take(1))
         assertEquals(listOf("Dovuta", "Pagato", "Manleva", "Note"), headers.takeLast(4))
-        assertTrue(headers[1].startsWith("V ${w.yesterday.dayOfMonth}") && headers[2].startsWith("S ${w.today.dayOfMonth}") && headers[3].startsWith("D ${w.tomorrow.dayOfMonth}"), "$headers")
+        // The letter of each day is the one of its weekday, whatever the day the test runs (it was written on a Saturday, with the days Friday, Saturday and Sunday).
+        fun letter(day: LocalDate): String = when (day.dayOfWeek) {
+            java.time.DayOfWeek.MONDAY -> "L"
+            java.time.DayOfWeek.TUESDAY -> "Ma"
+            java.time.DayOfWeek.WEDNESDAY -> "Me"
+            java.time.DayOfWeek.THURSDAY -> "G"
+            java.time.DayOfWeek.FRIDAY -> "V"
+            java.time.DayOfWeek.SATURDAY -> "S"
+            java.time.DayOfWeek.SUNDAY -> "D"
+        }
+        assertTrue(
+            headers[1].startsWith("${letter(w.yesterday)} ${w.yesterday.dayOfMonth}") && headers[2].startsWith("${letter(w.today)} ${w.today.dayOfMonth}") &&
+                headers[3].startsWith("${letter(w.tomorrow)} ${w.tomorrow.dayOfMonth}"),
+            "$headers",
+        )
         val body = table.locator("tbody tr:not(.riga-vuota)")
         assertEquals(listOf("Nicolò Ferri", "Sara Neri", "Anna Rossi", "Luca Rossi"), body.locator("td.nome").allInnerTexts().map { it.plain() }, "no withdrawn registration, by surname")
         fun row(name: String) = body.filter(Locator.FilterOptions().setHasText(name))

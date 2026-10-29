@@ -151,9 +151,6 @@ data class RoomForm(
     val action: String,
 )
 
-/** The page without JavaScript that stands in for the dialog «Togliere la camera»: the same words, and the way back. */
-data class RoomRemoval(val model: ConfirmModel)
-
 /**
  * Turns the board of a gathering into what the pages show (design TALITA-11): every sentence written here is the one of the design. The rules (what is over, who is free,
  * which room has more people than beds) come from [RoomBoard]: nothing is decided twice.

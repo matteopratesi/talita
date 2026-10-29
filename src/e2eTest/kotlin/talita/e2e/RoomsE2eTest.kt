@@ -66,7 +66,11 @@ class RoomsE2eTest {
 
     private fun Page.sameDocument(): Boolean = evaluate("window.__marker") == "stesso"
 
-    private fun Page.focusOnNotice(): Boolean = evaluate("!!document.activeElement && document.activeElement.hasAttribute('data-fuoco')") == true
+    /** The focus goes to the notice when the page has settled after the answer: it is waited for, not read at once. */
+    private fun Page.focusOnNotice(): Boolean {
+        focusIs("document.activeElement.hasAttribute('data-fuoco')")
+        return true
+    }
 
     private fun Page.choose(person: String, room: String, name: String) {
         getByLabel("Camera di $name").selectOption(room)
