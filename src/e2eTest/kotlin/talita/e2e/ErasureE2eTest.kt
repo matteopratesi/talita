@@ -72,7 +72,7 @@ class ErasureE2eTest {
 
         assertThat(page).hasTitle("Profilo · Talità")
         assertThat(page.locator("h1")).hasText("Profilo")
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Email da Talità", "I tuoi dati"))
         assertThat(page.locator("main")).containsText("Teniamo nome, cognome e data di nascita dei tuoi figli per precompilare l’iscrizione dell’anno dopo. Li cancelli quando vuoi.")
         assertThat(page.locator("main").linkNamed("Per quanto tempo teniamo i dati")).hasAttribute("href", "/informativa#per-quanto-tempo")
         assertThat(page.locator("main").linkNamed("Cancella i dati di Luca Rossi")).isVisible()
@@ -381,7 +381,7 @@ class ErasureE2eTest {
 
         e2e.open("/profilo")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Il tuo nome", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Il tuo nome", "Email da Talità", "I tuoi dati"))
         assertThat(page.locator("main").linkNamed("Cancella i dati di Giulia Blu")).isVisible()
         assertThat(page.locator("main")).not().containsText("Luca")
         // The dialog of the account has the words of both roles, and the child who is theirs.

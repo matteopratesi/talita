@@ -281,7 +281,7 @@ class ArrivalsDayE2eTest {
 
         // Every request that changes something, with a good CSRF code, as a person who writes it by hand: 403, and nothing changes in the database.
         e2e.open("/profilo")
-        val csrf = page.locator("input[name=_csrf]").inputValue()
+        val csrf = page.locator("input[name=_csrf]").first().inputValue()
         val posts = listOf(
             "/arrivi/$mine/presenze", "/arrivi/$mine/presenze/togli", "/arrivi/$mine/pagamenti", "/arrivi/$mine/pagamenti/$payment/togli", "/arrivi/$mine/manleva",
             "/arrivi/$mine/rimetti", "/arrivi/$mine/segnalazioni", "/arrivi/$other/presenze", "/arrivi/999999999/presenze",

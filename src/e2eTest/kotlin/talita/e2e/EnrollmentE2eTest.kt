@@ -532,7 +532,7 @@ class EnrollmentE2eTest {
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
         assertEquals(1, e2e.dsl().fetchCount(CHILD), "the child is the same, not a new one")
         assertEquals(2, e2e.dsl().fetchCount(REGISTRATION))
-        assertThat(page.locator("main h2").filter(Locator.FilterOptions().setHasText("Convivenza"))).hasText(arrayOf("Convivenza di settembre 2027", "Convivenza dell’anno scorso"))
+        assertThat(page.locator("main h2").filter(Locator.FilterOptions().setHasText("Convivenza").setHasNotText("Avviso per la prossima"))).hasText(arrayOf("Convivenza di settembre 2027", "Convivenza dell’anno scorso"))
     }
 
     @E2eTest(teacher = false)
