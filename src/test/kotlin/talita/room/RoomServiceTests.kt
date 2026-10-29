@@ -21,11 +21,14 @@ import talita.registration.Registrations
 import java.time.Clock
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /**
  * The rules of the rooms on a Postgres that is real (criteria 2, 4, 5, 7-13): what is written and what is refused, who is in the list of those who have no room, the two teachers at
@@ -47,6 +50,21 @@ class RoomServiceTests(
 
     private fun child(gathering: Long, first: String, last: String, days: Map<java.time.LocalDate, String>? = null, status: RegistrationStatus = RegistrationStatus.confirmed): Long =
         kit.rows.register(gathering, kit.checkin.account(), first, last, days = days, status = status)
+
+    /**
+     * Waits until [task] is really blocked on a lock that another transaction holds (a backend of this database that waits for a transaction to end), and fails if it is not: a task
+     * that has not started yet is not blocked, and one that has finished never was, so letting the lock go after that would not test the case that the test says. Nothing here
+     * depends on how long the task takes to start: the database is asked every 20 ms, for 30 seconds at most. [what] is what the test says should happen.
+     */
+    private fun awaitBlocked(task: Future<*>, what: String) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+        while (dsl.fetch("select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
+            if (task.isDone) fail("$what: but it has finished (isDone = true, ${runCatching { task.get() }.fold({ "result $it" }, { "failed with ${it.cause ?: it}" })}) and was never blocked")
+            if (System.nanoTime() > deadline) fail("$what: but no transaction waits for a lock after 30 seconds (isDone = ${task.isDone})")
+            Thread.sleep(20)
+        }
+        assertFalse(task.isDone, "$what: a transaction waits for a lock, so the task is not finished")
+    }
 
     // ---- A room: written, changed, taken away, copied (criteria 2, 4, 5) ------------------------------------------------------------------
 
@@ -160,13 +178,8 @@ class RoomServiceTests(
             }
             assertTrue(written.await(30, TimeUnit.SECONDS))
             val second = pool.submit<CopyResult> { rooms.copyPrevious(setup.id) }
-            // Wait until the second copy is really blocked on the lock of the first (a backend of this database that waits for a transaction to end): committing before that
-            // would let it find the rooms at its check, and the case that this test is about would not happen.
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
-            while (dsl.fetch("select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
-                assertTrue(System.nanoTime() < deadline && !second.isDone, "the second copy should wait for the first (${if (second.isDone) second.get() else "still running"})")
-                Thread.sleep(20)
-            }
+            // Committing before the second copy is really blocked on the lock of the first would let it find the rooms at its check, and the case that this test is about would not happen.
+            awaitBlocked(second, "the second copy should wait for the first")
             commit.countDown()
             first.get(30, TimeUnit.SECONDS)
             assertEquals(CopyResult.NotEmpty, second.get(30, TimeUnit.SECONDS))
@@ -349,8 +362,7 @@ class RoomServiceTests(
             held.await(20, TimeUnit.SECONDS)
             // The second chooses Camera 2 for the same child: it waits for the first, and then changes the row that is there.
             val second = pool.submit<PlaceResult> { rooms.place(setup.id, PersonRef.Child(luca), two) }
-            Thread.sleep(300)
-            assertEquals(false, second.isDone, "the second choice waits for the first")
+            awaitBlocked(second, "the second choice should wait for the first")
             release.countDown()
             first.get(20, TimeUnit.SECONDS)
             val result = assertIs<PlaceResult.Placed>(second.get(20, TimeUnit.SECONDS))
@@ -432,8 +444,7 @@ class RoomServiceTests(
             }
             held.await(20, TimeUnit.SECONDS)
             val withdrawing = pool.submit<ChangeResult> { registrations.withdraw(sara, null) }
-            Thread.sleep(300)
-            assertEquals(false, withdrawing.isDone, "the withdrawal waits for the choice, which holds the registration")
+            awaitBlocked(withdrawing, "the withdrawal should wait for the choice, which holds the registration")
             release.countDown()
             choosing.get(20, TimeUnit.SECONDS)
             assertEquals(ChangeResult.Done, withdrawing.get(20, TimeUnit.SECONDS))
@@ -459,8 +470,7 @@ class RoomServiceTests(
             }
             held.await(20, TimeUnit.SECONDS)
             val choosing = pool2.submit<PlaceResult> { rooms.place(setup.id, PersonRef.Child(anna), one) }
-            Thread.sleep(300)
-            assertEquals(false, choosing.isDone, "the choice waits for the withdrawal")
+            awaitBlocked(choosing, "the choice should wait for the withdrawal")
             release.countDown()
             withdrawing.get(20, TimeUnit.SECONDS)
             assertEquals(PlaceResult.Withdrawn("Anna Rossi"), choosing.get(20, TimeUnit.SECONDS))
