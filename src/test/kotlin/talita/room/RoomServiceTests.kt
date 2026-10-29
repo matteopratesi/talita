@@ -13,6 +13,7 @@ import talita.TestcontainersConfiguration
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.ROOM
 import talita.jooq.tables.references.ROOM_CHILD
 import talita.registration.ChangeResult
 import talita.registration.RestoreResult
@@ -129,11 +130,48 @@ class RoomServiceTests(
             val start = CountDownLatch(1)
             val results = (1..2).map { pool.submit<CopyResult> { start.await(10, TimeUnit.SECONDS); rooms.copyPrevious(setup.id) } }
             start.countDown()
-            results.forEach { it.get(30, TimeUnit.SECONDS) }
+            val answers = results.map { it.get(30, TimeUnit.SECONDS) }
+            assertEquals(listOf(CopyResult.Copied(2)), answers.filterIsInstance<CopyResult.Copied>(), "$answers")
+            assertEquals(1, answers.count { it == CopyResult.NotEmpty }, "$answers")
         } finally {
             pool.shutdownNow()
         }
         assertEquals(2, kit.roomCount(setup.id), "the names are unique: the second copy has nothing to add")
+    }
+
+    @Test
+    fun `t11 c04 a copy that finds the rooms written by another copy at the same moment is told that there are rooms already, not that it copied none`() {
+        val setup = kit.start()
+        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
+        kit.room(before, "Camera 1", 4)
+        kit.room(before, "Camera 2", 4)
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            // The first copy has written the rooms and has not committed yet: the second passes the check, and its insert waits for the first to end and then skips every row.
+            val written = CountDownLatch(1)
+            val commit = CountDownLatch(1)
+            val first = pool.submit {
+                dsl.transaction { configuration ->
+                    val tx = DSL.using(configuration)
+                    tx.insertInto(ROOM, ROOM.GATHERING_ID, ROOM.NAME, ROOM.BEDS).values(setup.id, "Camera 1", 4.toShort()).values(setup.id, "Camera 2", 4.toShort()).execute()
+                    written.countDown()
+                    commit.await(30, TimeUnit.SECONDS)
+                }
+            }
+            assertTrue(written.await(30, TimeUnit.SECONDS))
+            val second = pool.submit<CopyResult> { rooms.copyPrevious(setup.id) }
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+            while (dsl.fetchValue("select count(*) from pg_stat_activity where wait_event_type = 'Lock'", Int::class.java) == 0) {
+                assertTrue(System.nanoTime() < deadline && !second.isDone, "the second copy should wait for the first (${if (second.isDone) second.get() else "still running"})")
+                Thread.sleep(20)
+            }
+            commit.countDown()
+            first.get(30, TimeUnit.SECONDS)
+            assertEquals(CopyResult.NotEmpty, second.get(30, TimeUnit.SECONDS))
+        } finally {
+            pool.shutdownNow()
+        }
+        assertEquals(2, kit.roomCount(setup.id), "the rooms of the first copy, and nothing more")
     }
 
     @Test

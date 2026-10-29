@@ -324,7 +324,8 @@ class Rooms(
             val copied = tx.insertInto(ROOM, ROOM.GATHERING_ID, ROOM.NAME, ROOM.BEDS)
                 .select(DSL.select(DSL.inline(gatheringId), ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.GATHERING_ID.eq(source.gatheringId)).orderBy(ROOM.ID))
                 .onConflictDoNothing().execute()
-            CopyResult.Copied(copied)
+            // [previous] has at least one room: nothing inserted means that the rows were skipped because another teacher's copy (not yet committed at the check above) wrote them.
+            if (copied == 0) CopyResult.NotEmpty else CopyResult.Copied(copied)
         }
     }
 
