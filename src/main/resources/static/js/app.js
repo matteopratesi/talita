@@ -18,6 +18,9 @@
 //   browser on the names that are in the page, asks the server nothing and writes no name in an address or in a log;
 // - after a piece of a page is replaced the focus goes to the first wrong field or to its notice, without moving the page when the element is already in sight
 //   (the choices of «Camere» are made one after the other on a long page);
+// - the form that sends a file (`data-carica`, the menu of the gathering) is not taken by htmx: the browser sends it and shows its own progress; while the file
+//   leaves, the form takes the class that htmx gives to a request on its way (so the button says «Caricamento…» and the page dims, as for every other request)
+//   and its button is disabled, so a second tap does not send the file twice;
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
 //   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
@@ -453,6 +456,27 @@
   document.addEventListener("htmx:afterSettle", showCopyAndShare);
   document.addEventListener("DOMContentLoaded", showCopyAndShare);
   showCopyAndShare();
+
+  // ---- A form that sends a file ----
+
+  // The form is a normal one (a whole page comes back), outside htmx, so the class of a request on its way is given here: `busy:`, `page-busy:` and `nav-busy:`
+  // of the style sheet read it. Without JavaScript the browser shows its own progress and its own error.
+  function setSending(form, sending) {
+    form.classList.toggle("htmx-request", sending);
+    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+      button.disabled = sending;
+    });
+  }
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (form && form.hasAttribute && form.hasAttribute("data-carica")) setSending(form, true);
+  });
+
+  // The back button can bring the page back as it was when it left, with the form in the middle of its sending: it is a form that can be used again.
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll("form[data-carica]").forEach((form) => setSending(form, false));
+  });
 
   // A form that comes back with its errors stays at the address it had: no second entry in the history.
   document.addEventListener("htmx:beforeHistoryUpdate", (event) => {

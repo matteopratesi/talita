@@ -166,19 +166,10 @@ class PrintE2eTest {
         assertEquals(8, headers.size, "the child, three days, due, paid, manleva and notes: $headers")
         assertEquals(listOf("Bambino"), headers.take(1))
         assertEquals(listOf("Dovuta", "Pagato", "Manleva", "Note"), headers.takeLast(4))
-        // The letter of each day is the one of its weekday, whatever the day the test runs (it was written on a Saturday, with the days Friday, Saturday and Sunday).
-        fun letter(day: LocalDate): String = when (day.dayOfWeek) {
-            java.time.DayOfWeek.MONDAY -> "L"
-            java.time.DayOfWeek.TUESDAY -> "Ma"
-            java.time.DayOfWeek.WEDNESDAY -> "Me"
-            java.time.DayOfWeek.THURSDAY -> "G"
-            java.time.DayOfWeek.FRIDAY -> "V"
-            java.time.DayOfWeek.SATURDAY -> "S"
-            java.time.DayOfWeek.SUNDAY -> "D"
-        }
+        // The letters are those of the days of the week of the days of the test (the register writes L, Ma, Me, G, V, S, D): the test does not depend on the day it runs.
         assertTrue(
-            headers[1].startsWith("${letter(w.yesterday)} ${w.yesterday.dayOfMonth}") && headers[2].startsWith("${letter(w.today)} ${w.today.dayOfMonth}") &&
-                headers[3].startsWith("${letter(w.tomorrow)} ${w.tomorrow.dayOfMonth}"),
+            headers[1].startsWith("${registerLetter(w.yesterday)} ${w.yesterday.dayOfMonth}") && headers[2].startsWith("${registerLetter(w.today)} ${w.today.dayOfMonth}") &&
+                headers[3].startsWith("${registerLetter(w.tomorrow)} ${w.tomorrow.dayOfMonth}"),
             "$headers",
         )
         val body = table.locator("tbody tr:not(.riga-vuota)")
@@ -355,4 +346,15 @@ class PrintE2eTest {
 
     /** The link of a row of «Da stampare»: its name is the title and the line under it, so it is found by the title. */
     private fun Locator.linkWith(title: String): Locator = locator("a").filter(Locator.FilterOptions().setHasText(title))
+
+    /** The letter that the register writes over a day: the same words as `PrintPresenter.letter`. */
+    private fun registerLetter(day: java.time.LocalDate): String = when (day.dayOfWeek) {
+        java.time.DayOfWeek.MONDAY -> "L"
+        java.time.DayOfWeek.TUESDAY -> "Ma"
+        java.time.DayOfWeek.WEDNESDAY -> "Me"
+        java.time.DayOfWeek.THURSDAY -> "G"
+        java.time.DayOfWeek.FRIDAY -> "V"
+        java.time.DayOfWeek.SATURDAY -> "S"
+        java.time.DayOfWeek.SUNDAY -> "D"
+    }
 }

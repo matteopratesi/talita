@@ -11,6 +11,8 @@ Aggiunte da TALITA-4: plus, pencil (convivenza), copy, share-2, printer, eye (li
 
 Aggiunte da TALITA-7: archive (conservata fino al, stato vuoto di quello che è stato cancellato), shield-check (per quanto tempo teniamo i dati).
 
+Aggiunte da TALITA-12: upload, download, image, utensils (il file del menù: carica, scarica, foto del foglio, il collegamento in Arrivi).
+
 Aggiunte da TALITA-6: phone (Chiama), list (elenco per la struttura), clipboard-list (registro arrivi), chevron-left (Torna agli arrivi), search (ricerca nella lista).
 
 Aggiunte da TALITA-11: bed-double (camere: la scheda nella Convivenza, la pagina, lo stato vuoto, la scheda del bambino in Arrivi).

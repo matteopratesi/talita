@@ -18,6 +18,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-11/` sono i mockup delle camere (TALITA-11, Grace Kerning): 20 pagine statiche più l'indice (`index.html`) e `talita-11.css`, con i dati sintetici della «Convivenza di settembre 2027» (Camera 1, Camera 2, Stanza azzurra): la pagina «Camere» con tutti i suoi stati, il modulo della camera, il dialogo «Togli», la stampa, la scheda del bambino di Arrivi con la camera e la scheda «Conservazione dei dati» con la riga delle camere. Le righe sulla cancellazione dicono «alla fine della convivenza» (decisione di Matteo: chi dorme dove si cancella dal giorno dopo la fine). «Camera dei maschi» in `camera-nuova-errori.html` è il valore sbagliato che mostra l'errore, non un testo dell'app. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
 
+`docs/design/TALITA-12/` sono i mockup del menù della convivenza (TALITA-12, Grace Kerning): 9 pagine statiche più l'indice (`index.html`), con dati sintetici e senza risorse esterne né script: la scheda «Menù» del dettaglio (senza file, con il file, dialogo «Togli»), la pagina per caricare e sostituire (in attesa, errore di tipo, errore di dimensione) e «Menù» in Arrivi. Dove il mockup e il testo del ticket non vanno d'accordo, vale il testo. Il campo per il file, la scheda con un file e il dialogo sono in 4.2, 4.4 e 4.8.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -454,7 +456,7 @@ Icone assegnate (nomi di Lucide):
 | Modifica | `pencil` |
 | Elimina | `trash-2` |
 | Cerca | `search` |
-| Esporta | `download` |
+| Esporta, scarica un file | `download` |
 | Esci | `log-out` |
 | Riprova | `rotate-cw` |
 | Chiudi | `x` |
@@ -494,6 +496,9 @@ Icone assegnate (nomi di Lucide):
 | Conservata fino al…, quello che è stato cancellato (stato vuoto neutro) | `archive` |
 | Per quanto tempo teniamo i dati | `shield-check` |
 | Camere (TALITA-11): la scheda nella Convivenza, la pagina, lo stato vuoto e la scheda del bambino in Arrivi | `bed-double` |
+| Carica un file, sostituisci il file (TALITA-12) | `upload` |
+| File che è una foto: JPEG o PNG (TALITA-12) | `image` |
+| Il menù, il collegamento in Arrivi (TALITA-12) | `utensils` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
@@ -646,7 +651,7 @@ Note:
 | Ordine | Etichetta | URL | Icona | Chi la vede | Cosa ci sarà |
 |---|---|---|---|---|---|
 | 1 | Home | `/` | `house` | Maestro e genitore | pagina iniziale |
-| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | la convivenza (stato, date, luogo, quote, maestri affidatari, informazioni e link per i genitori) e, sotto, «Maestri» |
+| 2 | Convivenza | `/convivenza` | `calendar-days` | Solo maestro | la convivenza (stato, date, luogo, quote, maestri affidatari, informazioni e link per i genitori, menù) e, sotto, «Maestri» |
 | 3 | Iscrizioni | `/iscrizioni` | `users-round` | Maestro e genitore | per il maestro elenco e inserimento dal modulo cartaceo; per il genitore le iscrizioni dei suoi figli |
 | 4 | Arrivi | `/arrivi` | `clipboard-check` | Solo maestro | la lista del giorno con «Segna presente», la scheda del bambino (giorni, recapito, segnalazioni, quota e pagamenti, manleva) e le tre stampe: registro arrivi, elenco per la struttura, foglio per i maestri |
 
@@ -674,6 +679,7 @@ Regole:
   corrente.
 - URL in italiano e senza accenti (li vede chi usa Talità, anche nei link condivisi).
 - «Convivenza» è la voce corrente anche in `/convivenza/{id}/camere`, nelle pagine sotto (la camera nuova, la modifica, «Togli la camera») e nella stampa, come in «Maestri» (TALITA-11).
+- «Convivenza» è la voce corrente anche in `/convivenza/{id}/menu` (caricare e sostituire il menù) e in `/convivenza/{id}/menu/togli` (la pagina che sta al posto del dialogo senza JavaScript, TALITA-12); `/convivenza/{id}/menu/file` non è una pagina ma un file da scaricare.
 - «Arrivi» è la voce corrente in `/arrivi`, nelle schede dei bambini (`/arrivi/{id}`) e nelle tre stampe (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio`). Il selettore dei
   giorni di Arrivi (4.20) è una seconda `nav`, con la sua etichetta: la navigazione principale è la `nav` che sta sotto il corpo della pagina.
 
@@ -1007,6 +1013,21 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 </div>
 ```
 
+- **Campo per il file** (`components/fileField.jte`, TALITA-12: il file del menù): l'etichetta sempre visibile sopra («File del menù»), un aiuto (che dice cosa si può scegliere, il limite e chi lo vede), il **campo nativo** del browser e l'errore sotto, come per ogni campo. Il campo nativo ha il suo bottone «Scegli file» alto 48 px (`file:min-h-12`), che sul telefono apre la scelta fra fotocamera, foto e file; con i nomi lunghi il browser tronca con i puntini: il nome intero si vede nella scheda dopo il caricamento. `accept` suggerisce (`application/pdf,image/jpeg,image/png`) e non decide: cosa è davvero il file lo dice il server. **Nessun `required` e `novalidate` sul form**: gli errori sono i nostri. Con un errore il campo ha `aria-invalid="true"` e `autofocus` (la risposta è una pagina intera e `app.js` sposta il fuoco solo dopo uno scambio di htmx); `aria-describedby` elenca aiuto, avviso (se c'è) ed errore (se c'è), solo gli `id` che esistono. Il browser svuota il campo dopo un errore: il file va scelto di nuovo, e la pagina lo dice prima (una nota sotto i bottoni). Il form è fuori da htmx (sezione 5).
+
+```html
+<div class="space-y-1.5">
+  <label for="menu-file" class="block font-semibold">File del menù</label>
+  <p id="menu-file-aiuto" class="text-sm text-ink-muted">Un PDF, oppure una foto JPEG o PNG del foglio. Al massimo 10 MB. Lo vedono solo i maestri.</p>
+  <input id="menu-file" name="file" type="file" accept="application/pdf,image/jpeg,image/png" autofocus
+         aria-describedby="menu-file-aiuto menu-file-avviso menu-file-errore" aria-invalid="true"
+         class="block min-h-12 w-full cursor-pointer overflow-hidden rounded-xl border border-line-strong bg-surface text-sm text-ink-muted file:mr-3 file:min-h-12 file:cursor-pointer file:border-0 file:bg-surface-muted file:px-4 file:text-base file:font-semibold file:text-ink focus:border-brand aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft">
+  <p id="menu-file-errore" class="flex items-start gap-1.5 text-sm font-medium text-danger">…circle-alert…Il file è troppo grande: al massimo 10 MB.</p>
+</div>
+```
+
+- **Avviso sopra il campo** (TALITA-12): quando la cosa da dire serve **prima** di scegliere e non si può correggere dopo (qui: «Nel file niente nomi, allergie o altri dati dei bambini: le allergie stanno nelle segnalazioni.»), non è una riga d'aiuto ma un avviso di attenzione (4.6, `warning`, **senza `role`**: c'è sempre, non segue un'azione) dentro il form, sopra il campo (`mb-5`), e il campo lo cita nel suo `aria-describedby`. Una riga d'aiuto si salta, un avviso si vede: l'app non legge il file e non può accorgersi di cosa contiene, quindi è l'unica difesa che ha.
+
 ### 4.3 Liste
 
 La lista è il componente principale di Talità: iscrizioni, maestri, arrivi.
@@ -1118,6 +1139,29 @@ larghezza (`-mr-21`): il select delle altre camere, «Sposta» (primario) e «To
 - **Scheda «Conservazione dei dati»** (TALITA-7, dettaglio della convivenza): titolo, una frase (`text-ink-muted`) e righe «etichetta · valore · spiegazione» in un `dl` (`space-y-3`; la riga `sm:grid sm:grid-cols-[11rem_1fr] sm:gap-x-6`; `<dt class="text-sm text-ink-muted">`; nel `<dd>` un `<p class="font-medium">` con la data e un `<p class="text-sm text-ink-muted">` con il motivo). È un'informazione, non un'azione: nessun bottone e nessun form.
 - **Riquadro neutro con icona** (TALITA-7, «Segnalazioni cancellate il …»): `grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted` con l'icona `trash-2` `size-6`, e accanto due frasi (la prima in `font-semibold`, la seconda `text-sm text-ink-muted`). Prende il posto del bottone «Mostra le segnalazioni», ed è uguale per ogni iscrizione.
 - **Il titolo della scheda e il suo «Modifica»** stanno sulla stessa riga (`flex items-center justify-between gap-3`), con il bottone di testo e l'icona `pencil`; il bottone ha un `aria-label` che dice cosa si modifica («Modifica le quote»), perché sulla pagina ce ne sono quattro.
+
+- **Scheda con un file** (TALITA-12, «Menù» del dettaglio della convivenza): il riquadro con l'icona del tipo (`file-text` per il PDF, `image` per JPEG e PNG, `grid size-10 place-items-center rounded-xl bg-brand-soft text-brand`), il **nome in grassetto** (`wrap-anywhere`: è il testo di chi l'ha scritto, mai markup, e va a capo anche senza spazi), sotto «PDF · 240 KB · caricato il 3 settembre alle 21:40» (`text-sm text-ink-muted`: il tipo si scrive, non solo l'icona), poi le azioni. **«Scarica» è secondario** (la pagina ha già un primario) e **fuori da htmx** (`hx-boost="false"`: il browser salva il file e la pagina resta com'è); «Sostituisci» e «Togli» sono bottoni di testo (4.19) con `aria-label` che dice cosa toglie («Togli il menù»). **Niente anteprima né miniatura**: il file si scarica e basta, e il bottone dice «Scarica», mai «Apri». La scheda legge nome, tipo, dimensione e data, mai il contenuto. Senza file: una riga («Nessun menù caricato.»), una frase piccola in `ink-muted` e un bottone secondario a tutta larghezza sul telefono («Carica il menù»). Dopo le azioni, in cima alla pagina, l'avviso di conferma (4.6, `role="status"`: «Menù caricato.», «Menù tolto.»).
+
+```html
+<section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="menu">
+  <h2 id="menu" class="text-lg font-semibold">Menù</h2>
+  <div class="mt-3 flex items-start gap-3">
+    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">…file-text…</span>
+    <div class="min-w-0 flex-1">
+      <p class="font-semibold wrap-anywhere">menu-settembre-2027.pdf</p>
+      <p class="text-sm text-ink-muted">PDF · 240 KB · caricato il 3 settembre alle 21:40</p>
+    </div>
+  </div>
+  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <a href="/convivenza/12/menu/file" hx-boost="false" aria-label="Scarica il menù" class="…secondario, w-full sm:w-auto…">…download…Scarica</a>
+    <div class="-ml-3 flex flex-wrap gap-1 sm:ml-0">
+      <a href="/convivenza/12/menu" class="…testo…">…upload…Sostituisci</a>
+      <a href="/convivenza/12/menu/togli" data-apri="dialogo-togli-menu" aria-label="Togli il menù" class="…testo…">…trash-2…Togli</a>
+    </div>
+  </div>
+  <p class="mt-3 text-sm text-ink-muted">Lo vedono solo i maestri. Scaricato sul telefono, si apre anche senza rete.</p>
+</section>
+```
 
 ### 4.5 Etichette di stato
 
@@ -1251,6 +1295,7 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   l'azione sostituisce; il suo form è un `hx-post` verso lo stesso blocco. L'id del dialogo è `togli-0`,
   `ritira-0`…: mai un nome o un indirizzo.
 - **Passi dello stato della convivenza** (aprire, chiudere, riaprire le iscrizioni, TALITA-4): il bottone è un **link** con `data-apri` verso la pagina di conferma (`/convivenza/12/apri`), che senza JavaScript è la pagina con gli stessi testi (`pages/confirmAction.jte`, «Annulla» torna alla convivenza). Il form del dialogo è un normale form della pagina, non un blocco che si sostituisce (`ConfirmModel.target` nullo): risponde 303 alla pagina con la conferma. `app.js` ascolta i `data-apri` nella fase di cattura, perché un link è anche un link che htmx fa navigare. Una bozza che non si può aprire non ha dialogo: il bottone manda il form e la pagina risponde con l'elenco di cosa manca (4.6).
+- **«Togliere il menù?»** (TALITA-12): un secondo dialogo nella pagina del dettaglio, con un altro id (`dialogo-togli-menu`), accanto a quello dei passi dello stato: possono esserci tutti e due. Il form è un normale form della pagina (`ConfirmModel.target` nullo: risponde 303 al dettaglio con «Menù tolto.»), con un campo nascosto innocuo (`from` = `detail`); senza JavaScript il bottone è un link a `GET /convivenza/{id}/menu/togli`, la pagina di conferma con gli stessi testi. Il bottone è di **pericolo** («Togli il menù»; in attesa «Rimozione…»): il file si cancella e non torna, a meno di ricaricarlo. Il testo non dice il nome del file («Il file del menù viene cancellato da Talità e i maestri non potranno più scaricarlo. Chi l’ha già scaricato ne ha una copia sul telefono. Potrai caricarne un altro quando vuoi.»): vale uguale se il menù è già stato tolto o sostituito, e la pagina di conferma non legge niente. «Annulla» ha il fuoco.
 - **Se la richiesta del dialogo fallisce** (rete assente, lenta, errore del server, accesso negato) i dialoghi
   aperti si chiudono prima che compaia il messaggio (4.7): un dialogo aperto sta sopra a tutto, anche ai messaggi,
   e il messaggio resterebbe nascosto sotto il suo sfondo. La pagina resta com'era e il messaggio si vede.
@@ -1595,6 +1640,14 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **Idempotenza**: mettere nella camera dov'è già, o togliere chi è già tolto, risponde 200 con il blocco e il messaggio che dice com'è, mai un errore.
 - **Senza JavaScript** ogni modulo è un `POST` che risponde 303 a `#senza-camera` («Metti»), alla camera da cui parte la persona o alla pagina, con il messaggio lasciato in sessione e letto una volta, in cima; un modulo che torna con l'errore è la pagina intera, all'indirizzo del modulo. Nessun nome, e nessun numero di una persona, in un indirizzo: la persona e la camera stanno nel corpo.
 
+### Il file del menù (TALITA-12)
+
+- **Un form fuori da htmx** (`hx-boost="false"` sul form): il caricamento di un file è una pagina intera, non un pezzo di pagina. Il limite di 20 secondi di htmx taglierebbe un caricamento lento dal telefono, e un file non si manda con `hx-post` senza un modo di mostrare l'avanzamento: lo mostra il browser. È un `multipart/form-data` con il codice CSRF nel corpo, e funziona senza JavaScript. Le risposte sono pagine intere: **422** con la pagina e l'errore sotto il campo (il fuoco va al campo per `autofocus`, perché `app.js` lo sposta solo dopo uno scambio di htmx) e **303** al dettaglio con l'avviso lasciato in sessione.
+- **Feedback mentre il file parte** (`form[data-carica]`, `app.js`): all'evento `submit` il form prende la classe `htmx-request` (così valgono `busy:`, `page-busy:` e `nav-busy:`: il bottone dice «Caricamento…» o «Sostituzione…» con la rotellina, la barra in cima compare dopo 300 ms e la pagina si attenua, come per ogni altra richiesta) e il bottone si spegne, così un secondo tocco non manda il file due volte; con `pageshow` (il tasto indietro) toglie tutto. Senza JavaScript restano l'avanzamento e l'errore del browser.
+- **Un file troppo grande per il contenitore** (oltre 20 MB): il server risponde 303 alla pagina del form, che legge dalla sessione che il file era troppo grande e scrive lo **stesso errore, con lo stesso aspetto, sotto il campo**: un errore, un solo aspetto.
+- **Un link che scarica** (`hx-boost="false"` sul link: «Scarica» della scheda e la riga «Menù» di Arrivi): htmx non lo prende, il browser salva il file e la pagina resta com'è, con e senza JavaScript. La risposta è `attachment`: mai una pagina, mai una pagina nuova nella cronologia. Una pagina rimasta aperta dopo che il menù è stato tolto dà la 404 di sempre.
+- **«Togli»** passa da htmx come ogni dialogo di conferma (4.8): se la richiesta fallisce il dialogo si chiude e compare il messaggio a comparsa, senza «Riprova» (è un POST).
+
 ## 6. Scrivere i testi
 
 ### Tono
@@ -1687,6 +1740,8 @@ la trovi qui con le date, i maestri e le iscrizioni."
 | Anni diversi in un intervallo | trattino medio con spazi, l'anno di ogni data | 30 dicembre 2027 – 1 gennaio 2028 |
 | Un giorno solo | la data intera | 18 settembre 2027 |
 | Singolare e plurale | sempre giusti | 1 bambino, 24 bambini (mai "bambino/i") |
+| Dimensione di un file | KB interi sotto 1 MB (almeno «1 KB»), da 1 MB in MB con una cifra decimale se serve; 1 KB = 1.024 byte; da 1000 KB in su si dice in MB, perché «1.023 KB» si legge male | 240 KB, 1 MB, 1,5 MB, 10 MB |
+| Quando è stato caricato un file | giorno e mese, «alle» e l'ora (ora del posto), con l'anno solo se non è quello di oggi | 3 settembre alle 21:40 · 3 settembre 2026 alle 21:40 |
 
 Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 
@@ -1717,6 +1772,13 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **I messaggi**: «Davide Costa è in Stanza azzurra.» (con «Prima era in Camera 2.» quando un altro l'aveva già messo), «Federico Longo è senza camera.», «Luca Rossi era già senza camera.», «Camera salvata.», «Camera tolta.», «Camere copiate.». Gli errori: «Scrivi il nome della camera.», «Usa al massimo 50 caratteri.», «C’è già una camera con questo nome.», «Scrivi il nome della camera nella casa, non chi ci dorme.» (non ripete la parola trovata), «Scrivi quanti posti ci sono, da 1 a 50.», «Scegli la camera.», «Scegli il maestro.».
 - **Gli stati**: «La convivenza è ancora in bozza: le camere si scrivono già, i bambini compaiono quando i genitori li iscrivono.»; «La convivenza è finita: le camere non si cambiano più.»; «Chi dormiva dove è stato cancellato il 20 settembre 2027, alla fine della convivenza.» con «Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.» (solo se la convivenza ha camere); finita e **senza camere**: «La convivenza è finita: le camere non si cambiano più.» e lo stato vuoto «Nessuna camera» con «In questa convivenza non sono state scritte camere.», senza invito a scriverle né copia.
 - **La stampa**: «Questo foglio dice dove dorme ogni persona. Tienilo fra i maestri e distruggilo alla fine della convivenza.» e, in fondo, «Alla fine della convivenza questo foglio va distrutto. Non ha età, presenze, recapiti né segnalazioni.»
+
+### Il menù (TALITA-12)
+
+- **Un solo nome per ogni cosa**: «Menù» (la scheda, la riga di Arrivi), «Carica il menù» / «Sostituisci il menù» (il bottone e il titolo della pagina), «Scarica» (mai «Apri»: il file non si apre nell'app), «Togli» (si può rimediare ricaricandolo, quindi non «Cancella»).
+- **Avvisi**: «Menù caricato.» (anche per la sostituzione: il server non deve sapere se c'era già) e «Menù tolto.»; mai il nome del file, né negli avvisi né nei dialoghi.
+- **Errori**, sempre sotto il campo e con le stesse parole per lo stesso errore: «Scegli il file del menù.» (nessun file, o file vuoto), «Questo file non è un PDF, un JPEG o un PNG.» e «Il file è troppo grande: al massimo 10 MB.» (anche per i file oltre il limite del contenitore). Il limite viene dalla costante dell'app, mai scritto a mano.
+- **Chi lo vede** si dice dove serve: «Lo vedono solo i maestri.» nell'aiuto e nella scheda; «Scaricato sul telefono, si apre anche senza rete.» dice perché si scarica.
 
 ## 7. Accessibilità: controlli prima della PR
 

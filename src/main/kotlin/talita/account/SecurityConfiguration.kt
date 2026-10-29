@@ -16,7 +16,9 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 import org.springframework.security.web.authentication.AuthenticationConverter
 import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
+import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy
+import talita.ui.TooLargeUploadFilter
 import java.time.Clock
 
 /**
@@ -96,6 +98,8 @@ class SecurityConfiguration {
             }
 
             addFilterBefore<AnonymousAuthenticationFilter>(CurrentAccountFilter(accounts))
+            // A form with a file that is past the limit of the container (TALITA-12): Tomcat throws when the filter of the CSRF code asks for the code, so this one comes before.
+            addFilterBefore<CsrfFilter>(TooLargeUploadFilter())
         }
         return http.build()
     }

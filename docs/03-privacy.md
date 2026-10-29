@@ -121,7 +121,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi, chi ha invitato chi: se
     servono (per esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
-  luogo di nascita; nessun documento caricato, nessuna firma.
+  luogo di nascita; nessun documento caricato (con la sola eccezione del file del menù: sezione «Il file del menù», sotto), nessuna firma.
 - **Segnalazioni** in una tabella separata, visibili ai maestri della convivenza e al genitore che le ha scritte e a nessun altro, con ogni lettura dei maestri
   registrata (TALITA-5 e TALITA-7). Come funziona (TALITA-5):
   - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
@@ -200,6 +200,15 @@ Le stampe di TALITA-6 portano **data e ora di stampa** su ogni documento e non h
 **Segnalazioni su carta: no.** Matteo ha risposto no alla domanda 6 di TALITA-6: nessuna stampa le contiene (nemmeno il foglio per i maestri), quindi **non c'è
 nessuna deroga** alla regola 4 e le segnalazioni non escono dalla loro tabella. Senza rete le segnalazioni non si leggono dall'app (per i bambini iscritti dal
 cartaceo c'è il modulo di carta). La stampa non scrive nessuna lettura, perché non legge nessuna segnalazione.
+
+## Il file del menù
+
+TALITA-12 aggiunge **un solo file** per convivenza: il menù che prepara chi cucina (un PDF, o la foto del foglio), caricato dai maestri per averlo sempre a portata di mano. È **l'eccezione stretta a «documenti caricati»** (`docs/02-modello-dati.md`, «Mai»); le manleve, gli elenchi e i registri restano fuori dall'app. La decisione è di Matteo, 24/10/2026, e il perché sta in `docs/05-decisioni.md`.
+
+- **Minimizzazione.** Il menù **non deve contenere dati personali**: niente nomi, allergie o altri dati dei bambini (le allergie stanno nelle segnalazioni, regola 4). L'app **non legge il file** (niente parser di PDF o di immagini) e quindi non può controllarlo: la difesa è l'**avviso** sopra il campo, che dice cosa non metterci, e il fatto che chi lo vede sono solo i maestri. Un'allergia scritta accanto a un nome sarebbe un dato sanitario fuori dalla sua tabella: si toglie subito (con «Togli») e si avvisa Matteo, che come titolare valuta se serve altro. Nome, tipo, dimensione e data del file sono dati della convivenza, come titolo e date; chi l'ha caricato non si salva. **Metadati**: un PDF può portare l'autore, una foto il luogo dello scatto; l'app non li legge e non li toglie, e dal browser del telefono il luogo di solito non parte.
+- **Misure, come si serve il file.** Solo per i maestri (`/convivenza` e ciò che sta sotto: 403 a un genitore, anche a mano, con un test su ogni indirizzo; senza accesso `/accedi`). **Mai** nella pagina informativa, nella sua anteprima né nelle pagine dei genitori. Lo scarico è **sempre `attachment`** (il file non si apre mai sulla nostra origine), con `X-Content-Type-Options: nosniff` e una `Content-Security-Policy: default-src 'none'; sandbox` che prende il posto di quella delle pagine, e il `Cache-Control: no-store` di tutte le pagine di chi è dentro: un PDF con script o collegamenti lo apre il visore del telefono o del computer, non l'app. Il tipo si riconosce dai primi byte (un `menu.pdf` che contiene una pagina con uno script è rifiutato), il nome è solo testo e il limite di 10 MB lo controlla l'app. **Il log** (INFO e oltre) ha l'id della convivenza, il tipo e la dimensione, **mai il nome né il contenuto**. Il file sta nel database (hosting) e nei backup cifrati (TALITA-8): nessun fornitore nuovo.
+- **Conservazione.** Il menù non è un dato personale e **non va nella scheda «Conservazione dei dati»** di TALITA-7: resta con la convivenza finché un maestro non lo toglie o lo sostituisce, come le vecchie convivenze, e un maestro lo toglie quando vuole (il file si cancella subito dal database; restano le copie scaricate nei telefoni, da cancellare a mano, e i backup, che lo perdono con il loro giro entro 30 giorni). Una convivenza nuova nasce senza menù: quello dell'anno prima resta con la sua.
+- **L'informativa non cambia**: lì «documenti» sono quelli della famiglia, e il menù non è un dato di nessuno.
 
 ## Conservazione
 
