@@ -227,6 +227,24 @@ class RoomRetentionTests(
     }
 
     @Test
+    fun `t11 c20 c13 the card of the retention of a gathering that is over and has no rooms has no line Chi dorme dove, which would say that something was deleted and that rooms stay`() {
+        val setup = kit.start()
+        fun card(): String = words(Regex("""<section[^>]*aria-labelledby="conservazione".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(setup.marta.get("/convivenza/${setup.id}").body())!!.value)
+
+        // Going on and with no rooms yet: the teachers can still write them, and the line says what will happen to who sleeps where.
+        assertTrue(card().contains("Chi dorme dove Si cancella il"), card())
+        // Over and with no rooms: nothing was written, so nothing was deleted and no room stays for the copy. The other lines are as they were.
+        kit.endedDaysAgo(setup.id, 1)
+        val over = card()
+        assertFalse(over.contains("Chi dorme dove") || over.contains("Le camere restano") || over.contains("cancellato il"), over)
+        assertTrue(over.contains("Segnalazioni") && over.contains("Iscrizioni, manleve e registro arrivi") && over.contains("Su carta"), over)
+        assertTrue(over.indexOf("Segnalazioni") < over.indexOf("Iscrizioni, manleve e registro arrivi") && over.indexOf("Iscrizioni, manleve e registro arrivi") < over.indexOf("Su carta"), "the order of the others")
+        // With a room, even empty as the job leaves it, the line is there and says what happened.
+        kit.room(setup.id, "Camera 1", 4)
+        assertTrue(card().contains("Chi dorme dove È stato cancellato il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine della convivenza. Le camere restano, senza nomi, per copiarle l’anno dopo."), card())
+    }
+
+    @Test
     fun `t11 c20 the notice of the time and the words of the pages follow the policy, so the period is written in one place`() {
         val standard = texts
         val month = RetentionTexts(RetentionPolicy(rooms = Period.ofMonths(1)))

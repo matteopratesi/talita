@@ -63,6 +63,7 @@ class GatheringPresenter(
         val draft = gathering.state == GatheringState.DRAFT
         val missing = gatherings.missing(gathering, custodians.size, today)
         val fees = gathering.fees
+        val roomSummary = roomSummaries.summary(gathering.id)
 
         return DetailPage(
             id = gathering.id,
@@ -93,8 +94,8 @@ class GatheringPresenter(
                 copyPrimary = !draft && !over,
             ),
             registrations = registrations(gathering, today),
-            retention = if (draft) null else retention(gathering, over, today),
-            rooms = roomsCard(gathering, over),
+            retention = if (draft) null else retention(gathering, over, today, roomSummary.rooms),
+            rooms = roomsCard(gathering, over, roomSummary),
             menu = menuPresenter.card(gathering.id),
         )
     }
@@ -104,8 +105,7 @@ class GatheringPresenter(
      * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms), and neither has one that is over: after the last day rooms are not
      * written any more, so the card would offer what the page refuses. A draft has no children, and after the end the people of the rooms are deleted: those two say only the house.
      */
-    private fun roomsCard(gathering: Gathering, over: Boolean): RoomsCard? {
-        val summary = roomSummaries.summary(gathering.id)
+    private fun roomsCard(gathering: Gathering, over: Boolean, summary: RoomSummary): RoomsCard? {
         if (summary.rooms == 0 && (gathering.days.size == 1 || over)) return null
         val href = "/convivenza/${gathering.id}/camere"
         if (summary.rooms == 0) return RoomsCard("Scrivi le camere", href, "Nessuna camera per ora.")
@@ -117,16 +117,18 @@ class GatheringPresenter(
 
     /**
      * The card «Conservazione dei dati» (design TALITA-7, part 3, 1): the verb says «Si cancellano il …» before the date and «Cancellate il …» from the day of the date, whatever
-     * the database holds, so the card and the pages say the same thing at every hour. The line «Su carta» is a proposal of the design: it tells whoever holds the paper when to destroy it.
+     * the database holds, so the card and the pages say the same thing at every hour. The line «Su carta» is a proposal of the design: it tells whoever holds the paper when to destroy it. The line «Chi dorme
+     * dove» is not there once the gathering is over and has no rooms ([rooms] is zero): nobody can write rooms any more, so nothing was written, nothing was deleted and no room stays for the
+     * copy of the year after, and the line would say three things that did not happen (the pages of the rooms and the card of the child in Arrivi say the same: criterion 13).
      */
-    private fun retention(gathering: Gathering, over: Boolean, today: LocalDate): RetentionCard {
+    private fun retention(gathering: Gathering, over: Boolean, today: LocalDate, rooms: Int): RetentionCard {
         val notesDate = GatheringFormat.date(policy.notesDeletionDate(gathering.endDate))
         val registrationsDate = GatheringFormat.date(policy.registrationsDeletionDate(gathering.endDate))
         val notesGone = policy.notesExpired(gathering.endDate, today)
         val registrationsGone = policy.registrationsExpired(gathering.endDate, today)
         val roomsDate = GatheringFormat.date(policy.roomsDeletionDate(gathering.endDate))
         val roomsGone = policy.roomsExpired(gathering.endDate, today)
-        val lines = listOf(
+        val lines = listOfNotNull(
             RetentionLine(
                 "Segnalazioni",
                 if (notesGone) "Cancellate il $notesDate" else "Si cancellano il $notesDate",
@@ -144,7 +146,7 @@ class GatheringPresenter(
                 } else {
                     "${texts.capital(texts.roomsWhen)}, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano, senza nomi, per copiarle l’anno dopo."
                 },
-            ),
+            ).takeUnless { over && rooms == 0 },
             RetentionLine(
                 "Iscrizioni, manleve e registro arrivi",
                 if (registrationsGone) "Cancellate il $registrationsDate" else "Si cancellano il $registrationsDate",
