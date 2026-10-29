@@ -16,6 +16,8 @@
 //   the texts are in the template, the code only does;
 // - the list of the arrivals can be searched by name (`data-filtro`, shown only here: without JavaScript the list is whole): the search runs in the
 //   browser on the names that are in the page, asks the server nothing and writes no name in an address or in a log;
+// - after a piece of a page is replaced the focus goes to the first wrong field or to its notice, without moving the page when the element is already in sight
+//   (the choices of «Camere» are made one after the other on a long page);
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
 //   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
@@ -109,6 +111,15 @@
     if (heading) heading.focus({ preventScroll: true });
   }
 
+  /** The element is inside the screen, between the bars that cover the top and the bottom of the phone (the scroll padding of the page says how much). */
+  function isInView(element) {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(document.documentElement);
+    const top = parseFloat(style.scrollPaddingTop) || 0;
+    const bottom = parseFloat(style.scrollPaddingBottom) || 0;
+    return rect.top >= top && rect.bottom <= window.innerHeight - bottom;
+  }
+
   /** The element that the fragment of the address names (`#luogo`), if there is one. */
   function fragmentTarget() {
     if (!location.hash) return null;
@@ -129,7 +140,9 @@
     const scope = root || document;
     const target = scope.querySelector('[aria-invalid="true"]') || scope.querySelector("[data-fuoco]");
     if (target) {
-      target.focus();
+      // On a long page (thirty-five children in «Camere») the notice is where the person touched: if it is already in sight the focus does not move the page, so whoever
+      // puts twenty children in a room one after the other does not go back to the top each time; if it is not, the focus scrolls to it as always.
+      target.focus({ preventScroll: isInView(target) });
     } else if (pageChanged) {
       const named = fragmentTarget();
       if (named) {
