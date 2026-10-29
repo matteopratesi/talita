@@ -6,6 +6,7 @@ import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL
 import org.jooq.impl.SQLDataType
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
 import talita.account.CurrentAccount
 import talita.gathering.GatheringInfo
@@ -152,6 +153,7 @@ class Registrations(
     private val gatherings: GatheringReader,
     private val healthNotes: HealthNotes,
     private val policy: RetentionPolicy,
+    private val onWithdrawal: ObjectProvider<WithdrawalListener>,
 ) : RegistrationUsage {
 
     private fun now(): OffsetDateTime = OffsetDateTime.now(clock)
@@ -415,6 +417,8 @@ class Registrations(
         if (!allowed(gathering, teacher = owner == null)) return@transactionResult ChangeResult.NotAllowed(gathering.over)
         tx.update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.withdrawn).set(REGISTRATION.UPDATED_AT, now()).where(REGISTRATION.ID.eq(id)).execute()
         healthNotes.remove(tx, id)
+        // Whatever hangs from the registration and has to go with the withdrawal (the room of the child), in the transaction that holds the registration locked.
+        onWithdrawal.orderedStream().forEach { it.withdrawn(tx, id) }
         ChangeResult.Done
     }
 
