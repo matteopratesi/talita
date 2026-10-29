@@ -104,6 +104,23 @@ internal class ReminderTestKit(private val dsl: DSLContext, private val clock: C
         return Scenario(gathering, previous, a, b, c, d, m, n, luca, anna, sara, nicolo)
     }
 
+    /** An account with one child in forse at [gathering] (a child with a made-up name: the tests of the mails look for it in the text). */
+    fun inForse(gathering: Long, name: String): Person {
+        val person = account(name)
+        rows.register(gathering, person.id, "Bimbo", "Prova", LocalDate.of(2018, 3, 3), status = RegistrationStatus.maybe, email = person.email)
+        return person
+    }
+
+    /** A row of the register, as if the reminder had gone [daysAgo] days ago (and a bit more, so that «7 days ago» is past and «6 days ago» is not). */
+    fun batch(gathering: Long, kind: talita.jooq.enums.ReminderKind, daysAgo: Long, recipients: Int = 3, failed: Int = 0, at: OffsetDateTime = OffsetDateTime.now(clock).minusDays(daysAgo)): Long =
+        dsl.insertInto(REMINDER_BATCH)
+            .set(REMINDER_BATCH.GATHERING_ID, gathering)
+            .set(REMINDER_BATCH.KIND, kind)
+            .set(REMINDER_BATCH.SENT_AT, at)
+            .set(REMINDER_BATCH.RECIPIENTS, recipients.toShort())
+            .set(REMINDER_BATCH.FAILED, failed.toShort())
+            .returningResult(REMINDER_BATCH.ID).fetchSingle().value1()!!
+
     // ---- The tables -----------------------------------------------------------------------------------------------------------
 
     fun batches(gathering: Long): List<talita.jooq.tables.records.ReminderBatchRecord> =

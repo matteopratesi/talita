@@ -77,6 +77,8 @@ data class DetailPage(
     val whatToBring: List<String>,
     val link: LinkCard,
     val registrations: RegistrationsCard,
+    /** The card «Promemoria» (TALITA-13): in every state, with only a sentence when the registrations are not open. */
+    val reminders: RemindersCard,
     /** The card «Conservazione dei dati» (TALITA-7): null for a draft, which has no registrations. */
     val retention: RetentionCard?,
 )

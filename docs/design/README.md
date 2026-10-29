@@ -486,6 +486,10 @@ Icone assegnate (nomi di Lucide):
 | Si apre in una nuova scheda | `external-link` |
 | Iscrizioni chiuse | `calendar-x` |
 | Chiama il genitore | `phone` |
+| Manda il promemoria | `send` |
+| Riprendi i promemoria | `bell` |
+| Non mandarmi più promemoria | `bell-off` |
+| La pagina per smettere i promemoria | `mail-x` |
 | Elenco per la struttura | `list` |
 | Registro arrivi | `clipboard-list` |
 | Torna agli arrivi | `chevron-left` |

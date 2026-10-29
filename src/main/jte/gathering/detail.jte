@@ -108,6 +108,8 @@
       @endif
     </section>
 
+    @template.reminder.remindersCard(card = page.getReminders(), csrf = csrf)
+
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="quando">
       <div class="flex items-center justify-between gap-3">
         <h2 id="quando" class="text-lg font-semibold">Quando e dove</h2>
