@@ -482,6 +482,19 @@ class RoomServiceTests(
     }
 
     @Test
+    fun `t11 c13 with the registrations closed everything still changes until the last day, as with them open`() {
+        val setup = kit.start(status = GatheringStatus.closed)
+        val luca = child(setup.id, "Luca", "Rossi")
+
+        val saved = assertIs<SaveResult.Saved>(rooms.create(setup.id, "Camera 1", 4))
+        assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Child(luca), saved.room.id))
+        assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Teacher(setup.giuliaId), saved.room.id))
+        assertIs<SaveResult.Saved>(rooms.update(setup.id, saved.room.id, "Camera 1 bis", 3))
+        assertIs<PlaceResult.Cleared>(rooms.clear(setup.id, PersonRef.Child(luca)))
+        assertEquals(RemoveResult.Removed("Camera 1 bis", 1), rooms.remove(setup.id, saved.room.id))
+    }
+
+    @Test
     fun `t11 c13 until the last day everything changes, and from the day after the end nothing does and every write is refused with nothing changed`() {
         val setup = kit.start()
         val one = kit.room(setup.id, "Camera 1", 4)
