@@ -22,6 +22,13 @@ spring:
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
+  servlet:
+    multipart:
+      # The file of the menu (TALITA-12) is 10 MB at most, and the application checks it (`MenuFile.MAX_BYTES`): the container takes up to 20 MB, so that a file that
+      # is too big for the application gets an answer that says so, from the page, and not an error of the container. A form that is bigger than this
+      # (`max-request-size`) arrives without its fields: `TooLargeUpload` recognises it and the person goes back to the page of the menu.
+      max-file-size: 20MB
+      max-request-size: 20MB
   web:
     resources:
       chain:
@@ -37,6 +44,10 @@ spring:
           cache-public: true
 
 server:
+  tomcat:
+    # Past the limit of the request Tomcat stops reading the parts, and it reads (and throws away) what remains up to this size before it answers: a larger
+    # file than the limit would otherwise end with a closed connection and no answer. Beyond this size the browser can still see an error of its own (accepted).
+    max-swallow-size: 100MB
   servlet:
     session:
       # Sessions live in memory (they do not survive a restart) and end after two hours of no use:

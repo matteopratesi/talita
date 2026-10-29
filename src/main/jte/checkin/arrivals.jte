@@ -61,6 +61,11 @@
 
     @if(page.getState() == ArrivalsState.EMPTY)
       @template.components.emptyState(icon = Icon.USERS_ROUND, title = "Nessun bambino iscritto", text = "Quando i genitori iscrivono i bambini, li trovi qui con gli arrivi. Se un genitore ha compilato il modulo di carta, puoi inserirlo tu.", href = page.getNewHref(), label = "Inserisci un’iscrizione", buttonIcon = Icon.PLUS, spaced = true)
+      @if(page.getMenu() != null)
+        <div class="mt-4">
+          @template.checkin.menuCard(menu = page.getMenu())
+        </div>
+      @endif
     @else
       <div hidden data-filtro class="mt-4">
         <label for="cerca" class="sr-only">Cerca un bambino</label>
@@ -116,6 +121,9 @@
           </ul>
           <p class="border-t border-line px-4 py-3 text-sm text-ink-muted lg:px-6">Stampa il registro e il foglio prima di partire: se manca la rete, segni a mano e trascrivi dopo.</p>
         </section>
+        @if(page.getMenu() != null)
+          @template.checkin.menuCard(menu = page.getMenu())
+        @endif
       </div>
     @endif
   @endif

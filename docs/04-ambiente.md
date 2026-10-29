@@ -113,6 +113,15 @@ solo le regole e i numeri (`Retention: rule notes deleted 12 rows.`), mai un nom
 Nei test dell'applicazione è spento (`talita.retention.automatic=false`, impostato da `TestcontainersConfiguration`): ogni test lo chiama a mano con un `Clock` fisso, così non cancella da solo sotto gli altri test. Lo smoke test del jar controlla che il log dell'avvio
 dica che il job ha girato. Il backup del giorno deve partire **dopo** le 4:15 (`docs/03-privacy.md`, «Backup: requisiti per TALITA-8»).
 
+## Il file del menù e il limite delle richieste
+
+Il menù della convivenza è un file (PDF, JPEG o PNG) che i maestri caricano (TALITA-12, `docs/03-privacy.md`). **Nessuna variabile nuova**: i valori sono in `application.yaml`.
+
+- **Limite del file: 10 MB**, controllato dall'app (`MenuFile.MAX_BYTES`, una costante sola: la usano il controllo, l'aiuto sotto il campo e il vincolo della tabella).
+- **Il contenitore** prende richieste fino a **20 MB** (`spring.servlet.multipart.max-file-size` e `max-request-size`; prima valevano quelli di Spring, 1 e 10 MB), così un file troppo grande per l'app riceve una risposta chiara dalla pagina. Una richiesta più grande non si legge: Tomcat lancia, e il filtro `TooLargeUploadFilter` riporta la persona alla pagina del menù. `server.tomcat.max-swallow-size` è **100 MB**: Tomcat legge e butta via il resto di una richiesta troppo grande, e il browser riceve la risposta invece di una connessione chiusa. Oltre i 100 MB il browser può vedere un errore suo (accettato).
+- **Per il deploy (TALITA-8)**: il proxy davanti all'app deve lasciar passare richieste di **almeno 20 MB** (nginx, senza configurazione, si ferma a 1 MB: `client_max_body_size`); con un limite più basso un file da 15 MB non arriva all'app e la persona vede l'errore del proxy.
+- **Sviluppo e test**: il file sta nella tabella `gathering_menu` come ogni altro dato; i file di prova dei test si costruiscono in memoria (`MenuSamples`), mai nel repo (la build rifiuta PDF e immagini tracciati), e i test dei file oltre i 20 MB usano un server vero (`MenuOversizeTests`, Testcontainers e un client HTTP) o il browser (`FilePayload`), perché MockMvc non ha Tomcat.
+
 ## Build, sviluppo e test
 
 - **Build completa**: `./gradlew build` (migrazioni, generazione jOOQ, template JTE, CSS di Tailwind,
