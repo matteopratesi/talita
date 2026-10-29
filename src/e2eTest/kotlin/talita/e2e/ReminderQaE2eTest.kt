@@ -38,6 +38,7 @@ import java.util.Locale
 import java.util.regex.Pattern
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -203,6 +204,8 @@ class ReminderQaE2eTest {
         assertEquals(1, Mailbox.sentTo(x.b.email).size)
         assertEquals(1, Mailbox.sentTo(x.a.email).size, "A has registered, so no avviso, with the avviso asked or not")
         for (person in x.silent) assertTrue(Mailbox.sentTo(person.email).isEmpty(), "${person.email} received a mail")
+        for (person in x.silent) assertNull(e2e.codeOf(person.id), "${person.email} was not written to, so no code")
+        assertEquals(stopLinkOf(toA.text).substringAfter("codice="), e2e.codeOf(x.a.id), "the link of the mail of A is the code that A has")
         assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", toA.subject)
         assertEquals("Iscrizioni aperte: Convivenza di settembre 2027", toB.subject)
         assertEquals(listOf(x.a.email), toA.to)
@@ -319,6 +322,85 @@ class ReminderQaE2eTest {
         assertThat(teacher.locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*1 persona(?!e).*", Pattern.DOTALL))
         assertThat(teacher.locator("#promemoria-maybe").linkNamed("Manda il promemoria a chi ha un’iscrizione in forse")).isVisible()
         assertThat(teacher.locator("#promemoria-notice")).hasText(Pattern.compile(".*Lo riceverebbero\\s*Nessuno.*", Pattern.DOTALL))
+    }
+
+    // ---- The codes to stop are durable before a mail leaves (criteria 4, 9, 7) ------------------------------------------------------------------------
+
+    private fun E2e.codeOf(id: Long): String? = dsl().select(ACCOUNT.REMINDER_CODE).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchSingle(ACCOUNT.REMINDER_CODE)
+
+    private fun E2e.stoppedAt(id: Long): OffsetDateTime? = dsl().select(ACCOUNT.REMINDERS_OFF_AT).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchSingle(ACCOUNT.REMINDERS_OFF_AT)
+
+    /** The mails that [address] has, once there are at least [count] of them (the mails leave before the answer, but Mailpit is another process). */
+    private fun mailsOf(address: String, count: Int) = run {
+        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+        while (Mailbox.sentTo(address).size < count && System.nanoTime() < deadline) Thread.sleep(100)
+        Mailbox.sentTo(address)
+    }
+
+    @E2eTest(teacher = false)
+    fun `t13 c04 c09 when the register fails after the mails left the teacher is told, the link of each mail still stops its account from the page, and a second send keeps the codes`(e2e: E2e) {
+        val x = e2e.example(extraInForse = 1)
+        val other = x.others.single()
+        val teacher = e2e.newPage(teacher = true)
+        teacher.visit(e2e, "/convivenza/${x.gathering.id}")
+        val card = teacher.locator("#promemoria")
+        assertThat(card.locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*2 persone.*", Pattern.DOTALL))
+        assertNull(e2e.codeOf(x.a.id), "nobody has a code before the first reminder")
+
+        // The row of the register fails after the mails left (a statement that fails: a connection lost, a timeout). The mails are in the mailboxes; the transaction is rolled back.
+        e2e.dsl().execute("create function qa13_forced_failure() returns trigger language plpgsql as 'begin raise exception ''forced by the QA''; end'")
+        e2e.dsl().execute("create trigger qa13_forced_failure before insert on reminder_batch for each row execute function qa13_forced_failure()")
+        try {
+            e2e.sendFromTheDialog(teacher, "Manda il promemoria a chi ha un’iscrizione in forse", "Manda il promemoria")
+            assertThat(teacher.messages().filter(Locator.FilterOptions().setHasText("Qualcosa non ha funzionato"))).hasCount(1)
+            assertEquals(0, card.locator("[role=status], [role=alert]").count(), "the card did not say that it was sent")
+            assertEquals(0, e2e.batches(x.gathering.id), "the register was rolled back: nothing says that the mails went")
+        } finally {
+            e2e.dsl().execute("drop trigger if exists qa13_forced_failure on reminder_batch")
+            e2e.dsl().execute("drop function if exists qa13_forced_failure()")
+        }
+
+        // The mails left, and the code of each link is the one of its account (committed before the mails left, not taken away by the rollback).
+        val firstToA = mailsOf(x.a.email, 1).single()
+        val firstToOther = mailsOf(other.email, 1).single()
+        val linkOfA = stopLinkOf(firstToA.text)
+        val linkOfOther = stopLinkOf(firstToOther.text)
+        val codeOfA = linkOfA.substringAfter("codice=")
+        val codeOfOther = linkOfOther.substringAfter("codice=")
+        assertNotEquals(codeOfA, codeOfOther)
+        assertEquals(codeOfA, e2e.codeOf(x.a.id), "the link of the mail of A is the code that A has")
+        assertEquals(codeOfOther, e2e.codeOf(other.id), "the link of the mail of the other is the code that they have")
+        assertEquals(listOf("<$linkOfA>"), firstToA.headers["list-unsubscribe"])
+        for (person in x.silent) assertNull(e2e.codeOf(person.id), "${person.email} was not written to, so no code")
+
+        // Someone who is not inside opens the link of A and taps: the page says it, and A is really stopped. Nobody else is.
+        val stranger = e2e.newPage(signedIn = false)
+        stranger.visit(e2e, e2e.pathOf(linkOfA))
+        assertThat(stranger.locator("h1")).hasText("Promemoria di Talità")
+        e2e.touch(stranger.buttonNamed("Non mandarmi più promemoria"))
+        assertThat(stranger.locator("h1")).hasText("Non riceverai più promemoria")
+        assertNotNull(e2e.stoppedAt(x.a.id), "the tap on the link of a mail that left stops the account, as the page says")
+        assertNull(e2e.stoppedAt(other.id), "and only that account")
+        e2e.narrow(stranger, "the page for stopping")
+        assertAccessible(stranger, "the page for stopping after a send that failed (${e2e.profile.label})")
+
+        // The teachers were told nothing about the row: the card still has the button, and (accepted, docs/05) one can send again at once. A stopped; the other has the same code in the second mail.
+        teacher.reload()
+        teacher.waitForSettledContent()
+        assertThat(card.locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*1 persona(?!e).*", Pattern.DOTALL))
+        e2e.sendFromTheDialog(teacher, "Manda il promemoria a chi ha un’iscrizione in forse", "Manda il promemoria")
+        assertThat(card.locator("[role=status]")).containsText("Promemoria mandato a 1 persona.")
+        val toOther = mailsOf(other.email, 2)
+        assertEquals(2, toOther.size)
+        assertEquals(linkOfOther, stopLinkOf(toOther.last().text), "the second mail has the same link as the first")
+        assertEquals(codeOfOther, e2e.codeOf(other.id), "the code did not change")
+        assertEquals(1, Mailbox.sentTo(x.a.email).size, "A had stopped: no second mail")
+        assertEquals(1, e2e.batches(x.gathering.id), "now the register has its row")
+        // The link of the first mail of the other still works after the second send: it is the same.
+        stranger.visit(e2e, e2e.pathOf(linkOfOther))
+        e2e.touch(stranger.buttonNamed("Non mandarmi più promemoria"))
+        assertThat(stranger.locator("h1")).hasText("Non riceverai più promemoria")
+        assertNotNull(e2e.stoppedAt(other.id))
     }
 
     // ---- Two teachers at the same moment, and a double tap (criterion 5) ----------------------------------------------------------------------------
@@ -634,6 +716,10 @@ class ReminderQaE2eTest {
         assertAccessible(teacher, "the quota notice (${e2e.profile.label})")
         assertTrue(Mailbox.sentTo(x.a.email).isEmpty())
         assertEquals(40, e2e.application.getBean(MailQuota::class.java).remaining(MailKind.REMINDER), "the places were not used")
+        assertEquals(
+            0, e2e.dsl().fetchCount(ACCOUNT, ACCOUNT.ID.`in`((listOf(x.a) + x.others).map { it.id }).and(ACCOUNT.REMINDER_CODE.isNotNull)),
+            "a send refused for the quota wrote no code: nothing is prepared for a mail that does not leave",
+        )
 
         // One of them stops: 40 people, the whole quota of the day, and they all get their mail (the answer comes well before the 20 seconds of htmx).
         e2e.dsl().update(ACCOUNT).set(ACCOUNT.REMINDERS_OFF_AT, e2e.now()).where(ACCOUNT.ID.eq(x.others.last().id)).execute()
@@ -648,6 +734,8 @@ class ReminderQaE2eTest {
             assertEquals(1, Mailbox.sentTo(person.email).size, "${person.email} has one mail")
         }
         assertTrue(Mailbox.sentTo(x.others.last().email).isEmpty(), "the one who stopped has none")
+        assertNull(e2e.codeOf(x.others.last().id), "and no code: it is written only for who is going to receive a mail")
+        for (person in receivers) assertEquals(stopLinkOf(Mailbox.sentTo(person.email).single().text).substringAfter("codice="), e2e.codeOf(person.id), "the link of the mail is the code of the account")
         assertEquals(40, e2e.dsl().select(REMINDER_BATCH.RECIPIENTS).from(REMINDER_BATCH).where(REMINDER_BATCH.GATHERING_ID.eq(x.gathering.id)).fetchSingle(REMINDER_BATCH.RECIPIENTS)?.toInt())
         assertEquals(0, e2e.application.getBean(MailQuota::class.java).remaining(MailKind.REMINDER))
 
