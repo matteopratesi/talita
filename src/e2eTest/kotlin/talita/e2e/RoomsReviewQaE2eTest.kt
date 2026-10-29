@@ -8,8 +8,12 @@ import talita.gathering.GatheringFormat
 import talita.gathering.GatheringSupport
 import talita.gathering.MenuSamples
 import talita.jooq.enums.GatheringStatus
+import talita.jooq.enums.RegistrationAttendance
+import talita.jooq.enums.RegistrationDayKind
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.GATHERING_MENU
+import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.REGISTRATION_DAY
 import talita.jooq.tables.references.ROOM
 import talita.jooq.tables.references.ROOM_CHILD
 import java.time.LocalDate
@@ -551,5 +555,166 @@ class RoomsReviewQaE2eTest {
         page.setViewportSize(320, 800)
         assertThat(page.locator("nav").linkNamed("Convivenza")).isVisible()
         assertTrue(page.noHorizontalScroll(), "320 px")
+    }
+
+    // ---- Third pass: lunch only in Arrivi (criteria 15, 6, 12) and the card «Conservazione dei dati» of a gathering that is over (criteria 13, 20) ----------------------
+
+    /** The registration becomes lunch only on [day], the way the correction of a teacher leaves it: the room, if it had one, stays (criterion 12). */
+    private fun E2e.lunchOnly(registration: Long, day: LocalDate) {
+        dsl().update(REGISTRATION).set(REGISTRATION.ATTENDANCE, RegistrationAttendance.days).where(REGISTRATION.ID.eq(registration)).execute()
+        dsl().insertInto(REGISTRATION_DAY).set(REGISTRATION_DAY.REGISTRATION_ID, registration).set(REGISTRATION_DAY.DAY, day).set(REGISTRATION_DAY.KIND, RegistrationDayKind.lunch).execute()
+    }
+
+    @E2eTest
+    fun `t11 c15 c06 c12 in Arrivi who comes for lunch only and has no room has no card Camera, who has a night is Senza camera as the page of the rooms says, and who was in a room keeps it`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.arrivalsGathering()
+        val rows = e2e.rows()
+        val base = "/convivenza/${w.id}/camere"
+        val card = page.locator("section[aria-labelledby=camera-titolo]")
+        val room = e2e.room(w.id, "Camera 2", 4)
+        val nicolo = rows.register(w.id, null, "Nicolò", "Ferri", LocalDate.of(2015, 6, 2), enteredBy = w.martaId, days = mapOf(w.today to "lunch"))
+        val samuele = rows.register(w.id, null, "Samuele", "Moretti", LocalDate.of(2016, 9, 9), enteredBy = w.martaId, days = mapOf(w.yesterday to "full", w.tomorrow to "lunch"))
+        val luca = e2e.child(w, "Luca", "Rossi", LocalDate.of(2016, 4, 4))
+        val anna = e2e.child(w, "Anna", "Rossi", LocalDate.of(2018, 1, 9))
+        e2e.put(luca, w.id, room)
+
+        // The page of the rooms (criterion 6): Samuele (a whole day among the lunches) and Anna (every day) have no room; Nicolò (lunch only) is not listed at all.
+        e2e.open(base)
+        assertThat(page.locator("#senza-camera")).containsText("Samuele Moretti")
+        assertThat(page.locator("#senza-camera")).containsText("Anna Rossi")
+        assertThat(page.locator("main")).not().containsText("Nicolò Ferri")
+        assertThat(page.locator("#camera-$room")).containsText("Luca Rossi")
+
+        // Lunch only and no room: the card of the child is there, and has no card «Camera», so no «Senza camera» and no way to a list where he is not.
+        e2e.open("/arrivi/$nicolo")
+        assertThat(page.locator("main")).containsText("Nicolò Ferri")
+        assertEquals(0, card.count(), "no card of the room")
+        assertEquals(0, page.locator("#camera-titolo").count())
+        assertThat(page.locator("main")).not().containsText("Senza camera")
+        assertThat(page.locator("main")).not().containsText("Vai alle camere")
+        assertEquals(0, page.locator("main a[href*='/camere']").count(), "no way to the rooms")
+        page.sideways(e2e, "card of a child for lunch only, no room")
+        assertAccessible(page, "card of a child for lunch only, no room (${e2e.profile.label})")
+
+        // One whole day and a lunch, no room: «Senza camera», and the way leads to the list where he is.
+        e2e.open("/arrivi/$samuele")
+        assertThat(card).containsText("Senza camera")
+        assertThat(card.linkNamed("Vai alle camere")).isVisible()
+        e2e.touch(card.linkNamed("Vai alle camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/convivenza/${w.id}/camere#senza-camera"))
+        assertThat(page.locator("#senza-camera")).containsText("Samuele Moretti")
+        // Every day, no room: the same.
+        e2e.open("/arrivi/$anna")
+        assertThat(card).containsText("Senza camera")
+        assertThat(card.linkNamed("Vai alle camere")).isVisible()
+
+        // Both children become lunch only on a day. The one in the room keeps it, with the card and the way to it (criterion 12); the one with none loses the card, and the page of the
+        // rooms stops listing her: the card and the page say the same.
+        e2e.lunchOnly(luca, w.today)
+        e2e.lunchOnly(anna, w.today)
+        e2e.open("/arrivi/$luca")
+        assertThat(card).containsText("Camera 2")
+        assertThat(card).not().containsText("Senza camera")
+        page.sideways(e2e, "card of a child in a room that became lunch only")
+        assertAccessible(page, "card of a child in a room that became lunch only (${e2e.profile.label})")
+        e2e.touch(card.linkNamed("Camera 2"))
+        assertThat(page).hasURL(Pattern.compile(".*/convivenza/${w.id}/camere#camera-$room"))
+        assertThat(page.locator("#camera-$room")).containsText("Luca Rossi")
+        assertThat(page.locator("#camera-$room")).containsText("pranzo")
+        assertThat(page.locator("#senza-camera")).containsText("Samuele Moretti")
+        assertThat(page.locator("#senza-camera")).not().containsText("Anna Rossi")
+        e2e.open("/arrivi/$anna")
+        assertEquals(0, card.count(), "lunch only and no room: no card of the room")
+        assertThat(page.locator("main")).not().containsText("Vai alle camere")
+
+        // After the end, with the rooms and nobody in them (what the job leaves): who slept there is told that it was deleted, and who came for lunch only has no card (he did not sleep there).
+        e2e.end(w)
+        e2e.dsl().deleteFrom(ROOM_CHILD).where(ROOM_CHILD.GATHERING_ID.eq(w.id)).execute()
+        val deletedOn = GatheringFormat.date(w.today)
+        e2e.open("/arrivi/$samuele")
+        assertThat(card).containsText("Chi dormiva dove è stato cancellato il $deletedOn.")
+        assertThat(card).not().containsText("Senza camera")
+        page.sideways(e2e, "card of a child that slept there, over, rooms and nobody in them")
+        assertAccessible(page, "card of a child that slept there, over, rooms and nobody in them (${e2e.profile.label})")
+        for ((id, who) in listOf(nicolo to "Nicolò Ferri", anna to "Anna Rossi", luca to "Luca Rossi")) {
+            e2e.open("/arrivi/$id")
+            assertThat(page.locator("main")).containsText(who)
+            assertEquals(0, card.count(), "$who came for lunch only: no card of the room after the end")
+            assertThat(page.locator("main")).not().containsText("cancellato")
+            assertThat(page.locator("main")).not().containsText("Senza camera")
+        }
+        page.sideways(e2e, "card of a child for lunch only, over, rooms and nobody in them")
+        assertAccessible(page, "card of a child for lunch only, over, rooms and nobody in them (${e2e.profile.label})")
+        e2e.open(base)
+        assertThat(page.locator("main")).containsText("Chi dormiva dove è stato cancellato il $deletedOn")
+        assertThat(page.locator("main")).not().containsText("Nicolò Ferri")
+    }
+
+    @E2eTest
+    fun `t11 c13 c20 the card Conservazione dei dati has the line Chi dorme dove while the gathering goes on with or without rooms, and after the end only if it has a room, with the other lines where they were`(e2e: E2e) {
+        val page = e2e.page
+        val card = page.locator("section[aria-labelledby=conservazione]")
+        val others = listOf("Segnalazioni", "Iscrizioni, manleve e registro arrivi", "Su carta")
+        val all = listOf("Segnalazioni", "Chi dorme dove", "Iscrizioni, manleve e registro arrivi", "Su carta")
+        fun labels(): List<String> = card.locator("dt").allInnerTexts().map { it.trim() }
+        fun line(): Locator = card.locator("div:has(> dt:text-is('Chi dorme dove'))")
+
+        // Going on, with no rooms: the line is there and says what will happen (the teachers can still write the rooms).
+        val going = e2e.arrivalsGathering()
+        val detail = "/convivenza/${going.id}"
+        e2e.open(detail)
+        assertEquals(all, labels(), "going on, no rooms")
+        assertThat(line()).containsText("Si cancella il ${GatheringFormat.date(going.today.plusDays(2))}")
+        assertThat(line()).containsText("Le camere restano, senza nomi, per copiarle l’anno dopo.")
+        page.sideways(e2e, "retention of a gathering that goes on, no rooms")
+        assertAccessible(page, "detail, going on, no rooms (${e2e.profile.label})")
+        // With a room, and a person in it: the same.
+        val room = e2e.room(going.id, "Camera 1", 4)
+        e2e.put(e2e.child(going, "Luca", "Rossi", LocalDate.of(2016, 4, 4)), going.id, room)
+        e2e.open(detail)
+        assertEquals(all, labels(), "going on, a room")
+        assertThat(line()).containsText("Si cancella il ${GatheringFormat.date(going.today.plusDays(2))}")
+
+        // The last day is today: it is not over yet, and the rooms can be written until the end of the day. With no rooms the line is still there.
+        val last = e2e.arrivalsGathering(first = -2, last = 0)
+        e2e.open("/convivenza/${last.id}")
+        assertEquals(all, labels(), "the last day, no rooms")
+        assertThat(line()).containsText("Si cancella il ${GatheringFormat.date(last.today.plusDays(1))}")
+
+        // The day after the last, with no rooms: nothing was written, nothing was deleted and no room stays. The line goes, the other three stay in their order, with their dates.
+        val over = e2e.arrivalsGathering()
+        e2e.end(over)
+        e2e.open("/convivenza/${over.id}")
+        assertEquals(others, labels(), "over, no rooms")
+        assertThat(card).not().containsText("Chi dorme dove")
+        assertThat(card).not().containsText("Le camere restano")
+        assertThat(card).not().containsText("È stato cancellato")
+        assertThat(card).not().containsText("cancellato il")
+        assertThat(card).containsText("Talità cancella da sola i dati di questa convivenza, ogni notte. Qui vedi quando.")
+        assertThat(card.locator("div:has(> dt:text-is('Segnalazioni'))")).containsText("Si cancellano il ${GatheringFormat.date(over.today.plusMonths(1))}")
+        assertThat(card.locator("div:has(> dt:text-is('Iscrizioni, manleve e registro arrivi'))")).containsText("Si cancellano il")
+        assertThat(card.locator("div:has(> dt:text-is('Su carta'))")).containsText("Da distruggere a partire dal")
+        assertEquals(0, page.locator("section[aria-labelledby=camere]").count(), "and the card of the rooms is not there either")
+        page.sideways(e2e, "retention of a gathering that is over, no rooms")
+        assertAccessible(page, "detail, over, no rooms (${e2e.profile.label})")
+
+        // Over, with a room even if nobody is in it (what the job leaves): the line is there and says that it was deleted and that the rooms stay.
+        val kept = e2e.room(over.id, "Camera 1", 4)
+        e2e.open("/convivenza/${over.id}")
+        assertEquals(all, labels(), "over, a room")
+        assertThat(line()).containsText("È stato cancellato il ${GatheringFormat.date(over.today)}")
+        assertThat(line()).containsText("Le camere restano, senza nomi, per copiarle l’anno dopo.")
+        page.sideways(e2e, "retention of a gathering that is over, a room")
+        assertAccessible(page, "detail, over, a room (${e2e.profile.label})")
+        // With the person still in it (the job has not run yet): the same.
+        e2e.put(e2e.child(over, "Anna", "Rossi", LocalDate.of(2018, 1, 9)), over.id, kept)
+        e2e.open("/convivenza/${over.id}")
+        assertEquals(all, labels(), "over, a room with a person")
+        // The room goes again: the line goes with it.
+        e2e.dsl().deleteFrom(ROOM_CHILD).where(ROOM_CHILD.GATHERING_ID.eq(over.id)).execute()
+        e2e.dsl().deleteFrom(ROOM).where(ROOM.GATHERING_ID.eq(over.id)).execute()
+        e2e.open("/convivenza/${over.id}")
+        assertEquals(others, labels(), "over, the rooms gone")
     }
 }
