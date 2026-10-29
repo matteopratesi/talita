@@ -5,6 +5,8 @@ import talita.ClockConfiguration
 import talita.gathering.Badge
 import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
+import talita.gathering.MenuLink
+import talita.gathering.MenuPresenter
 import talita.registration.RegistrationData
 import talita.registration.RegistrationFormat
 import talita.registration.Registrations
@@ -145,6 +147,8 @@ data class ArrivalsPage(
     val draftHref: String?,
     /** The registrations of the gathering are gone: the empty state that says when and why. */
     val deleted: DeletedState? = null,
+    /** The row «Menù» that downloads the file of the menu of the gathering (TALITA-12, criterion 9): null when there is no menu, and the card is not there. */
+    val menu: MenuLink? = null,
 )
 
 /** The answer to a touch on a row: the new row, the new summary and the sentence that a screen reader says (criterion 4, design 5). */
@@ -156,7 +160,7 @@ data class RowAnswer(val row: RowView, val summary: SummaryView, val announcemen
  * those of the registrations of TALITA-5.
  */
 @Component
-class ArrivalsPresenter(private val registrations: Registrations, private val teacher: TeacherPresenter, private val texts: RetentionTexts) {
+class ArrivalsPresenter(private val registrations: Registrations, private val teacher: TeacherPresenter, private val texts: RetentionTexts, private val menus: MenuPresenter) {
 
     fun hrefOf(registration: Long, day: LocalDate): String = "/arrivi/$registration?giorno=$day"
 
@@ -293,7 +297,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
         val day = choice.selected
         val refresh = "/arrivi?giorno=$day"
         if (data.registrations.isEmpty()) {
-            return ArrivalsPage(ArrivalsState.EMPTY, lead(gathering), alert, days(choice), null, CheckinFormat.time(now), refresh, null, emptyList(), newHref, null, null)
+            return ArrivalsPage(ArrivalsState.EMPTY, lead(gathering), alert, days(choice), null, CheckinFormat.time(now), refresh, null, emptyList(), newHref, null, null, menu = menus.link(gathering.id))
         }
         fun rows(of: List<RegistrationData>, markable: Boolean) = of.map { row(data, it, day, markable) }
         val expected = data.registrations.filter { data.expected(it, day) }
@@ -324,6 +328,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
             newHref = newHref,
             draftTitle = null,
             draftHref = null,
+            menu = menus.link(gathering.id),
         )
     }
 
