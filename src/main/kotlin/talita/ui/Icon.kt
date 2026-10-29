@@ -50,4 +50,8 @@ enum class Icon {
     SEARCH,
     ARCHIVE,
     SHIELD_CHECK,
+    UPLOAD,
+    DOWNLOAD,
+    IMAGE,
+    UTENSILS,
 }

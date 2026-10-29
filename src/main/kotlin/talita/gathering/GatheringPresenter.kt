@@ -21,6 +21,7 @@ class GatheringPresenter(
     private val usage: RegistrationUsage,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
+    private val menuPresenter: MenuPresenter,
 ) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
@@ -92,6 +93,7 @@ class GatheringPresenter(
             ),
             registrations = registrations(gathering, today),
             retention = if (draft) null else retention(gathering, over, today),
+            menu = menuPresenter.card(gathering.id),
         )
     }
 

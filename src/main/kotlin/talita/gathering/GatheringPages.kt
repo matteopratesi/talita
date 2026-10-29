@@ -79,6 +79,8 @@ data class DetailPage(
     val registrations: RegistrationsCard,
     /** The card «Conservazione dei dati» (TALITA-7): null for a draft, which has no registrations. */
     val retention: RetentionCard?,
+    /** The card «Menù» (TALITA-12): in every state of the gathering, with the file or without it. */
+    val menu: MenuCard,
 )
 
 /** A row of the card «Conservazione dei dati»: the data, when they go (in the tense of the date), and why. */

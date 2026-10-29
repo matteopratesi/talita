@@ -452,7 +452,7 @@ Icone assegnate (nomi di Lucide):
 | Modifica | `pencil` |
 | Elimina | `trash-2` |
 | Cerca | `search` |
-| Esporta | `download` |
+| Esporta, scarica un file | `download` |
 | Esci | `log-out` |
 | Riprova | `rotate-cw` |
 | Chiudi | `x` |
@@ -491,6 +491,9 @@ Icone assegnate (nomi di Lucide):
 | Torna agli arrivi | `chevron-left` |
 | Conservata fino al…, quello che è stato cancellato (stato vuoto neutro) | `archive` |
 | Per quanto tempo teniamo i dati | `shield-check` |
+| Carica un file, sostituisci il file (TALITA-12) | `upload` |
+| File che è una foto: JPEG o PNG (TALITA-12) | `image` |
+| Il menù, il collegamento in Arrivi (TALITA-12) | `utensils` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):
