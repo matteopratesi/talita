@@ -7,7 +7,15 @@
      focus is on «Annulla». Title = the question with the verb, text = what happens, button = the same verb. --%>
 <dialog id="${dialog.getId()}" aria-labelledby="${dialog.getId()}-titolo" aria-describedby="${dialog.getId()}-testo" class="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl bg-surface px-gutter pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ink shadow-xl backdrop:bg-ink/50 motion-safe:animate-sheet-in sm:m-auto sm:max-w-md sm:rounded-2xl sm:p-6">
   <h2 id="${dialog.getId()}-titolo" class="text-xl font-semibold tracking-tight wrap-anywhere">${dialog.getTitle()}</h2>
-  <p id="${dialog.getId()}-testo" class="mt-2 text-ink-muted wrap-anywhere">${dialog.getText()}</p>
+  <div id="${dialog.getId()}-testo" class="mt-2 space-y-2 text-ink-muted">
+    <p class="wrap-anywhere">${dialog.getText()}</p>
+    @for(String paragraph : dialog.getMore())
+      <p class="wrap-anywhere">${paragraph}</p>
+    @endfor
+    @if(dialog.getNote() != null)
+      <p class="text-sm wrap-anywhere">${dialog.getNote()}</p>
+    @endif
+  </div>
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
     <form method="post" action="${dialog.getAction()}" hx-post="${dialog.getTarget() != null ? dialog.getAction() : null}" hx-target="${dialog.getTarget()}" hx-swap="${dialog.getTarget() != null ? "outerHTML" : null}" hx-disabled-elt="find button[type=submit]" class="contents">
       @template.components.csrf(csrf = csrf)

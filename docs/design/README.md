@@ -503,6 +503,9 @@ Icone assegnate (nomi di Lucide):
 | Carica un file, sostituisci il file (TALITA-12) | `upload` |
 | File che è una foto: JPEG o PNG (TALITA-12) | `image` |
 | Il menù, il collegamento in Arrivi (TALITA-12) | `utensils` |
+| Un dispositivo collegato con «Ricordami su questo telefono» (TALITA-15) | `monitor-smartphone` |
+| Una passkey nell'elenco (TALITA-15) | `key-round` |
+| «Entra con una passkey», «Aggiungi una passkey», la conferma prima delle segnalazioni, l'invito ad aggiungerne una (TALITA-15) | `fingerprint-pattern` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):

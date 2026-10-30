@@ -143,6 +143,9 @@ class DeviceRememberMeServices(
         super.logout(request, response, authentication)
     }
 
+    /** The cookie of this browser is taken away from the browser (the row is the caller's to delete): the device that the person is on was taken away from the profile, which is «Esci». */
+    fun forget(request: HttpServletRequest, response: HttpServletResponse) = cancelCookie(request, response)
+
     // ---- What a page asks (nothing is changed) -------------------------------------------------------------------------------------------
 
     /** The row that the cookie of this request belongs to, if its value is the last one: the device that the person is on. It changes nothing. */

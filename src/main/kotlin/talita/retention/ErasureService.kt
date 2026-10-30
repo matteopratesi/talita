@@ -214,6 +214,8 @@ class ErasureService(
             markedUntil = farthest(endsOfWhatWasMarked(accountId, today)),
             blockers = classified.blockers,
             teacherBlock = TeacherBlock(block is RemovalResult.LastTeacher, (block as? RemovalResult.IsCustodian)?.gatherings.orEmpty()),
+            devices = devices.count(accountId),
+            passkeys = passkeys.count(accountId),
         )
     }
 

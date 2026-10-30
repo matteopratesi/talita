@@ -35,6 +35,9 @@
         @template.components.button(label = "Esci", busyLabel = "Uscita…", variant = "secondary", icon = Icon.LOG_OUT)
       </form>
       <p class="mt-3 text-sm text-ink-muted">Se usi un telefono o un computer di altri, esci quando hai finito.</p>
+      @if(page.getAccess() != null)
+        @template.profile.devicesBlock(block = page.getAccess(), csrf = csrf)
+      @endif
     </section>
 
     @if(page.getNameForm() != null)
