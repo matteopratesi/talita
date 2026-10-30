@@ -126,11 +126,44 @@ class PasskeyOperationsTests(
         assertEquals(64, options.user.id.bytes.size)
         val text = String(options.user.id.bytes, Charsets.ISO_8859_1)
         assertFalse(text.contains(email), "the handle is not the address")
-        // One handle per account: the same on the second request, and another for another account.
+        // The same on the second request (another tab), and another for another account.
         assertEquals(options.user.id, creationOptions(account).user.id)
         assertFalse(options.user.id == creationOptions(account()).user.id)
+    }
+
+    @Test
+    fun `t15 c21 D2 the handle is saved with the first passkey and not when the options are asked, so a registration that is cancelled leaves no handle`() {
+        val account = account()
+
+        val options = creationOptions(account)
+
+        assertNull(passkeys.handleOf(account), "the options are not a passkey: nothing is saved")
+        assertNull(passkeys.accountOfHandle(options.user.id.bytes))
+        // The person cancels on the phone and asks again: still nothing, and the same provisional handle for the tabs that are open.
+        assertEquals(options.user.id, creationOptions(account).user.id)
+        assertNull(passkeys.handleOf(account))
+        // The phone makes the passkey: the handle that it was given is the one that is saved, with the passkey, and it is the one of the next options.
+        val phone = SoftPasskey(origin, rpId)
+        operations.registerCredential(ImmutableRelyingPartyRegistrationRequest(options, RelyingPartyPublicKey(phone.create(options), "")))
         assertContentEquals(options.user.id.bytes, passkeys.handleOf(account))
         assertEquals(account, passkeys.accountOfHandle(options.user.id.bytes))
+        assertEquals(options.user.id, creationOptions(account).user.id)
+    }
+
+    @Test
+    fun `t15 c21 D2 two accounts that ask together are each given a handle of their own, and each registration saves the handle of its own account`() {
+        val first = account()
+        val second = account()
+        val optionsFirst = creationOptions(first)
+        val optionsSecond = creationOptions(second)
+
+        operations.registerCredential(ImmutableRelyingPartyRegistrationRequest(optionsFirst, RelyingPartyPublicKey(phone().create(optionsFirst), "")))
+
+        assertContentEquals(optionsFirst.user.id.bytes, passkeys.handleOf(first))
+        assertNull(passkeys.handleOf(second), "the other account has not made a passkey")
+        operations.registerCredential(ImmutableRelyingPartyRegistrationRequest(optionsSecond, RelyingPartyPublicKey(phone().create(optionsSecond), "")))
+        assertContentEquals(optionsSecond.user.id.bytes, passkeys.handleOf(second))
+        assertFalse(optionsFirst.user.id == optionsSecond.user.id)
     }
 
     // ---- The registration (criteria 20, 21) --------------------------------------------------------------------------------------------
@@ -232,7 +265,7 @@ class PasskeyOperationsTests(
         val identity = operations.authenticate(assertion(phone))
 
         assertEquals(account.toString(), identity.name, "the name that Spring reads is the id of the account, which only the application reads")
-        assertEquals(Bytes(passkeys.handleOf(account)), identity.id)
+        assertEquals(Bytes(passkeys.handleOf(account)!!), identity.id)
         assertEquals(1L, dsl.select(PASSKEY.SIGNATURE_COUNT).from(PASSKEY).where(PASSKEY.ACCOUNT_ID.eq(account)).fetchSingle(PASSKEY.SIGNATURE_COUNT))
         // The phone synchronized the passkey after the registration: the flag that the answer carries is kept.
         val synced = SoftPasskey(origin, rpId, synchronizedByPhone = true)
@@ -270,7 +303,7 @@ class PasskeyOperationsTests(
         val other = account()
         val phone = register(account)
         register(other)
-        val otherHandle = Bytes(passkeys.handleOf(other))
+        val otherHandle = Bytes(passkeys.handleOf(other)!!)
 
         assertFailsWith<PasskeyRefusedException> { operations.authenticate(assertion(phone) { phone.get(it, handle = otherHandle) }) }
         operations.authenticate(assertion(phone))

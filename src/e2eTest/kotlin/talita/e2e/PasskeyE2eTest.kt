@@ -14,7 +14,6 @@ import com.microsoft.playwright.options.AriaRole
 import com.microsoft.playwright.options.Cookie
 import com.microsoft.playwright.options.FormData
 import com.microsoft.playwright.options.RequestOptions
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
@@ -44,6 +43,7 @@ import java.util.regex.Pattern
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** The port of the application of the passkey tests: the browser only accepts a passkey for the name of the site it is on, so the site is `http://localhost:<this port>` and it never changes. */
@@ -182,6 +182,7 @@ class PasskeyE2eTest {
         assertThat(card.locator("[data-passkey-esito=annullata]")).isVisible()
         assertThat(card.locator("[role=alert]:visible")).hasCount(0)
         assertEquals(0, e2e.passkeys())
+        assertNull(e2e.dsl().select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(e2e.accountId(checkNotNull(e2e.signedInAs)))).fetchSingle(ACCOUNT.PASSKEY_HANDLE), "D2: a cancelled first registration leaves no handle")
         assertAccessible(page, "profile after a cancelled addition (${e2e.profile.label})")
         phone.verified(true)
         e2e.press(card.buttonNamed("Aggiungi una passkey su questo telefono"))
@@ -228,6 +229,7 @@ class PasskeyE2eTest {
         phone.verified(false)
         e2e.press(card.buttonNamed("Mostra le segnalazioni"))
         assertThat(card.locator("[data-conferma-esito=segnalazioni-annullata]")).isVisible()
+        assertThat(card.locator("[data-stato]")).isHidden()
         assertThat(page.locator("main")).not().containsText("Arachidi")
         assertEquals(0, e2e.readings())
         assertAccessible(page, "detail after a cancelled confirmation (${e2e.profile.label})")
@@ -1141,7 +1143,6 @@ class PasskeyE2eTest {
      * page, as for any other request. The other requests of the app (htmx) end in `HX-Redirect` or `HX-Refresh` (criterion 8). Switch it on when the script treats a redirected answer as «the access is
      * gone» (the access page, or a reload of the page when the cookie of the box is good).
      */
-    @Disabled("D1 of the QA of TALITA-15: a passkey tap on a page left open past the session shows an error and does not go on")
     @E2eTest(profiles = [Profile.DESKTOP])
     fun `t15 c36 c8 D1 a tap through the script of the passkeys on a page left open past the session does not end in an error`(e2e: E2e) {
         val page = e2e.page
@@ -1180,5 +1181,34 @@ class PasskeyE2eTest {
         e2e.touch(page.exact("Entra con una passkey"))
         page.waitForTimeout(1_500.0)
         assertEquals(0, page.messages().count(), "no error message on the access page")
+    }
+
+    /**
+     * D3 of the QA of TALITA-15: the way to the card «Passkey» of the profile (the line that invites a teacher to add one, and «Vai alle passkey» after «Esci da tutti gli altri dispositivi») ends with the
+     * focus on the card, which has `tabindex="-1"` for it, and not on `body`.
+     */
+    @E2eTest
+    fun `t15 c36 c46 D3 the links to the card Passkey of the profile put the focus on the card`(e2e: E2e) {
+        val page = e2e.page
+        e2e.phoneOf()
+        val w = e2e.arrivalsGathering()
+        val anna = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = Notes("Arachidi", null, null))
+
+        // From the card of a child in the arrivals: the line that invites a teacher with no passkey.
+        e2e.open("/arrivi/$anna")
+        e2e.press(page.locator("#scheda").linkNamed("Aggiungi una passkey"))
+        assertThat(page).hasURL(Pattern.compile("/profilo#passkey$"))
+        page.waitForSettledContent()
+        assertEquals("passkey", page.evaluate("document.activeElement && document.activeElement.id"), "the focus is on the card")
+
+        // From the notice after «Esci da tutti gli altri dispositivi», which sends a person who has passkeys to the card.
+        e2e.addPasskey()
+        e2e.open("/profilo")
+        val block = page.locator("#dispositivi-contenuto")
+        e2e.press(block.buttonNamed("Esci da tutti gli altri dispositivi"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Esci da tutti gli altri dispositivi"))
+        e2e.press(block.linkNamed("Vai alle passkey"))
+        page.focusIs("document.activeElement.id === 'passkey'")
     }
 }

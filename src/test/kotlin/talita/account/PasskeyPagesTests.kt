@@ -130,6 +130,17 @@ class PasskeyPagesTests(
         assertFalse(Regex("""console\.(log|debug|info)""").containsMatchIn(script), "nothing is written in the console: not a challenge, an id or an option")
     }
 
+    @Test
+    fun `t15 c8 D1 the script asks as htmx and does what htmx does with HX-Redirect and HX-Refresh, so that a tap on a page left open past the session does not end in an error`() {
+        val source = Regex("""src="(/js/passkeys[^"]*\.js)"""").find(phone().get("/accedi").response.contentAsString)!!.groupValues[1]
+        val script = phone().get(source).response.contentAsString
+
+        assertTrue(script.contains(""""HX-Request": "true""""), "the requests say that they are htmx")
+        assertTrue(script.contains("""response.headers.get("HX-Redirect")""") && script.contains("window.location.assign(redirect)"))
+        assertTrue(script.contains("""response.headers.get("HX-Refresh") === "true"""") && script.contains("window.location.reload()"))
+        assertTrue(script.contains("response.redirected"), "and an answer that was redirected is the access that is gone")
+    }
+
     // ---- Cancelled and without network (criterion 24) --------------------------------------------------------------------------------------
 
     @Test

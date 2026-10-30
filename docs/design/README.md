@@ -1595,7 +1595,7 @@ Un blocco che compare solo se il browser sa usare le passkey: sotto il modulo di
 </div>
 ```
 
-- **Un solo file** (`passkeys.js`): mostra il blocco, fa partire le richieste, converte il base64url a mano (iOS 16 non ha `parseCreationOptionsFromJSON`), manda il codice CSRF in `X-CSRF-TOKEN`, mette `htmx-request` sul bottone durante l'attesa (così valgono `busy:` e la rotellina), mostra gli avvisi che sono già nella pagina e chiede i messaggi a comparsa di rete ed errore. I testi stanno nella pagina, mai nel JavaScript. Niente `on*=` e niente script in linea (la CSP, con il test della console).
+- **Un solo file** (`passkeys.js`): mostra il blocco, fa partire le richieste, converte il base64url a mano (iOS 16 non ha `parseCreationOptionsFromJSON`), manda il codice CSRF in `X-CSRF-TOKEN` e `HX-Request: true` (così una pagina rimasta aperta oltre la sessione finisce in `HX-Redirect` o `HX-Refresh`, come per htmx, e non in un errore), mette `htmx-request` sul bottone durante l'attesa (così valgono `busy:` e la rotellina), mostra gli avvisi che sono già nella pagina e chiede i messaggi a comparsa di rete ed errore. I testi stanno nella pagina, mai nel JavaScript. Niente `on*=` e niente script in linea (la CSP, con il test della console).
 - **Annullare non è un errore**: un avviso informativo («Hai annullato…»), senza `role="alert"`. Una passkey che non vale è un avviso di attenzione, con il link come strada.
 - **Entrare cambia pagina**: non è `hx-boost`. Il file fa `location.assign` alla destinazione che il server dice, e la pagina nuova ha un id di sessione nuovo.
 

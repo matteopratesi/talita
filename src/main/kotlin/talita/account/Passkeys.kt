@@ -34,8 +34,8 @@ class PasskeyRow(val credentialId: ByteArray, val createdOn: LocalDate, val sync
  * class decides: the public key, the counter, the flags that the phone gave, the transports and the day. **Not** the attestation, the client data, the label, the last use: Spring's
  * schema has them, ours has not, and what Spring hands over for them is thrown away here.
  *
- * It also holds the identifier that the phone sends back with a passkey to say which account it is of (`account.passkey_handle`, the «user handle»): 64 random bytes, one per account, born
- * when the first passkey is added. It is never the id nor the address of the account.
+ * It also holds the identifier that the phone sends back with a passkey to say which account it is of (`account.passkey_handle`, the «user handle»): 64 random bytes, one per account, saved
+ * with the first passkey (the options of a registration that is cancelled leave nothing). It is never the id nor the address of the account.
  */
 @Component
 class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCredentialRepository {
@@ -46,15 +46,13 @@ class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCred
 
     // ---- The handle of an account ------------------------------------------------------------------------------------------------
 
-    /** The handle of [accountId], made now if it has none (a handle is born with the first passkey of the account). */
-    fun handleOf(accountId: Long): ByteArray {
-        val existing = dsl.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.PASSKEY_HANDLE)
-        if (existing != null) return existing
-        val fresh = ByteArray(HANDLE_BYTES).also(random::nextBytes)
-        // Only if it is still empty: two requests that come together agree on the same one.
-        dsl.update(ACCOUNT).set(ACCOUNT.PASSKEY_HANDLE, fresh).where(ACCOUNT.ID.eq(accountId)).and(ACCOUNT.PASSKEY_HANDLE.isNull).execute()
-        return checkNotNull(dsl.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.PASSKEY_HANDLE)) { "the account is gone" }
-    }
+    /** The handle of [accountId], or null if it has none: a handle is saved with the first passkey of the account and not before ([addChecked]), so an account without passkeys has none (unless it had some). */
+    fun handleOf(accountId: Long): ByteArray? = dsl.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.PASSKEY_HANDLE)
+
+    /** A new handle: 64 random bytes. It is not saved: [PasskeyOperations] holds it until the phone has made the first passkey. */
+    fun newHandle(): ByteArray = ByteArray(HANDLE_BYTES).also(random::nextBytes)
+
+    private fun requireHandle(accountId: Long): ByteArray = checkNotNull(handleOf(accountId)) { "an account that has a passkey has a handle" }
 
     /** The account that [handle] belongs to, or null if none does. */
     fun accountOfHandle(handle: ByteArray): Long? = dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.PASSKEY_HANDLE.eq(handle)).fetchOne(ACCOUNT.ID)
@@ -72,7 +70,7 @@ class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCred
 
     /** The credentials of [accountId] with their transports, for what the browser looks for (`allowCredentials`, `excludeCredentials`). */
     fun credentialsOf(accountId: Long): List<CredentialRecord> =
-        dsl.selectFrom(PASSKEY).where(PASSKEY.ACCOUNT_ID.eq(accountId)).orderBy(PASSKEY.CREATED_ON, PASSKEY.CREDENTIAL_ID).fetch().map { toRecord(it, handleOf(accountId)) }
+        dsl.selectFrom(PASSKEY).where(PASSKEY.ACCOUNT_ID.eq(accountId)).orderBy(PASSKEY.CREATED_ON, PASSKEY.CREDENTIAL_ID).fetch().map { toRecord(it, requireHandle(accountId)) }
 
     /** The account that owns the credential, or null if there is no such credential. */
     fun accountOfCredential(credentialId: ByteArray): Long? = dsl.select(PASSKEY.ACCOUNT_ID).from(PASSKEY).where(PASSKEY.CREDENTIAL_ID.eq(credentialId)).fetchOne(PASSKEY.ACCOUNT_ID)
@@ -88,12 +86,19 @@ class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCred
 
     /**
      * Adds the passkey, unless the account has [MAX_PER_ACCOUNT] already (checked under the lock of the account, so two phones that add together do not make an eleventh). Returns whether it
-     * was added.
+     * was added. **The handle is saved here, with the first passkey, and not when the options were asked** (a person who cancels on the phone leaves nothing): [handle] is the one that the options
+     * gave to the phone. If the account has one already it must be the same, else two phones that made their first passkey together had two handles, and the second is refused (it asks again and
+     * gets the one that was saved).
      */
-    fun addChecked(accountId: Long, record: CredentialRecord): Boolean = dsl.transactionResult { configuration ->
+    fun addChecked(accountId: Long, record: CredentialRecord, handle: ByteArray): Boolean = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
-        tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).forUpdate().fetch()
+        val stored = tx.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).forUpdate().fetchOne(ACCOUNT.PASSKEY_HANDLE)
         if (tx.fetchCount(PASSKEY, PASSKEY.ACCOUNT_ID.eq(accountId)) >= MAX_PER_ACCOUNT) return@transactionResult false
+        if (stored == null) {
+            tx.update(ACCOUNT).set(ACCOUNT.PASSKEY_HANDLE, handle).where(ACCOUNT.ID.eq(accountId)).execute()
+        } else {
+            require(stored.contentEquals(handle)) { "the account has another handle" }
+        }
         insert(tx, accountId, record)
         true
     }
@@ -102,7 +107,7 @@ class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCred
 
     override fun findByCredentialId(credentialId: Bytes): CredentialRecord? {
         val row = dsl.selectFrom(PASSKEY).where(PASSKEY.CREDENTIAL_ID.eq(credentialId.bytes)).fetchOne() ?: return null
-        return toRecord(row, handleOf(row.accountId!!))
+        return toRecord(row, requireHandle(row.accountId!!))
     }
 
     override fun findByUserId(userId: Bytes): List<CredentialRecord> {

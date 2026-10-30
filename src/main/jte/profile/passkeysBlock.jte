@@ -77,8 +77,8 @@
         <p class="mt-2 text-sm text-ink-muted">Prima il telefono ti chiede di confermare con una passkey che hai già. Poi crea quella nuova.</p>
       @endif
       <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-3 text-sm text-ink-muted"></p>
-      <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.</template>
-      <template data-attesa="primo"><strong>In attesa della conferma…</strong> Prima conferma con una passkey che hai già: impronta, volto o codice di sblocco.</template>
+      <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></template>
+      <template data-attesa="primo"><strong>In attesa della conferma…</strong> Prima conferma con una passkey che hai già: impronta, volto o codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></template>
       <template data-attesa="secondo"><strong>In attesa della conferma…</strong> Ora conferma per creare la passkey nuova.</template>
     </div>
     <p data-passkey-no class="mt-4 text-ink-muted">Questo browser non sa usare le passkey. Per entrare, continua con il link: funziona sempre.</p>
@@ -86,7 +86,7 @@
 
   <details class="group mt-4 rounded-2xl border border-line-strong bg-surface">
     <summary class="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
-      @template.components.icon(icon = Icon.KEY_ROUND, classes = "size-6 shrink-0 text-brand")
+      @template.components.icon(icon = Icon.INFO, classes = "size-6 shrink-0 text-brand")
       <span class="min-w-0 flex-1"><span class="block font-semibold">Se cambi o perdi il telefono</span><span class="block text-sm text-ink-muted">Cosa succede alle passkey</span></span>
       @template.components.icon(icon = Icon.CHEVRON_DOWN, classes = "size-5 shrink-0 text-ink-muted transition-transform duration-150 group-open:rotate-180")
     </summary>

@@ -71,14 +71,35 @@ class PasskeyLimitException : RuntimeException("the account has the most passkey
  *   refuses an answer that says the person was not verified.
  * - **No attestation**: the options ask `none`. Whatever comes with the registration (the attestation, the client data, the label) is checked and then thrown away: only the public key,
  *   the counter, the flags, the transports and the day are saved ([Passkeys]). No FIDO Metadata Service and no other call outside the app: the library runs inside it.
- * - **The identity of the phone is a random handle**, one per account (`account.passkey_handle`): the phone shows «Talità» and never the address (decision of Matteo), and the account is
+ * - **The identity of the phone is a random handle**, one per account (`account.passkey_handle`, saved with the first passkey: until then the options carry a provisional one, held in memory, so
+ *   that a registration that is cancelled leaves nothing): the phone shows «Talità» and never the address (decision of Matteo), and the account is
  *   found from the handle that the phone sends back, or from the credential. The «name» that Spring reads from the entity is the id of the account, which only we read.
  * - **The site comes from the setting** ([PasskeySupport]): the `rpId` and the origin are those of `talita.public-url`.
  *
  * The confirmation before the notes on health ([PasskeyConfirmations]) uses the same verification, with options of its own ([confirmationOptions]).
  */
 @Component
-class PasskeyOperations(private val support: PasskeySupport, private val passkeys: Passkeys) : WebAuthnRelyingPartyOperations {
+class PasskeyOperations(private val support: PasskeySupport, private val passkeys: Passkeys, private val clock: java.time.Clock) : WebAuthnRelyingPartyOperations {
+
+    /**
+     * The handle that the options of a registration give to the phone when the account has none yet (it has no passkey: the handle is saved with the first one, [Passkeys.addChecked]). It is kept in
+     * memory, **one per account and for five minutes**: the second request of the same account (another tab) gets the same, so that the registration of the first is not refused; a phone that
+     * cancels leaves it to expire, and nothing is written. It is looked up by the handle that the held options carry, which only the application and that phone know.
+     */
+    private class PendingHandle(val accountId: Long, val handle: Bytes, val at: java.time.Instant)
+
+    private val pending = java.util.concurrent.ConcurrentHashMap<Long, PendingHandle>()
+
+    private fun pendingFor(accountId: Long): Bytes {
+        val now = clock.instant()
+        pending.values.removeIf { !now.isBefore(it.at.plus(PENDING_HANDLE_VALIDITY)) }
+        return pending.compute(accountId) { _, held -> held ?: PendingHandle(accountId, Bytes(passkeys.newHandle()), now) }!!.handle
+    }
+
+    private fun accountOfPending(handle: Bytes): Long? {
+        val now = clock.instant()
+        return pending.values.firstOrNull { it.handle == handle && now.isBefore(it.at.plus(PENDING_HANDLE_VALIDITY)) }?.accountId
+    }
 
     private val manager = WebAuthnManager.createNonStrictWebAuthnManager()
     private val objects = ObjectConverter()
@@ -96,7 +117,7 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
     /** What the phone is asked to make: a passkey that it can find by itself, with the person verified, no attestation, and not one that the account already has. */
     override fun createPublicKeyCredentialCreationOptions(request: PublicKeyCredentialCreationOptionsRequest): PublicKeyCredentialCreationOptions {
         val accountId = accountOf(request.authentication) ?: throw AuthenticationCredentialsNotFoundException("nobody is inside")
-        val user: PublicKeyCredentialUserEntity = ImmutablePublicKeyCredentialUserEntity.builder().name(PHONE_NAME).displayName(PHONE_NAME).id(Bytes(passkeys.handleOf(accountId))).build()
+        val user: PublicKeyCredentialUserEntity = ImmutablePublicKeyCredentialUserEntity.builder().name(PHONE_NAME).displayName(PHONE_NAME).id(passkeys.handleOf(accountId)?.let { Bytes(it) } ?: pendingFor(accountId)).build()
         return PublicKeyCredentialCreationOptions.builder()
             .attestation(AttestationConveyancePreference.NONE)
             .pubKeyCredParams(PublicKeyCredentialParameters.ES256, PublicKeyCredentialParameters.EdDSA, PublicKeyCredentialParameters.RS256)
@@ -124,7 +145,7 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
         val response = credential.response
         val credentialId = credential.rawId
         if (passkeys.findByCredentialId(credentialId) != null) throw PasskeyRefusedException("the credential exists already")
-        val accountId = passkeys.accountOfHandle(options.user.id.bytes) ?: throw PasskeyRefusedException("the handle belongs to nobody")
+        val accountId = passkeys.accountOfHandle(options.user.id.bytes) ?: accountOfPending(options.user.id) ?: throw PasskeyRefusedException("the handle belongs to nobody")
 
         val serverProperty = ServerProperty(origins(), options.rp.id, DefaultChallenge(options.challenge.bytes))
         val transports = response.transports?.map { it.value }?.toSet()
@@ -153,7 +174,13 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
             .backupState(authenticatorData.isFlagBS)
             .label("")
             .build()
-        if (!passkeys.addChecked(accountId, record)) throw PasskeyLimitException()
+        val saved = try {
+            passkeys.addChecked(accountId, record, options.user.id.bytes)
+        } catch (e: IllegalArgumentException) {
+            throw PasskeyRefusedException("the account has another handle", e)
+        }
+        if (!saved) throw PasskeyLimitException()
+        pending.remove(accountId)
         return record
     }
 
@@ -236,6 +263,9 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
     companion object {
         /** What the phone shows in its list of passkeys, for every account: the name of the app, never the address (decision of Matteo, question 4). */
         const val PHONE_NAME = "Talità"
+
+        /** How long the handle of a first registration that is not finished is kept in memory (the time of the options: five minutes). */
+        private val PENDING_HANDLE_VALIDITY: Duration = Duration.ofMinutes(5)
     }
 }
 

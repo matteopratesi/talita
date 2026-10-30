@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.servlet.ModelAndView
+import talita.account.PasskeySupport
 import talita.account.SessionTexts
 import talita.retention.RetentionTexts
 import talita.retention.TimeRow
@@ -61,6 +62,8 @@ data class InformativaPage(
     val times: List<TimeRow>,
     val rights: List<String>,
     val cookies: CookieCard,
+    /** The site has passkeys (`talita.public-url` is set): without them the notice does not speak of them, as the pages do not. */
+    val passkeys: Boolean,
 )
 
 /** A sentence of the card «Cookie e accesso», with what it is about in bold when there is one. */
@@ -83,9 +86,10 @@ class InformativaController(
     private val privacy: PrivacySettings,
     private val texts: RetentionTexts,
     private val sessions: SessionTexts,
+    private val passkeySupport: PasskeySupport,
 ) {
 
-    private fun cookies() = CookieCard(
+    private fun cookies(passkeys: Boolean) = CookieCard(
         "Talità usa solo i cookie che servono a farti entrare. Non ci sono cookie di altri, né statistiche, né pubblicità.",
         listOf(
             Lead("Il cookie che ti tiene dentro", "mentre usi Talità: l’accesso si chiude da solo dopo ${sessions.idleWords} che non la usi, e comunque dopo ${sessions.capWords} dall’entrata."),
@@ -94,18 +98,22 @@ class InformativaController(
                 "lo mettiamo solo se spunti la casella quando entri. Dura ${texts.devicesParent}, ${texts.devicesTeacherNumber} per i maestri, e contiene solo due codici casuali: non dice chi sei. Lo togli con «Esci», o dal tuo profilo.",
             ),
         ),
-        listOf(
-            Lead(
-                "Le passkey",
-                "restano nel tuo telefono: a Talità arriva solo il pezzo che serve a controllare che la passkey sia tua, mai quello che serve a usarla. Se il telefono le sincronizza con il tuo account Apple o Google, " +
-                    "lo fa il servizio che hai scelto, in modo cifrato: Talità non manda niente né ad Apple né a Google.",
-            ),
-            Lead(
-                "Per i maestri con una passkey:",
-                "prima di aprire le segnalazioni dei bambini c’è una conferma con la passkey. Ci ricordiamo solo l’ora della conferma, e solo finché resta aperto l’accesso.",
-            ),
-            Lead("", "Né «Ricordami su questo telefono» né le passkey sono obbligatori: il link funziona sempre."),
-        ),
+        if (passkeys) {
+            listOf(
+                Lead(
+                    "Le passkey",
+                    "restano nel tuo telefono: a Talità arriva solo il pezzo che serve a controllare che la passkey sia tua, mai quello che serve a usarla. Se il telefono le sincronizza con il tuo account Apple o Google, " +
+                        "lo fa il servizio che hai scelto, in modo cifrato: Talità non manda niente né ad Apple né a Google.",
+                ),
+                Lead(
+                    "Per i maestri con una passkey:",
+                    "prima di aprire le segnalazioni dei bambini c’è una conferma con la passkey. Ci ricordiamo solo l’ora della conferma, e solo finché resta aperto l’accesso.",
+                ),
+                Lead("", "Né «Ricordami su questo telefono» né le passkey sono obbligatori: il link funziona sempre."),
+            )
+        } else {
+            listOf(Lead("", "«Ricordami su questo telefono» non è obbligatorio: il link funziona sempre."))
+        },
     )
 
     @GetMapping("/informativa")
@@ -116,7 +124,7 @@ class InformativaController(
             mapOf(
                 "shell" to shells.publicShell("Informativa sulla privacy", null),
                 "page" to InformativaPage(
-                    privacy.controllerName, privacy.contact, Informativa.PLACEHOLDER_NOTICE, texts.completeIntro, texts.completeRows(), texts.rights, cookies(),
+                    privacy.controllerName, privacy.contact, Informativa.PLACEHOLDER_NOTICE, texts.completeIntro, texts.completeRows(passkeySupport.enabled), texts.rightsFor(passkeySupport.enabled), cookies(passkeySupport.enabled), passkeySupport.enabled,
                 ),
             ),
         )

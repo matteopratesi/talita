@@ -608,6 +608,11 @@ class PasskeyConfirmationTests(
         assertTrue(html.contains("""href="/informativa#titolare""""))
         assertTrue(html.contains("Per i maestri «Ricordami su questo telefono» dura 7 giorni: con una passkey non serve chiedere un link nemmeno dopo."))
         for (word in listOf("aggiungi-annullata", "togli-annullata", "togli-rifiutata", "aggiungi-rifiutata")) assertTrue(html.contains(word), word)
+        // The lines of the waiting say, as the mockups do, that on a computer the browser can ask for the phone: the dialog of Togli and the two steps of Aggiungi.
+        assertTrue(Regex("Dal computer, il browser può chiederti di usare il telefono\\.").findAll(html).count() >= 3, "the waiting lines of Togli and Aggiungi")
+        // «Se cambi o perdi il telefono» has the icon of information, as in the mockup, and not the key.
+        val summary = html.substringAfter("<summary", "").substringBefore("Se cambi o perdi il telefono")
+        assertTrue(summary.contains("M12 16v-4"), "the icon of information")
         // A confirmation that holds: no sentence that the phone will ask.
         PasskeyKit.confirm(t.phone, t.soft!!)
         val valid = html(t.phone.get("/profilo"))

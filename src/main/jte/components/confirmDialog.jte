@@ -19,7 +19,7 @@
   @if(dialog.getConfirmFor() != null)
     <%-- The action wants the confirmation with the passkey first (TALITA-15): the dialog stays open while the phone asks, and says so here, in a live region that the script of the passkeys fills. --%>
     <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-4 text-sm text-ink-muted"></p>
-    <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.</template>
+    <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></template>
   @endif
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
     <form method="post" action="${dialog.getAction()}" hx-post="${dialog.getTarget() != null ? dialog.getAction() : null}" hx-target="${dialog.getTarget()}" hx-swap="${dialog.getTarget() != null ? "outerHTML" : null}" hx-disabled-elt="find button[type=submit]" data-conferma="${dialog.getConfirmFor()}" class="contents">

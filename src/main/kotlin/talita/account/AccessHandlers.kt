@@ -114,6 +114,9 @@ internal const val PAGE_EXPIRED = "La pagina era aperta da troppo tempo. Riprova
 /** The forms of the pages that are open to anyone and that have a tap with a CSRF code: the two of access (the link, and its confirmation) and the one for stopping the reminders (TALITA-13). */
 private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma", "/promemoria/smetti")
 
+/** The two requests of «Entra con una passkey» (TALITA-15), which the script of the access page sends with the CSRF code of the page: when it expired the access page comes back as itself, as for its forms. */
+private val PASSKEY_ENTRY = setOf("/webauthn/authenticate/options", "/login/webauthn")
+
 /**
  * What happens when the request is refused to someone who is inside, and when the CSRF code of a
  * form does not match.
@@ -143,6 +146,18 @@ class AccessHandler(private val entryPoint: LoginEntryPoint, private val remembe
         val path = PublicPaths.pathOf(request)
         when {
             path in ACCESS_FORMS -> backToAccessForm(path, request, response)
+
+            // «Entra con una passkey» on an access page that was left open for hours (TALITA-15, criterion 8): the page comes back with a new code and the notice, like the form of the link. The script
+            // asks as htmx and follows `HX-Redirect`; anything else gets the redirect.
+            path in PASSKEY_ENTRY -> {
+                Flash.put(request, Alert(WARNING, PAGE_EXPIRED))
+                if (request.isHtmx()) {
+                    response.status = HttpStatus.OK.value()
+                    response.setHeader("HX-Redirect", LoginEntryPoint.LOGIN_PATH)
+                } else {
+                    response.redirectSeeOther(LoginEntryPoint.LOGIN_PATH)
+                }
+            }
 
             // A person who has no session any more but the cookie of «Ricordami su questo telefono» is still inside: the form of a page that was open for hours has no code that the session knows, and
             // the person must not see «Accedi» for it (TALITA-15, criterion 8). The cookie is not used here (it is used by the next request, a page): it is only looked at.

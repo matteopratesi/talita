@@ -41,6 +41,19 @@ class PasskeysOffTests(
     }
 
     @Test
+    fun `t15 c34 without the public address the complete notice does not speak of passkeys either, and keeps what is about the box and the cookies`() {
+        val page = talita.gathering.text(phone().get("/informativa").response.contentAsString)
+
+        assertFalse(page.contains("passkey", ignoreCase = true), Regex(".{0,80}passkey.{0,80}", RegexOption.IGNORE_CASE).find(page)?.value)
+        assertTrue(page.contains("Cookie e accesso"))
+        assertTrue(page.contains("«Ricordami su questo telefono» non è obbligatorio: il link funziona sempre."))
+        assertTrue(page.contains("Di chi sceglie «Ricordami su questo telefono»: il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo."))
+        assertTrue(page.contains("I dispositivi collegati li vedi solo tu, nel tuo profilo."))
+        assertTrue(page.contains("Sempre dal «Profilo» togli i dispositivi collegati."))
+        assertTrue(page.contains("Dispositivi collegati («Ricordami su questo telefono»)"))
+    }
+
+    @Test
     fun `t15 c28 the access page has no block of the passkeys, no script and no notice with the sentence about them`() {
         val html = phone().body("/accedi")
 

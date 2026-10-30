@@ -106,13 +106,43 @@
     return field ? field.value : "";
   }
 
-  /** A POST with a JSON body (or none), with the CSRF code. Fails with a TypeError without network and with an AbortError if the server does not answer in time, like htmx. */
+  /** An answer that is never answered: the page is going away (to the access page, or to itself again) and nothing after this must run. */
+  const GOING_AWAY = new Promise(() => {});
+
+  /**
+   * A POST with a JSON body (or none), with the CSRF code. Fails with a TypeError without network and with an AbortError if the server does not answer in time, like htmx.
+   * It says that it is htmx (`HX-Request`) so that the server answers a page that was left open past the session as it does for every other request of the app (criterion 8): `HX-Redirect` to the
+   * access page when the access is gone, `HX-Refresh` when the person is still inside by the cookie of «Ricordami su questo telefono» and only the code of the page is old. The script does what htmx
+   * does with them, and the tap does not end in «Qualcosa non ha funzionato». An answer that was redirected (a server that was not asked as htmx) is the same as an access that is gone.
+   */
   function post(path, body) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    const headers = { Accept: "application/json", "X-CSRF-TOKEN": csrf() };
+    const headers = { Accept: "application/json", "HX-Request": "true", "X-CSRF-TOKEN": csrf() };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    return fetch(path, { method: "POST", headers, credentials: "same-origin", signal: controller.signal, body: body === undefined ? undefined : JSON.stringify(body) }).finally(() => clearTimeout(timer));
+    return fetch(path, { method: "POST", headers, credentials: "same-origin", signal: controller.signal, body: body === undefined ? undefined : JSON.stringify(body) }).then(
+      (response) => {
+        clearTimeout(timer);
+        const redirect = response.headers.get("HX-Redirect");
+        if (redirect) {
+          window.location.assign(redirect);
+          return GOING_AWAY;
+        }
+        if (response.headers.get("HX-Refresh") === "true") {
+          window.location.reload();
+          return GOING_AWAY;
+        }
+        if (response.redirected) {
+          window.location.assign("/accedi");
+          return GOING_AWAY;
+        }
+        return response;
+      },
+      (error) => {
+        clearTimeout(timer);
+        throw error;
+      },
+    );
   }
 
   /** The pop-up messages of the app (no network, too slow, something did not work, forbidden) live in the layout and are shown by app.js. */
@@ -285,6 +315,9 @@
         // What the confirmation was for (`data-conferma="togli"`, `"aggiungi"`, `"segnalazioni"`) names the block: every action has its own words for «cancelled» and «refused».
         const kind = element.getAttribute("data-conferma");
         outcome(place, "data-conferma-esito", kind ? kind + "-" + result : result, element);
+        // The sentence that says that the phone will ask is not true any more under a notice that says that it did: it goes (the waiting text is put back, and the line stays hidden).
+        const state = line.querySelector("[data-stato]");
+        if (state && state.__saved) state.__wasHidden = true;
         return false;
       }
       return true;

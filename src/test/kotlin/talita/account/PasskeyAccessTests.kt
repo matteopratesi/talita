@@ -23,6 +23,7 @@ import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.PASSKEY
 import talita.jooq.tables.references.REMEMBERED_DEVICE
 import talita.teacher.Invitations
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -259,6 +260,87 @@ class PasskeyAccessTests(
 
     // ---- What is not kept (criterion 21) ---------------------------------------------------------------------------------------------------------
 
+    // ---- A page left open past the session (criterion 8, D1 of the QA) ------------------------------------------------------------------
+
+    @Test
+    fun `t15 c8 D1 a tap of the script on a page left open past the session, without the box, is told to go to the access page as htmx is, with the notice`() {
+        val email = person()
+        val phone = phone()
+        phone.enter(email)
+        phone.forgetSession()
+
+        for (path in listOf("/verifica-passkey/opzioni", "/verifica-passkey", "/webauthn/register/options")) {
+            val answer = phone.postJson(path, if (path == "/verifica-passkey") "{}" else null, csrf = "scaduto") { header("HX-Request", "true") }
+
+            assertEquals(200, answer.response.status, path)
+            assertEquals("/accedi", answer.response.getHeader("HX-Redirect"), path)
+            assertEquals(null, answer.response.redirectedUrl, "no redirect for the script to follow: $path")
+        }
+        assertEquals(200, phone.get("/accedi").response.status, "the page where the script goes")
+    }
+
+    @Test
+    fun `t15 c8 D1 with the box the same tap is told to reload the page, and the person is still inside after it`() {
+        val email = person()
+        val phone = phone()
+        phone.enter(email, remember = true)
+        phone.forgetSession()
+
+        for (path in listOf("/verifica-passkey/opzioni", "/webauthn/register/options")) {
+            val answer = phone.postJson(path, csrf = "scaduto") { header("HX-Request", "true") }
+
+            assertEquals(200, answer.response.status, path)
+            assertEquals("true", answer.response.getHeader("HX-Refresh"), path)
+            assertEquals(null, answer.response.getHeader("HX-Redirect"), path)
+        }
+        assertEquals(200, phone.get("/profilo").response.status, "the reload of the page: the cookie lets the person in")
+    }
+
+    @Test
+    fun `t15 c8 D1 Entra con una passkey on an access page left open comes back to the access page, with a new code and the notice of the page that was open for too long`() {
+        val phone = phone()
+        phone.get("/accedi")
+        phone.forgetSession()
+
+        for (path in listOf("/webauthn/authenticate/options", "/login/webauthn")) {
+            val answer = phone.postJson(path, if (path == "/login/webauthn") "{}" else null, csrf = "scaduto") { header("HX-Request", "true") }
+
+            assertEquals(200, answer.response.status, path)
+            assertEquals("/accedi", answer.response.getHeader("HX-Redirect"), path)
+        }
+        assertTrue(phone.body("/accedi").contains("La pagina era aperta da troppo tempo. Riprova."))
+        // Asked as anything else, the answer is the redirect.
+        val plain = phone.postJson("/webauthn/authenticate/options", csrf = "scaduto")
+        assertEquals(303, plain.response.status)
+        assertEquals("/accedi", plain.response.getHeader("Location"))
+    }
+
+    @Test
+    fun `t15 c21 D2 a person who cancels the first registration on the phone leaves no handle, and the first passkey saves the one that the phone was given`() {
+        val email = person()
+        val phone = phone()
+        phone.enter(email)
+        val handleOf = { dsl.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email)).fetchSingle(ACCOUNT.PASSKEY_HANDLE) }
+        val csrf = phone.csrfOf("/profilo")
+
+        // The options are asked and the phone is cancelled: no passkey and no handle.
+        @Suppress("UNCHECKED_CAST")
+        val given = bytes((json(phone.postJson("/webauthn/register/options", csrf = csrf))["user"] as Map<String, Any?>)["id"])
+        assertEquals(0, passkeyCount(email))
+        assertNull(handleOf(), "nothing in the column after a registration that was cancelled")
+
+        // The person asks again and this time the phone makes the passkey: the handle is saved with it, and it is the one that the phone was given (the same one, for the two requests).
+        val soft = softPhone()
+        val started = json(phone.postJson("/webauthn/register/options", csrf = csrf))
+        @Suppress("UNCHECKED_CAST")
+        val user = started["user"] as Map<String, Any?>
+        assertEquals(given, bytes(user["id"]))
+        val credential = soft.create(bytes(started["challenge"]), bytes(user["id"]))
+        assertEquals(200, phone.postJson("/webauthn/register", SoftPasskey.json.writeValueAsString(mapOf("publicKey" to RelyingPartyPublicKey(credential, ""))), csrf).response.status)
+        assertEquals(1, passkeyCount(email))
+        assertContentEquals(given.bytes, handleOf())
+    }
+
     @Test
     fun `t15 c21 the row of a registration has no attestation, client data, label, model or last use, and the handle is not the id or the address`() {
         val email = person()
@@ -345,8 +427,8 @@ class PasskeyAccessTests(
         val options = phone.postJson("/webauthn/authenticate/options", csrf = null)
         val login = phone.postJson("/login/webauthn", "{}", csrf = null)
 
-        assertEquals(302, options.response.status, "a POST with no code goes back to the access page")
-        assertEquals(302, login.response.status)
+        assertEquals(303, options.response.status, "a POST with no code goes back to the access page, with a notice that the page was open for too long")
+        assertEquals(303, login.response.status)
         assertEquals("/accedi", options.response.getHeader("Location"))
     }
 
@@ -379,7 +461,7 @@ class PasskeyAccessTests(
             { s, c -> s.get(c, userVerified = false) },
             { s, c -> s.get(c, origin = "https://altro.example.org") },
             { s, c -> s.get(c, rp = "altro.example.org") },
-            { s, c -> s.get(c, handle = Bytes(passkeys.handleOf(accountId(otherEmail)))) },
+            { s, c -> s.get(c, handle = Bytes(passkeys.handleOf(accountId(otherEmail))!!)) },
         )) {
             val answer = enter(phone(), soft, bad)
             assertEquals(401, answer.response.status)

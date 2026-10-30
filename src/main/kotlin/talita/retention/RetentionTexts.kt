@@ -95,8 +95,11 @@ class RetentionTexts(private val policy: RetentionPolicy) {
 
     // ---- The complete notice, `/informativa` (design part 4, 1) -----------------------------------------------------------------
 
-    /** What the card «Per quanto tempo» says for each datum: the datum and the time, in the order of the notice. */
-    fun completeRows(): List<TimeRow> = listOf(
+    /**
+     * What the card «Per quanto tempo» says for each datum: the datum and the time, in the order of the notice. [passkeys] false is a site that has no passkeys (no `talita.public-url`): the row
+     * about them is not there, as the pages do not speak of them.
+     */
+    fun completeRows(passkeys: Boolean = true): List<TimeRow> = listOf(
         TimeRow("Segnalazioni su allergie, intolleranze e farmaci", "${capital(notes)} dopo la fine della convivenza. Le puoi togliere prima, quando vuoi."),
         TimeRow(
             "Chi dorme in quale camera",
@@ -132,17 +135,20 @@ class RetentionTexts(private val policy: RetentionPolicy) {
             "Moduli e registro di carta",
             "Le manleve firmate e il registro stampato si distruggono dopo $registrations dalla fine della convivenza; il foglio con i recapiti per i maestri, alla fine della convivenza.",
         ),
-    )
+    ).filter { passkeys || it.what != "Passkey" }
 
     /** The introduction of the card «Per quanto tempo». */
     val completeIntro: String = "Talità cancella i dati da sola, ogni notte, quando il loro tempo è scaduto."
 
     /** The three paragraphs of the card «I tuoi diritti» of the complete notice. */
-    val rights: List<String> = listOf(
+    val rights: List<String> get() = rightsFor(true)
+
+    /** The same for a site with or without passkeys: the sentence about taking them away from the profile is only there if there are any. */
+    fun rightsFor(passkeys: Boolean): List<String> = listOf(
         "Puoi chiedere di vedere, correggere, cancellare o limitare l’uso dei dati, riceverne una copia, opporti e togliere il consenso quando vuoi.",
         "Dalla pagina «Iscrizioni» correggi l’iscrizione finché le iscrizioni sono aperte e togli le segnalazioni con un tocco. I promemoria li fermi con un tocco dalla mail o dal profilo, e la richiesta di avviso la togli quando vuoi. " +
             "Dal «Profilo» cancelli i dati dei tuoi figli o " +
-            "il tuo account: resta solo l’iscrizione con l’affidamento accettato, fino alla data scritta, perché serve come prova dell’affidamento. Sempre dal «Profilo» togli i dispositivi collegati e le passkey.",
+            "il tuo account: resta solo l’iscrizione con l’affidamento accettato, fino alla data scritta, perché serve come prova dell’affidamento. Sempre dal «Profilo» togli i dispositivi collegati${if (passkeys) " e le passkey" else ""}.",
         "Per il resto scrivi al titolare, anche se non hai un account: risponde entro un mese.",
     )
 

@@ -149,7 +149,7 @@ class PasskeyConfirmations(
         return try {
             val credential = JSON.readValue(body, object : TypeReference<PublicKeyCredential<AuthenticatorAssertionResponse>>() {})
             val identity = operations.authenticate(RelyingPartyAuthenticationRequest(pending.options, credential))
-            check(identity.id == Bytes(passkeys.handleOf(account.id))) { "not a passkey of this account" }
+            check(passkeys.handleOf(account.id)?.let { identity.id == Bytes(it) } == true) { "not a passkey of this account" }
             mark(session, account.id)
             request.changeSessionId()
             true
