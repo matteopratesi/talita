@@ -36,6 +36,36 @@
     </div>
   @endif
 
+  @if(page.getConfirm() != null)
+    <%-- The correction of a paper registration that has notes, for a teacher who has a passkey and has not confirmed (TALITA-15, criteria 37, 39, 43): the page has no fields and no warning, because
+         nothing was read and nothing is registered. The buttons are shown by passkeys.js where the browser can use passkeys; without JavaScript the sentence that says it wants it is shown. --%>
+    <section id="segnalazioni" data-ambito data-esiti class="mt-4 rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="serve-titolo">
+      <h2 id="serve-titolo" class="text-lg font-semibold wrap-anywhere">Serve la conferma</h2>
+      <div data-passkey hidden>
+        <p class="mt-3">In questa pagina compaiono le segnalazioni di ${page.getFirstName()}, che sono dati sulla salute. Prima di aprirla, il telefono ti chiede l’impronta, il volto o il codice di sblocco.</p>
+        @template.components.outcomeAlert(variant = AlertVariant.INFO, lead = "Pagina non aperta.", text = "La conferma non è arrivata: forse hai annullato, o su questo telefono non c’è una tua passkey. Puoi riprovare. Se non ci riesci, la pagina la può aprire un altro maestro.", confermaEsito = "pagina-annullata")
+        @template.components.outcomeAlert(variant = AlertVariant.WARNING, lead = "La conferma non è riuscita.", text = "Non è stato aperto niente. Riprova. Se non funziona, la pagina la può aprire un altro maestro.", confermaEsito = "pagina-rifiutata")
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+          @template.components.button(label = "Conferma con la passkey", busyLabel = "In attesa della conferma…", icon = Icon.FINGERPRINT_PATTERN, type = "button", azione = "conferma-pagina", conferma = "pagina")
+          @template.components.linkButton(href = page.getCancelHref(), label = "Annulla", variant = "secondary", width = "phone")
+        </div>
+        <p role="status" data-stato hidden class="mt-3 flex items-start gap-2 text-sm text-ink-muted"></p>
+        <template data-attesa="">
+          @template.components.icon(icon = Icon.FINGERPRINT_PATTERN, classes = "mt-0.5 size-4 shrink-0")
+          <span>Conferma con l’impronta, il volto o il codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></span>
+        </template>
+        <p class="mt-3 text-sm text-ink-muted">Dopo la conferma la pagina si apre con le segnalazioni. La lettura resta scritta a tuo nome.</p>
+      </div>
+      <div data-passkey-no>
+        <div class="mt-3">
+          @template.components.alert(variant = AlertVariant.INFO, content = @`<strong>Serve la conferma.</strong> Per aprire questa pagina devi confermare con la passkey, e la conferma vuole JavaScript, che in questo browser è spento o non funziona. Un altro maestro può aprire la pagina al posto tuo.`)
+        </div>
+        <div class="-ml-3 mt-3">
+          @template.components.linkButton(href = page.getCancelHref(), label = "Torna all’iscrizione", variant = "text")
+        </div>
+      </div>
+    </section>
+  @else
   <form id="segnalazioni" method="post" action="${page.getFormAction()}" novalidate hx-disabled-elt="#segnalazioni-salva" class="mt-4 space-y-3">
     @template.components.csrf(csrf = csrf)
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="segnalazioni-titolo">
@@ -65,7 +95,9 @@
     </div>
   </form>
 
-  @if(page.getExists() && page.getTogli() != null)
+  @endif
+
+  @if(page.getConfirm() == null && page.getExists() && page.getTogli() != null)
     @template.components.confirmDialog(dialog = page.getTogli(), csrf = csrf)
   @endif
 `)

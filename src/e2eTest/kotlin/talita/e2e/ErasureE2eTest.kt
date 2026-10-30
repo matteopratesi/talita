@@ -163,7 +163,7 @@ class ErasureE2eTest {
         assertThat(page.locator("main")).containsText("Per cancellare il tuo account, prima:")
         assertThat(page.locator("main")).containsText("ritira l’iscrizione di Luca alla «Convivenza di settembre 2027».")
         assertThat(page.locator("main").linkNamed("Cancella il mio account")).hasCount(0)
-        assertThat(page.locator("dialog")).hasCount(0)
+        assertThat(page.locator("dialog[id^=cancella]")).hasCount(0)
         assertTrue(page.noHorizontalScroll())
         page.setViewportSize(320, 800)
         assertTrue(page.noHorizontalScroll(), "no sideways scrolling at 320 px")

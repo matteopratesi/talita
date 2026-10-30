@@ -13,7 +13,12 @@ import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.TestcontainersConfiguration
+import talita.account.ConfirmationProof
+import talita.account.CurrentAccount
+import talita.account.Gate
 import talita.account.MockBrowser
+import talita.account.PasskeyConfirmations
+import talita.account.TeacherName
 import talita.account.TestAccounts
 import talita.gathering.body
 import talita.gathering.errorOf
@@ -51,10 +56,17 @@ class TeacherRegistrationTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
     @Autowired private val healthNotes: HealthNotes,
+    @Autowired private val confirmations: PasskeyConfirmations,
 ) {
 
     private val kit = RegistrationTestKit(mockMvc, tokens, dsl, clock)
     private val rows = RegistrationRows(dsl, clock)
+
+    /** The proof that the check before the notes was made, for a teacher who has no passkey (TALITA-15): the only way to get one is to ask the class that checks. */
+    private fun proofOf(accountId: Long): ConfirmationProof {
+        val teacher = CurrentAccount(accountId, talita.Addresses.of("maestro"), TeacherName("Elisa", "Conti"))
+        return (confirmations.gate(teacher, null) as Gate.Granted).proof
+    }
 
     private fun text(html: String): String = talita.gathering.text(html).replace(' ', ' ')
 
@@ -275,7 +287,7 @@ class TeacherRegistrationTests(
         // The service says the same: it throws, and gives back nothing.
         dsl.execute("alter table health_note_access add constraint test_cannot_write check (false) not valid")
         try {
-            assertFailsWith<Exception> { healthNotes.readForTeacher(id, setup.martaId) }
+            assertFailsWith<Exception> { healthNotes.readForTeacher(id, proofOf(setup.martaId)) }
         } finally {
             dsl.execute("alter table health_note_access drop constraint test_cannot_write")
         }

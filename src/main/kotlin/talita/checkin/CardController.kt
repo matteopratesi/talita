@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
 import talita.account.CurrentAccount
+import talita.account.CurrentAccounts
+import talita.account.Gate
+import talita.account.GateMode
+import talita.account.NotesGate
+import talita.account.PasskeyConfirmations
 import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.gathering.GatheringInfo
@@ -44,9 +49,16 @@ class CardController(
     private val presenter: ArrivalsPresenter,
     private val payments: Payments,
     private val healthNotes: HealthNotes,
+    private val confirmations: PasskeyConfirmations,
+    private val accounts: CurrentAccounts,
+    /** The request of the thread: the card is drawn by many actions, and every one of them says what the confirmation is (a teacher with a passkey, the invitation to add one). */
+    private val current: HttpServletRequest,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
+
+    /** What the card of the notes says about the confirmation with the passkey, for this person now (TALITA-15). */
+    private fun currentGate(): NotesGate = accounts.current()?.let { NotesGate.of(confirmations.view(it, current.getSession(false))) } ?: NotesGate.NONE
 
     private fun choice(gathering: GatheringInfo, typedDay: String?): DayChoice = DayChoice.of(gathering.days, typedDay, scope.today())
 
@@ -58,9 +70,10 @@ class CardController(
         read: NotesRead? = null,
         reader: String = "",
         typed: PaymentTyped? = null,
+        gate: NotesGate = currentGate(),
     ): CardPage {
         val data = arrivals.load(gathering)
-        return cards.page(data, data.registrations.first { it.id == registration.id }, choice(gathering, typedDay), flash, read, reader, typed)
+        return cards.page(data, data.registrations.first { it.id == registration.id }, choice(gathering, typedDay), flash, read, reader, typed, gate)
     }
 
     /** The card as a whole page: with the title of the child, the way back to the list of the same day and the notice that a redirect left. */
@@ -89,8 +102,9 @@ class CardController(
         read: NotesRead? = null,
         reader: String = "",
         typed: PaymentTyped? = null,
+        gate: NotesGate = currentGate(),
     ): ModelAndView {
-        val page = view(registration, gathering, typedDay, flash, read, reader, typed)
+        val page = view(registration, gathering, typedDay, flash, read, reader, typed, gate)
         return if (request.isHtmxFragment()) ModelAndView("checkin/childCard", mapOf("page" to page)).also { it.status = status } else wholePage(registration, page, status)
     }
 
@@ -188,7 +202,16 @@ class CardController(
     @PostMapping("/arrivi/{id:[0-9]{1,18}}/segnalazioni")
     fun showNotes(account: CurrentAccount, @PathVariable id: Long, @RequestParam(name = "giorno", required = false) day: String?, http: HttpServletRequest): ModelAndView {
         val (registration, gathering) = scope.registration(id) ?: notFound()
-        val read = healthNotes.readForTeacher(id, account.id)
+        // The check comes first, and `readForTeacher` wants its proof: a teacher with a passkey and no confirmation that holds reads nothing and writes no reading (TALITA-15, criterion 39).
+        val proof = when (val check = confirmations.gate(account, http.getSession(false))) {
+            is Gate.Granted -> check.proof
+
+            Gate.Needed -> return block(
+                http, registration, gathering, day, null, HttpStatus.CONFLICT,
+                gate = NotesGate(if (http.isHtmxFragment()) GateMode.SERVE else GateMode.SERVE_NO_JS),
+            )
+        }
+        val read = healthNotes.readForTeacher(id, proof)
         return block(http, registration, gathering, day, null, read = read, reader = account.teacher?.full ?: "un maestro")
     }
 }

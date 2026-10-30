@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
 import talita.account.CurrentAccount
+import talita.account.Gate
+import talita.account.GateMode
+import talita.account.NotesGate
+import talita.account.PasskeyConfirmations
 import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.gathering.Badge
@@ -69,6 +73,8 @@ data class NotesView(
     val canCorrect: Boolean,
     /** The notes are past their date: the card says so, with no button (the same for every registration, it does not say whether there were any). */
     val deleted: NotesDeleted? = null,
+    /** What the card says about the confirmation with the passkey (TALITA-15): that the phone will ask, until when it holds, the notice that it is needed. */
+    val gate: NotesGate = NotesGate.NONE,
 )
 
 data class ReadingView(val name: String, val at: String, val mine: Boolean)
@@ -231,7 +237,7 @@ class TeacherPresenter(
      * The notes of the card: [read] has them (after a request that wrote a reading), null for the card as it is before. From the day of their date the card says that they were
      * deleted, whatever [read] is: the date and not the rows decides (criterion 30).
      */
-    fun notes(registration: RegistrationData, read: NotesRead?, gathering: GatheringInfo): NotesView {
+    fun notes(registration: RegistrationData, read: NotesRead?, gathering: GatheringInfo, gate: NotesGate = NotesGate.NONE): NotesView {
         val note = read?.note
         val rows = buildList {
             note?.notes?.allergies?.let { add("Allergie" to it) }
@@ -246,10 +252,12 @@ class TeacherPresenter(
             consent = note?.let { if (it.onPaper) "Il genitore ha dato il consenso sul modulo cartaceo." else "Consenso dato dal genitore il ${RegistrationFormat.moment(it.consentAt)}." },
             canCorrect = registration.onPaper && note != null && registration.status != Status.WITHDRAWN,
             deleted = if (policy.notesExpired(gathering.end, LocalDate.now(clock))) texts.notesDeleted(gathering.end) else null,
+            // The notes that are shown have no confirmation to ask for; the invitation is for the arrivals and the profile, not for this card.
+            gate = if (read != null || gate.invite) NotesGate.NONE else gate,
         )
     }
 
-    fun detail(account: CurrentAccount, registration: RegistrationData, gathering: GatheringInfo, read: NotesRead?, alert: Alert?, arrivalsHref: String? = null): TeacherDetailPage {
+    fun detail(account: CurrentAccount, registration: RegistrationData, gathering: GatheringInfo, read: NotesRead?, alert: Alert?, arrivalsHref: String? = null, gate: NotesGate = NotesGate.NONE): TeacherDetailPage {
         val duplicates = registrations.duplicates(gathering.id)[registration.id].orEmpty().mapNotNull { registrations.find(it) }
         val withdrawn = registration.status == Status.WITHDRAWN
         val due = quotaOf(gathering, registration)
@@ -273,7 +281,7 @@ class TeacherPresenter(
             acceptedText = registration.custodyText,
             paperReceived = registration.paperFormReceived,
             enteredBy = registration.enteredBy?.let { registrations.teacherName(it) ?: "un maestro che non è più tra i maestri" },
-            notes = notes(registration, read, gathering),
+            notes = notes(registration, read, gathering, gate),
             readings = readings(registration.id, account.id),
             alert = alert,
             withdrawDialog = withdrawDialog(registration),
@@ -303,9 +311,13 @@ class TeacherRegistrationsController(
     private val teacher: TeacherPresenter,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
+    private val confirmations: PasskeyConfirmations,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
+
+    /** What the card of the notes says about the confirmation, for this person now. */
+    private fun gateOf(account: CurrentAccount, request: HttpServletRequest): NotesGate = NotesGate.of(confirmations.view(account, request.getSession(false)))
 
     /** The dialog of the withdrawal in the words of the teachers (the page of confirmation without JavaScript shows the same). */
     fun withdrawDialog(registration: RegistrationData): ConfirmModel = teacher.withdrawDialog(registration)
@@ -355,7 +367,7 @@ class TeacherRegistrationsController(
     @GetMapping("/iscrizioni/{id:[0-9]{1,18}}")
     fun detail(account: CurrentAccount, @PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val registration = registration(id)
-        return page("registration/teacherDetail", registration.name, teacher.detail(account, registration, gatheringOf(registration), null, Flash.take(request), arrivalsHref(registration)))
+        return page("registration/teacherDetail", registration.name, teacher.detail(account, registration, gatheringOf(registration), null, Flash.take(request), arrivalsHref(registration), gateOf(account, request)))
     }
 
     /** The card of this registration in the arrivals, if it is of the gathering that the arrivals are about (the registrations of an older one have no card there). */
@@ -368,8 +380,23 @@ class TeacherRegistrationsController(
     @PostMapping("/iscrizioni/{id:[0-9]{1,18}}/mostra-segnalazioni")
     fun showNotes(account: CurrentAccount, @PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val registration = registration(id)
-        val read = healthNotes.readForTeacher(id, account.id)
         val gathering = gatheringOf(registration)
+        // The check comes first, and `readForTeacher` wants its proof: without a confirmation that holds, a teacher with a passkey reads nothing and writes no reading (TALITA-15, criterion 39).
+        val proof = when (val gate = confirmations.gate(account, request.getSession(false))) {
+            is Gate.Granted -> gate.proof
+
+            Gate.Needed -> {
+                // 409, like the other refusals that depend on the state of things: the card is replaced with the notice (htmx), or the whole page says it (without JavaScript).
+                val needs = NotesGate(if (request.isHtmxFragment()) GateMode.SERVE else GateMode.SERVE_NO_JS)
+                val refused = teacher.detail(account, registration, gathering, null, null, arrivalsHref(registration), needs)
+                return if (request.isHtmxFragment()) {
+                    ModelAndView("registration/notesCard", mapOf("page" to refused, "oob" to false)).also { it.status = HttpStatus.CONFLICT }
+                } else {
+                    page("registration/teacherDetail", registration.name, refused, status = HttpStatus.CONFLICT)
+                }
+            }
+        }
+        val read = healthNotes.readForTeacher(id, proof)
         val detail = teacher.detail(account, registration, gathering, read, null, arrivalsHref(registration))
         return if (request.isHtmxFragment()) {
             ModelAndView("registration/notesCard", mapOf("page" to detail, "oob" to true))
@@ -565,7 +592,7 @@ class TeacherRegistrationsController(
 
     // ---- The notes of a paper registration (criteria 22, 26) --------------------------------------------------------------------------------
 
-    private fun healthPage(registration: RegistrationData, gathering: GatheringInfo, input: ChildInput, errors: Map<String, String>, alert: Alert?, status: HttpStatus = HttpStatus.OK): ModelAndView {
+    private fun healthPage(registration: RegistrationData, gathering: GatheringInfo, input: ChildInput, errors: Map<String, String>, alert: Alert?, status: HttpStatus = HttpStatus.OK, confirm: NotesGate? = null): ModelAndView {
         val view = presenter.childView(0, 1, input, ChildCheck(input, errors, "", "", null, null, null, null, null), presenter.offer(gathering))
         val model = HealthPage(
             id = registration.id,
@@ -582,7 +609,8 @@ class TeacherRegistrationsController(
             cancelHref = "/iscrizioni/${registration.id}",
             paper = true,
             intro = false,
-            warning = if (healthNotes.existing(listOf(registration.id)).isNotEmpty()) "Questa pagina mostra le segnalazioni: la lettura è stata registrata a tuo nome." else null,
+            warning = if (confirm == null && healthNotes.existing(listOf(registration.id)).isNotEmpty()) "Questa pagina mostra le segnalazioni: la lettura è stata registrata a tuo nome." else null,
+            confirm = confirm,
         )
         return page("registration/health", "Correggi le segnalazioni", model, status = status)
     }
@@ -596,7 +624,17 @@ class TeacherRegistrationsController(
         if (!Rules.teacherCanChange(gathering) || registration.status == Status.WITHDRAWN) notFound()
         if (notesGone(gathering)) return notesDeletedRedirect(request, id, gathering)
         val exists = healthNotes.existing(listOf(id)).isNotEmpty()
-        val note = if (exists) healthNotes.readForTeacher(id, account.id).note else null
+        // The page shows the notes, so reading them is the same act as opening them from the detail: a teacher with a passkey confirms first, and until then the page has no fields, reads nothing and
+        // registers nothing (TALITA-15, criterion 39). A paper registration with no notes has nothing to confirm.
+        val proof = if (exists) {
+            when (val gate = confirmations.gate(account, request.getSession(false))) {
+                is Gate.Granted -> gate.proof
+                Gate.Needed -> return healthPage(registration, gathering, ChildInput(), emptyMap(), null, confirm = NotesGate(GateMode.CONFIRM))
+            }
+        } else {
+            null
+        }
+        val note = if (proof != null) healthNotes.readForTeacher(id, proof).note else null
         val input = ChildInput(allergies = note?.notes?.allergies.orEmpty(), intolerances = note?.notes?.intolerances.orEmpty(), medications = note?.notes?.medications.orEmpty(), healthConsent = note != null)
         return healthPage(registration, gathering, input, emptyMap(), null)
     }

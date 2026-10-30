@@ -2,6 +2,7 @@ package talita.ui
 
 import org.springframework.stereotype.Component
 import talita.account.CurrentAccounts
+import talita.account.PasskeySupport
 
 /**
  * Builds the [Shell] of a page. The person who is inside is not passed in: the factory asks
@@ -13,6 +14,7 @@ class ShellFactory(
     private val assets: Assets,
     private val navigation: Navigation,
     private val accounts: CurrentAccounts,
+    private val passkeys: PasskeySupport,
 ) {
 
     /**
@@ -32,6 +34,7 @@ class ShellFactory(
             profile = account?.let { ProfileLink(it.initials, onProfile) },
             noindex = noindex,
             wide = wide,
+            passkeys = passkeys.enabled,
         )
     }
 

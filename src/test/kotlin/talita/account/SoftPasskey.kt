@@ -73,8 +73,18 @@ class SoftPasskey(val origin: String, val rpId: String, private val synchronized
         origin: String = this.origin,
         rp: String = this.rpId,
         transports: List<AuthenticatorTransport> = listOf(AuthenticatorTransport.INTERNAL, AuthenticatorTransport.HYBRID),
+    ): PublicKeyCredential<AuthenticatorAttestationResponse> = create(options.challenge, options.user.id, userVerified, origin, rp, transports)
+
+    /** The same from what the options say that matters: the challenge and the handle of the account (what a test reads from the JSON that the server answered). */
+    fun create(
+        challenge: Bytes,
+        user: Bytes,
+        userVerified: Boolean = true,
+        origin: String = this.origin,
+        rp: String = this.rpId,
+        transports: List<AuthenticatorTransport> = listOf(AuthenticatorTransport.INTERNAL, AuthenticatorTransport.HYBRID),
     ): PublicKeyCredential<AuthenticatorAttestationResponse> {
-        userHandle = options.user.id
+        userHandle = user
         val coseKey = objects.cborConverter.writeValueAsBytes(EC2COSEKey.create(keys.public as ECPublicKey, com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier.ES256))
         val attested = ByteArrayOutputStream().apply {
             write(ByteArray(16))
@@ -86,7 +96,7 @@ class SoftPasskey(val origin: String, val rpId: String, private val synchronized
         val attestationObject = objects.cborConverter.writeValueAsBytes(mapOf("fmt" to "none", "attStmt" to emptyMap<String, Any>(), "authData" to authData))
         val response = AuthenticatorAttestationResponse.builder()
             .attestationObject(Bytes(attestationObject))
-            .clientDataJSON(Bytes(clientData("webauthn.create", options.challenge, origin)))
+            .clientDataJSON(Bytes(clientData("webauthn.create", challenge, origin)))
             .transports(transports)
             .build()
         return credential(response)
@@ -101,10 +111,21 @@ class SoftPasskey(val origin: String, val rpId: String, private val synchronized
         rp: String = this.rpId,
         handle: Bytes? = this.userHandle,
         counterAfter: Long? = null,
+    ): PublicKeyCredential<AuthenticatorAssertionResponse> = get(options.challenge, userVerified, userPresent, origin, rp, handle, counterAfter)
+
+    /** The same from the challenge alone (what a test reads from the JSON that the server answered). */
+    fun get(
+        challenge: Bytes,
+        userVerified: Boolean = true,
+        userPresent: Boolean = true,
+        origin: String = this.origin,
+        rp: String = this.rpId,
+        handle: Bytes? = this.userHandle,
+        counterAfter: Long? = null,
     ): PublicKeyCredential<AuthenticatorAssertionResponse> {
         counter = counterAfter ?: (counter + 1)
         val authData = authenticatorData(rp, flags(userVerified, userPresent, attested = false))
-        val clientDataJson = clientData("webauthn.get", options.challenge, origin)
+        val clientDataJson = clientData("webauthn.get", challenge, origin)
         val signature = Signature.getInstance("SHA256withECDSA").apply {
             initSign(keys.private)
             update(authData)

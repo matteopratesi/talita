@@ -238,3 +238,18 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
         const val PHONE_NAME = "Talità"
     }
 }
+
+/**
+ * Says at the start, once, that there are no passkeys on this site (TALITA-15, criterion 28): without a public address of the site (`talita.public-url`, `TALITA_PUBLIC_URL`) a passkey would have no
+ * `rpId` and no origin, so there are no buttons, no pages that offer them and no addresses that answer, and the rest of the access works. Otherwise the first person to look for them would be the one to find out.
+ */
+@Component
+class PasskeyStartupCheck(private val support: PasskeySupport) {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(PasskeyStartupCheck::class.java)
+
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent::class)
+    fun warnIfPasskeysAreOff() {
+        if (!support.enabled) log.warn("Passkeys are off: talita.public-url is not set or is not an address, so the site has no rpId and no origin. The rest of the access works.")
+    }
+}

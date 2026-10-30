@@ -40,6 +40,13 @@
       @endif
     </section>
 
+    @if(page.getPasskeys() != null)
+      <section id="passkey" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="passkey-titolo">
+        <h2 id="passkey-titolo" class="text-lg font-semibold">Passkey</h2>
+        @template.profile.passkeysBlock(block = page.getPasskeys(), csrf = csrf)
+      </section>
+    @endif
+
     @if(page.getNameForm() != null)
       <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="nome-titolo">
         <h2 id="nome-titolo" class="text-lg font-semibold">Il tuo nome</h2>

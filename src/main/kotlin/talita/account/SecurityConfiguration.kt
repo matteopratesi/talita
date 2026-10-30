@@ -1,6 +1,7 @@
 package talita.account
 
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.http.HttpMethod
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcTemplate
@@ -55,14 +56,27 @@ class SecurityConfiguration {
         texts: SessionTexts,
         origins: SessionOrigins,
         remembered: DeviceRememberMeServices,
+        passkeySupport: PasskeySupport,
+        passkeyOperations: PasskeyOperations,
+        passkeys: Passkeys,
+        passkeyListeners: ObjectProvider<PasskeySignInListener>,
+        currentAccounts: CurrentAccounts,
+        confirmations: PasskeyConfirmations,
+        passkeyPresenter: PasskeyPresenter,
+        settings: LoginSettings,
+        clock: Clock,
     ): SecurityFilterChain {
         val entryPoint = LoginEntryPoint(texts)
         val requests = requestCache()
+        // The one way in after a link and after a passkey: the origin of the session, and where the person goes.
+        val login = LoginSuccessHandler(requests, destinations.orderedStream().toList(), origins)
 
         http {
             authorizeHttpRequests {
                 PublicPaths.all.forEach { authorize(it, permitAll) }
                 TeacherPaths.patterns.forEach { authorize(it, hasRole("TEACHER")) }
+                // The removal of a passkey is ours (`POST /profilo/passkey/togli`, which a person can use only for their own): Spring's `DELETE /webauthn/register/{id}` is closed (TALITA-15, criterion 26).
+                authorize(HttpMethod.DELETE, "/webauthn/register/**", denyAll)
                 authorize(anyRequest, authenticated)
             }
 
@@ -72,7 +86,7 @@ class SecurityConfiguration {
                 loginProcessingUrl = "/accedi/conferma"
                 showDefaultSubmitPage = false
                 authenticationConverter = LinkFromForm()
-                authenticationSuccessHandler = LoginSuccessHandler(requests, destinations.orderedStream().toList(), origins)
+                authenticationSuccessHandler = login
                 authenticationFailureHandler = LoginFailureHandler()
                 // Links are made by LoginLinks and nowhere else: this one makes none and sends none.
                 generateRequestResolver = GenerateOneTimeTokenRequestResolver { null }
@@ -98,6 +112,9 @@ class SecurityConfiguration {
 
             requestCache { requestCache = requests }
 
+            // Passkeys (TALITA-15): the filters of Spring's WebAuthn, wired by us. Without `talita.public-url` there are none.
+            with(PasskeyConfigurer(passkeySupport, passkeyOperations, passkeys, accounts, login, passkeyListeners, settings, clock, listOf(passkeyGuard(currentAccounts, passkeys, confirmations, passkeyPresenter))))
+
             headers {
                 contentSecurityPolicy {
                     policyDirectives = CONTENT_SECURITY_POLICY
@@ -115,6 +132,16 @@ class SecurityConfiguration {
         }
         return http.build()
     }
+
+    /**
+     * What a request to add a passkey meets first: the most passkeys, the confirmation of a teacher who already has one (criterion 45: without it `POST /webauthn/register/options` answers
+     * «serve-conferma» and nothing changes), and the notice that a registration leaves for the profile.
+     */
+    private fun passkeyGuard(accounts: CurrentAccounts, passkeys: Passkeys, confirmations: PasskeyConfirmations, presenter: PasskeyPresenter) = PasskeyRegistrationGuard(
+        accounts, passkeys,
+        before = listOf({ account, request -> if (confirmations.needed(account, request.getSession(false))) "serve-conferma" else null }),
+        registered = { account, request -> AccessFlash.put(request, "passkey", presenter.added(account.isTeacher)) },
+    )
 
     companion object {
         /**

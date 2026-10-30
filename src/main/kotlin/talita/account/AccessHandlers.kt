@@ -206,14 +206,21 @@ class LoginSuccessHandler(
 ) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
+        response.redirectSeeOther(enter(request, response, authentication))
+    }
+
+    /**
+     * What happens at every way in, and where the person goes: the origin of the session is written (the number of the sessions of the account, the moment, the device that the box made if it was touched, so
+     * that the session ends when it must: TALITA-15) and the page that was asked for is forgotten. The link redirects to the address that this returns, a passkey says it in JSON.
+     */
+    fun enter(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication): String {
         val person = authentication.principal as? AccountUserDetails
-        // The session is born here: it remembers how (the number of the sessions of the account, the moment, the device that the box made if it was touched), so that it ends when it must (TALITA-15).
         if (person != null) origins?.stamp(request, person.id, request.getAttribute(DeviceRememberMeServices.DEVICE) as? Long)
         val email = person?.username
         val urgent = email?.let { address -> destinations.firstNotNullOfOrNull { it.forNewLogin(address) } }
         val target = urgent ?: destination(request, response)
         requestCache.removeRequest(request, response)
-        response.redirectSeeOther(target)
+        return target
     }
 
     private fun destination(request: HttpServletRequest, response: HttpServletResponse): String {

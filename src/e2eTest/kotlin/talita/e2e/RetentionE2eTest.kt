@@ -338,7 +338,7 @@ class RetentionE2eTest {
         assertThat(page.locator("main")).containsText("invita un altro maestro: ora sei l’unico.")
         assertThat(page.locator("main").linkNamed("Vai a Maestri")).hasAttribute("href", "/maestri")
         assertThat(page.locator("main").linkNamed("Cancella il mio account")).hasCount(0)
-        assertThat(page.locator("dialog")).hasCount(0)
+        assertThat(page.locator("dialog[id^=cancella]")).hasCount(0)
         page.fits320(e2e.profile.isPhone)
         assertAccessible(page, "profile of the only teacher (${e2e.profile.label})")
 

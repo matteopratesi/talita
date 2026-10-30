@@ -8,6 +8,9 @@
 @param String id = null
 @param String formaction = null
 @param String ariaLabel = null
+@param String type = "submit"
+@param String azione = null
+@param String conferma = null
 <%-- The button of a form (design guide 4.1). While its request is on its way the form has the class htmx-request:
      the button shows the spinner and the busy label (busy:), and is disabled by hx-disabled-elt on the form.
      variant: primary (the one action of the screen), secondary (alternative), text (minor action in a card or a list), danger (the button that deletes for good,
@@ -16,7 +19,9 @@
      opens: the id of a dialog (confirmDialog.jte): app.js opens it at the tap; without JavaScript the button sends its form, which leads
      to a page with the same words.
      id: for `hx-disabled-elt` of a form with other buttons. formaction: where this button sends the form, when it is not the one of the form (the «Indietro» of step 2).
-     ariaLabel: the name when the label alone does not say what it is about («Segna presente Anna Rossi, sabato 18 settembre»: it starts with the visible label). --%>
+     ariaLabel: the name when the label alone does not say what it is about («Segna presente Anna Rossi, sabato 18 settembre»: it starts with the visible label).
+     type, azione, conferma (TALITA-15): `type="button"` is a button that sends no form, with `azione` as `data-azione` for the script of the passkeys («entra-passkey», «aggiungi-passkey»);
+     `conferma` is `data-conferma`: what the confirmation with the passkey is for, which that script reads. --%>
 !{String look = switch (variant) {
     case "secondary" -> "border border-line-strong bg-surface text-ink hover:bg-surface-muted active:bg-surface-muted";
     case "danger" -> "bg-danger text-white hover:bg-danger-strong active:bg-danger-strong";
@@ -29,7 +34,7 @@ String span = switch (width) {
     case "phone" -> " w-full sm:w-auto";
     default -> "";
 };}
-<button type="submit" id="${id}" formaction="${formaction}" formnovalidate="${formaction != null}" data-apri="${opens}" aria-label="${ariaLabel}" class="inline-flex ${variant.equals("text") ? "min-h-11 px-3" : "min-h-12 px-5"} items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors duration-150 select-none disabled:cursor-wait disabled:opacity-70 ${look}${span}">
+<button type="${type}" id="${id}" formaction="${formaction}" formnovalidate="${formaction != null}" data-apri="${opens}" data-azione="${azione}" data-conferma="${conferma}" aria-label="${ariaLabel}" class="inline-flex ${variant.equals("text") ? "min-h-11 px-3" : "min-h-12 px-5"} items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors duration-150 select-none disabled:cursor-wait disabled:opacity-70 ${look}${span}">
   @template.components.icon(icon = Icon.LOADER_CIRCLE, classes = "hidden size-5 animate-spin busy:block")
   @if(icon != null)
     @template.components.icon(icon = icon, classes = "size-5 busy:hidden")

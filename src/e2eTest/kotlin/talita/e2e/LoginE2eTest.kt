@@ -21,7 +21,7 @@ class LoginE2eTest {
 
     private fun Page.field() = getByLabel("Indirizzo email")
 
-    private fun Page.button(name: String) = getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(name))
+    private fun Page.button(name: String) = getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(name).setExact(true))
 
     private fun Page.link(name: String) = getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName(name))
 

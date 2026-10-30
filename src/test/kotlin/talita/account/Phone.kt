@@ -1,6 +1,7 @@
 package talita.account
 
 import jakarta.servlet.http.Cookie
+import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -63,6 +64,21 @@ class Phone(private val mockMvc: MockMvc, private val tokens: OneTimeTokenServic
                 send(this)
                 fields.forEach { (name, value) -> param(name, value) }
                 if (csrf != null) param("_csrf", csrf)
+                configure()
+            }.andReturn(),
+        )
+
+    /** A POST with a JSON body, as the script of the passkeys sends it: the CSRF code in the header, the answer read as JSON. */
+    fun postJson(path: String, body: String? = null, csrf: String? = null, configure: MockHttpServletRequestDsl.() -> Unit = {}): MvcResult =
+        remember(
+            mockMvc.post(path) {
+                send(this)
+                accept = MediaType.APPLICATION_JSON
+                if (body != null) {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = body
+                }
+                if (csrf != null) header("X-CSRF-TOKEN", csrf)
                 configure()
             }.andReturn(),
         )

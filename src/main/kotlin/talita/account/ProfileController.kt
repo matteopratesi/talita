@@ -35,6 +35,8 @@ data class ProfilePage(
     val emailCard: EmailCard? = null,
     /** How the person enters (TALITA-15): the devices where they touched «Ricordami su questo telefono». */
     val access: DevicesBlock? = null,
+    /** The card «Passkey», or null when this site has none (there is no public address). */
+    val passkeys: PasskeysBlock? = null,
 )
 
 /**
@@ -48,6 +50,8 @@ class ProfileController(
     private val yourData: YourDataPresenter,
     private val notices: NoticePresenter,
     private val access: AccessPresenter,
+    private val passkeyPresenter: PasskeyPresenter,
+    private val confirmations: PasskeyConfirmations,
     /** The request of the thread: the profile is drawn from many controllers, and the devices ask which one the person is on. */
     private val request: HttpServletRequest,
 ) {
@@ -74,6 +78,7 @@ class ProfileController(
                     data = yourData.forProfile(account),
                     emailCard = notices.card(account.id, full = true),
                     access = access.devices(account, request, AccessFlash.take(request, "dispositivi")),
+                    passkeys = passkeyPresenter.block(account, AccessFlash.take(request, "passkey"), confirmations.needed(account, request.getSession(false))),
                 ),
             ),
         ).also { it.status = status }
