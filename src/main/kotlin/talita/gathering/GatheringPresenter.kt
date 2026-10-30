@@ -22,6 +22,8 @@ class GatheringPresenter(
     private val usage: RegistrationUsage,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
+    private val roomSummaries: RoomSummaries,
+    private val menuPresenter: MenuPresenter,
 ) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
@@ -62,6 +64,7 @@ class GatheringPresenter(
         val draft = gathering.state == GatheringState.DRAFT
         val missing = gatherings.missing(gathering, custodians.size, today)
         val fees = gathering.fees
+        val roomSummary = roomSummaries.summary(gathering.id)
 
         return DetailPage(
             id = gathering.id,
@@ -93,20 +96,41 @@ class GatheringPresenter(
             ),
             registrations = registrations(gathering, today),
             reminders = reminderCards.card(gathering.id),
-            retention = if (draft) null else retention(gathering, over, today),
+            retention = if (draft) null else retention(gathering, over, today, roomSummary.rooms),
+            rooms = roomsCard(gathering, over, roomSummary),
+            menu = menuPresenter.card(gathering.id),
         )
     }
 
     /**
-     * The card «Conservazione dei dati» (design TALITA-7, part 3, 1): the verb says «Si cancellano il …» before the date and «Cancellate il …» from the day of the date, whatever
-     * the database holds, so the card and the pages say the same thing at every hour. The line «Su carta» is a proposal of the design: it tells whoever holds the paper when to destroy it.
+     * The card «Camere» (TALITA-11, criterion 16): a row that leads to the page, with how many rooms, how many beds and how many children have no room, and never a name. While there
+     * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms), and neither has one that is over: after the last day rooms are not
+     * written any more, so the card would offer what the page refuses. A draft has no children, and after the end the people of the rooms are deleted: those two say only the house.
      */
-    private fun retention(gathering: Gathering, over: Boolean, today: LocalDate): RetentionCard {
+    private fun roomsCard(gathering: Gathering, over: Boolean, summary: RoomSummary): RoomsCard? {
+        if (summary.rooms == 0 && (gathering.days.size == 1 || over)) return null
+        val href = "/convivenza/${gathering.id}/camere"
+        if (summary.rooms == 0) return RoomsCard("Scrivi le camere", href, "Nessuna camera per ora.")
+        val rooms = if (summary.rooms == 1) "1 camera" else "${summary.rooms} camere"
+        val beds = if (summary.beds == 1) "1 posto" else "${summary.beds} posti"
+        val free = summary.unassigned?.let { if (it == 0) "Tutti hanno una camera" else if (it == 1) "1 bambino senza camera" else "$it bambini senza camera" }
+        return RoomsCard("Vedi le camere", href, listOfNotNull(rooms, beds, free).joinToString(" · "))
+    }
+
+    /**
+     * The card «Conservazione dei dati» (design TALITA-7, part 3, 1): the verb says «Si cancellano il …» before the date and «Cancellate il …» from the day of the date, whatever
+     * the database holds, so the card and the pages say the same thing at every hour. The line «Su carta» is a proposal of the design: it tells whoever holds the paper when to destroy it. The line «Chi dorme
+     * dove» is not there once the gathering is over and has no rooms ([rooms] is zero): nobody can write rooms any more, so nothing was written, nothing was deleted and no room stays for the
+     * copy of the year after, and the line would say three things that did not happen (the pages of the rooms and the card of the child in Arrivi say the same: criterion 13).
+     */
+    private fun retention(gathering: Gathering, over: Boolean, today: LocalDate, rooms: Int): RetentionCard {
         val notesDate = GatheringFormat.date(policy.notesDeletionDate(gathering.endDate))
         val registrationsDate = GatheringFormat.date(policy.registrationsDeletionDate(gathering.endDate))
         val notesGone = policy.notesExpired(gathering.endDate, today)
         val registrationsGone = policy.registrationsExpired(gathering.endDate, today)
-        val lines = listOf(
+        val roomsDate = GatheringFormat.date(policy.roomsDeletionDate(gathering.endDate))
+        val roomsGone = policy.roomsExpired(gathering.endDate, today)
+        val lines = listOfNotNull(
             RetentionLine(
                 "Segnalazioni",
                 if (notesGone) "Cancellate il $notesDate" else "Si cancellano il $notesDate",
@@ -116,6 +140,15 @@ class GatheringPresenter(
                     "${texts.capital(texts.notes)} dopo la fine della convivenza, perché servono se durante l’evento succede qualcosa."
                 },
             ),
+            RetentionLine(
+                "Chi dorme dove",
+                if (roomsGone) "È stato cancellato il $roomsDate" else "Si cancella il $roomsDate",
+                if (roomsGone) {
+                    "${texts.capital(texts.roomsWhen)}. Le camere restano, senza nomi, per copiarle l’anno dopo."
+                } else {
+                    "${texts.capital(texts.roomsWhen)}, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano, senza nomi, per copiarle l’anno dopo."
+                },
+            ).takeUnless { over && rooms == 0 },
             RetentionLine(
                 "Iscrizioni, manleve e registro arrivi",
                 if (registrationsGone) "Cancellate il $registrationsDate" else "Si cancellano il $registrationsDate",

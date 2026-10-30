@@ -23,6 +23,8 @@ import java.time.Period
  * @property emptyAccounts an account with no children, no registrations and no readings: 30 days after it was born
  * @property backups the longest that a backup lives (TALITA-8): a datum that is deleted is gone from the backups in this time
  * @property requestIds the number of the child or account deleted on request, in the register of the deletions: the backups and a week more
+ * @property rooms who sleeps in which room (TALITA-11): nothing after the end, so the day after the last day. The rooms are tied to the house, and they are emptied when the
+ * gathering is over (decision of Matteo, question 4); the rooms themselves, with no names, stay for the copy of the year after
  */
 data class RetentionPolicy(
     val notes: Period = Period.ofMonths(1),
@@ -31,6 +33,7 @@ data class RetentionPolicy(
     val emptyAccounts: Period = Period.ofDays(30),
     val backups: Period = Period.ofDays(30),
     val requestIds: Period = backups.plusDays(7),
+    val rooms: Period = Period.ZERO,
 ) {
 
     /** The day after the last day: from here every period counts (R6). */
@@ -41,6 +44,12 @@ data class RetentionPolicy(
 
     /** The day the registrations of a gathering that ends on [lastDay] (and what hangs from them) are deleted. */
     fun registrationsDeletionDate(lastDay: LocalDate): LocalDate = finishedOn(lastDay).plus(registrations)
+
+    /** The day the people of the rooms of a gathering that ends on [lastDay] are deleted: the day after the last day, with the standard policy (TALITA-11). */
+    fun roomsDeletionDate(lastDay: LocalDate): LocalDate = finishedOn(lastDay).plus(rooms)
+
+    /** The people of the rooms of the gathering are gone as of [today] (a day of Rome): the job deletes them that night, at its first run of the day. */
+    fun roomsExpired(lastDay: LocalDate, today: LocalDate): Boolean = !today.isBefore(roomsDeletionDate(lastDay))
 
     /** The notes of the gathering are gone as of [today] (a day of Rome): from the day of their date, not from the hour of the job. */
     fun notesExpired(lastDay: LocalDate, today: LocalDate): Boolean = !today.isBefore(notesDeletionDate(lastDay))

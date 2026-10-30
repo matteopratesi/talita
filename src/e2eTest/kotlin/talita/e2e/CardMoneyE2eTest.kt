@@ -54,7 +54,7 @@ class CardMoneyE2eTest {
         val kids = e2e.kids(w)
         e2e.open("/arrivi/${kids.anna}")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Giorni", "Recapito del genitore", "Segnalazioni", "Quota e pagamenti", "Manleva", "Iscrizione", "Altri figli dello stesso genitore"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Giorni", "Camera", "Recapito del genitore", "Segnalazioni", "Quota e pagamenti", "Manleva", "Iscrizione", "Altri figli dello stesso genitore"))
         val money = page.locator("#pagamenti")
         assertTrue(money.said().contains("Dovuta ${said(6000)} Pagata Niente Saldo Da pagare ${said(6000)}"), money.said())
         val field = page.locator("#importo")
