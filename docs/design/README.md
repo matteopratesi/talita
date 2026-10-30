@@ -1564,6 +1564,71 @@ Un campo `type="search"` senza `form`, con l'icona `search` a sinistra (4.2), na
   <p id="cerca-esito" role="status" class="mt-1.5 min-h-5.5 text-sm text-ink-muted"></p></div>
 ```
 
+### 4.23 Casella con spiegazione (TALITA-15)
+
+Una casella che ha bisogno di due frasi per essere capita («Ricordami su questo telefono», nella conferma del link). Tutta la riga è il bersaglio del tocco, alta almeno 48 px, e quando è spuntata si vede da tre segni insieme (la spunta, il bordo e lo sfondo), mai dal solo colore. **Mai spuntata di partenza.**
+
+```html
+<label class="flex min-h-12 items-start gap-3 rounded-2xl border border-line bg-surface p-4 text-left transition-colors duration-150 has-checked:border-brand has-checked:bg-brand-soft">
+  <input type="checkbox" name="ricordami" value="true" autocomplete="off" class="mt-0.5 size-6 shrink-0 accent-brand">
+  <span class="min-w-0">
+    <span class="block font-semibold">Ricordami su questo telefono</span>
+    <span class="mt-1 block text-sm text-ink-muted">Resti dentro per 30 giorni (7 se sei tra i maestri), anche se chiudi il browser.</span>
+    <span class="mt-2 block text-sm text-ink-muted">Non spuntarla su un telefono o un computer di altri.</span>
+  </span>
+</label>
+```
+
+Il form che la contiene passa da `max-w-xs` a `max-w-sm`; la casella sta fra la frase e il bottone. Il testo accanto a una casella dice sempre cosa succede se si spunta e quanto dura, con i numeri che vengono da `RetentionPolicy` e mai scritti a mano.
+
+### 4.24 «Oppure» e le passkey (TALITA-15)
+
+Un blocco che compare solo se il browser sa usare le passkey: sotto il modulo di `/accedi`, e nel profilo la scheda «Passkey». Il `hidden` sta nel markup (le righe di attesa sono regioni `aria-live="polite"` e gli avvisi di esito non hanno un ruolo finché lo script non li mostra: `data-role`), e `passkeys.js` (un file dell'app, mai uno script in linea) lo toglie quando `window.PublicKeyCredential` c'è; ciò che ha `data-passkey-no` si nasconde invece (la frase che dice che questo browser non le sa usare).
+
+```html
+<div data-passkey hidden class="mt-6">
+  <p aria-hidden="true" class="flex items-center gap-3 text-sm text-ink-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">oppure</p>
+  <div hidden data-passkey-esito="annullata">…avviso informativo…</div>
+  <div hidden data-passkey-esito="rifiutata">…avviso di attenzione…</div>
+  <button type="button" data-azione="entra-passkey" class="mt-5 w-full …bottone secondario…"><svg aria-hidden="true">…fingerprint-pattern…</svg>Entra con una passkey</button>
+  <p class="mt-3 text-sm text-ink-muted">Con l’impronta, il volto o il codice del telefono.</p>
+</div>
+```
+
+- **Un solo file** (`passkeys.js`): mostra il blocco, fa partire le richieste, converte il base64url a mano (iOS 16 non ha `parseCreationOptionsFromJSON`), manda il codice CSRF in `X-CSRF-TOKEN`, mette `htmx-request` sul bottone durante l'attesa (così valgono `busy:` e la rotellina), mostra gli avvisi che sono già nella pagina e chiede i messaggi a comparsa di rete ed errore. I testi stanno nella pagina, mai nel JavaScript. Niente `on*=` e niente script in linea (la CSP, con il test della console).
+- **Annullare non è un errore**: un avviso informativo («Hai annullato…»), senza `role="alert"`. Una passkey che non vale è un avviso di attenzione, con il link come strada.
+- **Entrare cambia pagina**: non è `hx-boost`. Il file fa `location.assign` alla destinazione che il server dice, e la pagina nuova ha un id di sessione nuovo.
+
+### 4.25 Riga di un dispositivo o di una passkey (TALITA-15)
+
+Una riga di lista (4.3) con il riquadro dell'icona, il testo e l'azione. L'elenco sta dentro il blocco che ogni azione sostituisce (`#dispositivi-contenuto`, `#passkey-contenuto`).
+
+```html
+<li class="border-t border-line py-3.5 first:border-t-0 first:pt-1">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><svg class="size-6" aria-hidden="true">…monitor-smartphone…</svg></span>
+    <div class="min-w-0 flex-[1_1_11rem]">
+      <span class="font-semibold wrap-anywhere">Collegato dal 3 settembre 2027</span> <span class="…etichetta…">Questo dispositivo</span>
+      <span class="block text-sm text-ink-muted">fino al 2 ottobre 2027</span>
+    </div>
+    <form …><button class="-ml-3 sm:ml-0 sm:shrink-0 …bottone di testo…">Togli</button></form>
+  </div>
+</li>
+```
+
+Una riga dice **solo il giorno**: niente nome, browser, luogo né ultimo uso, perché non si raccolgono. «Fino al» è l'ultimo giorno compreso. «Togli» apre il suo dialogo (4.8); togliere quello da cui si guarda vale «Esci».
+
+### 4.26 Conferma con la passkey (TALITA-15)
+
+Prima di mostrare le segnalazioni, e prima di togliere o aggiungere una passkey, un maestro che ne ha una conferma con l'impronta, il volto o il codice del telefono. È un **passaggio prima della richiesta di sempre**, non una schermata: il bottone resta lo stesso e la scheda cambia solo dopo.
+
+- **Sotto il bottone**: `<p class="mt-3 flex items-start gap-2 text-sm text-ink-muted" data-conferma-stato>` con l'icona `size-4` e la frase «Prima di mostrarle, il telefono ti chiede l’impronta, il volto o il codice di sblocco.». Durante l'attesa il file ne sostituisce il testo («In attesa della conferma…», `role="status"`) e dal computer aggiunge «Dal computer, il browser può chiederti di usare il telefono.» (`<span class="hidden [@media(pointer:fine)]:inline">`); a confermare fatto la frase diventa «Hai già confermato con la passkey: fino alle 10:15 le apri senza confermare di nuovo.» (l'ora è di Roma, in 24 ore, e viene dalla finestra).
+- **Il form porta `data-conferma="<tipo>"`** (`segnalazioni`, `aggiungi`, `togli`) solo se l'account ha passkey (lo decide il server quando disegna la pagina, e di nuovo quando riceve la richiesta). Il file ascolta `htmx:confirm`: ferma la richiesta, mette il bottone in attesa, chiede le opzioni a `POST /verifica-passkey/opzioni` e, se la conferma non serve, fa partire subito la richiesta (sempre un tocco solo); altrimenti `navigator.credentials.get`, `POST /verifica-passkey`, e solo dopo la richiesta di sempre.
+- **Gli esiti sono già nella pagina**, nascosti (`data-conferma-esito="segnalazioni-annullata"`, `…-rifiutata`, e lo stesso per `aggiungi` e `togli`): il file ne mostra uno, gli dà il fuoco e rimette il bottone com'era. Annullata è informativa, rifiutata è di attenzione, e tutti e due indicano la stessa strada: riprovare o chiedere a un altro maestro. Senza rete, lenta o con un errore compare il messaggio a comparsa della guida (4.7), senza «Riprova».
+- **«Serve la conferma»** è la risposta 409 del server quando la conferma manca: con htmx sostituisce la scheda come un 422 (guida 5), con l'avviso dentro e il fuoco su di lui; senza htmx è la pagina intera, e senza JavaScript dice che la conferma lo vuole e che un altro maestro può aprire le segnalazioni. Per la correzione di una cartacea è la pagina senza i campi.
+- **L'invito**, per un maestro senza passkey: `<div data-passkey hidden class="mt-4 border-t border-line pt-4">` (il `hidden` sta sul contenitore, perché un `flex` sullo stesso elemento lo annullerebbe) con dentro il riquadro `grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted` e `fingerprint-pattern`, e il testo. Una riga discreta, che **non blocca e non si chiude** (chiuderla sarebbe un dato in più), e porta alla scheda «Passkey» del profilo.
+- **Mai nei testi** dati personali, id o nomi di passkey. I bersagli sono da 48 px (il bottone di testo dell'invito da 44).
+
 ## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
@@ -1668,6 +1733,14 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **Una richiesta ripetuta non è un errore**: il doppio tocco o due maestri insieme mandano una volta sola, e la seconda risposta è 200 con la scheda e l'avviso informativo «Questo promemoria è già stato mandato…». La quota che non basta risponde 429 e la posta che non parte 422, con la scheda sostituita (`app.js` sostituisce 409, 422 e 429 come per gli altri blocchi): nessun messaggio a comparsa «Qualcosa non ha funzionato».
 - **Senza rete, lenta (20 secondi), con un errore del server o con l'accesso negato** la scheda non cambia, il dialogo si chiude prima del messaggio, e la nota in fondo alla scheda dice di riaprire la pagina per controllare l'ultimo invio (le mail possono essere già partite).
 - **Senza JavaScript** il bottone «Manda il promemoria» è un link a una pagina di conferma (`confirmAction`) con gli stessi testi; il `POST` risponde con `303` al dettaglio, con l'avviso lasciato in sessione e letto una volta sola.
+
+### Accesso e passkey (TALITA-15)
+
+- **Ogni azione del profilo sostituisce un blocco solo** e nient'altro: `#dispositivi-contenuto` per «Togli» e «Esci da tutti gli altri dispositivi», `#passkey-contenuto` per «Aggiungi» e «Togli» di una passkey (`hx-post` con `hx-target` sul blocco e `hx-swap="outerHTML"`, come `#maestri-contenuto`). L'avviso dell'esito è dentro il blocco, in cima, con il fuoco (`data-fuoco`); il resto della pagina e la posizione di scorrimento non cambiano.
+- **Una richiesta ripetuta non è un errore**: il doppio tocco su «Togli» o su «Esci da tutti gli altri dispositivi» mostra lo stato di adesso, con un avviso informativo («Questo dispositivo era già stato tolto.»). Senza rete, lenta o con un errore compare il messaggio a comparsa della guida e niente cambia.
+- **Chi non ha più l'accesso** (un dispositivo tolto o «Esci da tutti» da un altro telefono) alla richiesta dopo trova `/accedi` come **pagina intera**, anche se la richiesta era htmx (`HX-Redirect`), con un avviso che dice perché. Il codice CSRF scaduto (una pagina aperta da ore, con il cookie di «Ricordami» ancora valido) ricarica la pagina senza uscire («La pagina era aperta da troppo tempo. Riprova.»).
+- **«Entra con una passkey» e «Entra» sono cambi di pagina interi**, non htmx; la conferma con la casella è il form di sempre.
+- **La conferma con la passkey** (4.26) avviene **prima** della richiesta e non cambia i bersagli: il dettaglio risponde con la scheda `#segnalazioni`, Arrivi con `#scheda`, il profilo con il blocco. `409 «Serve la conferma»` sostituisce come un 422. Una conferma già arrivata resta valida anche se la richiesta dopo non è riuscita.
 
 ## 6. Scrivere i testi
 
@@ -1806,6 +1879,15 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **«Promemoria» e «avviso»**: due parole per due cose. Il promemoria «in forse» invita a **confermare** («Conferma l’iscrizione», «Ci penso ancora un po’»), mai a ritirare (decisione di Matteo, commento 10950); l'avviso dice che le iscrizioni di una nuova convivenza sono aperte. Per fermarli si dice «smettere» (non «annullare» né «disiscriversi»): «Non mandarmi più promemoria» è il testo del bottone e quello che le mail ripetono.
 - **Attesa e invii**: «Potrai rimandarlo dal 21 giugno 2027 alle 21:30.», «Promemoria mandato a 3 persone.», «Mandato a 2 persone su 3: per una la mail non è partita.», «Oggi si possono mandare ancora 12 promemoria, ma questo ne richiede 30. Riprova domani.» (la quota è una finestra di 24 ore, ma si dice «domani», come per i link di accesso) e «Nessuno da avvisare: …» con il perché. Un conteggio che è zero dice «Nessuno», non «0».
 - **Le mail** (una voce nuova): solo testo, «Ciao,», frasi corte, il tu, una riga che dice perché la si riceve e il modo per smettere con le parole del bottone, «Questa mail è automatica: non risponderle. Se hai bisogno di aiuto, scrivi a chi organizza la convivenza.» e la firma «Talità». Mai nomi o dati dei bambini, **nemmeno quanti sono**: «c’è almeno un’iscrizione in forse». Mai forme accordate al sesso. Il testo è nel codice (`ReminderMails`) e non lo scrivono i maestri; dalla convivenza vengono solo il titolo e le date.
+
+### Accesso (TALITA-15)
+
+- **«Dispositivo»** per un telefono o un computer; **«passkey»** (il nome che il telefono già mostra), spiegata con «l’impronta, il volto o il codice di sblocco» e mai con «PIN», «token», «chiave pubblica» o «autenticatore». Il cookie è «il cookie che ti tiene dentro»; mai «sessione», «server» o «database» nei testi di chi legge.
+- **«Ricordami su questo telefono»** è il nome della casella (non «Resta collegato», che è al maschile: una forma che valga per tutti). Dice quanto dura («30 giorni (7 se sei tra i maestri)») e il consiglio di non spuntarla su telefoni o computer di altri.
+- **«Togli» e «Esci»**: «Togli» si rimedia (un dispositivo si ricollega con un link, una passkey si aggiunge di nuovo), «Esci» chiude l'accesso di chi guarda. Per ogni dispositivo e passkey è «Togli»; «Esci» c'è una volta sola, per il dispositivo da cui si guarda, più «Esci da tutti gli altri dispositivi» (questo resta dentro).
+- **Date**: «Collegato dal 3 settembre 2027», «fino al 2 ottobre 2027» (ultimo giorno compreso), sempre con l'anno. Una passkey dice «Aggiunta il 3 settembre 2027» e «Sincronizzata» (anche sugli altri dispositivi del suo account Apple o Google) oppure «Solo su un dispositivo».
+- **«Conferma»** è il verbo della verifica prima delle segnalazioni: «Serve la conferma.», «Conferma con la passkey». **«Non aperte»** e **«Non tolta»** sono i participi dell'oggetto negli avvisi di una conferma rifiutata; **«codice di sblocco»** dice PIN, sequenza o codice. Annullare non è un errore, e il testo non lo tratta come tale; una conferma rifiutata dice sempre la stessa strada: riprovare, o un altro maestro.
+- **Mai** nei testi l'indirizzo, il nome di un dispositivo o di una passkey, né «il tuo account è in pericolo».
 
 ## 7. Accessibilità: controlli prima della PR
 

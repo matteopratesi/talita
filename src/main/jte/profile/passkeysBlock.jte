@@ -76,7 +76,7 @@
       @if(block.getConfirmFirst())
         <p class="mt-2 text-sm text-ink-muted">Prima il telefono ti chiede di confermare con una passkey che hai già. Poi crea quella nuova.</p>
       @endif
-      <p role="status" data-stato hidden class="mt-3 text-sm text-ink-muted"></p>
+      <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-3 text-sm text-ink-muted"></p>
       <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.</template>
       <template data-attesa="primo"><strong>In attesa della conferma…</strong> Prima conferma con una passkey che hai già: impronta, volto o codice di sblocco.</template>
       <template data-attesa="secondo"><strong>In attesa della conferma…</strong> Ora conferma per creare la passkey nuova.</template>

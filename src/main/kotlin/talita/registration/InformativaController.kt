@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.servlet.ModelAndView
+import talita.account.SessionTexts
 import talita.retention.RetentionTexts
 import talita.retention.TimeRow
 import talita.ui.ShellFactory
@@ -59,7 +60,17 @@ data class InformativaPage(
     val time: String,
     val times: List<TimeRow>,
     val rights: List<String>,
+    val cookies: CookieCard,
 )
+
+/** A sentence of the card «Cookie e accesso», with what it is about in bold when there is one. */
+data class Lead(val lead: String, val text: String)
+
+/**
+ * The card «Cookie e accesso» (TALITA-15, criterion 34): the cookie of the session and the one of «Ricordami su questo telefono» (only if the box is ticked, how long, what it holds), no other
+ * cookie and none of others, and the passkeys. The numbers come from the container, [LoginSettings] and [RetentionTexts]: nothing is written by hand.
+ */
+data class CookieCard(val intro: String, val bullets: List<Lead>, val paragraphs: List<Lead>)
 
 /**
  * The complete notice on the privacy, `/informativa` (criteria 33, 34). It is **public** (the list of the public addresses has it), in the public shell:
@@ -67,7 +78,35 @@ data class InformativaPage(
  * address come from the settings (`talita.privacy.*`; in the repository the placeholders «Titolare di esempio» and `nome@example.org`).
  */
 @Controller
-class InformativaController(private val shells: ShellFactory, private val privacy: PrivacySettings, private val texts: RetentionTexts) {
+class InformativaController(
+    private val shells: ShellFactory,
+    private val privacy: PrivacySettings,
+    private val texts: RetentionTexts,
+    private val sessions: SessionTexts,
+) {
+
+    private fun cookies() = CookieCard(
+        "Talità usa solo i cookie che servono a farti entrare. Non ci sono cookie di altri, né statistiche, né pubblicità.",
+        listOf(
+            Lead("Il cookie che ti tiene dentro", "mentre usi Talità: l’accesso si chiude da solo dopo ${sessions.idleWords} che non la usi, e comunque dopo ${sessions.capWords} dall’entrata."),
+            Lead(
+                "Il cookie di «Ricordami su questo telefono»:",
+                "lo mettiamo solo se spunti la casella quando entri. Dura ${texts.devicesParent}, ${texts.devicesTeacherNumber} per i maestri, e contiene solo due codici casuali: non dice chi sei. Lo togli con «Esci», o dal tuo profilo.",
+            ),
+        ),
+        listOf(
+            Lead(
+                "Le passkey",
+                "restano nel tuo telefono: a Talità arriva solo il pezzo che serve a controllare che la passkey sia tua, mai quello che serve a usarla. Se il telefono le sincronizza con il tuo account Apple o Google, " +
+                    "lo fa il servizio che hai scelto, in modo cifrato: Talità non manda niente né ad Apple né a Google.",
+            ),
+            Lead(
+                "Per i maestri con una passkey:",
+                "prima di aprire le segnalazioni dei bambini c’è una conferma con la passkey. Ci ricordiamo solo l’ora della conferma, e solo finché resta aperto l’accesso.",
+            ),
+            Lead("", "Né «Ricordami su questo telefono» né le passkey sono obbligatori: il link funziona sempre."),
+        ),
+    )
 
     @GetMapping("/informativa")
     fun informativa(response: HttpServletResponse): ModelAndView {
@@ -77,7 +116,7 @@ class InformativaController(private val shells: ShellFactory, private val privac
             mapOf(
                 "shell" to shells.publicShell("Informativa sulla privacy", null),
                 "page" to InformativaPage(
-                    privacy.controllerName, privacy.contact, Informativa.PLACEHOLDER_NOTICE, texts.completeIntro, texts.completeRows(), texts.rights,
+                    privacy.controllerName, privacy.contact, Informativa.PLACEHOLDER_NOTICE, texts.completeIntro, texts.completeRows(), texts.rights, cookies(),
                 ),
             ),
         )

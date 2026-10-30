@@ -80,6 +80,12 @@ class SessionTexts(private val settings: LoginSettings, @Value("\${server.servle
 
     private fun hours(duration: Duration): String = duration.toHours().let { if (it == 1L) "1 ora" else "$it ore" }
 
+    /** «2 ore»: how long a session lives without use. */
+    val idleWords: String get() = hours(idle)
+
+    /** «12 ore»: the longest a session lives, used or not. */
+    val capWords: String get() = hours(settings.sessionMaxAge)
+
     /** «L’accesso si chiude da solo dopo 2 ore che non usi Talità, e comunque dopo 12 ore dall’entrata.» */
     val inactivity: Alert
         get() = Alert(

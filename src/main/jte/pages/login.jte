@@ -34,7 +34,7 @@
       <div class="mt-5">
         @template.components.button(label = "Entra con una passkey", busyLabel = "In attesa della conferma…", variant = "secondary", icon = Icon.FINGERPRINT_PATTERN, width = "full", type = "button", azione = "entra-passkey")
       </div>
-      <p role="status" data-stato class="mt-3 text-sm text-ink-muted">Se hai aggiunto una passkey al tuo profilo, entri con l’impronta, il volto o il codice di sblocco, senza aspettare la mail.</p>
+      <p aria-live="polite" aria-atomic="true" data-stato class="mt-3 text-sm text-ink-muted">Se hai aggiunto una passkey al tuo profilo, entri con l’impronta, il volto o il codice di sblocco, senza aspettare la mail.</p>
       <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.</template>
     </div>
   @endif

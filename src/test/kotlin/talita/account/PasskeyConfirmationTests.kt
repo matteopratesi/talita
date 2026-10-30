@@ -136,8 +136,23 @@ class PasskeyConfirmationTests(
         assertTrue(html(fromCorrection).contains("Serve la conferma") && html(fromCorrection).contains("Conferma con la passkey"))
         for (answer in listOf(fromDetail, fromCard, fromCorrection)) assertFalse(hasNotes(html(answer)), "the notes are in the answer")
         assertFalse(html(fromCorrection).contains("""name="allergies""""), "the page of the correction has no fields")
+        assertTrue(html(fromCorrection).contains("""name="_csrf""""), "the script sends the CSRF code of the page, and this page has no form: the code is in a field of its own")
         assertFalse(html(fromCorrection).contains("Questa pagina mostra le segnalazioni"), "and no notice that a reading was written, because none was")
         assertEquals(0, readings(), "nothing was registered")
+    }
+
+    @Test
+    fun `t15 c37 after the confirmation the correction of a paper form opens with its fields and the notes, and writes one reading`() {
+        val t = teacher()
+        val paper = paperWithNotes(t)
+        PasskeyKit.confirm(t.phone, t.soft!!)
+
+        val page = t.phone.get("/iscrizioni/$paper/correggi-segnalazioni")
+
+        assertEquals(200, page.response.status, page.response.contentAsString.take(300))
+        assertTrue(html(page).contains("""name="allergies""""))
+        assertTrue(hasNotes(html(page)))
+        assertEquals(1, readings())
     }
 
     @Test

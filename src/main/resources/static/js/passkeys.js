@@ -194,7 +194,12 @@
       if (dialog && dialog.open) dialog.close();
     }
     const shown = place.querySelector("[" + attribute + '="' + value + '"]');
-    if (shown) shown.focus();
+    if (shown) {
+      // A notice has no role while it is hidden; it gets the one of its variant as it is shown, so that it is announced.
+      const role = shown.getAttribute("data-role");
+      if (role) shown.setAttribute("role", role);
+      shown.focus();
+    }
   }
 
   function clearOutcomes(place, attribute) {

@@ -18,7 +18,7 @@
   </div>
   @if(dialog.getConfirmFor() != null)
     <%-- The action wants the confirmation with the passkey first (TALITA-15): the dialog stays open while the phone asks, and says so here, in a live region that the script of the passkeys fills. --%>
-    <p role="status" data-stato hidden class="mt-4 text-sm text-ink-muted"></p>
+    <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-4 text-sm text-ink-muted"></p>
     <template data-attesa=""><strong>In attesa della conferma…</strong> Conferma con l’impronta, il volto o il codice di sblocco.</template>
   @endif
   <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">

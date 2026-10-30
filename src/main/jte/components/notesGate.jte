@@ -24,7 +24,7 @@
   @endif
 @else
   @if(gate.getAsks())
-    <p role="status" data-stato class="mt-3 flex items-start gap-2 text-sm text-ink-muted">
+    <p aria-live="polite" aria-atomic="true" data-stato class="mt-3 flex items-start gap-2 text-sm text-ink-muted">
       @template.components.icon(icon = Icon.FINGERPRINT_PATTERN, classes = "mt-0.5 size-4 shrink-0")
       <span>Prima di mostrarle, il telefono ti chiede l’impronta, il volto o il codice di sblocco.</span>
     </p>
@@ -38,7 +38,7 @@
       <span>Hai già confermato con la passkey: fino alle ${gate.getUntil()} le apri senza confermare di nuovo.</span>
     </p>
   @elseif(gate.getServe())
-    <p role="status" data-stato hidden class="mt-3 flex items-start gap-2 text-sm text-ink-muted"></p>
+    <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-3 flex items-start gap-2 text-sm text-ink-muted"></p>
     <template data-attesa="">
       @template.components.icon(icon = Icon.FINGERPRINT_PATTERN, classes = "mt-0.5 size-4 shrink-0")
       <span>Conferma con l’impronta, il volto o il codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></span>

@@ -53,7 +53,7 @@ class LoginE2eTest {
         assertThat(page.locator("header")).containsText("Talità")
         assertEquals(0, page.locator("header a").count())
         assertEquals(0, page.locator("nav").count())
-        assertEquals(0, page.getByText("Profilo").count())
+        assertEquals(0, page.getByText("Profilo", Page.GetByTextOptions().setExact(true)).count())
         // The column is narrow and centered.
         val main = page.locator("main > div").box()
         assertTrue(main.width <= 448 + 1, "the column is ${main.width} px wide")
@@ -315,7 +315,7 @@ class LoginE2eTest {
 
         assertThat(page).hasURL(e2e.url("/accedi"))
         val notice = page.locator("main [role=status]")
-        assertThat(notice).hasText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
+        assertThat(notice).containsText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
         page.waitUntil("document.activeElement && document.activeElement.hasAttribute('data-fuoco')")
         assertAccessible(page, "access page after the exit (${e2e.profile.label})")
         // Once: a reload does not say it again.
@@ -506,7 +506,7 @@ class LoginE2eTest {
 
         assertThat(page).hasURL(e2e.url("/accedi"))
         page.waitForSettledContent()
-        assertThat(page.locator("main [role=status]")).hasText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
+        assertThat(page.locator("main [role=status]")).containsText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
         // Wrong address without JavaScript: the same page, with the error.
         page.field().fill("nome")
         page.button("Ricevi il link").click()

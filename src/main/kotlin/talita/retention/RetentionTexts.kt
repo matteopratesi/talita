@@ -118,6 +118,12 @@ class RetentionTexts(private val policy: RetentionPolicy) {
         ),
         TimeRow("La richiesta di avviso e lo stop ai promemoria", "Finché non li cambi o non cancelli l’account."),
         TimeRow(
+            "Dispositivi collegati («Ricordami su questo telefono»)",
+            "$devicesParent dal giorno in cui spunti la casella, $devicesTeacherNumber per i maestri. Prima, se esci, li togli dal tuo profilo o cancelli l’account. " +
+                "Talità li cancella da sola, ogni notte, quando scadono.",
+        ),
+        TimeRow("Passkey", "Finché non le togli dal tuo profilo o non cancelli l’account. Se l’account si cancella da solo perché è vuoto, si cancellano con lui."),
+        TimeRow(
             "Dati dei maestri",
             "Nome, cognome e indirizzo email finché sono tra i maestri o finché non cancellano l’account. Un invito non accettato si cancella $invitations dopo la scadenza.",
         ),
@@ -136,7 +142,7 @@ class RetentionTexts(private val policy: RetentionPolicy) {
         "Puoi chiedere di vedere, correggere, cancellare o limitare l’uso dei dati, riceverne una copia, opporti e togliere il consenso quando vuoi.",
         "Dalla pagina «Iscrizioni» correggi l’iscrizione finché le iscrizioni sono aperte e togli le segnalazioni con un tocco. I promemoria li fermi con un tocco dalla mail o dal profilo, e la richiesta di avviso la togli quando vuoi. " +
             "Dal «Profilo» cancelli i dati dei tuoi figli o " +
-            "il tuo account: resta solo l’iscrizione con l’affidamento accettato, fino alla data scritta, perché serve come prova dell’affidamento.",
+            "il tuo account: resta solo l’iscrizione con l’affidamento accettato, fino alla data scritta, perché serve come prova dell’affidamento. Sempre dal «Profilo» togli i dispositivi collegati e le passkey.",
         "Per il resto scrivi al titolare, anche se non hai un account: risponde entro un mese.",
     )
 

@@ -41,6 +41,8 @@
          nothing was read and nothing is registered. The buttons are shown by passkeys.js where the browser can use passkeys; without JavaScript the sentence that says it wants it is shown. --%>
     <section id="segnalazioni" data-ambito data-esiti class="mt-4 rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="serve-titolo">
       <h2 id="serve-titolo" class="text-lg font-semibold wrap-anywhere">Serve la conferma</h2>
+      <%-- The page has no form, and the script sends the CSRF code of the page with its two requests: the code is here, in a field that nobody sends. --%>
+      @template.components.csrf(csrf = csrf)
       <div data-passkey hidden>
         <p class="mt-3">In questa pagina compaiono le segnalazioni di ${page.getFirstName()}, che sono dati sulla salute. Prima di aprirla, il telefono ti chiede l’impronta, il volto o il codice di sblocco.</p>
         @template.components.outcomeAlert(variant = AlertVariant.INFO, lead = "Pagina non aperta.", text = "La conferma non è arrivata: forse hai annullato, o su questo telefono non c’è una tua passkey. Puoi riprovare. Se non ci riesci, la pagina la può aprire un altro maestro.", confermaEsito = "pagina-annullata")
@@ -49,7 +51,7 @@
           @template.components.button(label = "Conferma con la passkey", busyLabel = "In attesa della conferma…", icon = Icon.FINGERPRINT_PATTERN, type = "button", azione = "conferma-pagina", conferma = "pagina")
           @template.components.linkButton(href = page.getCancelHref(), label = "Annulla", variant = "secondary", width = "phone")
         </div>
-        <p role="status" data-stato hidden class="mt-3 flex items-start gap-2 text-sm text-ink-muted"></p>
+        <p aria-live="polite" aria-atomic="true" data-stato hidden class="mt-3 flex items-start gap-2 text-sm text-ink-muted"></p>
         <template data-attesa="">
           @template.components.icon(icon = Icon.FINGERPRINT_PATTERN, classes = "mt-0.5 size-4 shrink-0")
           <span>Conferma con l’impronta, il volto o il codice di sblocco.<span class="hidden [@media(pointer:fine)]:inline"> Dal computer, il browser può chiederti di usare il telefono.</span></span>
