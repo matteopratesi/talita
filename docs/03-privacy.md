@@ -16,7 +16,7 @@ vere con i ticket indicati; i tempi di conservazione con TALITA-7.
   (vedi sotto), che trattano i dati per suo conto.
 - **Interessati**:
   - i **genitori** che iscrivono i figli: email, recapito telefonico, accettazione dell'affidamento
-    con data e ora (il testo esatto, e l'indirizzo email di quel momento) e, se l'hanno chiesto, la data e l'ora della richiesta di avviso o dello stop ai promemoria (TALITA-13); anche i genitori **senza account**, che hanno
+    con data e ora (il testo esatto, e l'indirizzo email di quel momento) e, se ci sono, la data e l'ora della richiesta di avviso, che il genitore fa dal suo account, e quella dello stop ai promemoria (TALITA-13), che si registra per l'account e può arrivare dal profilo o dal link «Non mandarmi più promemoria» della mail: il link funziona anche se la mail è inoltrata, e in quel caso lo stop può averlo chiesto chi ha ricevuto la mail, non il genitore (l'app non sa chi ha toccato il link); anche i genitori **senza account**, che hanno
     compilato il modulo cartaceo, per il recapito che i maestri copiano dal modulo (il consenso alle segnalazioni resta sulla carta);
   - i **bambini**, che sono minori: nome e cognome, data di nascita, giorni di
     presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, presenze per giorno e pagamenti (TALITA-6), e la camera in cui dormono (TALITA-11);
