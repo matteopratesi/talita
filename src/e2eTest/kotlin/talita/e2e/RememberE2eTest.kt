@@ -2,8 +2,12 @@ package talita.e2e
 
 import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
+import com.microsoft.playwright.APIResponse
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.AriaRole
+import com.microsoft.playwright.options.Cookie
+import com.microsoft.playwright.options.FormData
+import com.microsoft.playwright.options.RequestOptions
 import com.microsoft.playwright.options.SameSiteAttribute
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -195,5 +199,227 @@ class RememberE2eTest {
         // The one that is inside stays inside.
         e2e.open("/iscrizioni")
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
+    }
+
+    // ---- What only a real browser and a real server can tell (QA of TALITA-15) ----------------------------------------------------------------------------------------
+
+    /** A POST of a form of the page [on] as htmx does it, with the CSRF code of the page: what a person who writes the request by hand sends. */
+    private fun E2e.post(on: Page, path: String, form: Map<String, String> = emptyMap()): APIResponse {
+        val data = FormData.create().set("_csrf", checkNotNull(on.locator("input[name=_csrf]").first().getAttribute("value")))
+        form.forEach { (name, value) -> data.set(name, value) }
+        return on.request().post(url(path), RequestOptions.create().setForm(data).setHeader("HX-Request", "true").setMaxRedirects(0))
+    }
+
+    private fun E2e.deviceIds(email: String): List<Long> =
+        dsl().select(REMEMBERED_DEVICE.ID).from(REMEMBERED_DEVICE).where(REMEMBERED_DEVICE.ACCOUNT_ID.eq(accountId(email))).orderBy(REMEMBERED_DEVICE.ID).fetch(REMEMBERED_DEVICE.ID).map { it!! }
+
+    private fun Page.sessionCookie(): String? = context().cookies().firstOrNull { it.name == "JSESSIONID" }?.value
+
+    @E2eTest(signedIn = false)
+    fun `t15 c36 c4 after the two hours without use the person with the box is still inside and the one without goes to the access page`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        val before = checkNotNull(page.sessionCookie())
+        val valueBefore = Phone.decode(checkNotNull(e2e.browserContext.deviceCookie()).value).second
+
+        // `/test/sessione-breve` leaves the session one second of life: the container treats it as gone after that, exactly as after two hours.
+        e2e.open("/test/sessione-breve")
+        page.waitForTimeout(2_300.0)
+        e2e.open("/profilo")
+        assertThat(page).hasURL(e2e.url("/profilo"))
+        assertThat(page.locator("h1")).hasText("Profilo")
+        assertNotEquals(before, page.sessionCookie(), "a new session, with a new id")
+        assertNotEquals(valueBefore, Phone.decode(checkNotNull(e2e.browserContext.deviceCookie()).value).second, "and a new value of the cookie")
+        assertEquals(1, e2e.devices(email))
+        assertThat(page.locator("#dispositivi-contenuto")).containsText("Questo dispositivo")
+
+        // A piece of a page (htmx) and the request of the back button, with no session and the cookie: the same way back in, the page they asked for and never the access page.
+        for (header in listOf("HX-Request", "HX-History-Restore-Request")) {
+            e2e.browserContext.loseTheSession()
+            val answer = e2e.browserContext.request().get(e2e.url("/profilo"), RequestOptions.create().setHeader(header, "true").setMaxRedirects(0))
+            assertEquals(200, answer.status(), header)
+            assertEquals(null, answer.headers()["hx-redirect"], header)
+            assertTrue(answer.text().contains("Dispositivi collegati"), header)
+        }
+        assertEquals(1, e2e.devices(email))
+
+        // The same without the box: the access page, and the notice says why (and does not say that the cookie was refused).
+        val without = e2e.newPage(signedIn = false)
+        e2e.enter(without, email, remember = false)
+        without.navigate(e2e.url("/test/sessione-breve"))
+        without.waitForTimeout(2_300.0)
+        without.navigate(e2e.url("/iscrizioni"))
+        without.waitForSettledContent()
+        assertThat(without).hasURL(e2e.url("/accedi"))
+        assertThat(without.locator("main [role=status][data-fuoco]")).containsText("L’accesso si chiude da solo dopo 2 ore che non usi Talità, e comunque dopo 12 ore dall’entrata.")
+        assertEquals(1, e2e.devices(email), "the browser without the box left no row, and the other one is untouched")
+    }
+
+    @E2eTest(signedIn = false, profiles = [Profile.DESKTOP])
+    fun `t15 c36 c5 a copied cookie unlinks the device and cancels both cookies, and junk is cancelled without an error`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        val copy = checkNotNull(e2e.browserContext.deviceCookie()).value
+
+        // The owner comes back: the value is not the one that was copied any more.
+        e2e.browserContext.loseTheSession()
+        e2e.open("/iscrizioni")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        val current = checkNotNull(e2e.browserContext.deviceCookie()).value
+        assertNotEquals(copy, current)
+
+        // Someone who has the copy comes in another browser: nobody enters, the row goes, the cookie is cancelled, there is no error, and the page says that the access was closed.
+        val thief = e2e.newPage(signedIn = false)
+        thief.context().addCookies(listOf(Cookie("ricordami", copy).setUrl(e2e.url("/"))))
+        val answer = thief.navigate(e2e.url("/iscrizioni"))
+        thief.waitForSettledContent()
+        assertEquals(200, answer?.status())
+        assertThat(thief).hasURL(e2e.url("/accedi"))
+        assertThat(thief.locator("main [role=status][data-fuoco]")).containsText("L’accesso su questo telefono è stato chiuso.")
+        assertEquals(null, thief.context().cookies().firstOrNull { it.name == "ricordami" }, "the cookie of the copy is cancelled")
+        assertEquals(0, e2e.devices(email), "the device is unlinked")
+
+        // The browser of the owner has the new value, which is worth nothing now: it goes to the access page too, and its cookie is cancelled.
+        e2e.browserContext.loseTheSession()
+        e2e.open("/iscrizioni")
+        assertThat(page).hasURL(e2e.url("/accedi"))
+        assertEquals(null, e2e.browserContext.deviceCookie(), "and the one of the owner")
+
+        // Junk: no selector like that, a cookie that is not even base64, nothing at all.
+        val unknown = java.util.Base64.getEncoder().encodeToString("sceltaCheNonEsiste1234:valoreCheNonEsiste".toByteArray())
+        for (junk in listOf(unknown, "not-a-cookie!!", "%%%")) {
+            val browser = e2e.newPage(signedIn = false)
+            browser.context().addCookies(listOf(Cookie("ricordami", junk).setUrl(e2e.url("/"))))
+            val reply = browser.navigate(e2e.url("/iscrizioni"))
+            browser.waitForSettledContent()
+            assertEquals(200, reply?.status(), "no error for the cookie $junk")
+            assertThat(browser).hasURL(e2e.url("/accedi"))
+            assertThat(browser.locator("main")).not().containsText("Qualcosa non ha funzionato")
+            assertEquals(null, browser.context().cookies().firstOrNull { it.name == "ricordami" }, "cancelled: $junk")
+        }
+    }
+
+    @E2eTest(signedIn = false, profiles = [Profile.DESKTOP])
+    fun `t15 c36 c17 c18 nobody takes away or sees the devices of another and a second Togli is an information notice`(e2e: E2e) {
+        val owner = e2e.page
+        val email = e2e.enter(remember = true)
+        val elsewhere = e2e.newPage(signedIn = false)
+        e2e.enter(elsewhere, email, remember = true)
+        val ids = e2e.deviceIds(email)
+        assertEquals(2, ids.size)
+        val theirs = ids.last()
+
+        for (teacher in listOf(false, true)) {
+            val intruder = e2e.newPage(signedIn = true, teacher = teacher)
+            intruder.navigate(e2e.url("/profilo"))
+            intruder.waitForSettledContent()
+            // Nobody sees the devices of another, not even a teacher: the profile of the intruder is its own.
+            assertThat(intruder.locator("#dispositivi-contenuto")).containsText("Nessun dispositivo collegato.")
+            assertThat(intruder.locator("#dispositivi-contenuto li")).hasCount(0)
+
+            val reply = e2e.post(intruder, "/profilo/dispositivi/togli", mapOf("dispositivo" to "$theirs"))
+            assertEquals(200, reply.status())
+            assertTrue(reply.text().contains("Questo dispositivo era già stato tolto."), "answered as an id that does not exist")
+            assertFalse(reply.text().contains("Dispositivo tolto."))
+            assertEquals(ids, e2e.deviceIds(email), "nothing was taken away")
+            // «Esci da tutti» of the intruder is the intruder's: the sessions of the owner stay.
+            assertEquals(200, e2e.post(intruder, "/profilo/dispositivi/esci-altri").status())
+            assertEquals(ids, e2e.deviceIds(email))
+            elsewhere.navigate(e2e.url("/iscrizioni"))
+            elsewhere.waitForSettledContent()
+            assertThat(elsewhere).hasURL(e2e.url("/iscrizioni"))
+        }
+
+        // The owner: the first Togli takes the device away, the second (a double tap, or a page that was left open) says that it was gone, with a status 200.
+        e2e.open("/profilo")
+        val first = e2e.post(owner, "/profilo/dispositivi/togli", mapOf("dispositivo" to "$theirs"))
+        assertTrue(first.text().contains("Dispositivo tolto."))
+        val second = e2e.post(owner, "/profilo/dispositivi/togli", mapOf("dispositivo" to "$theirs"))
+        assertEquals(200, second.status())
+        assertTrue(second.text().contains("Questo dispositivo era già stato tolto."))
+        assertEquals(listOf(ids.first()), e2e.deviceIds(email))
+        // The same for what is not a number at all.
+        assertTrue(e2e.post(owner, "/profilo/dispositivi/togli", mapOf("dispositivo" to "not-a-number")).text().contains("Questo dispositivo era già stato tolto."))
+    }
+
+    @E2eTest(signedIn = false)
+    fun `t15 c36 c18 without a network Togli and Esci da tutti show the message and change nothing`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        val other = e2e.newPage(signedIn = false)
+        e2e.enter(other, email, remember = true)
+        e2e.open("/profilo")
+        val block = page.locator("#dispositivi-contenuto")
+
+        e2e.browserContext.setOffline(true)
+        e2e.press(block.getByRole(AriaRole.BUTTON, com.microsoft.playwright.Locator.GetByRoleOptions().setName("Togli il dispositivo collegato dal")))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Togli il dispositivo"))
+        assertThat(page.messages()).containsText("Nessuna connessione")
+        assertEquals(0, page.messages().locator("button:has-text('Riprova')").count(), "a touch is not repeated for the person")
+        assertEquals(2, e2e.devices(email))
+
+        e2e.press(block.buttonNamed("Esci da tutti gli altri dispositivi"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Esci da tutti gli altri dispositivi"))
+        assertThat(page.messages()).containsText("Nessuna connessione")
+        assertEquals(2, e2e.devices(email))
+        e2e.browserContext.setOffline(false)
+        other.navigate(e2e.url("/iscrizioni"))
+        other.waitForSettledContent()
+        assertThat(other).hasURL(e2e.url("/iscrizioni"))
+    }
+
+    @E2eTest(signedIn = false, profiles = [Profile.DESKTOP])
+    fun `t15 c36 c10 one row for a browser, and the eleventh device takes away the oldest`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        val firstSelector = Phone.decode(checkNotNull(e2e.browserContext.deviceCookie()).value).first
+        e2e.enter(page, email, remember = true)
+        assertEquals(1, e2e.devices(email), "this browser has one row only")
+        assertNotEquals(firstSelector, Phone.decode(checkNotNull(e2e.browserContext.deviceCookie()).value).first, "the row of the old cookie went and a new one was made")
+
+        repeat(10) { e2e.enter(e2e.newPage(signedIn = false), email, remember = true) }
+        assertEquals(10, e2e.devices(email), "at most ten")
+        // The first browser (the oldest) was the one that went: it finds the access page.
+        e2e.browserContext.loseTheSession()
+        e2e.open("/iscrizioni")
+        assertThat(page).hasURL(e2e.url("/accedi"))
+    }
+
+    @E2eTest(signedIn = false, teacher = false)
+    fun `t15 c36 c8 a form of a page left open keeps the person inside with the cookie, with and without JavaScript`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        e2e.open("/profilo")
+        val block = page.locator("#dispositivi-contenuto")
+        e2e.press(block.buttonNamed("Esci da tutti gli altri dispositivi"))
+        page.waitForSettledDialog()
+        // The session of the server is gone (the page is the one that was open for hours): the form that is sent has a code that nobody knows any more.
+        e2e.browserContext.loseTheSession()
+        e2e.touch(page.openDialog().buttonNamed("Esci da tutti gli altri dispositivi"))
+        page.waitForLoadState()
+        page.waitForSettledContent()
+        assertThat(page).hasURL(e2e.url("/profilo"))
+        assertThat(page.locator("h1")).hasText("Profilo")
+        assertEquals(1, e2e.devices(email), "nothing changed")
+        assertThat(page.locator("main")).not().containsText("chiedi un nuovo link")
+
+        // Without JavaScript: the home, with the notice, and the person is still inside.
+        val plain = e2e.newPage(signedIn = false) { setJavaScriptEnabled(false) }
+        e2e.enter(plain, email, remember = true)
+        plain.navigate(e2e.url("/profilo"))
+        plain.waitForSettledContent()
+        e2e.touch(plain.locator("#dispositivi-contenuto").buttonNamed("Esci da tutti gli altri dispositivi"))
+        assertThat(plain.locator("h1")).hasText("Uscire da tutti gli altri dispositivi?")
+        plain.waitForSettledContent()
+        // The page that stands in for the dialog (a GET-less POST of a form): its own form has the code of the session that is about to go.
+        plain.context().clearCookies(BrowserContext.ClearCookiesOptions().setName("JSESSIONID"))
+        e2e.touch(plain.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Esci da tutti gli altri dispositivi").setExact(true)))
+        plain.waitForLoadState()
+        plain.waitForSettledContent()
+        assertThat(plain).not().hasURL(e2e.url("/accedi"))
+        assertThat(plain.locator("main")).containsText("La pagina era aperta da troppo tempo. Riprova.")
+        assertThat(plain.locator("main")).not().containsText("chiedi un nuovo link")
     }
 }
