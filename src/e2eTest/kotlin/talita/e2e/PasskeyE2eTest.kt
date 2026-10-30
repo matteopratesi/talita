@@ -14,6 +14,7 @@ import com.microsoft.playwright.options.AriaRole
 import com.microsoft.playwright.options.Cookie
 import com.microsoft.playwright.options.FormData
 import com.microsoft.playwright.options.RequestOptions
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
@@ -1131,5 +1132,53 @@ class PasskeyE2eTest {
         // And no line that is a WARN or worse carries the address of a person.
         assertFalse(Regex("(WARN|ERROR).*@example\\.org").containsMatchIn(log))
         e2e.cspViolations.clear()
+    }
+
+    /**
+     * D1 of the QA of TALITA-15. A page that was left open past the end of the session (two hours without use) and a tap that goes through `passkeys.js` (the confirmation before the notes, «Aggiungi
+     * una passkey», «Entra con una passkey»): the script follows the redirect of the server, gets an HTML page where it waits for JSON, and the person sees «Qualcosa non ha funzionato» and nothing
+     * else: with the box they are still inside but the page stays as it was (and the next tap does the same, because the code CSRF of the page is the old one), without it they should be on the access
+     * page, as for any other request. The other requests of the app (htmx) end in `HX-Redirect` or `HX-Refresh` (criterion 8). Switch it on when the script treats a redirected answer as «the access is
+     * gone» (the access page, or a reload of the page when the cookie of the box is good).
+     */
+    @Disabled("D1 of the QA of TALITA-15: a passkey tap on a page left open past the session shows an error and does not go on")
+    @E2eTest(profiles = [Profile.DESKTOP])
+    fun `t15 c36 c8 D1 a tap through the script of the passkeys on a page left open past the session does not end in an error`(e2e: E2e) {
+        val page = e2e.page
+        e2e.phoneOf()
+        val w = e2e.arrivalsGathering()
+        val anna = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = Notes("Arachidi", null, null))
+        val email = e2e.teacherWithPasskeyAndNoConfirmation()
+
+        // Without the box: the access page, as for every other request.
+        e2e.open("/iscrizioni/$anna")
+        e2e.browserContext.loseTheSession()
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        page.waitForURL(e2e.url("/accedi"))
+        assertEquals(0, page.messages().count(), "no error message on the way to the access page")
+
+        // With the box: still inside, no error, and the page that comes back works.
+        e2e.signIn(page, email, teacher = false)
+        e2e.open("/profilo")
+        page.navigate(e2e.url("/accedi/conferma?token=" + e2e.application.getBean(OneTimeTokenService::class.java).generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue))
+        page.waitForSettledContent()
+        page.getByLabel("Ricordami su questo telefono").check()
+        e2e.touch(page.exact("Entra"))
+        page.waitForURL(e2e.url("/"))
+        e2e.open("/iscrizioni/$anna")
+        e2e.browserContext.loseTheSession()
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        page.waitForTimeout(1_500.0)
+        assertEquals(0, page.messages().count(), "no error message for a person who is still inside")
+        assertTrue(!page.url().endsWith("/accedi"), "the person is not sent out")
+
+        // The access page left open for hours: the tap on «Entra con una passkey» does not end in an error either.
+        e2e.open("/profilo")
+        e2e.touch(page.exact("Esci"))
+        page.waitForSettledContent()
+        e2e.browserContext.loseTheSession()
+        e2e.touch(page.exact("Entra con una passkey"))
+        page.waitForTimeout(1_500.0)
+        assertEquals(0, page.messages().count(), "no error message on the access page")
     }
 }
