@@ -12,9 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     # Any step that hangs (a download, a container that does not start) ends here and not after the 6
-    # hours that GitHub allows by default. The build takes about 6 minutes; the first run without
-    # caches (Chromium, Gradle dependencies, the Postgres image) stays well under 30.
-    timeout-minutes: 30
+    # hours that GitHub allows by default. The build takes about 30 minutes, most of it the end-to-end
+    # tests on phone and desktop, and it grows with every ticket; the first run without caches
+    # (Chromium, Gradle dependencies, the Postgres image) adds a few minutes. 45 leaves a margin, so
+    # that a slow runner does not cancel a build that has no failure.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

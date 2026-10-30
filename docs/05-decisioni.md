@@ -1010,3 +1010,7 @@ Solleciti via email a chi non si è ancora iscritto. Nel codice e nei documenti 
 - **Test dei vecchi ticket cambiati**: l'elenco delle migrazioni (V1-V11: V9 le camere, V10 il menù, V11 i promemoria) e l'elenco degli indirizzi pubblici; per le nuove frasi dell'informativa nessuno, perché i test confrontano le pagine con le costanti.
 - **Fuori** (per dopo, con un ticket se serve): la data di chiusura delle iscrizioni nella mail, un promemoria prima della partenza («cosa portare»), SMS o WhatsApp, un elenco di indirizzi che resterebbe dopo la cancellazione di un account, chi ha cominciato l'iscrizione senza finirla (l'iscrizione non ha bozze sul server).
 - **Prima del rilascio**: il parere sulla base e sulla natura di servizio della mail «in forse», il testo del consenso, la verifica dei trasferimenti nel DPA di Mailjet, la DPIA, il dominio verificato (TALITA-9); l'elenco è in `docs/03-privacy.md`.
+
+## 2026-10-30: tempo massimo della CI
+
+- **Il job `build` si ferma dopo 45 minuti, non più 30** (`timeout-minutes` in `.github/workflows/build.yml`). La build dura ormai circa 30 minuti, quasi tutti negli e2e su telefono e desktop: su `main` era già a 28,7 minuti, e la prima corsa della PR di TALITA-15, che aggiunge circa 150 test, è stata cancellata dal limite senza nessun test fallito. Il limite resta, per fermare un passo bloccato (un download, un container che non parte); il margine evita di cancellare una build senza difetti su un runner lento. Lo fissa il test t14 c11.
