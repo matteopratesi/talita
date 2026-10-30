@@ -36,6 +36,8 @@ data class Alert(
     val lead: String? = null,
     val actionLabel: String? = null,
     val actionHref: String? = null,
+    /** A second sentence that is shown only where the browser can use passkeys (`data-passkey`, hidden until the script of the passkeys sees the support): «Se hai una passkey, puoi usarla qui sotto.». */
+    val passkeyHint: String? = null,
 ) : Serializable
 
 /**

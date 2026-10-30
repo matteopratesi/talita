@@ -348,7 +348,7 @@ class LoginE2eTest {
         assertThat(page.locator("h1")).hasText("Accedi a Talità")
         // A whole page: the old one is gone, and what was put in it with it.
         assertEquals(null, page.evaluate("window.__marker"))
-        assertThat(page.locator("main")).containsText("Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link.")
+        assertThat(page.locator("main")).containsText("L’accesso si chiude da solo dopo 2 ore che non usi Talità, e comunque dopo 12 ore dall’entrata. Per rientrare, chiedi un nuovo link.")
         assertEquals(0, page.messages().count())
         assertEquals(0, page.locator("nav").count())
         assertAccessible(page, "access page after a session that ended (${e2e.profile.label})")

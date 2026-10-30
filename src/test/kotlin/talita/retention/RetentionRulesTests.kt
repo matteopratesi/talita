@@ -252,9 +252,10 @@ class RetentionRulesTests(
         val id = accounts.findOrCreate(EmailAddress.parse(email)!!)
 
         assertEquals(LocalDate.of(2027, 10, 20), dsl.select(ACCOUNT.CREATED_ON).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchSingle(ACCOUNT.CREATED_ON))
-        // TALITA-13 adds what the person chose about the reminders (the moment of the consent to the avviso, the moment of the stop, the code to stop): nothing about the use of the account.
+        // TALITA-13 adds what the person chose about the reminders (the moment of the consent to the avviso, the moment of the stop, the code to stop), TALITA-15 a number that only grows (the sessions
+        // of the account) and the handle of its passkeys: nothing about the use of the account.
         assertEquals(
-            setOf("id", "email", "created_on", "notice_consent_at", "reminders_off_at", "reminder_code"), dsl.meta().getTables("account").single().fields().map { it.name }.toSet(),
+            setOf("id", "email", "created_on", "notice_consent_at", "reminders_off_at", "reminder_code", "session_generation", "passkey_handle"), dsl.meta().getTables("account").single().fields().map { it.name }.toSet(),
             "no last access, hour, address or browser",
         )
         // The account that is there already is not touched when the person enters again.

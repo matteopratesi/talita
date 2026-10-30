@@ -61,7 +61,7 @@ class PasskeyOperationsTests(
     }
 
     private fun inside(account: Long): AccountAuthentication =
-        AccountAuthentication(CurrentAccount(account, "x@example.org"), emptyList())
+        AccountAuthentication(CurrentAccount(account, Addresses.of("passkey")), emptyList())
 
     private fun phone(synchronized: Boolean = false) = SoftPasskey(origin, rpId, synchronized)
 

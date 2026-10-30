@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter
 import org.springframework.security.web.authentication.AuthenticationConverter
 import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
 import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy
@@ -31,7 +32,8 @@ import java.time.Clock
  *   tokens (`/ott/generate`) is switched off: it generates nothing and sends nothing.
  * - **Opening the link does not log in** (mail programs open links to look at them): the page asks
  *   for a tap, and the tap is a POST with the CSRF code, to `/accedi/conferma`.
- * - **The session** lives in memory and ends after two hours without use (`server.servlet.session.timeout`).
+ * - **The session** lives in memory and ends after two hours without use (`server.servlet.session.timeout`) and, used or not, after 12 hours ([SessionGuardFilter]). A person who touched
+ *   «Ricordami su questo telefono» when entering has a cookie ([DeviceRememberMeServices]) that lets the browser in again by itself, without a link, for 30 days (7 for a teacher).
  * - **The headers** of every response: a Content-Security-Policy that allows only what the app
  *   serves itself, no referrer outside the site, no sniffing of the type of file.
  */
@@ -50,8 +52,11 @@ class SecurityConfiguration {
         tokens: OneTimeTokenService,
         accounts: Accounts,
         destinations: ObjectProvider<PostLoginDestination>,
+        texts: SessionTexts,
+        origins: SessionOrigins,
+        remembered: DeviceRememberMeServices,
     ): SecurityFilterChain {
-        val entryPoint = LoginEntryPoint()
+        val entryPoint = LoginEntryPoint(texts)
         val requests = requestCache()
 
         http {
@@ -67,7 +72,7 @@ class SecurityConfiguration {
                 loginProcessingUrl = "/accedi/conferma"
                 showDefaultSubmitPage = false
                 authenticationConverter = LinkFromForm()
-                authenticationSuccessHandler = LoginSuccessHandler(requests, destinations.orderedStream().toList())
+                authenticationSuccessHandler = LoginSuccessHandler(requests, destinations.orderedStream().toList(), origins)
                 authenticationFailureHandler = LoginFailureHandler()
                 // Links are made by LoginLinks and nowhere else: this one makes none and sends none.
                 generateRequestResolver = GenerateOneTimeTokenRequestResolver { null }
@@ -76,14 +81,19 @@ class SecurityConfiguration {
                 }
             }
 
+            // «Ricordami su questo telefono» (TALITA-15): our own services on top of Spring's, which wire the session strategy and the way out by themselves.
+            rememberMe {
+                rememberMeServices = remembered
+            }
+
             logout {
                 logoutUrl = "/esci"
-                logoutSuccessHandler = LogoutRedirect()
+                logoutSuccessHandler = LogoutRedirect(texts)
             }
 
             exceptionHandling {
                 authenticationEntryPoint = entryPoint
-                accessDeniedHandler = AccessHandler(entryPoint)
+                accessDeniedHandler = AccessHandler(entryPoint, remembered)
             }
 
             requestCache { requestCache = requests }
@@ -97,6 +107,8 @@ class SecurityConfiguration {
                 }
             }
 
+            // A session that must not count any more ends before the cookie of a device is looked at, so the person with a good cookie enters again in the same request.
+            addFilterBefore<RememberMeAuthenticationFilter>(SessionGuardFilter(origins))
             addFilterBefore<AnonymousAuthenticationFilter>(CurrentAccountFilter(accounts))
             // A form with a file that is past the limit of the container (TALITA-12): Tomcat throws when the filter of the CSRF code asks for the code, so this one comes before.
             addFilterBefore<CsrfFilter>(TooLargeUploadFilter())

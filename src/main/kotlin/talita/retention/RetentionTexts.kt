@@ -39,6 +39,11 @@ class RetentionTexts(private val policy: RetentionPolicy) {
      */
     val roomsWhen: String get() = if (policy.rooms.isZero) "alla fine della convivenza" else "${words(policy.rooms)} dopo la fine della convivenza"
 
+    /** How long a parent stays inside on a phone where they touched «Ricordami su questo telefono» (`30 giorni`), and the same for a teacher (`7 giorni`, and `7` alone for «7 se sei tra i maestri»). */
+    val devicesParent: String get() = words(policy.devicesParent)
+    val devicesTeacher: String get() = words(policy.devicesTeacher)
+    val devicesTeacherNumber: String get() = policy.devicesTeacher.days.toString()
+
     val registrations: String get() = words(policy.registrations)
     val invitations: String get() = words(policy.invitations)
     val emptyAccounts: String get() = words(policy.emptyAccounts)

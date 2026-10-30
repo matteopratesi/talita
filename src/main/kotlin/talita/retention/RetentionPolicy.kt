@@ -41,6 +41,12 @@ data class RetentionPolicy(
     val devicesTeacher: Period = Period.ofDays(7),
 ) {
 
+    init {
+        // The pages say «30 giorni (7 se sei tra i maestri)»: the lengths of the devices are a number of days.
+        require(devicesParent.years == 0 && devicesParent.months == 0 && devicesParent.days > 0) { "the length of a device is in days" }
+        require(devicesTeacher.years == 0 && devicesTeacher.months == 0 && devicesTeacher.days > 0) { "the length of a device is in days" }
+    }
+
     /** The day after the last day: from here every period counts (R6). */
     fun finishedOn(lastDay: LocalDate): LocalDate = lastDay.plusDays(1)
 
