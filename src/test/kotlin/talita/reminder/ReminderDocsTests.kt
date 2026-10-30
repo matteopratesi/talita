@@ -75,7 +75,7 @@ class ReminderDocsTests(
         }
         assertFalse(privacy.contains("Mailjet (Parigi, piano gratuito)"), "the old line is gone")
         for (part in listOf(
-            "art. 6.1.b", "art. 6.1.a", "art. 130.4", "**Promemoria per email** (TALITA-13)", "`reminder_batch`", "`talita.mail.reminder-daily-limit`", "190 in tutto", "**mai nel log**", "Chi inoltra la mail",
+            "art. 6.1.b", "art. 6.1.a", "art. 130.4", "**Promemoria per email** (TALITA-13)", "`reminder_batch`", "`talita.mail.reminder-daily-limit`", "190 in tutto", "i tetti di 40 e di 190 valgono fra due riavvii dell'applicazione, non attraverso un riavvio", "vale per convivenza e tipo: con più convivenze aperte un riavvio lascia partire un invio in più per ognuna", "**mai nel log**", "Chi inoltra la mail",
             "| Consenso all'avviso, stop ai promemoria, codice per smettere", "| Registro degli invii dei promemoria", "**Consenso all'avviso** (TALITA-13)", "**si oppone ai promemoria con un tocco", "il link funziona anche se la mail è inoltrata, e in quel caso lo stop può averlo chiesto chi ha ricevuto la mail, non il genitore",
         )) {
             assertTrue(privacy.contains(part), "docs/03 does not say: $part")
@@ -106,7 +106,7 @@ class ReminderDocsTests(
         val entry = log.substringAfter("## 2026-10-29: scelte di TALITA-13").substringBefore(" ## 2026-10-29: scelte di TALITA-1").substringBefore(" ## 2026-10-30")
         for (part in listOf(
             "**Le decisioni di Matteo (24/10/2026)**", "commento 10953", "commento 10950", "vincolante per sviluppo e QA", "«Conferma l'iscrizione»", "«Ci penso ancora un po'»", "**Niente invito a ritirare",
-            "«ritira» né «ritirare»", "«riceveranno un invito a confermare l'iscrizione»", "`V11__reminders.sql`", "**`Mailer.sendAll`**", "**Due conti**", "`pg_advisory_xact_lock(13,", "**Differenza dall'analisi: l'attesa è di 168 ore esatte**",
+            "«ritira» né «ritirare»", "«riceveranno un invito a confermare l'iscrizione»", "`V11__reminders.sql`", "**`Mailer.sendAll`**", "**Due conti**", "**I tetti di 40 e di 190 valgono fra due riavvii, non attraverso un riavvio**", "l'attesa di 168 ore vale per convivenza e tipo, non per tutte le mail", "`pg_advisory_xact_lock(13,", "**Differenza dall'analisi: l'attesa è di 168 ore esatte**",
             "`ReminderCards`", "**`/promemoria/smetti?codice=…`**", "guscio senza accesso di `/accedi`", "byte per byte", "**la riga di Mailjet corretta**", "**Prima del rilascio**", "`docs/design/TALITA-13/`",
         )) {
             assertTrue(entry.contains(part), "the entry of TALITA-13 misses: $part")
