@@ -96,6 +96,10 @@
       </ul>
     </section>
 
+    @if(page.getRoom() != null)
+      @template.room.childRoomCard(room = page.getRoom())
+    @endif
+
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="recapito-titolo">
       <h2 id="recapito-titolo" class="text-lg font-semibold">Recapito del genitore</h2>
       <div class="mt-2 flex flex-wrap items-center justify-between gap-3">

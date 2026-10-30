@@ -108,6 +108,10 @@
       @endif
     </section>
 
+    @if(page.getRooms() != null)
+      @template.gathering.roomsCard(card = page.getRooms())
+    @endif
+
     @template.gathering.menuCard(menu = page.getMenu(), csrf = csrf)
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="quando">

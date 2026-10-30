@@ -22,6 +22,7 @@
         <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento.</li>
         <li class="pl-1"><span class="font-semibold">Dei bambini:</span> nome, cognome, data di nascita, giorni di presenza e stato dell’iscrizione.</li>
         <li class="pl-1"><span class="font-semibold">Segnati dai maestri durante la convivenza:</span> le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.</li>
+        <li class="pl-1"><span class="font-semibold">Scelta dai maestri per la convivenza:</span> la camera in cui dorme ogni bambino, che non dice mai il sesso né il perché di una scelta.</li>
         <li class="pl-1"><span class="font-semibold">Facoltativi:</span> allergie, intolleranze e farmaci dei bambini, solo con il consenso del genitore.</li>
         <li class="pl-1"><span class="font-semibold">Dei maestri:</span> nome, cognome e indirizzo email.</li>
       </ul>
@@ -46,7 +47,7 @@
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="visibilita">
       <h2 id="visibilita" class="text-lg font-semibold">Chi vede i dati</h2>
-      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
+      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati. La camera in cui dorme ogni bambino la vedono solo i maestri. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="fornitori">

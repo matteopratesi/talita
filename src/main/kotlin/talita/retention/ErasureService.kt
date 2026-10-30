@@ -16,6 +16,7 @@ import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.PAYMENT
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.RETENTION_LOG
+import talita.jooq.tables.references.ROOM_CHILD
 import talita.jooq.tables.references.TEACHER
 import talita.jooq.tables.references.TEACHER_INVITATION
 import talita.registration.HealthNotes
@@ -49,7 +50,9 @@ data class OwnChild(val id: Long, val firstName: String, val lastName: String)
  *
  * Nothing here writes a name, an address, a date of birth or a note in the log; the answers carry the names only to the one who asked.
  *
- * To add a rule to the deletion of a registration (the rooms of TALITA-11 will have one) is to change [deleteRegistrations], the single place that deletes them.
+ * To add a rule to the deletion of a registration is to change [deleteRegistrations], the single place that deletes them. The rooms of TALITA-11 hang from the registration
+ * (`on delete cascade`), so the ones that go take their room with them; the ones that stay are taken out of their room by [removeFromRooms]: who sleeps where is the data
+ * of the child, and it goes at once (criterion 19 of TALITA-7 and 20 of TALITA-11).
  */
 @Component
 class ErasureService(
@@ -230,6 +233,7 @@ class ErasureService(
         var rows = healthNotes.removeOfRegistrations(tx, scope.rows.map { it.id })
         rows += deleteRegistrations(tx, classified.hidden + classified.fates.filter { it.goes }.map { it.registrationId })
         val kept = classified.fates.filter { !it.goes }
+        rows += removeFromRooms(tx, kept.map { it.registrationId })
         if (kept.isEmpty()) {
             rows += tx.deleteFrom(CHILD).where(CHILD.ID.eq(childId)).execute()
         } else {
@@ -242,6 +246,9 @@ class ErasureService(
 
     /** The one place that deletes registrations (and, with them, their days, notes, readings, presences and payments: `on delete cascade`). Returns how many went. */
     private fun deleteRegistrations(tx: DSLContext, ids: List<Long>): Int = if (ids.isEmpty()) 0 else tx.deleteFrom(REGISTRATION).where(REGISTRATION.ID.`in`(ids)).execute()
+
+    /** The registrations that stay (the proof of the custody, the register of the gathering) are taken out of their room: where a child sleeps is its data, and goes now. Returns how many rows went. */
+    private fun removeFromRooms(tx: DSLContext, ids: List<Long>): Int = if (ids.isEmpty()) 0 else tx.deleteFrom(ROOM_CHILD).where(ROOM_CHILD.REGISTRATION_ID.`in`(ids)).execute()
 
     // ---- The deletion of an account (criteria 24-26) -----------------------------------------------------------------------------
 
@@ -278,6 +285,7 @@ class ErasureService(
         // Whatever the person has on file goes with the notes: the consent they gave points at the account.
         var rows = healthNotes.removeOfRegistrations(tx, scope.rows.map { it.id }) + healthNotes.removeConsentedBy(tx, accountId, until = since)
         rows += deleteRegistrations(tx, classified.hidden + classified.fates.filter { it.goes }.map { it.registrationId })
+        rows += removeFromRooms(tx, classified.fates.filter { !it.goes }.map { it.registrationId })
         // What stays loses the link with the account (the acceptance, with the address copied into it, stays).
         tx.update(REGISTRATION).set(REGISTRATION.ACCOUNT_ID, null as Long?).where(REGISTRATION.ACCOUNT_ID.eq(accountId)).and(upToRequest(REGISTRATION.CREATED_AT)).execute()
         for (child in tx.select(CHILD.ID).from(CHILD).where(CHILD.ACCOUNT_ID.eq(accountId)).orderBy(CHILD.ID).forUpdate().fetch(CHILD.ID).map { it!! }) {

@@ -13,6 +13,8 @@ import talita.registration.TeacherPresenter
 import talita.retention.NotesDeleted
 import talita.retention.RetentionPolicy
 import talita.retention.RetentionTexts
+import talita.room.ChildRoomCard
+import talita.room.RoomLookup
 import talita.ui.AlertVariant
 import talita.ui.ConfirmModel
 import java.io.Serializable
@@ -133,6 +135,8 @@ data class CardPage(
     val custody: CustodyView,
     val registration: RegistrationView,
     val siblings: List<SiblingView>,
+    /** The card «Camera» (TALITA-11): null for a registration that was withdrawn, which has no room. */
+    val room: ChildRoomCard? = null,
 )
 
 /** Builds the card of a child from what [ArrivalsData] read: the sentences are those of the design (part 2, tables 2 and 3). */
@@ -143,6 +147,7 @@ class CardPresenter(
     private val payments: Payments,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
+    private val rooms: RoomLookup,
 ) {
 
     private fun days(data: ArrivalsData, registration: RegistrationData, choice: DayChoice): List<CardDay> {
@@ -307,6 +312,7 @@ class CardPresenter(
                     listOf(teacher.statusBadge(sibling)) + (balanceBadge(balance)?.let { listOf(it) } ?: emptyList()),
                 )
             },
+            room = if (withdrawn) null else rooms.cardOf(data.gathering, registration),
         )
     }
 

@@ -15,6 +15,8 @@ Aggiunte da TALITA-12: upload, download, image, utensils (il file del menù: car
 
 Aggiunte da TALITA-6: phone (Chiama), list (elenco per la struttura), clipboard-list (registro arrivi), chevron-left (Torna agli arrivi), search (ricerca nella lista).
 
+Aggiunte da TALITA-11: bed-double (camere: la scheda nella Convivenza, la pagina, lo stato vuoto, la scheda del bambino in Arrivi).
+
 Usate nel guscio: house, users-round, clipboard-check, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
 nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.
