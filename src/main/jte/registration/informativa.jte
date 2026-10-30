@@ -19,7 +19,7 @@
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="dati">
       <h2 id="dati" class="text-lg font-semibold">Quali dati raccogliamo</h2>
       <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
-        <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento, e se l’ha chiesto la data e l’ora della richiesta di avviso o dello stop ai promemoria.</li>
+        <li class="pl-1"><span class="font-semibold">Di chi iscrive i bambini:</span> indirizzo email, numero di telefono, data e ora in cui accetta l’affidamento, la data e l’ora della richiesta di avviso, se l’ha chiesta, e la data e l’ora dello stop ai promemoria, se c’è. Lo stop si chiede dal profilo o dal link «Non mandarmi più promemoria» che c’è in ogni mail: il link funziona anche se la mail viene inoltrata, e in quel caso può averlo chiesto chi l’ha ricevuta, e Talità non sa chi è.</li>
         <li class="pl-1"><span class="font-semibold">Dei bambini:</span> nome, cognome, data di nascita, giorni di presenza e stato dell’iscrizione.</li>
         <li class="pl-1"><span class="font-semibold">Segnati dai maestri durante la convivenza:</span> le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.</li>
         <li class="pl-1"><span class="font-semibold">Scelta dai maestri per la convivenza:</span> la camera in cui dorme ogni bambino, che non dice mai il sesso né il perché di una scelta.</li>

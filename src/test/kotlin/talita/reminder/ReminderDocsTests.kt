@@ -50,7 +50,7 @@ class ReminderDocsTests(
 
         for (part in listOf(
             "`account.notice_consent_at`", "`account.reminders_off_at`", "`account.reminder_code`", "`reminder_batch`", "**promemoria delle iscrizioni**",
-            "mandare l'avviso solo a chi l'ha chiesto, e poterlo dimostrare (art. 7.1)", "non mandare più promemoria né avvisi a chi l'ha chiesto, e dimostrare da quando",
+            "mandare l'avviso solo a chi l'ha chiesto, e poterlo dimostrare (art. 7.1)", "non mandare più promemoria né avvisi all'account che ha smesso, e dimostrare da quando", "che funziona anche se la mail è inoltrata: vale per l'account, e l'app non sa chi ha toccato il link",
             "96 bit casuali", "e non va mai nel log", "**Nessun dato personale**: niente destinatari né maestro", "TALITA-3, 7, 13", "`V11__reminders.sql`",
             "i maestri vedono solo **quante persone** riceveranno un promemoria", "mai a indirizzi presi da fuori", "mai ad account vuoti",
             "**chi ha ricevuto un promemoria, chi l'ha mandato, aperture e clic**", "indirizzi email da liste esterne, per i promemoria",
@@ -76,7 +76,7 @@ class ReminderDocsTests(
         assertFalse(privacy.contains("Mailjet (Parigi, piano gratuito)"), "the old line is gone")
         for (part in listOf(
             "art. 6.1.b", "art. 6.1.a", "art. 130.4", "**Promemoria per email** (TALITA-13)", "`reminder_batch`", "`talita.mail.reminder-daily-limit`", "190 in tutto", "**mai nel log**", "Chi inoltra la mail",
-            "| Consenso all'avviso, stop ai promemoria, codice per smettere", "| Registro degli invii dei promemoria", "**Consenso all'avviso** (TALITA-13)", "**si oppone ai promemoria con un tocco",
+            "| Consenso all'avviso, stop ai promemoria, codice per smettere", "| Registro degli invii dei promemoria", "**Consenso all'avviso** (TALITA-13)", "**si oppone ai promemoria con un tocco", "il link funziona anche se la mail è inoltrata, e in quel caso lo stop può averlo chiesto chi ha ricevuto la mail, non il genitore",
         )) {
             assertTrue(privacy.contains(part), "docs/03 does not say: $part")
         }
@@ -161,7 +161,8 @@ class ReminderDocsTests(
         val complete = squeezed(MockBrowser(mockMvc).get("/informativa").response.contentAsString)
 
         for (part in listOf(
-            "e se l’ha chiesto la data e l’ora della richiesta di avviso o dello stop ai promemoria.",
+            "la data e l’ora della richiesta di avviso, se l’ha chiesta, e la data e l’ora dello stop ai promemoria, se c’è.",
+            "Lo stop si chiede dal profilo o dal link «Non mandarmi più promemoria» che c’è in ogni mail: il link funziona anche se la mail viene inoltrata, e in quel caso può averlo chiesto chi l’ha ricevuta, e Talità non sa chi è.",
             "Il tuo indirizzo email serve anche a ricordarti di confermare un’iscrizione in forse: lo facciamo perché hai fatto l’iscrizione. L’avviso per una nuova convivenza ti arriva solo se lo chiedi: ci vuole il tuo consenso, e lo togli quando vuoi. In ogni mail c’è il modo per smettere.",
             "il servizio che manda le email, che riceve l’indirizzo e il testo del messaggio (anche dei promemoria, mai con dati dei bambini) e che per proteggersi da spam e frodi usa l’indirizzo come titolare autonomo, secondo la sua informativa;",
             "La richiesta di avviso e lo stop ai promemoria", "Finché non li cambi o non cancelli l’account.",
