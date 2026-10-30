@@ -42,6 +42,7 @@ class PasskeyOperationsTests(
     @Autowired private val operations: PasskeyOperations,
     @Autowired private val passkeys: Passkeys,
     @Autowired private val support: PasskeySupport,
+    @Autowired private val clock: java.time.Clock,
 ) {
 
     private val origin = TestcontainersConfiguration.PUBLIC_URL
@@ -182,7 +183,8 @@ class PasskeyOperationsTests(
         assertEquals(true, row.backupEligible)
         assertEquals(true, row.backupState)
         assertEquals("hybrid,internal", row.transports)
-        assertEquals(java.time.LocalDate.now(), row.createdOn)
+        // The day of the clock of the application: the one of the tests is shared and other tests move it forward, so the day of the PC is not the one that was saved.
+        assertEquals(java.time.LocalDate.now(clock), row.createdOn)
         // Not even a column for what a registration carries and the application does not keep.
         assertEquals(
             setOf("credential_id", "account_id", "public_key", "signature_count", "uv_initialized", "backup_eligible", "backup_state", "transports", "created_on"),

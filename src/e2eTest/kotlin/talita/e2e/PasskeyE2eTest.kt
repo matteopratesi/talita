@@ -79,6 +79,11 @@ class PasskeyE2eTest {
             session.send("WebAuthn.setUserVerified", JsonObject().apply { addProperty("authenticatorId", id); addProperty("isUserVerified", value) })
         }
 
+        /** With [automatic] false the phone never answers: the page stays in the line «In attesa della conferma…», which is what a person sees while they look for their finger. */
+        fun answers(automatic: Boolean) {
+            session.send("WebAuthn.setAutomaticPresenceSimulation", JsonObject().apply { addProperty("authenticatorId", id); addProperty("enabled", automatic) })
+        }
+
         fun credentials(): Int = session.send("WebAuthn.getCredentials", JsonObject().apply { addProperty("authenticatorId", id) }).getAsJsonArray("credentials").size()
     }
 
@@ -585,6 +590,7 @@ class PasskeyE2eTest {
         assertThat(card.locator("[data-conferma-esito=segnalazioni-rifiutata]")).isVisible()
         assertThat(card.locator("[data-conferma-esito=segnalazioni-rifiutata]")).containsText("La conferma non è riuscita.")
         assertThat(card.locator("[data-conferma-esito=segnalazioni-rifiutata]")).containsText("le segnalazioni le può aprire un altro maestro")
+        assertThat(card.locator("[data-stato]")).isHidden()
         assertThat(page.locator("main")).not().containsText("Arachidi")
         assertEquals(0, e2e.readings())
         assertThat(card.buttonNamed("Mostra le segnalazioni")).isEnabled()
@@ -1143,22 +1149,32 @@ class PasskeyE2eTest {
      * page, as for any other request. The other requests of the app (htmx) end in `HX-Redirect` or `HX-Refresh` (criterion 8). Switch it on when the script treats a redirected answer as «the access is
      * gone» (the access page, or a reload of the page when the cookie of the box is good).
      */
-    @E2eTest(profiles = [Profile.DESKTOP])
+    @E2eTest
     fun `t15 c36 c8 D1 a tap through the script of the passkeys on a page left open past the session does not end in an error`(e2e: E2e) {
         val page = e2e.page
         e2e.phoneOf()
         val w = e2e.arrivalsGathering()
         val anna = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = Notes("Arachidi", null, null))
+        val address = checkNotNull(e2e.signedInAs)
+
+        // «Aggiungi una passkey» (the first one) on a profile left open past the session, without the box: the access page, and nothing is saved.
+        e2e.open("/profilo")
+        e2e.browserContext.loseTheSession()
+        e2e.press(page.locator("#passkey-contenuto").buttonNamed("Aggiungi una passkey su questo telefono"))
+        page.waitForURL(e2e.url("/accedi"))
+        assertEquals(0, page.messages().count(), "no error message on the way to the access page from the profile")
+        assertEquals(0, e2e.passkeys(), "nothing is saved")
+        e2e.signIn(page, address, teacher = false)
         val email = e2e.teacherWithPasskeyAndNoConfirmation()
 
-        // Without the box: the access page, as for every other request.
+        // Without the box, «Mostra le segnalazioni»: the access page, as for every other request.
         e2e.open("/iscrizioni/$anna")
         e2e.browserContext.loseTheSession()
         e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
         page.waitForURL(e2e.url("/accedi"))
         assertEquals(0, page.messages().count(), "no error message on the way to the access page")
 
-        // With the box: still inside, no error, and the page that comes back works.
+        // With the box: still inside, no error, the page is loaded again, and what the person does next works.
         e2e.signIn(page, email, teacher = false)
         e2e.open("/profilo")
         page.navigate(e2e.url("/accedi/conferma?token=" + e2e.application.getBean(OneTimeTokenService::class.java).generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue))
@@ -1167,20 +1183,42 @@ class PasskeyE2eTest {
         e2e.touch(page.exact("Entra"))
         page.waitForURL(e2e.url("/"))
         e2e.open("/iscrizioni/$anna")
+        page.evaluate("window.__marker = 'the old page'")
         e2e.browserContext.loseTheSession()
         e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
-        page.waitForTimeout(1_500.0)
+        page.waitUntil("window.__marker === undefined")
+        page.waitForSettledContent()
         assertEquals(0, page.messages().count(), "no error message for a person who is still inside")
         assertTrue(!page.url().endsWith("/accedi"), "the person is not sent out")
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        assertThat(page.locator("#segnalazioni")).containsText("Arachidi")
+        assertEquals(0, page.messages().count())
 
-        // The access page left open for hours: the tap on «Entra con una passkey» does not end in an error either.
+        // With the box, «Aggiungi una passkey» (the confirmation comes first, the person has one): the same.
         e2e.open("/profilo")
+        page.evaluate("window.__marker = 'the old page'")
+        e2e.browserContext.loseTheSession()
+        e2e.press(page.locator("#passkey-contenuto").buttonNamed("Aggiungi una passkey su questo telefono"))
+        page.waitUntil("window.__marker === undefined")
+        page.waitForSettledContent()
+        assertEquals(0, page.messages().count(), "no error message for a person who is still inside, on the profile")
+        assertTrue(!page.url().endsWith("/accedi"), "the person is not sent out of the profile")
+        assertThat(page.locator("h1")).hasText("Profilo")
+
+        // The access page left open for hours: «Entra con una passkey» comes back to the access page with the notice, no error, and the page that comes back works.
         e2e.touch(page.exact("Esci"))
         page.waitForSettledContent()
+        page.evaluate("window.__marker = 'the old page'")
         e2e.browserContext.loseTheSession()
         e2e.touch(page.exact("Entra con una passkey"))
-        page.waitForTimeout(1_500.0)
+        page.waitUntil("window.__marker === undefined")
+        page.waitForSettledContent()
+        assertThat(page).hasURL(e2e.url("/accedi"))
+        assertThat(page.locator("main")).containsText("La pagina era aperta da troppo tempo. Riprova.")
         assertEquals(0, page.messages().count(), "no error message on the access page")
+        assertAccessible(page, "access page after a passkey tap on an expired page (${e2e.profile.label})")
+        e2e.touch(page.exact("Entra con una passkey"))
+        page.waitForURL(e2e.url("/"))
     }
 
     /**
@@ -1210,5 +1248,81 @@ class PasskeyE2eTest {
         e2e.touch(page.openDialog().buttonNamed("Esci da tutti gli altri dispositivi"))
         e2e.press(block.linkNamed("Vai alle passkey"))
         page.focusIs("document.activeElement.id === 'passkey'")
+    }
+
+    /**
+     * D2 of the QA of TALITA-15: two tabs of the same person that add their first passkey together are given the same handle (the provisional one that the server holds for five minutes, or the
+     * one that the first has saved), both passkeys are saved and the account has one handle only.
+     */
+    @E2eTest(teacher = false, profiles = [Profile.DESKTOP])
+    fun `t15 c36 c21 D2 two tabs that add the first passkey together are given the same handle and the account keeps one`(e2e: E2e) {
+        val first = e2e.page
+        val second = e2e.browserContext.newPage().also { it.setDefaultTimeout(10_000.0); e2e.watchCsp(it) }
+        e2e.phoneOf(first)
+        e2e.phoneOf(second)
+        val given = java.util.concurrent.CopyOnWriteArrayList<String>()
+        for (tab in listOf(first, second)) {
+            tab.onResponse { if (it.url().endsWith("/webauthn/register/options")) given += JsonParser.parseString(it.text()).asJsonObject["user"].asJsonObject["id"].asString }
+            tab.navigate(e2e.url("/profilo"))
+            tab.waitForSettledContent()
+        }
+        val email = checkNotNull(e2e.signedInAs)
+        assertNull(e2e.dsl().select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(e2e.accountId(email))).fetchSingle(ACCOUNT.PASSKEY_HANDLE), "no handle before the first passkey")
+
+        // Both taps, one after the other and without waiting for the first to end.
+        for (tab in listOf(first, second)) tab.locator("#passkey-contenuto").buttonNamed("Aggiungi una passkey su questo telefono").click()
+        for (tab in listOf(first, second)) assertThat(tab.locator("#passkey-contenuto [role=status]").first()).containsText("Passkey aggiunta.")
+
+        assertEquals(2, e2e.passkeys())
+        assertEquals(2, given.size, "each tab asked for the options once")
+        assertEquals(given[0], given[1], "the same handle for both tabs")
+        val handles = e2e.dsl().select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(e2e.accountId(email))).fetch(ACCOUNT.PASSKEY_HANDLE)
+        assertEquals(1, handles.size)
+        assertEquals(given[0], Base64.getUrlEncoder().withoutPadding().encodeToString(handles.single()!!), "the handle of the account is the one of the options")
+    }
+
+    /**
+     * What the QA of TALITA-15 found different from the mockups, seen on the screen: the waiting lines of the confirmation (the dialog of Togli, Aggiungi when the person has a passkey, and the notes
+     * of a child) say that «Dal computer, il browser può chiederti di usare il telefono.» only to a precise pointer (a phone does not show it), and «Se cambi o perdi il telefono» has the icon of information.
+     */
+    @E2eTest
+    fun `t15 c36 c41 the waiting lines of the confirmation add the sentence of the computer only for a precise pointer, and the lost phone has the icon of information`(e2e: E2e) {
+        val page = e2e.page
+        val phone = e2e.phoneOf()
+        val w = e2e.arrivalsGathering()
+        val anna = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = Notes("Arachidi", null, null))
+        val computer = "Dal computer, il browser può chiederti di usare il telefono."
+        e2e.addPasskey()
+        e2e.open("/profilo")
+        val card = page.locator("#passkey-contenuto")
+        val icon = card.locator("summary").filter(Locator.FilterOptions().setHasText("Se cambi o perdi il telefono")).locator("svg").first().innerHTML()
+        assertTrue(icon.contains("M12 16v-4") && icon.contains("M12 8h.01"), "the icon of information: $icon")
+
+        // The phone does not answer, so that the waiting line stays on the screen.
+        phone.answers(false)
+        e2e.press(card.buttonNamed("Aggiungi una passkey su questo telefono"))
+        val adding = card.locator("[data-passkey] [data-stato]")
+        assertThat(adding).containsText("In attesa della conferma…")
+        assertThat(adding).containsText("Prima conferma con una passkey che hai già: impronta, volto o codice di sblocco.")
+        if (e2e.profile.isPhone) assertThat(adding.getByText(computer)).isHidden() else assertThat(adding.getByText(computer)).isVisible()
+        assertEquals(1, e2e.passkeys())
+
+        e2e.open("/profilo")
+        e2e.press(card.getByRole(AriaRole.BUTTON, Locator.GetByRoleOptions().setName("Togli la passkey aggiunta il ")))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Togli la passkey"))
+        val taking = page.openDialog().locator("[data-stato]")
+        assertThat(taking).containsText("In attesa della conferma…")
+        assertThat(taking).containsText("Conferma con l’impronta, il volto o il codice di sblocco.")
+        if (e2e.profile.isPhone) assertThat(taking.getByText(computer)).isHidden() else assertThat(taking.getByText(computer)).isVisible()
+        assertEquals(1, e2e.passkeys(), "nothing is taken away while the phone has not answered")
+
+        e2e.open("/iscrizioni/$anna")
+        e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
+        val reading = page.locator("#segnalazioni [data-stato]")
+        assertThat(reading).containsText("Conferma con l’impronta, il volto o il codice di sblocco.")
+        if (e2e.profile.isPhone) assertThat(reading.getByText(computer)).isHidden() else assertThat(reading.getByText(computer)).isVisible()
+        assertThat(page.locator("main")).not().containsText("Arachidi")
+        assertEquals(0, e2e.readings())
     }
 }
