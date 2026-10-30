@@ -1078,3 +1078,7 @@ Solleciti via email a chi non si è ancora iscritto. Nel codice e nei documenti 
 - **Da provare a mano prima del rilascio** (Matteo): Safari su iPhone e Chrome su Android, sul dominio vero, con la casella, la passkey e la conferma (**un gesto della persona: Safari può rifiutare `navigator.credentials.get` fuori da un tocco**), e la conferma dal computer con il telefono (QR). La prova automatica usa Chromium.
 - **Per TALITA-8 e 9**: in produzione le passkey vogliono HTTPS e il dominio definitivo in `TALITA_PUBLIC_URL`, che non cambia più dopo il rilascio. Finché nessuno ha una passkey, i maestri leggono come oggi.
 - **Prima del rilascio** (`docs/03-privacy.md`): la verifica dei cookie senza banner (interpretazione del Garante), e la lettura dell'informativa con la nuova scheda «Cookie e accesso».
+
+## 2026-10-30: tempo massimo della CI
+
+- **Il job `build` si ferma dopo 45 minuti, non più 30** (`timeout-minutes` in `.github/workflows/build.yml`). La build dura ormai circa 30 minuti, quasi tutti negli e2e su telefono e desktop: su `main` era già a 28,7 minuti, e la prima corsa della PR di TALITA-15, che aggiunge circa 150 test, è stata cancellata dal limite senza nessun test fallito. Il limite resta, per fermare un passo bloccato (un download, un container che non parte); il margine evita di cancellare una build senza difetti su un runner lento. Lo fissa il test t14 c11.

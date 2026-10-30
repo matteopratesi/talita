@@ -111,11 +111,11 @@ class RepositoryRulesTests {
     }
 
     @Test
-    fun `t14 c11 the build job has timeout-minutes 30 and the download task has a timeout`() {
+    fun `t14 c11 the build job has timeout-minutes 45 and the download task has a timeout`() {
         val workflow = read(".github/workflows/build.yml")
 
         val job = workflow.substringAfter("\njobs:\n").substringAfter("\n  build:\n").substringBefore("\n    steps:\n")
-        assertEquals(listOf("30"), Regex("""(?m)^    timeout-minutes: (\d+)\s*$""").findAll(job).map { it.groupValues[1] }.toList())
+        assertEquals(listOf("45"), Regex("""(?m)^    timeout-minutes: (\d+)\s*$""").findAll(job).map { it.groupValues[1] }.toList())
         assertTrue(block(read("build.gradle.kts"), "val downloadTailwind = tasks.register(").contains("timeout.set("))
     }
 
