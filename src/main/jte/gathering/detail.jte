@@ -108,6 +108,8 @@
       @endif
     </section>
 
+    @template.reminder.remindersCard(card = page.getReminders(), csrf = csrf)
+
     @if(page.getRooms() != null)
       @template.gathering.roomsCard(card = page.getRooms())
     @endif

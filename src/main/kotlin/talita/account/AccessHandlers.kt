@@ -107,8 +107,8 @@ val ACCOUNT_DELETED_NOTICE = Alert(
 /** The notice of a form that was open for too long (a CSRF code that the session no longer knows). */
 internal const val PAGE_EXPIRED = "La pagina era aperta da troppo tempo. Riprova."
 
-/** The two forms of the access pages: the one that asks for the link and the one that confirms it. */
-private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma")
+/** The forms of the pages that are open to anyone and that have a tap with a CSRF code: the two of access (the link, and its confirmation) and the one for stopping the reminders (TALITA-13). */
+private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma", "/promemoria/smetti")
 
 /**
  * What happens when the request is refused to someone who is inside, and when the CSRF code of a
@@ -117,7 +117,7 @@ private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma")
  * - A form of the access pages (public, [ACCESS_FORMS]) whose code expired (a page left open for hours): the same
  *   page again (a redirect, not a forward: a forward goes through the security filters a second time, with
  *   the CSRF check already marked as done), with the field still filled in, a new code and an invitation to
- *   try again. Never "Non puoi vedere questa pagina".
+ *   try again. Never "Non puoi vedere questa pagina". The page for stopping the reminders comes back the same way, with its code.
  * - Any other form without the code, from someone who is not inside any more: the access page, as
  *   for any request without access.
  * - The same with a person who is inside (two tabs, a form from before the login): the page is
@@ -162,6 +162,12 @@ private fun backToAccessForm(path: String, request: HttpServletRequest, response
     if (path == "/accedi") {
         TypedAddress.keep(request, request.getParameter("email"))
         response.redirectSeeOther("/accedi")
+        return
+    }
+    if (path == "/promemoria/smetti") {
+        // The same page again, with the code that was in the address when it was opened (it is in the body of the form, and it is still good): never written anywhere else.
+        val code = request.getParameter("codice")?.trim().orEmpty()
+        response.redirectSeeOther(if (code.isEmpty()) "/promemoria/smetti" else "/promemoria/smetti?codice=" + URLEncoder.encode(code, StandardCharsets.UTF_8))
         return
     }
     val token = request.getParameter("token")?.trim().orEmpty()

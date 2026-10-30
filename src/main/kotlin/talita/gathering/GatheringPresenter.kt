@@ -18,6 +18,7 @@ import java.time.LocalDate
 class GatheringPresenter(
     private val gatherings: Gatherings,
     private val publicUrl: PublicUrl,
+    private val reminderCards: ReminderCards,
     private val usage: RegistrationUsage,
     private val policy: RetentionPolicy,
     private val texts: RetentionTexts,
@@ -94,6 +95,7 @@ class GatheringPresenter(
                 copyPrimary = !draft && !over,
             ),
             registrations = registrations(gathering, today),
+            reminders = reminderCards.card(gathering.id),
             retention = if (draft) null else retention(gathering, over, today, roomSummary.rooms),
             rooms = roomsCard(gathering, over, roomSummary),
             menu = menuPresenter.card(gathering.id),

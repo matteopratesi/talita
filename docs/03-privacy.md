@@ -16,7 +16,7 @@ vere con i ticket indicati; i tempi di conservazione con TALITA-7.
   (vedi sotto), che trattano i dati per suo conto.
 - **Interessati**:
   - i **genitori** che iscrivono i figli: email, recapito telefonico, accettazione dell'affidamento
-    con data e ora (il testo esatto, e l'indirizzo email di quel momento); anche i genitori **senza account**, che hanno
+    con data e ora (il testo esatto, e l'indirizzo email di quel momento) e, se ci sono, la data e l'ora della richiesta di avviso, che il genitore fa dal suo account, e quella dello stop ai promemoria (TALITA-13), che si registra per l'account e può arrivare dal profilo o dal link «Non mandarmi più promemoria» della mail: il link funziona anche se la mail è inoltrata, e in quel caso lo stop può averlo chiesto chi ha ricevuto la mail, non il genitore (l'app non sa chi ha toccato il link); anche i genitori **senza account**, che hanno
     compilato il modulo cartaceo, per il recapito che i maestri copiano dal modulo (il consenso alle segnalazioni resta sulla carta);
   - i **bambini**, che sono minori: nome e cognome, data di nascita, giorni di
     presenza, segnalazioni facoltative su allergie, intolleranze e farmaci, presenze per giorno e pagamenti (TALITA-6), e la camera in cui dormono (TALITA-11);
@@ -59,6 +59,12 @@ verificare prima del rilascio (sotto).
   non ha altro dentro): è il servizio chiesto dal genitore, che senza un accesso non può iscrivere i
   figli. Ipotesi: esecuzione della richiesta dell'interessato (art. 6.1.b); da verificare. L'accesso non
   dipende dalla convivenza: il genitore entra sempre, e dal suo account esercita i diritti (sotto).
+- **Promemoria delle iscrizioni** (TALITA-13: lo scopo nuovo dell'indirizzo email, oltre ai link di accesso): due tipi, con due basi diverse.
+  **«In forse»** (a chi ha un'iscrizione in forse, per invitarlo a confermarla): esecuzione della richiesta del genitore (art. 6.1.b), perché riguarda l'iscrizione che ha fatto lui, ed è una comunicazione di servizio e non
+  una promozione (art. 130 del Codice privacy: conta il contenuto, non il nome). **«Avviso»** (a chi ha figli di una convivenza precedente e ha chiesto di essere avvisato quando si aprono le iscrizioni di una nuova): **consenso**
+  (art. 6.1.a), con una casella non spuntata di partenza, data e ora della richiesta e revoca con un tocco; invita a una convivenza nuova e non a una pratica avviata, e il «soft spam» (art. 130.4) qui non vale, perché gli indirizzi
+  non vengono da una vendita. In ogni mail c'è come smettere, anche dove non è obbligatorio. Alternativa per «in forse»: legittimo interesse (art. 6.1.f), con il bilanciamento scritto e il diritto di opposizione (art. 21).
+  Da far verificare prima del rilascio (sotto).
 - **Account dei maestri** (inviti e accesso): ipotesi di legittimo interesse del titolare
   a organizzare la convivenza con i maestri che partecipano; da verificare.
 
@@ -70,7 +76,7 @@ CLAUDE.md). Niente analytics, CDN, font o script esterni: lo garantisce anche un
 | Fornitore | Cosa riceve | Note |
 | --- | --- | --- |
 | Hosting: Oracle Cloud Always Free, regione UE | Tutti i dati dell'app, nel database | Senza Pay As You Go: nessun costo possibile. Matteo, come titolare, accetta l'accordo sul trattamento dei dati (art. 28) quando apre l'account (TALITA-9). |
-| Invio email: Mailjet (Parigi, piano gratuito) | Indirizzo email del destinatario e testo del messaggio (il magic link, gli inviti) | Stessa cosa per l'accordo (TALITA-9). **Senza tracciamento di aperture e clic**: ogni mail porta le intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`, e il tracciamento si spegne anche nell'account (TALITA-9). Solo testo, senza immagini né link rimandati da Mailjet. |
+| Invio email: Mailjet (gruppo Sinch), piano gratuito: 6.000 mail al mese e 200 al giorno per tutto l'account | Indirizzo email del destinatario e testo del messaggio: il magic link, gli inviti e i promemoria (TALITA-13); **mai dati dei bambini** | Dati in UE, a Francoforte e Saint-Ghislain su Google Cloud, **come dichiara il fornitore**: il suo accordo sul trattamento (DPA Sinch, versione 8 del 29/10/2025) prevede trasferimenti nel gruppo, quindi «solo UE» non si scrive finché non è verificato (Parigi è la sede, non il posto dei dati). Per antispam, sicurezza e frodi Mailjet è **titolare autonomo**, per il resto responsabile; i sub-responsabili sono in un elenco pubblico, con 30 giorni di preavviso; valgono le clausole contrattuali standard (decisione 2021/914) e il Data Privacy Framework; i dati si cancellano entro 90 giorni dalla chiusura dell'account. L'accordo si accetta con TALITA-9. **Senza tracciamento di aperture e clic**: ogni mail porta le intestazioni `X-Mailjet-TrackOpen: 0` e `X-Mailjet-TrackClick: 0`, e il tracciamento si spegne anche nell'account (TALITA-9). Solo testo, senza immagini né link rimandati da Mailjet. |
 | Backup cifrati fuori sede | Una copia del database, **cifrata prima di lasciare la macchina**, con la chiave che resta al titolare | Fornitore da scegliere in TALITA-8. Nessuna copia più vecchia di 30 giorni (sotto, «Backup»). |
 
 **La struttura che ospita la convivenza** (TALITA-6) non è un fornitore dell'app: riceve **su carta** l'elenco per la struttura, con **solo nome e cognome**
@@ -161,6 +167,13 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **Nessun dato dei bambini verso un'IA esterna o un altro servizio, nemmeno con le sigle**: con 30 bambini conosciuti una sigla con l'età resta un dato personale (art. 4.5, cons. 26) e il fornitore sarebbe un destinatario (art. 28, trasferimenti fuori UE, artt. 44-46). Niente esportazione in file.
   - **Il log** a livello INFO e oltre non ha nomi di persone accanto alle camere né nomi di camere, e gli indirizzi hanno solo il numero della convivenza (la persona e la camera stanno nel corpo della richiesta); le pagine non si tengono nel browser (`Cache-Control: no-store`).
   - **La cancellazione** è del job (regola `rooms`, alla fine della convivenza) e, prima, del ritiro dell'iscrizione, della cancellazione dei dati di un figlio e del maestro tolto dai maestri.
+- **Promemoria per email** (TALITA-13). Come funziona:
+  - **testi fissi nel codice** (`ReminderMails`), solo testo: dalla convivenza vengono solo il titolo e le date, poi il collegamento a `/iscrizioni` o alla pagina informativa e come smettere. Il titolo è il dato pubblico della convivenza (sta anche sulla pagina informativa), scritto da un maestro e controllato come ogni testo pubblico (`PublicText`: rifiuta email, telefoni e IBAN, ma un nome non lo può riconoscere). **Mai** nomi o dati dei bambini, nemmeno quanti sono («c'è almeno un'iscrizione in forse»), né luogo, quote o i testi liberi della convivenza (informazioni, cosa portare): nelle mail non entra nessun altro testo scritto dai maestri. Un test costruisce le mail con più bambini iscritti e cerca ognuna di queste cose. Il promemoria «in forse» invita solo a confermare (decisione di Matteo del 24/10): niente invito a ritirare;
+  - **solo a un account che esiste**, e solo come dice lo scopo: «in forse» a chi ha un'iscrizione in forse, «avviso» a chi l'ha chiesto e ha figli di una convivenza precedente. Mai indirizzi da liste esterne, mai account vuoti (un account lo crea chiunque, e la mail porterebbe il titolo e le date che il codice della pagina informativa protegge), mai a chi ha smesso;
+  - **li manda un maestro con un bottone**, mai da soli: al più uno per tipo ogni 7 giorni (168 ore), con un lock consultivo di Postgres su convivenza e tipo, così il doppio tocco o due maestri insieme mandano una volta. Una mail partita non si ritira, e il dialogo lo dice;
+  - **una quota a parte**: 40 promemoria ogni 24 ore (`talita.mail.reminder-daily-limit`), che non tocca i 150 dei link di accesso e degli inviti (190 in tutto, sotto le 200 al giorno di Mailjet gratuito); un invio che supera quello che ne resta non parte. I conti sono in memoria, come quello dei link (TALITA-3): i tetti di 40 e di 190 valgono fra due riavvii dell'applicazione, non attraverso un riavvio, che li riporta a zero. L'attesa di 7 giorni sta invece nel database, ma vale per convivenza e tipo: con più convivenze aperte un riavvio lascia partire un invio in più per ognuna, e con una convivenza all'anno lo accettiamo;
+  - **smettere con un tocco, senza entrare**: ogni mail ha il collegamento a `/promemoria/smetti?codice=…` e l'intestazione `List-Unsubscribe`. La pagina chiede il tocco (aprirla non cambia niente: i programmi di posta aprono i link per guardarli), un codice che non esiste ha la stessa pagina e la stessa risposta, non mostra mai l'indirizzo, e il codice (96 bit, per account) sta solo nella query del collegamento e nel corpo del `POST`: **mai nel log**. Chi inoltra la mail dà a un altro il potere di fermare i promemoria di quell'account e nient'altro;
+  - **nessun registro dei destinatari**: il registro degli invii (`reminder_batch`) ha la convivenza, il tipo, il momento e due numeri; non dice chi ha ricevuto cosa né chi ha premuto il bottone. Il log a livello INFO e oltre ha solo convivenza, tipo e numeri.
 - **Collegamento cifrato** (HTTPS) e **backup cifrati**, con un restore provato (TALITA-8).
 - **Cancellazione automatica** secondo i tempi di conservazione (TALITA-7). Come funziona:
   - **un job** ogni notte alle 4:15 (ora di Roma) e a ogni avvio dell'applicazione, così un giorno in cui l'applicazione era spenta si recupera al primo avvio. Guarda il **giorno** di Roma e mai l'ora:
@@ -225,6 +238,8 @@ dal 17 al 19 settembre, è finita il 20; chi dorme dove va via il 20 settembre 2
 | Legami con gli affidatari | un anno dopo la fine; prima con «Togli» o con l'account cancellato (convivenze finite) | job, maestri | |
 | Figlio (nome, cognome, data di nascita) | quando non ha più iscrizioni: un anno dopo la fine della sua ultima convivenza (cartaceo: con la sua iscrizione); prima su richiesta | job, genitore | il genitore lo stacca dal suo account quando vuole; resta solo l'iscrizione che serve come prova |
 | Account (indirizzo, giorno di creazione) | vuoto (non maestro, senza figli né iscrizioni, non nel registro delle letture) **30 giorni dopo la creazione**; subito su richiesta | job, persona | chi ha letto segnalazioni resta con il solo indirizzo finché restano le sue letture |
+| Consenso all'avviso, stop ai promemoria, codice per smettere (colonne dell'account) | finché la persona non li cambia (il consenso va via anche con lo stop) o non cancella l'account | persona | vanno via con l'account; un account cancellato che rientra è nuovo, senza stop né avviso |
+| Registro degli invii dei promemoria (`reminder_batch`) | resta con la convivenza | — | nessun dato personale: convivenza, tipo, momento e due numeri |
 | Maestro (nome e cognome, momento in cui lo è diventato) | con «Togli» o con l'account cancellato | maestri, persona | |
 | Invito (indirizzo, scadenza, momento dell'invito) | **30 giorni dopo la scadenza**; prima: accettato o ritirato, o su richiesta | job, persona | per 30 giorni i maestri vedono «Scaduto» |
 | Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | |
@@ -259,6 +274,7 @@ I testi devono contenere:
 - **consenso esplicito e separato per le segnalazioni sanitarie**, facoltativo e revocabile; e il consenso per le convinzioni religiose deducibili, che è
   un'**ipotesi di lavoro**: la casella c'è nell'iscrizione e nelle informative finché la verifica di «Prima del rilascio» (con la DPIA) non decide se
   serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
+- **i promemoria** (TALITA-13): che l'indirizzo email serve anche a ricordare di confermare un'iscrizione in forse (perché la persona ha fatto l'iscrizione) e, solo se lo chiede, ad avvisare quando si aprono le iscrizioni di una nuova convivenza (consenso, che si toglie quando si vuole); che in ogni mail c'è come smettere; che il fornitore della posta riceve indirizzo e testo (mai dati dei bambini) e per antispam è titolare autonomo;
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
 - per quanto tempo si conservano, **anche per presenze e pagamenti**: vanno via con l'iscrizione, un anno dopo la fine della convivenza (TALITA-7 ne prende il tempo da
   `RetentionPolicy`), e **chi dorme in quale camera**, che va via alla fine della convivenza (TALITA-11, stessa fonte: la riga «Chi dorme in quale camera» della scheda «Per quanto tempo»);
@@ -270,6 +286,8 @@ I testi devono contenere:
 e cosa succede se mancano; senza il consenso niente si salva; si salva con data e ora e account di chi lo dà (o «consenso sul modulo cartaceo»).
 È revocabile dalla pagina «Iscrizioni» con un tocco e un dialogo, e la revoca cancella subito segnalazioni e consenso. L'iscrizione non dipende
 dal consenso (art. 7.4).
+
+**Consenso all'avviso** (TALITA-13): una casella separata, in «Iscrizioni» e nel profilo, **non spuntata**, con il testo che dice cosa si riceve e come smettere, e un bottone «Salva la scelta»: non si salva da sola, perché un consenso è un gesto (art. 7). Si salvano data e ora, si cancella quando la persona toglie la spunta o smette. Il testo vero del consenso lo legge la persona competente prima del rilascio (sotto).
 
 **Manleva**: l'accettazione online è una **firma elettronica semplice**, valutata liberamente dal giudice (da verificare). Si conservano il testo
 esatto che il genitore ha letto, la data e l'ora, l'account e l'indirizzo email di quel momento; l'indirizzo prova il controllo della casella,
@@ -294,6 +312,7 @@ ancora un segnaposto):
 - **il registro dei trattamenti**, dovuto perché ci sono dati sanitari;
 - **le stampe di Arrivi da Safari su iPhone** (lo prova Matteo, perché la prova automatica usa Chromium): registro, elenco e foglio su A4, con i titoli delle
   colonne su ogni foglio e senza righe spezzate (TALITA-6);
+- **i promemoria** (TALITA-13): il parere sulla base (6.1.b oppure 6.1.f) e sulla natura di servizio della mail «in forse» (art. 130 del Codice privacy, linee guida del Garante sullo spam del 4/7/2013); il testo del consenso all'avviso; la verifica dei trasferimenti nell'accordo di Mailjet (DPA Sinch, versione 8): finché non è verificata, «solo UE» non si scrive; la DPIA comprende i promemoria; e in produzione il dominio verificato in Mailjet, con SPF e DKIM (TALITA-9): fino ad allora i promemoria si provano con Mailpit;
 - l'indirizzo vero del titolare (TALITA-9).
 
 ## Diritti degli interessati
@@ -306,7 +325,8 @@ Il genitore li esercita **dal suo account**, per i dati suoi e dei suoi figli:
 - corregge l'iscrizione finché le iscrizioni sono aperte (e cambia le segnalazioni fino all'ultimo giorno); dopo, lo chiede a un maestro;
 - **cancella i dati dei figli, o l'account, quando vuole** (TALITA-7), dal «Profilo»: cosa si cancella subito e cosa resta (la manleva e il registro, con la data in cui vanno via e il perché; l'indirizzo di chi ha letto segnalazioni,
   finché restano le letture) lo dice il dialogo prima di confermare;
-- revoca il consenso alle segnalazioni, che vengono tolte.
+- revoca il consenso alle segnalazioni, che vengono tolte;
+- **si oppone ai promemoria con un tocco, dalla mail o dal profilo** (TALITA-13), e toglie la richiesta di avviso negli stessi posti.
 
 Per quello che l'app non permette di fare da sé (anche per le famiglie del cartaceo, che non hanno un account), scrive al titolare, che risponde **entro un mese** (art. 12.3), con una proroga di due mesi solo motivata; anche
 un rifiuto va motivato entro un mese. Il

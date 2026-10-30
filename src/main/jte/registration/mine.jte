@@ -100,4 +100,8 @@
       @endfor
     </section>
   @endfor
+
+  @if(page.getEmailCard() != null)
+    @template.reminder.emailCard(card = page.getEmailCard(), csrf = csrf)
+  @endif
 `)

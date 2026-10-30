@@ -13,6 +13,8 @@ Aggiunte da TALITA-7: archive (conservata fino al, stato vuoto di quello che è 
 
 Aggiunte da TALITA-12: upload, download, image, utensils (il file del menù: carica, scarica, foto del foglio, il collegamento in Arrivi).
 
+Aggiunte da TALITA-13: send (Manda il promemoria), bell (Riprendi i promemoria), bell-off (Non mandarmi più promemoria), mail-x (la pagina per smettere).
+
 Aggiunte da TALITA-6: phone (Chiama), list (elenco per la struttura), clipboard-list (registro arrivi), chevron-left (Torna agli arrivi), search (ricerca nella lista).
 
 Aggiunte da TALITA-11: bed-double (camere: la scheda nella Convivenza, la pagina, lo stato vuoto, la scheda del bambino in Arrivi).

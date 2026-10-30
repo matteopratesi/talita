@@ -36,13 +36,13 @@ class TalitaApplicationTests(
     }
 
     @Test
-    fun `the migrations are V1 to V10, V9 rooms and V10 menu, and the only extension is unaccent`() {
+    fun `the migrations are V1 to V11, V9 rooms, V10 menu and V11 reminders, and the only extension is unaccent`() {
         val applied = dsl.resultQuery("select version, script from flyway_schema_history where success order by installed_rank")
             .fetch { it.get(0, String::class.java) to it.get(1, String::class.java) }
-        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql", "4" to "V4__gathering.sql", "5" to "V5__registration.sql", "6" to "V6__checkin.sql", "7" to "V7__retention.sql", "8" to "V8__teacher_moments.sql", "9" to "V9__rooms.sql", "10" to "V10__menu.sql"), applied)
+        assertEquals(listOf("1" to "V1__extensions.sql", "2" to "V2__accounts.sql", "3" to "V3__teachers.sql", "4" to "V4__gathering.sql", "5" to "V5__registration.sql", "6" to "V6__checkin.sql", "7" to "V7__retention.sql", "8" to "V8__teacher_moments.sql", "9" to "V9__rooms.sql", "10" to "V10__menu.sql", "11" to "V11__reminders.sql"), applied)
 
         val files = PathMatchingResourcePatternResolver().getResources("classpath*:db/migration/*").mapNotNull { it.filename }.sortedBy { it.substringAfter('V').substringBefore("__").toInt() }
-        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql", "V4__gathering.sql", "V5__registration.sql", "V6__checkin.sql", "V7__retention.sql", "V8__teacher_moments.sql", "V9__rooms.sql", "V10__menu.sql"), files)
+        assertEquals(listOf("V1__extensions.sql", "V2__accounts.sql", "V3__teachers.sql", "V4__gathering.sql", "V5__registration.sql", "V6__checkin.sql", "V7__retention.sql", "V8__teacher_moments.sql", "V9__rooms.sql", "V10__menu.sql", "V11__reminders.sql"), files)
 
         val installed = dsl.resultQuery("select extname from pg_extension").fetch(0, String::class.java)
         assertTrue("unaccent" in installed, "installed: $installed")

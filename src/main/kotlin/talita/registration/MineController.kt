@@ -17,6 +17,8 @@ import talita.gathering.GatheringFormat
 import talita.gathering.GatheringInfo
 import talita.gathering.GatheringReader
 import talita.gathering.GatheringState
+import talita.reminder.EmailCard
+import talita.reminder.NoticePresenter
 import talita.retention.KeepReason
 import talita.retention.RetentionPolicy
 import talita.retention.RetentionTexts
@@ -93,7 +95,8 @@ data class MineSection(
     val sum: Int,
 )
 
-data class MinePage(val alert: Alert?, val sections: List<MineSection>)
+/** The page «Iscrizioni» of the parent. [emailCard] is the card of the avviso (TALITA-13), at the bottom: null for someone with no children. */
+data class MinePage(val alert: Alert?, val sections: List<MineSection>, val emailCard: EmailCard? = null)
 
 /** What the page of a modification shows: the data of the child, the phone, and what surrounds them. */
 data class EditPage(
@@ -317,6 +320,7 @@ class MineController(
     private val presenter: RegistrationPresenter,
     private val mine: MinePresenter,
     private val teacherPages: TeacherRegistrationsController,
+    private val notices: NoticePresenter,
 ) {
 
     // ---- The list ---------------------------------------------------------------------------------------------------------------
@@ -328,7 +332,7 @@ class MineController(
     private fun listPage(account: CurrentAccount, alert: Alert?, status: HttpStatus): ModelAndView =
         ModelAndView(
             "registration/mine",
-            mapOf("shell" to shells.shell(page = "Iscrizioni", current = Section.ISCRIZIONI), "page" to MinePage(alert, mine.sections(account.id))),
+            mapOf("shell" to shells.shell(page = "Iscrizioni", current = Section.ISCRIZIONI), "page" to MinePage(alert, mine.sections(account.id), notices.card(account.id, full = false))),
         ).also { it.status = status }
 
     /** A change that cannot be made now (criterion 15): the same page, a notice in front, nothing changed. */

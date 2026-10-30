@@ -16,9 +16,10 @@ object PublicPaths {
     /**
      * Pages: the login pages, the health of the application (for whoever watches it), the error page, and the information page of a gathering
      * (`/info/{codice}`, TALITA-4). The registration under it (`/info/{codice}/iscrizione`) is not here: it asks for an account. The complete
-     * notice on the privacy (`/informativa`, TALITA-5) is public: the parents read it before they have an account, and it holds nothing personal.
+     * notice on the privacy (`/informativa`, TALITA-5) is public: the parents read it before they have an account, and it holds nothing personal. The page for stopping the reminders
+     * (`/promemoria/smetti`, TALITA-13) is the one that the link of every reminder leads to: for a person who has the mail and may not be inside (GET and POST: it asks for a tap).
      */
-    val pages: List<String> = listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa")
+    val pages: List<String> = listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa", "/promemoria/smetti")
 
     /**
      * The static files of the app. The fingerprint in the name (`/css/app-<hash>.css`) is added by

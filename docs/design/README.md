@@ -490,6 +490,10 @@ Icone assegnate (nomi di Lucide):
 | Si apre in una nuova scheda | `external-link` |
 | Iscrizioni chiuse | `calendar-x` |
 | Chiama il genitore | `phone` |
+| Manda il promemoria | `send` |
+| Riprendi i promemoria | `bell` |
+| Non mandarmi più promemoria | `bell-off` |
+| La pagina per smettere i promemoria | `mail-x` |
 | Elenco per la struttura | `list` |
 | Registro arrivi | `clipboard-list` |
 | Torna agli arrivi | `chevron-left` |
@@ -738,6 +742,8 @@ Classi dell'intestazione senza accesso: `sticky top-0 z-40 flex min-h-14 items-c
 Nell'`<head>` ha solo il necessario: `noindex, nofollow`, e se la pagina si condivide `description` e `og:title`, `og:description`, `og:type` (`website`), `og:site_name`, `og:locale`: mai `og:image`, `og:url`, `twitter:*` né indirizzi esterni. La prima visita pesa circa 85 KB (HTML, CSS, il font latino, l'icona), sotto i 250 KB. `main` ha `pb-no-nav` e il link «Vai al contenuto» funziona anche senza JavaScript. In stampa intestazione e link «Vai al contenuto» non si stampano (4.12).
 
 Le pagine di errore per chi non ha accesso (404 e 500 sono pubbliche) hanno i testi di 4.11, ma «Vai alla home» diventa «Vai all’accesso» (link a `/accedi`). «Riprova» della 500 resta, solo per le letture.
+
+**La pagina per smettere i promemoria** (`/promemoria/smetti`, TALITA-13): è pubblica, ma ha un `POST` con il codice CSRF e un bottone che dice «Salvataggio…», che il guscio pubblico (senza script e senza CSRF, per non far nascere una sessione) non ha. Per questo ha **il guscio senza accesso di `/accedi`** (marchio non cliccabile, nessuna navigazione, colonna `max-w-md`), con `noindex`, fatta con `components/statePage.jte` (il cerchio con l'icona `mail-x`, l'`h1`, il testo e il bottone). Aprirla non cambia niente, come «Conferma l'accesso»: serve il tocco. Dopo il tocco la pagina è la stessa per un codice che non esiste, e non mostra mai l'indirizzo.
 
 ### 3.6 Profilo nell'intestazione
 
@@ -998,6 +1004,7 @@ Le classi qui sotto sono quelle da scrivere nei template. Nel catalogo
 <p id="accetto-errore" class="ml-9 flex items-start gap-1.5 text-sm font-medium text-danger"><svg class="mt-0.5 size-4 shrink-0" aria-hidden="true">…circle-alert…</svg>…</p></div>
 ```
 
+- **Casella di consenso** (`registration/checkRow.jte` dentro un form con il suo bottone, TALITA-13, «Avvisami per email…»): **mai spuntata prima**, con sotto il testo che dice cosa si riceve e come smettere, e un bottone «Salva la scelta» (secondario, «Salvataggio…»). Non si salva da sola al tocco: un consenso è un gesto con un bottone (art. 7) e così funziona uguale senza JavaScript. Spuntata e salvata, sotto la casella c'è «Hai chiesto l’avviso il 12 giugno 2027 alle 21:30.» (`text-sm text-ink-muted`); tolta la spunta e salvata, il consenso si cancella. La riga intera è l'area di tocco (48 px).
 - **Telefono**: `type="tel"` con `autocomplete="tel"` e `autocorrect="off"`, **senza** `inputmode="numeric"`: la tastiera numerica di iOS non ha il «+».
 - **Appunti di sanità** (`registration/noteField.jte`): area di testo da due righe (`min-h-22`), che cresce, con l'esempio nell'aiuto sotto l'etichetta.
 - **Select** (`room/roomSelect.jte`, TALITA-11): lo stesso campo di testo con la freccia (`chevron-down`, `pointer-events-none`, `aria-hidden`) e `appearance-none`. Il primo `option` non ha valore e dice cosa si sceglie («Scegli la camera», «Scegli il maestro»): è l'etichetta che si vede. **Nelle righe che si ripetono l'etichetta vera è `sr-only` e porta il nome della persona** («Camera di Davide Costa»); dove c'è una sola scelta (il modulo di «Cambia», «Aggiungi un maestro») è visibile sopra. Le opzioni
@@ -1163,6 +1170,8 @@ larghezza (`-mr-21`): il select delle altre camere, «Sposta» (primario) e «To
 </section>
 ```
 
+- **Scheda con più blocchi** (la parte «Promemoria» del dettaglio della convivenza, TALITA-13): una scheda sola con due blocchi uno sotto l'altro, separati da un filetto (`mt-4 border-t border-line pt-4`), ognuno con il suo `h3`, una frase, le sue righe «etichetta · valore» e la sua azione: un bottone, l'attesa («Potrai rimandarlo dal …») o lo zero in parole con il perché, **mai due cose insieme**. L'esito di un'azione è un avviso (4.6, `live`) sotto l'introduzione della scheda. Con le iscrizioni non aperte la scheda ha solo il titolo e una frase.
+
 ### 4.5 Etichette di stato
 
 `inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap`
@@ -1301,6 +1310,8 @@ eliminazione). Non per le azioni normali: salvare non chiede conferma.
   e il messaggio resterebbe nascosto sotto il suo sfondo. La pagina resta com'era e il messaggio si vede.
   Se invece il server risponde con il blocco (422, 429), il blocco sostituisce anche il dialogo.
 - Dopo l'azione il fuoco va all'avviso del blocco (5); dopo «Annulla» o Esc, al bottone che aveva aperto il dialogo.
+
+- **Dialogo di invio** (TALITA-13, «Mandare il promemoria?»): un dialogo che manda qualcosa fuori dall'app. Il bottone è **primario**, non rosso: non toglie niente a nessuno, e un dialogo che si chiama «Mandare» non è un'azione da pericolo; la conseguenza sta nel testo, che dice **a quante persone**, **a chi**, **cosa riceveranno**, che **una mail partita non si ritira** e per quanto tempo non se ne può mandare un'altra (7 giorni). In attesa il bottone dice «Invio…» e il dialogo resta aperto finché non arriva la risposta (fino ai 20 secondi di htmx); la risposta sostituisce la scheda e chiude il dialogo. Il bottone che lo apre è un link alla pagina di conferma, con `data-apri`.
 
 **Dialogo con elenchi** (`erasureDialog`, TALITA-7): un dialogo che cancella dati. Dentro il `<dialog>` di sopra si aggiungono `max-h-[92dvh] overflow-y-auto` (scorre nel suo pannello se è più alto dello schermo) e il testo è un blocco `<div id="…-testo" class="mt-3 space-y-4">`, con `aria-describedby` che punta al blocco. Le sezioni hanno il titolo (`<h3 class="text-base font-semibold">`) e un elenco breve (`<ul class="mt-1 list-disc space-y-2 pl-5 text-ink-muted marker:text-ink-muted">`); la riga piccola è `text-sm text-ink-muted` e la chiusura `font-semibold`. La regola: **un dialogo che cancella dati dice, in quest'ordine, cosa si cancella subito («Cancelliamo subito»), cosa resta, con la data e il motivo («Resta»), oppure «Non resta niente.» in grassetto al posto dell'elenco; che le copie di sicurezza, cifrate, perdono quei dati entro il tempo della policy; e chiude con «Non si può annullare.» in grassetto.** Il bottone che conferma è di pericolo e ripete il verbo del titolo («Cancella i dati di Luca»); in attesa dice «Cancellazione…». L'`id` è `cancella-figlio-12` e `cancella-account`, mai un nome. Se resta un'iscrizione il dialogo dice che restano anche il nome e la data di nascita del bambino dentro quell'iscrizione: è così nel modello, e chi legge «cancelliamo i dati di Luca» deve saperlo. Senza JavaScript il bottone è un link a `GET` dello stesso indirizzo: una pagina con gli stessi testi (il titolo è l'`h1`), «Cancella i dati di Luca» e «Annulla» verso `/profilo`. Il testo si calcola quando si disegna la pagina e la cancellazione guarda lo stato del momento (il controllo sta nella transazione); l'avviso dopo dice cosa è rimasto davvero.
 
@@ -1648,6 +1659,13 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **Un link che scarica** (`hx-boost="false"` sul link: «Scarica» della scheda e la riga «Menù» di Arrivi): htmx non lo prende, il browser salva il file e la pagina resta com'è, con e senza JavaScript. La risposta è `attachment`: mai una pagina, mai una pagina nuova nella cronologia. Una pagina rimasta aperta dopo che il menù è stato tolto dà la 404 di sempre.
 - **«Togli»** passa da htmx come ogni dialogo di conferma (4.8): se la richiesta fallisce il dialogo si chiude e compare il messaggio a comparsa, senza «Riprova» (è un POST).
 
+### Promemoria (TALITA-13)
+
+- **Un invio che sostituisce una scheda intera**: il `hx-post` del dialogo risponde con la scheda `#promemoria` (`hx-target="#promemoria"`, `hx-swap="outerHTML"`), con un solo avviso dell'esito in cima e il fuoco su di esso (`data-fuoco`); il resto del dettaglio, la posizione di scorrimento e l'indirizzo non cambiano. Lo stesso per la scheda dell'avviso (`#email` nel profilo, `#avviso-card` in «Iscrizioni»), che ogni azione sostituisce.
+- **Una richiesta ripetuta non è un errore**: il doppio tocco o due maestri insieme mandano una volta sola, e la seconda risposta è 200 con la scheda e l'avviso informativo «Questo promemoria è già stato mandato…». La quota che non basta risponde 429 e la posta che non parte 422, con la scheda sostituita (`app.js` sostituisce 409, 422 e 429 come per gli altri blocchi): nessun messaggio a comparsa «Qualcosa non ha funzionato».
+- **Senza rete, lenta (20 secondi), con un errore del server o con l'accesso negato** la scheda non cambia, il dialogo si chiude prima del messaggio, e la nota in fondo alla scheda dice di riaprire la pagina per controllare l'ultimo invio (le mail possono essere già partite).
+- **Senza JavaScript** il bottone «Manda il promemoria» è un link a una pagina di conferma (`confirmAction`) con gli stessi testi; il `POST` risponde con `303` al dettaglio, con l'avviso lasciato in sessione e letto una volta sola.
+
 ## 6. Scrivere i testi
 
 ### Tono
@@ -1779,6 +1797,12 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **Avvisi**: «Menù caricato.» (anche per la sostituzione: il server non deve sapere se c'era già) e «Menù tolto.»; mai il nome del file, né negli avvisi né nei dialoghi.
 - **Errori**, sempre sotto il campo e con le stesse parole per lo stesso errore: «Scegli il file del menù.» (nessun file, o file vuoto), «Questo file non è un PDF, un JPEG o un PNG.» e «Il file è troppo grande: al massimo 10 MB.» (anche per i file oltre il limite del contenitore). Il limite viene dalla costante dell'app, mai scritto a mano.
 - **Chi lo vede** si dice dove serve: «Lo vedono solo i maestri.» nell'aiuto e nella scheda; «Scaricato sul telefono, si apre anche senza rete.» dice perché si scarica.
+
+### Promemoria (TALITA-13)
+
+- **«Promemoria» e «avviso»**: due parole per due cose. Il promemoria «in forse» invita a **confermare** («Conferma l’iscrizione», «Ci penso ancora un po’»), mai a ritirare (decisione di Matteo, commento 10950); l'avviso dice che le iscrizioni di una nuova convivenza sono aperte. Per fermarli si dice «smettere» (non «annullare» né «disiscriversi»): «Non mandarmi più promemoria» è il testo del bottone e quello che le mail ripetono.
+- **Attesa e invii**: «Potrai rimandarlo dal 21 giugno 2027 alle 21:30.», «Promemoria mandato a 3 persone.», «Mandato a 2 persone su 3: per una la mail non è partita.», «Oggi si possono mandare ancora 12 promemoria, ma questo ne richiede 30. Riprova domani.» (la quota è una finestra di 24 ore, ma si dice «domani», come per i link di accesso) e «Nessuno da avvisare: …» con il perché. Un conteggio che è zero dice «Nessuno», non «0».
+- **Le mail** (una voce nuova): solo testo, «Ciao,», frasi corte, il tu, una riga che dice perché la si riceve e il modo per smettere con le parole del bottone, «Questa mail è automatica: non risponderle. Se hai bisogno di aiuto, scrivi a chi organizza la convivenza.» e la firma «Talità». Mai nomi o dati dei bambini, **nemmeno quanti sono**: «c’è almeno un’iscrizione in forse». Mai forme accordate al sesso. Il testo è nel codice (`ReminderMails`) e non lo scrivono i maestri; dalla convivenza vengono solo il titolo e le date.
 
 ## 7. Accessibilità: controlli prima della PR
 

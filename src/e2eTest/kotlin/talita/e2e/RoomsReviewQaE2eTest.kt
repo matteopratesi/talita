@@ -428,10 +428,10 @@ class RoomsReviewQaE2eTest {
     /** The cards of the detail that this test is about, in the order of the page (the others are there too: Stato, the link, the quotes…). */
     private fun Page.cards(): List<String> =
         (evaluate("[...document.querySelectorAll('main section[aria-labelledby]')].map(s => s.getAttribute('aria-labelledby'))") as List<*>)
-            .map { it as String }.filter { it in setOf("iscrizioni", "camere", "menu", "quando") }
+            .map { it as String }.filter { it in setOf("iscrizioni", "promemoria-t", "camere", "menu", "quando") }
 
     @E2eTest
-    fun `t11 c16 t12 the cards of the detail are Iscrizioni, Camere, Menù, Quando e dove in a draft, open, closed and over, and after the end with no rooms only Camere goes, the Menù stays`(e2e: E2e) {
+    fun `t11 c16 t12 t13 the cards of the detail are Iscrizioni, Promemoria, Camere, Menù, Quando e dove in a draft, open, closed and over, and after the end with no rooms only Camere goes, the Menù stays`(e2e: E2e) {
         val page = e2e.page
         for ((label, state) in listOf(
             "a draft" to Triple(GatheringStatus.draft, 30L, 32L),
@@ -441,8 +441,8 @@ class RoomsReviewQaE2eTest {
         )) {
             val w = e2e.arrivalsGathering(first = state.second, last = state.third, status = state.first)
             val over = label == "over"
-            val all = listOf("iscrizioni", "camere", "menu", "quando")
-            val noRooms = if (over) listOf("iscrizioni", "menu", "quando") else all
+            val all = listOf("iscrizioni", "promemoria-t", "camere", "menu", "quando")
+            val noRooms = if (over) listOf("iscrizioni", "promemoria-t", "menu", "quando") else all
 
             // No rooms, no menu.
             e2e.open("/convivenza/${w.id}")
@@ -460,7 +460,7 @@ class RoomsReviewQaE2eTest {
             assertEquals(if (over) 0 else 1, page.locator("section[aria-labelledby=camere]").count(), "$label: the card of the rooms")
             assertAccessible(page, "detail, $label, no rooms, a menu (${e2e.profile.label})")
 
-            // A room: the four cards in the same order, also after the end, and the card of the rooms has no names.
+            // A room: the five cards in the same order, also after the end, and the card of the rooms has no names.
             e2e.room(w.id, "Camera 1", 4)
             e2e.open("/convivenza/${w.id}")
             assertEquals(all, page.cards(), "$label, a room, a menu")
