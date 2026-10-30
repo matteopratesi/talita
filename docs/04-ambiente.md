@@ -156,7 +156,7 @@ Il menù della convivenza è un file (PDF, JPEG o PNG) che i maestri caricano (T
   rilanciarla. Con una connessione molto lenta (sotto circa 1 Mbit/s i 15 minuti non bastano) si
   può copiare il file `tailwindcss-linux-x64`, preso dalla pagina della release, nella cartella
   della cache: la build ne controlla comunque lo SHA-256. In CI il job `build` si ferma comunque
-  dopo 30 minuti (`timeout-minutes`).
+  dopo 45 minuti (`timeout-minutes`; la build dura circa 30).
 - **Chromium di Playwright** (circa 650 MB, in `~/.cache/ms-playwright`, condiviso con ogni progetto
   che usa la stessa versione di Playwright): `./gradlew playwrightInstall`, e `e2eTest` lo lancia da
   solo. Senza `--with-deps`, perché sul PC di Matteo `apt install` non funziona oggi (un pacchetto
