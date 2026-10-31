@@ -308,6 +308,7 @@ class TeacherRegistrationsE2eTest {
         val answer = page.waitForResponse({ it.url().endsWith("/iscrizioni/$id/mostra-segnalazioni") }) {
             e2e.press(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni"))
         }
+        page.waitForHtmxIdle()
         assertEquals(200, answer.status())
         assertTrue(answer.headers()["cache-control"].orEmpty().contains("no-store"), "the answer with the notes is not stored: ${answer.headers()["cache-control"]}")
         assertThat(page.locator("#segnalazioni")).containsText("Arachidi-QA")

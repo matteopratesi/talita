@@ -29,8 +29,6 @@ class MenuE2eTest {
 
     private fun Locator.buttonNamed(name: String): Locator = getByRole(AriaRole.BUTTON, Locator.GetByRoleOptions().setName(name))
 
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
     private fun Page.waitForSettledDialog() =
         waitUntil("document.querySelector('dialog[open]') && document.querySelector('dialog[open]').getAnimations().every(a => a.playState === 'finished')")
 

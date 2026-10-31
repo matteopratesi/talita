@@ -221,18 +221,19 @@ class ShellDesignE2eTest {
         assertTrue(box.width > 40 && box.height > 40 && box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width, "the skip link is not visible when focused: $box")
 
         page.keyboard().press("Enter")
-        assertEquals("contenuto", page.evaluate("document.activeElement.id"), "the focus did not move to the content")
+        // The focus arrives a moment after the key: it is waited for, not read once.
+        page.focusIs("document.activeElement.id === 'contenuto'")
 
         // Brand, the profile, then the entries of the navigation, in order, with a visible ring.
         page.navigate(e2e.url("/convivenza"))
         page.keyboard().press("Tab") // skip link
         page.keyboard().press("Tab") // brand
-        assertEquals("Talità", (page.evaluate("document.activeElement.textContent") as String).trim())
+        page.focusIs("document.activeElement.textContent.trim() === 'Talità'")
         page.keyboard().press("Tab") // the pill of the profile
-        assertEquals("Profilo", (page.evaluate("document.activeElement.getAttribute('href') === '/profilo' ? 'Profilo' : ''") as String))
+        page.focusIs("document.activeElement.getAttribute('href') === '/profilo'")
         for (label in navigationLabels) {
             page.keyboard().press("Tab")
-            assertEquals(label, (page.evaluate("document.activeElement.textContent") as String).trim())
+            page.focusIs("document.activeElement.textContent.trim() === '$label'")
             // The ring fades from the color of the text to the blue of the focus in 150 ms (transition-colors).
             page.waitUntil(
                 "(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + ' ' + s.outlineWidth + ' ' + s.outlineColor })() === 'solid 3px rgb(42, 75, 160)'",
@@ -253,7 +254,7 @@ class ShellDesignE2eTest {
         assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertEquals("still-here", page.evaluate("window.__marker"), "the page was reloaded")
         // A screen reader announces the new title: the focus goes to the h1, without a ring.
-        page.waitUntil("document.activeElement.tagName === 'H1'")
+        page.focusIs("document.activeElement.tagName === 'H1'")
         assertEquals("none", page.evaluate("getComputedStyle(document.activeElement).outlineStyle"))
     }
 

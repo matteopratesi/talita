@@ -211,7 +211,7 @@ class RolesE2eTest {
         assertThat(page.getByText("Scrivi il nome.")).isVisible()
         assertThat(page.getByText("Scrivi il cognome.")).isVisible()
         assertThat(page.locator("main [role=alert]")).containsText("Controlla i 2 campi segnati in rosso.")
-        page.waitUntil("document.activeElement && document.activeElement.id === 'nome'")
+        page.focusIs("document.activeElement.id === 'nome'")
         assertThat(page).hasURL(e2e.url("/invito"))
         assertAccessible(page, "accept the invitation with errors (${e2e.profile.label})")
 
@@ -223,7 +223,7 @@ class RolesE2eTest {
         assertThat(page.getByText("Scrivi il cognome.")).isVisible()
         assertThat(page.nameField()).hasValue("Niccolò")
         assertThat(page.locator("main [role=alert]")).hasCount(0)
-        page.waitUntil("document.activeElement && document.activeElement.id === 'cognome'")
+        page.focusIs("document.activeElement.id === 'cognome'")
 
         page.getByLabel("Cognome").fill("D’Angiò")
         e2e.touch(page.buttonNamed("Accetta l’invito"))

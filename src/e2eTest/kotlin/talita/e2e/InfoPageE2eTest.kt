@@ -73,8 +73,6 @@ class InfoPageE2eTest {
 
     private fun Locator.linkNamed(name: String): Locator = getByRole(AriaRole.LINK, Locator.GetByRoleOptions().setName(name))
 
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
     private fun E2e.press(target: Locator) {
         target.evaluate("e => e.scrollIntoView({ block: 'center' })")
         touch(target)

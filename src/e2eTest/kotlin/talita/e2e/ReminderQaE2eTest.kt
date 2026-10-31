@@ -331,11 +331,7 @@ class ReminderQaE2eTest {
     private fun E2e.stoppedAt(id: Long): OffsetDateTime? = dsl().select(ACCOUNT.REMINDERS_OFF_AT).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchSingle(ACCOUNT.REMINDERS_OFF_AT)
 
     /** The mails that [address] has, once there are at least [count] of them (the mails leave before the answer, but Mailpit is another process). */
-    private fun mailsOf(address: String, count: Int) = run {
-        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
-        while (Mailbox.sentTo(address).size < count && System.nanoTime() < deadline) Thread.sleep(100)
-        Mailbox.sentTo(address)
-    }
+    private fun mailsOf(address: String, count: Int) = Mailbox.waitForMails(address, count)
 
     @E2eTest(teacher = false)
     fun `t13 c04 c09 when the register fails after the mails left the teacher is told, the link of each mail still stops its account from the page, and a second send keeps the codes`(e2e: E2e) {

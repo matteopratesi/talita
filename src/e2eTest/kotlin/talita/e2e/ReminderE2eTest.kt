@@ -280,16 +280,8 @@ class ReminderE2eTest {
 
         // The login link still comes to who stopped: it is not a reminder.
         assertEquals(LinkOutcome.SENT, e2e.application.getBean(LoginLinks::class.java).request(EmailAddress.parse(w.parent)!!))
-        e2e.page.waitUntilMail { Mailbox.sentTo(w.parent).any { it.subject.contains("link per entrare") } }
-    }
-
-    /** Waits (up to 10 seconds) until [condition] holds: the mail leaves when the request is over, and Mailpit shows it a moment later. */
-    private fun Page.waitUntilMail(condition: () -> Boolean) {
-        val deadline = System.nanoTime() + 10_000_000_000L
-        while (!condition()) {
-            check(System.nanoTime() < deadline) { "the mail did not arrive in 10 seconds" }
-            waitForTimeout(100.0)
-        }
+        // The mail leaves when the request is over, and Mailpit shows it a moment later.
+        Mailbox.waitFor(w.parent, "the login link") { mails -> mails.any { it.subject.contains("link per entrare") } }
     }
 
     // ---- The quota of the day (criterion 7) ---------------------------------------------------------------------------------------------------

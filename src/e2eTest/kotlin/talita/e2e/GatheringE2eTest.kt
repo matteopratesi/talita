@@ -52,8 +52,6 @@ class GatheringE2eTest {
 
     private fun Locator.linkNamed(name: String): Locator = getByRole(AriaRole.LINK, Locator.GetByRoleOptions().setName(name))
 
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
     private fun Page.settled() {
         waitForLoadState()
         waitForSettledContent()

@@ -555,6 +555,8 @@ class EnrollmentE2eTest {
             e2e.press(page.locator("main").buttonNamed("Controlla e accetta"))
         }
 
+        // The answer has arrived, and htmx has not yet put the page of the errors in place: the next reads (the number of errors, the focus) are of the page that is there when it has.
+        page.waitForHtmxIdle()
         assertEquals(422, response.status())
         assertThat(page).hasURL(e2e.url("/info/$code/iscrizione"))
         assertThat(page.locator("#telefono-errore")).hasText("Scrivi un numero di telefono completo, per esempio 333 123 4567.")
