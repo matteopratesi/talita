@@ -75,6 +75,11 @@ class RememberMeTests(
 
     private fun sha256(value: String): ByteArray = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
 
+    /** The last change of the value was [seconds] ago (the clock of the application is shared by every test and does not go back, so the row says it, with the moment of the application clock). */
+    private fun pastTheMargin(email: String, seconds: Long = 61) {
+        dsl.update(REMEMBERED_DEVICE).set(REMEMBERED_DEVICE.ROTATED_AT, java.time.OffsetDateTime.now(clock).minusSeconds(seconds)).where(REMEMBERED_DEVICE.ACCOUNT_ID.eq(accountId(email))).execute()
+    }
+
     private fun encode(selector: String, value: String): String = Base64.getEncoder().withoutPadding().encodeToString("$selector:$value".toByteArray())
 
     // ---- The box (criteria 1, 2) -------------------------------------------------------------------------------------------------------
@@ -228,6 +233,8 @@ class RememberMeTests(
         phone.forgetSession()
         phone.get("/profilo")
         val (selector, newValue) = checkNotNull(phone.deviceTokens())
+        // The margin of 60 seconds is over: from then on the value before the last one is a copy.
+        pastTheMargin(email)
 
         // Someone has the old cookie (a copy), and uses it after the person has used theirs.
         val thief = phone()
@@ -244,6 +251,88 @@ class RememberMeTests(
         assertEquals(1, warnings.size, warnings.toString())
         assertTrue(warnings.single().contains("WARN"), warnings.single())
         for (secret in listOf(selector, newValue, email, checkNotNull(Phone.decode(stolen.value).second))) assertFalse(output.all.contains(secret), "the log has $secret")
+    }
+
+    // ---- The margin of 60 seconds for the tabs that the phone reopens together (decision of Matteo, 31 October) ---------------------------
+
+    @Test
+    fun `t15 c05 two requests with the same cookie a few milliseconds apart both enter, the row stays, and the second does not change the value or touch the cookie`(output: CapturedOutput) {
+        val email = person()
+        val owner = phone()
+        owner.enter(email, remember = true)
+        val (selector, firstValue) = checkNotNull(owner.deviceTokens())
+        // The phone reopens two tabs after the session ended: the same cookie in both.
+        val first = phone().also { it.jar["ricordami"] = Cookie("ricordami", checkNotNull(owner.deviceCookie).value) }
+        val second = phone().also { it.jar["ricordami"] = Cookie("ricordami", checkNotNull(owner.deviceCookie).value) }
+
+        val answerFirst = first.get("/profilo")
+        val answerSecond = second.get("/profilo")
+
+        assertEquals(200, answerFirst.response.status)
+        assertEquals(200, answerSecond.response.status, "the second tab enters too: a new session, like any re-entry")
+        assertNotNull(first.session, "a session for the first")
+        assertNotNull(second.session, "and one of its own for the second")
+        val (_, secondValue) = checkNotNull(first.deviceTokens())
+        assertNotEquals(firstValue, secondValue, "the first changed the value")
+        assertEquals(emptyList(), answerSecond.response.cookies.filter { it.name == "ricordami" }, "the second does not touch the cookie: the browser has the new one from the first answer")
+        val row = rows(email).single()
+        assertEquals(selector, row.selector, "the row stays")
+        assertEquals(sha256(secondValue).toList(), row.validatorHash!!.toList(), "the value is the one that the first gave: the second did not change it again")
+        assertEquals(sha256(firstValue).toList(), row.previousHash!!.toList(), "and the row keeps the hash of the one before, never the value")
+        assertNotNull(row.rotatedAt)
+        assertEquals(emptyList(), output.all.lines().filter { it.contains("Remember-me:") }, "nothing in the log: it is not a theft")
+        // The browser that has the new value enters as usual, and the one that has the old one still can for a moment.
+        first.forgetSession()
+        assertEquals(200, first.get("/profilo").response.status)
+    }
+
+    @Test
+    fun `t15 c05 the value before the last one is good for 60 seconds from the change, and after them it is a copy as before`(output: CapturedOutput) {
+        val email = person()
+        val owner = phone()
+        owner.enter(email, remember = true)
+        val old = checkNotNull(owner.deviceCookie).value
+        owner.forgetSession()
+        owner.get("/profilo")
+
+        pastTheMargin(email, 59)
+        val inside = phone().also { it.jar["ricordami"] = Cookie("ricordami", old) }
+        assertEquals(200, inside.get("/profilo").response.status, "59 seconds after the change")
+        assertEquals(1, rows(email).size)
+
+        pastTheMargin(email, 61)
+        val outside = phone().also { it.jar["ricordami"] = Cookie("ricordami", old) }
+        val answer = outside.get("/profilo")
+
+        assertEquals(302, answer.response.status, "61 seconds after the change")
+        assertEquals("/accedi", answer.response.getHeader("Location"))
+        assertNull(outside.deviceCookie, "the cookie is cancelled")
+        assertEquals(0, rows(email).size, "and the row goes")
+        val warnings = output.all.lines().filter { it.contains("Remember-me:") }
+        assertEquals(1, warnings.size, warnings.toString())
+        assertTrue(warnings.single().contains("WARN"))
+    }
+
+    @Test
+    fun `t15 c05 a value from two changes ago is a copy at once, inside the margin of the last change as well`(output: CapturedOutput) {
+        val email = person()
+        val owner = phone()
+        owner.enter(email, remember = true)
+        val oldest = checkNotNull(owner.deviceCookie).value
+        // Two re-entries: the value changes twice, and the row keeps only the hash of the one before the last.
+        repeat(2) {
+            owner.forgetSession()
+            assertEquals(200, owner.get("/profilo").response.status)
+        }
+        assertEquals(1, rows(email).size)
+
+        val thief = phone().also { it.jar["ricordami"] = Cookie("ricordami", oldest) }
+        val answer = thief.get("/profilo")
+
+        assertEquals(302, answer.response.status, "no margin for a value that is two changes old")
+        assertNull(thief.deviceCookie)
+        assertEquals(0, rows(email).size)
+        assertEquals(1, output.all.lines().count { it.contains("Remember-me:") && it.contains("WARN") })
     }
 
     @Test

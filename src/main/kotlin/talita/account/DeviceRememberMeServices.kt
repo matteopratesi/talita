@@ -24,8 +24,9 @@ import java.util.UUID
  * - **The cookie** is `selector:value`, both random (128 and 256 bits), `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when the request came by HTTPS, and it expires when the row does. The table has
  *   the selector and the SHA-256 of the value, never the value ([RememberedDevices]).
  * - **The value changes at every re-entry** (the selector stays): a value that is not the last one with a selector that exists is a cookie that was copied, the row is taken away, the cookie too, and
- *   the log says it in one line with no data. Two tabs that reopen together after the session ended do the same to each other, and it costs a link (the safe behaviour, and rare, because a page is one
- *   request and the static files never use the cookie).
+ *   the log says it in one line with no data. **With a margin of 60 seconds** ([RememberedDevices.ROTATION_MARGIN], decision of Matteo): for 60 seconds after a change the value before it is good too,
+ *   so two tabs that the phone reopens together after the session ended (the same cookie in both) enter both. The second one enters like a re-entry (a new session) but does not change the value
+ *   again and does not touch the cookie, which the first answer has already put in the browser. After the 60 seconds, or for a value from two changes ago, it is a copy as above.
  * - **The length is the one of the role today**, read at every re-entry ([RetentionPolicy.deviceExpired]); the clock is the one of the application and the day is a day of Rome.
  * - **The account is read by its id and never created** ([Accounts.userDetailsById]): the cookie of an account that was deleted is thrown away and the account does not come back.
  * - **The same request asks once**: the error page of a request that failed is a second pass through the filters with the same cookie, which would find the value already changed; the answer
@@ -78,8 +79,9 @@ class DeviceRememberMeServices(
         if (cookieTokens.size != 2) throw rejected(request, "malformed")
         val cookie = DeviceCookie(cookieTokens[0], cookieTokens[1])
         val row = devices.find(cookie.selector) ?: throw rejected(request, "unknown selector")
-        if (!java.security.MessageDigest.isEqual(RememberedDevices.hash(cookie.value), row.validatorHash)) {
-            // A value that is not the last one for a device that exists: the cookie was copied (or two tabs came together). The device is unlinked, and the browser that had the new value loses it too.
+        val presented = devices.presented(row, cookie.value)
+        if (presented == Presented.NONE) {
+            // A value that is not the last one (nor the one before it inside the margin) for a device that exists: the cookie was copied. The device is unlinked, and the browser that had the new value loses it too.
             devices.delete(row.id)
             log.warn("Remember-me: a cookie with a value that is not the last one was presented: the device was unlinked.")
             throw rejected(request, "value that is not the last")
@@ -94,18 +96,31 @@ class DeviceRememberMeServices(
             devices.delete(row.id)
             throw rejected(request, "expired")
         }
-        val renewed = devices.rotate(row)
-        if (renewed == null) {
-            // Someone else used the cookie between the reading and now: only one of the two can have the new value.
-            devices.delete(row.id)
-            log.warn("Remember-me: a cookie was used twice at the same moment: the device was unlinked.")
-            throw rejected(request, "used twice")
+        // The value before the last one, inside the margin, enters but does not change the value again and does not touch the cookie: the browser has the new one already.
+        if (presented == Presented.LAST) {
+            val renewed = devices.rotate(row)
+            if (renewed != null) {
+                setCookie(arrayOf(renewed.selector, renewed.value), maxAgeSeconds(row, account.isTeacher), request, response)
+            } else if (!arrivedSecond(row, cookie)) {
+                // Someone else used the cookie between the reading and now, and what the row has is not a value that this one can follow: only one can have the new value.
+                devices.delete(row.id)
+                log.warn("Remember-me: a cookie was used twice at the same moment: the device was unlinked.")
+                throw rejected(request, "used twice")
+            }
         }
-        setCookie(arrayOf(renewed.selector, renewed.value), maxAgeSeconds(row, account.isTeacher), request, response)
         request.setAttribute(DEVICE, row.id)
         // The session is made here, with its origin, so that it ends when the row is taken away from another device (the filter of Spring writes the context in it after).
         origins.stamp(request, account.id, row.id)
         return AccountUserDetails(account.id, account.email)
+    }
+
+    /**
+     * The second of two requests with the same cookie that came together: the first changed the value between the reading of the row and the change of the second, so the row is read again, and the value
+     * that was presented is now the one before the last, inside the margin. It enters as the first did, without the cookie (the first answer has the new one).
+     */
+    private fun arrivedSecond(row: DeviceRow, cookie: DeviceCookie): Boolean {
+        val fresh = devices.get(row.id) ?: return false
+        return devices.presented(fresh, cookie.value) == Presented.PREVIOUS
     }
 
     private fun rejected(request: HttpServletRequest, why: String): InvalidCookieException {

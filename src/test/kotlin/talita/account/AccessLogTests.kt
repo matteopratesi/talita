@@ -94,7 +94,8 @@ class AccessLogTests(
         PasskeyKit.confirm(phone, soft)
         PasskeyKit.htmxPost(phone, "/profilo", "/profilo/passkey/togli", mapOf("passkey" to reference))
         phone.submit("/profilo", "/profilo/dispositivi/esci-altri", mapOf("azione" to "esci-altri")) { header("HX-Request", "true") }
-        // The cookie that was copied, with the first value: a WARN and no data (it unlinks the device, which is the point).
+        // The cookie that was copied, with the first value, after the 60 seconds of the margin: a WARN and no data (it unlinks the device, which is the point).
+        dsl.execute("update remembered_device set rotated_at = rotated_at - interval '61 seconds' where account_id = ?", id)
         phone().also { it.jar[DeviceRememberMeServices.COOKIE] = copiedCookie }.get("/profilo")
         phone().also { it.enter(email) }.let { it.submit("/profilo", "/esci") }
 

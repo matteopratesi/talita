@@ -24,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -121,7 +122,12 @@ class DeviceCookieTests(
         val (sameSelector, secondValue) = Phone.decode(renewed)
         assertEquals(selector, sameSelector)
         assertNotEquals(firstValue, secondValue)
-        // The old value is a copy now: the next request with it does not enter, and the device is unlinked.
+        // For 60 seconds the old value is good too (two tabs that the phone reopens together): it enters, and does not touch the cookie.
+        val together = send(HttpRequest.newBuilder(uri("/profilo")).header("Cookie", first).GET())
+        assertEquals(200, together.statusCode())
+        assertNull(cookie(together, "ricordami"), "the cookie is the new one already, from the first answer")
+        // After them it is a copy: the next request with it does not enter, and the device is unlinked.
+        dsl.execute("update remembered_device set rotated_at = rotated_at - interval '61 seconds' where selector = ?", selector)
         val copy = send(HttpRequest.newBuilder(uri("/profilo")).header("Cookie", first).GET())
         assertEquals(302, copy.statusCode())
         assertTrue(copy.headers().firstValue("Location").orElse("").endsWith("/accedi"), "the access page")

@@ -1228,6 +1228,7 @@ class PasskeyE2eTest {
         owner.waitForSettledContent()
         val rotated = checkNotNull(owner.context().cookies().first { it.name == "ricordami" }).value
         remember(rotated, Phone.decode(rotated).second, owner.context().cookies().first { it.name == "JSESSIONID" }.value)
+        e2e.dsl().execute("update remembered_device set rotated_at = rotated_at - interval '61 seconds' where rotated_at is not null")
         val thief = e2e.newPage(signedIn = false)
         thief.context().addCookies(listOf(Cookie("ricordami", copy).setUrl(e2e.url("/"))))
         thief.navigate(e2e.url("/iscrizioni"))

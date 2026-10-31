@@ -255,6 +255,42 @@ class RememberE2eTest {
         assertEquals(1, e2e.devices(email), "the browser without the box left no row, and the other one is untouched")
     }
 
+    /**
+     * Two tabs that the phone reopens together after the session ended (decision of Matteo, 31 October): the same cookie goes in both requests. The first tab is a page; the second request is made by
+     * the browser context with the old value in the `Cookie` header, because a real second tab would carry it too (it was sent before the answer of the first arrived).
+     */
+    @E2eTest(signedIn = false, profiles = [Profile.DESKTOP])
+    fun `t15 c36 c5 two tabs that the phone reopens together with the same cookie both come in without unlinking the device, and the old value after 60 seconds is a copy`(e2e: E2e) {
+        val page = e2e.page
+        val email = e2e.enter(remember = true)
+        val old = checkNotNull(e2e.browserContext.deviceCookie()).value
+        e2e.browserContext.loseTheSession()
+
+        // The first tab comes in with the cookie and gets the new value.
+        e2e.open("/iscrizioni")
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        val renewed = checkNotNull(e2e.browserContext.deviceCookie()).value
+        assertNotEquals(old, renewed)
+
+        // The second tab arrives with the same old cookie, a moment later (the jar is emptied, so that the only cookie of the request is the one that the test says): it comes in too, with a
+        // session of its own, and nothing is set for the cookie of the device.
+        e2e.browserContext.clearCookies()
+        val together = e2e.browserContext.request().get(e2e.url("/iscrizioni"), RequestOptions.create().setHeader("Cookie", "ricordami=$old").setMaxRedirects(0))
+        assertEquals(200, together.status(), "the second tab comes in: a page, not the access page")
+        assertTrue(together.text().contains("Iscrizioni"), "the page of the registrations")
+        assertFalse(together.headers()["set-cookie"].orEmpty().contains("ricordami="), "the answer does not touch the cookie of the device")
+        assertEquals(1, e2e.devices(email), "the device is still there")
+
+        // After the 60 seconds the old value is a copy: the access page, the cookie is cancelled and the row goes.
+        e2e.dsl().execute("update remembered_device set rotated_at = rotated_at - interval '61 seconds' where account_id = ?", e2e.accountId(email))
+        e2e.browserContext.clearCookies()
+        val late = e2e.browserContext.request().get(e2e.url("/iscrizioni"), RequestOptions.create().setHeader("Cookie", "ricordami=$old").setMaxRedirects(0))
+        assertEquals(302, late.status(), "after the margin it is a copy")
+        assertTrue(late.headers()["location"].orEmpty().endsWith("/accedi"), late.headers().toString())
+        assertTrue(late.headers()["set-cookie"].orEmpty().contains("ricordami=") && late.headers()["set-cookie"].orEmpty().contains("1970"), "the cookie is cancelled")
+        assertEquals(0, e2e.devices(email), "the device is unlinked")
+    }
+
     @E2eTest(signedIn = false, profiles = [Profile.DESKTOP])
     fun `t15 c36 c5 a copied cookie unlinks the device and cancels both cookies, and junk is cancelled without an error`(e2e: E2e) {
         val page = e2e.page
@@ -267,6 +303,8 @@ class RememberE2eTest {
         assertThat(page).hasURL(e2e.url("/iscrizioni"))
         val current = checkNotNull(e2e.browserContext.deviceCookie()).value
         assertNotEquals(copy, current)
+        // The margin of 60 seconds is over (the clock of the application is shared and does not go back, so the row says it).
+        e2e.dsl().execute("update remembered_device set rotated_at = rotated_at - interval '61 seconds' where account_id = ?", e2e.accountId(email))
 
         // Someone who has the copy comes in another browser: nobody enters, the row goes, the cookie is cancelled, there is no error, and the page says that the access was closed.
         val thief = e2e.newPage(signedIn = false)

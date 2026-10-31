@@ -88,11 +88,12 @@ class AccessSchemaTests(@Autowired private val dsl: DSLContext) {
     // ---- The devices -------------------------------------------------------------------------------------------------------------------
 
     @Test
-    fun `t15 c36 a device has the account, the selector, the hash of the value and the day, and nothing about the device, the browser or the use`() {
+    fun `t15 c36 a device has the account, the selector, the hash of the value and the day, the hash of the value before and the moment of the change, and nothing about the device, the browser or the use`() {
         assertEquals(
             mapOf(
                 "id" to ("bigint" to "NO"), "account_id" to ("bigint" to "NO"), "selector" to ("text" to "NO"),
                 "validator_hash" to ("bytea" to "NO"), "created_on" to ("date" to "NO"),
+                "previous_hash" to ("bytea" to "YES"), "rotated_at" to ("timestamp with time zone" to "YES"),
             ),
             columns("remembered_device"),
         )
@@ -104,6 +105,10 @@ class AccessSchemaTests(@Autowired private val dsl: DSLContext) {
 
         assertEquals("remembered_device_validator_hash_size", refusedBy { device(owner, hash = ByteArray(31)) })
         assertEquals("remembered_device_validator_hash_size", refusedBy { device(owner, hash = ByteArray(33)) })
+        // The value before the last one is a hash too, of 32 bytes, and goes with the moment of the change: both or none.
+        assertEquals("remembered_device_previous_hash_size", refusedBy { dsl.execute("insert into remembered_device (account_id, selector, validator_hash, created_on, previous_hash, rotated_at) values (?, 'CCCCCCCCCCCCCCCCCCCCCC', ?, current_date, ?, now())", owner, ByteArray(32), ByteArray(31)) })
+        assertEquals("remembered_device_rotation_together", refusedBy { dsl.execute("insert into remembered_device (account_id, selector, validator_hash, created_on, previous_hash) values (?, 'CCCCCCCCCCCCCCCCCCCCCC', ?, current_date, ?)", owner, ByteArray(32), ByteArray(32)) })
+        assertEquals("remembered_device_rotation_together", refusedBy { dsl.execute("insert into remembered_device (account_id, selector, validator_hash, created_on, rotated_at) values (?, 'CCCCCCCCCCCCCCCCCCCCCC', ?, current_date, now())", owner, ByteArray(32)) })
         assertEquals("remembered_device_selector_format", refusedBy { device(owner, selector = "short") })
         assertEquals("remembered_device_selector_format", refusedBy { device(owner, selector = "AAAAAAAAAAAAAAAAAAAA==") })
         assertEquals("remembered_device_selector_format", refusedBy { device(owner, selector = "AAAAAAAAAAAAAAAAAAAA A") })

@@ -10,16 +10,30 @@ import talita.retention.RetentionPolicy
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.Base64
 
 /**
  * A row of `remembered_device`: a browser that touched «Ricordami su questo telefono». It holds the SHA-256 of the value of the cookie and never the value, and never says anything
  * about the device. [toString] says nothing either, so that a row cannot end up in a log.
  */
-class DeviceRow(val id: Long, val accountId: Long, val selector: String, val validatorHash: ByteArray, val createdOn: LocalDate) {
+class DeviceRow(
+    val id: Long,
+    val accountId: Long,
+    val selector: String,
+    val validatorHash: ByteArray,
+    val createdOn: LocalDate,
+    /** The SHA-256 of the value that the cookie had before the last change, and the moment of the change: both, or neither. Never the value. */
+    val previousHash: ByteArray? = null,
+    val rotatedAt: OffsetDateTime? = null,
+) {
     override fun toString(): String = "DeviceRow"
 }
+
+/** What a value that a browser presents is for a row: the last one, the one before it (good for [RememberedDevices.ROTATION_MARGIN] after the change), or none (a copy). */
+enum class Presented { LAST, PREVIOUS, NONE }
 
 /** The cookie of «Ricordami su questo telefono» as the browser holds it: a [selector] that says which row, and a [value] that only the browser knows. */
 class DeviceCookie(val selector: String, val value: String) {
@@ -50,6 +64,7 @@ class RememberedDevices(private val dsl: DSLContext, private val clock: Clock, p
 
     private fun toRow(record: org.jooq.Record): DeviceRow = DeviceRow(
         record[REMEMBERED_DEVICE.ID]!!, record[REMEMBERED_DEVICE.ACCOUNT_ID]!!, record[REMEMBERED_DEVICE.SELECTOR]!!, record[REMEMBERED_DEVICE.VALIDATOR_HASH]!!, record[REMEMBERED_DEVICE.CREATED_ON]!!,
+        record[REMEMBERED_DEVICE.PREVIOUS_HASH], record[REMEMBERED_DEVICE.ROTATED_AT],
     )
 
     fun find(selector: String): DeviceRow? = dsl.selectFrom(REMEMBERED_DEVICE).where(REMEMBERED_DEVICE.SELECTOR.eq(selector)).fetchOne()?.let(::toRow)
@@ -65,10 +80,23 @@ class RememberedDevices(private val dsl: DSLContext, private val clock: Clock, p
 
     fun count(accountId: Long): Int = dsl.fetchCount(REMEMBERED_DEVICE, REMEMBERED_DEVICE.ACCOUNT_ID.eq(accountId))
 
-    /** The row that [cookie] belongs to: the selector exists and the value hashes to what the row holds (compared without stopping at the first different byte). Null otherwise. */
+    /**
+     * What [value] is for [row] (compared without stopping at the first different byte): the last value, the one before it **if the change was less than [ROTATION_MARGIN] ago**, or none. A value
+     * from two changes ago has no hash in the row any more, so it is none at once; and after the margin the previous value is none too: from then on it is a copy.
+     */
+    fun presented(row: DeviceRow, value: String): Presented {
+        val hashed = hash(value)
+        if (MessageDigest.isEqual(hashed, row.validatorHash)) return Presented.LAST
+        val previous = row.previousHash
+        val at = row.rotatedAt
+        if (previous != null && at != null && MessageDigest.isEqual(hashed, previous) && clock.instant().isBefore(at.toInstant().plus(ROTATION_MARGIN))) return Presented.PREVIOUS
+        return Presented.NONE
+    }
+
+    /** The row that [cookie] belongs to: the selector exists and the value is the last one or the one before it inside the margin. Null otherwise. */
     fun match(cookie: DeviceCookie): DeviceRow? {
         val row = find(cookie.selector) ?: return null
-        return if (MessageDigest.isEqual(hash(cookie.value), row.validatorHash)) row else null
+        return if (presented(row, cookie.value) != Presented.NONE) row else null
     }
 
     /** The device is past its day: from the day it says, whatever hour the job runs. [teacher] is the role of the person **now**. */
@@ -105,7 +133,9 @@ class RememberedDevices(private val dsl: DSLContext, private val clock: Clock, p
      */
     fun rotate(row: DeviceRow): DeviceCookie? {
         val cookie = DeviceCookie(row.selector, randomToken(VALIDATOR_BYTES))
+        // The value that goes is kept as its hash for the margin, with the moment of the change: the tab that arrives a moment later with the old cookie is not a thief.
         val changed = dsl.update(REMEMBERED_DEVICE).set(REMEMBERED_DEVICE.VALIDATOR_HASH, hash(cookie.value))
+            .set(REMEMBERED_DEVICE.PREVIOUS_HASH, row.validatorHash).set(REMEMBERED_DEVICE.ROTATED_AT, OffsetDateTime.now(clock))
             .where(REMEMBERED_DEVICE.ID.eq(row.id)).and(REMEMBERED_DEVICE.VALIDATOR_HASH.eq(row.validatorHash)).execute()
         return if (changed == 1) cookie else null
     }
@@ -140,6 +170,12 @@ class RememberedDevices(private val dsl: DSLContext, private val clock: Clock, p
     companion object {
         /** The most devices of an account (criterion 10). */
         const val MAX_PER_ACCOUNT = 10
+
+        /**
+         * For how long after a change of the value of the cookie the value before it is good too (decision of Matteo, 31 October): two tabs that the phone reopens together after the session ended
+         * present the same cookie, and the second is not a thief. Not a setting: a number that decides what a copy is does not change by the configuration.
+         */
+        val ROTATION_MARGIN: Duration = Duration.ofSeconds(60)
 
         private const val SELECTOR_BYTES = 16
         private const val VALIDATOR_BYTES = 32

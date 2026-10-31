@@ -13,6 +13,9 @@
 -- SHA-256 of the random value of the cookie (256 bits: the value is never written here), and the day it was made (a day of Rome, from the one clock of the application). It does not say
 -- when it expires: the expiry is the day of creation plus the length of the role of the person today (30 days for a parent, 7 for a teacher, `RetentionPolicy`), and the job deletes the
 -- row that night. No last use, no name of the device, no browser, no address of the network.
+-- The value of the cookie changes at every re-entry, and for 60 seconds after a change the value before it is good too (two tabs that the phone reopens together present the same cookie, and
+-- the second must not be taken for a thief): `previous_hash` is the SHA-256 of that value (never the value) and `rotated_at` the moment of the change, from the one clock of the application.
+-- Both are empty until the first re-entry and say nothing of the person or of the device.
 --
 -- `passkey` is a passkey of an account: the identifier of the credential (the phone chooses it), the public key (the private one never leaves the phone), the counter of the signatures, the
 -- flags that the phone gave at the creation (verification of the person done, can be synchronized, is synchronized), the transports that tell the browser where to look for it and the day
@@ -36,9 +39,14 @@ create table remembered_device (
     -- SHA-256 of the 32 random bytes of the cookie.
     validator_hash bytea  not null,
     created_on     date   not null,
+    -- SHA-256 of the value that the cookie had before the last change, and the moment of the change: both or none.
+    previous_hash  bytea,
+    rotated_at     timestamptz,
     constraint remembered_device_selector_unique unique (selector),
     constraint remembered_device_selector_format check (selector ~ '^[A-Za-z0-9_-]{22}$'),
-    constraint remembered_device_validator_hash_size check (octet_length(validator_hash) = 32)
+    constraint remembered_device_validator_hash_size check (octet_length(validator_hash) = 32),
+    constraint remembered_device_previous_hash_size check (previous_hash is null or octet_length(previous_hash) = 32),
+    constraint remembered_device_rotation_together check ((previous_hash is null) = (rotated_at is null))
 );
 
 create index remembered_device_account on remembered_device (account_id);
