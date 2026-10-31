@@ -71,6 +71,9 @@ class Mailer(
 
     private val log = LoggerFactory.getLogger(Mailer::class.java)
 
+    /** The most that a list takes ([LIST_LIMIT]); only the tests of the limit make it shorter, so that the boundary can be tried in seconds and not in fifteen. */
+    internal var listLimit: Duration = LIST_LIMIT
+
     fun send(mail: OutgoingMail): MailResult {
         if (sender == null || settings.from.isBlank()) {
             log.error("Mail not sent: {}.", if (sender == null) "no mail server configured" else "no sender address configured")
@@ -125,19 +128,33 @@ class Mailer(
     }
 
     /**
-     * Sends [built] in one connection, in a thread of its own, and waits for it at most [LIST_LIMIT]. [results] and [reasons] are written by that thread only while the caller is still
-     * waiting (under [gate]): when the limit passes, what has not been written stays FAILED, and what the thread does after that is not counted (the mail that was in progress may
-     * still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more; the place of that mail in the day count is given back, and the lock of the caller is let go: see the class), so the numbers that the caller gives
-     * are those of the moment when it gave up.
+     * Sends [built] in one connection, in a thread of its own, and waits for it at most [listLimit]. The limit is a **moment** (`deadline`, on the monotonic clock), the same for the
+     * caller and for the thread: the thread looks at it, under [gate], before every mail and when a mail ends, so it does not depend on the caller having got there first. [results] and
+     * [reasons] are written by that thread only before the deadline (under [gate]): when it passes, what has not been written stays FAILED, and what the thread does after that is not
+     * counted (the mail that was in progress may still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more; the place of that mail in the day count is
+     * given back, and the lock of the caller is let go: see the class), so the numbers that the caller gives are those of the moment when it gave up. No mail starts after the deadline.
      */
     private fun deliver(sender: JavaMailSender, built: List<Pair<Int, MimeMessage>>, results: MutableList<MailResult>, reasons: MutableSet<String>) {
+        val deadline = System.nanoTime() + listLimit.toNanos()
         val gate = Any()
         var gaveUp = false
+        // Under [gate]: the time is over, for good. The reason is written once, by whoever finds it first (the thread, at a mail, or the caller, at the join).
+        fun giveUp() {
+            if (!gaveUp) {
+                gaveUp = true
+                reasons += "list limit of ${listLimit.toSeconds()} seconds"
+            }
+        }
+        // Under [gate]: whether the deadline has passed (and then it is over for good).
+        fun timeIsOver(): Boolean {
+            if (System.nanoTime() - deadline >= 0) giveUp()
+            return gaveUp
+        }
         val worker = thread(isDaemon = true, name = "mail-list") {
             var transport: Transport? = null
             try {
                 for ((index, message) in built) {
-                    if (synchronized(gate) { gaveUp }) return@thread
+                    if (synchronized(gate) { timeIsOver() }) return@thread
                     try {
                         if (transport?.isConnected != true) {
                             runCatching { transport?.close() }
@@ -146,9 +163,10 @@ class Mailer(
                         if (message.sentDate == null) message.sentDate = Date()
                         message.saveChanges()
                         transport!!.sendMessage(message, message.allRecipients ?: emptyArray())
-                        synchronized(gate) { if (!gaveUp) results[index] = MailResult.SENT }
+                        // A mail that ends after the deadline is not counted, even if the caller has not yet looked at the time.
+                        synchronized(gate) { if (!timeIsOver()) results[index] = MailResult.SENT }
                     } catch (failure: Exception) {
-                        synchronized(gate) { if (!gaveUp) reasons += failure.javaClass.name }
+                        synchronized(gate) { if (!timeIsOver()) reasons += failure.javaClass.name }
                         // Told by the type of the exception, which Angus Mail 2.0.5 sets (checked with the fake server, TALITA-16). A **plain `SendFailedException`** is the refusal of the recipients of
                         // this mail, with a 5xx (an address that does not exist) or a 4xx (greylisting, a mailbox that is full: `validUnsentAddresses`, no `invalidAddresses`): it is about one
                         // person, and the next ones can still go. Everything else stops the list, and the mails that are left fail at once: what is not a `SendFailedException` (a step that did
@@ -163,12 +181,10 @@ class Mailer(
                 runCatching { transport?.close() }
             }
         }
-        worker.join(LIST_LIMIT.toMillis())
+        worker.join(listLimit.toMillis())
+        // The thread that is still there when the join returns is past the deadline (or about to be, by a millisecond): the caller gives up, with the same reason.
         synchronized(gate) {
-            if (worker.isAlive) {
-                gaveUp = true
-                reasons += "list limit of ${LIST_LIMIT.toSeconds()} seconds"
-            }
+            if (worker.isAlive) giveUp()
         }
     }
 

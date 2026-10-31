@@ -130,6 +130,27 @@ class MailListTests(
     }
 
     @Test
+    fun `t16 c21 a mail that is in progress when the limit of the list passes arrives and is not counted, and no other mail starts after it`() {
+        // Every answer of the server comes 600 ms late: the connection takes about 1.2 s, the first mail about 2.4 s more. With a limit of 2.5 s the first mail begins before it and ends well
+        // after it. The second must not begin, at the moment when that mail ends, whatever the caller has done by then: the thread looks at the deadline itself.
+        FakeSmtpServer(mode = FakeSmtpServer.Mode.SLOW, delayMillis = 600).use { server ->
+            val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+            val limited = Mailer(senderTo(server.host, server.port), settings, quota).apply { listLimit = Duration.ofMillis(2_500) }
+
+            val results = limited.sendAll(List(3) { mail(Addresses.unique("scadenza-$it")) }, MailKind.REMINDER)
+
+            // For the caller nothing was counted, and the places are given back.
+            assertEquals(List(3) { MailResult.FAILED }, results)
+            assertEquals(10, quota.remaining(MailKind.REMINDER))
+            // The thread ends by itself, after the mail that was in progress; then the server has seen everything that there is to see.
+            assertTrue(server.awaitClosed(30), "the connection was closed")
+            assertEquals(1, server.mailFromCount.get(), "no mail began after the deadline: only the first, which was in progress")
+            assertEquals(1, server.accepted.size, "the mail in progress arrived, and was not counted")
+            assertEquals(1, server.connectionCount.get())
+        }
+    }
+
+    @Test
     @CapturesOutput
     fun `t13 c06 a mail that the server refuses is a failure of that mail only, the others leave, and the place of the one that failed is given back`(output: CapturedOutput) {
         FakeSmtpServer(refusing = "rifiutato").use { server ->
