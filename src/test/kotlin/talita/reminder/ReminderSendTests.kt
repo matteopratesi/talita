@@ -101,7 +101,7 @@ class ReminderSendTests(
         for (person in listOf(s.a, e, f)) {
             val received = Mailbox.waitForMail(person.email)
             assertEquals(1, Mailbox.sentTo(person.email).size, "one mail for each person")
-            assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", received.subject)
+            assertEquals("Iscrizione in forse per «Convivenza di settembre 2027»", received.subject)
         }
         for (other in listOf(s.b, s.c, s.d, s.m, s.n)) assertTrue(Mailbox.sentTo(other.email).isEmpty(), "a mail went to somebody who is not in forse")
         val batches = kit.batches(s.gathering)
@@ -213,7 +213,7 @@ class ReminderSendTests(
         assertEquals(200, result.status())
         assertTrue(text(result.html()).contains("Promemoria mandato a 1 persona."), text(result.html()))
         val received = Mailbox.waitForMail(s.b.email)
-        assertEquals("Iscrizioni aperte: Convivenza di settembre 2027", received.subject)
+        assertEquals("Iscrizioni aperte per «Convivenza di settembre 2027»", received.subject)
         assertTrue("https://talita.example.org/info/$code" in lines(received.text), received.text)
         assertTrue(received.text.contains("hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini"))
         assertFalse(received.subject.contains(code), "the code of the information page is never in the subject")
@@ -433,7 +433,7 @@ class ReminderSendTests(
             // No count of the children of the person: no «due», «tre», «2», «3» before «figli» or «iscrizioni» (the text says «almeno un’iscrizione», and nothing else).
             assertFalse(Regex("""(?i)\b(\d+|due|tre|quattro)\s+(figli|bambini|iscrizioni)\b""").containsMatchIn(everything), "the mail $kind says how many: $everything")
         }
-        assertTrue(Mailbox.waitForMail(s.a.email).text.contains("c’è almeno un’iscrizione in forse alla Convivenza di settembre 2027"))
+        assertTrue(Mailbox.waitForMail(s.a.email).text.contains("c’è almeno un’iscrizione in forse per «Convivenza di settembre 2027»"))
     }
 
     // ---- Criterion 12: the log ----------------------------------------------------------------------------------------------------------

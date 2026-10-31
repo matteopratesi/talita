@@ -13,6 +13,8 @@ import talita.mail.OutgoingMail
  * - **The decision of 24 October** (comment 10950 of the ticket): the mail «in forse» invites to **confirm** and says that thinking about it a while longer is fine («Ci penso
  *   ancora un po'»: nothing to do, the registration stays in forse while the registrations are open). It does not invite to withdraw, and has no link to do it: the
  *   withdrawal stays where it was, in the pages of the registrations. A test looks for «ritira» and «ritirare» in the text.
+ * - **The title never has an article before it** (TALITA-16, criterion 20): a title is whatever the teachers write («Convivenza di settembre 2027», «Campo estivo»), and «alla
+ *   Campo estivo» is not Italian. It goes between «», after «per», which works with every title: «Iscrizione in forse per «Campo estivo»», «Iscrizioni aperte per «Campo estivo»».
  * - **The tone** is that of the other two mails: «Ciao,», short sentences, «tu», the line «Questa mail è automatica…» and the signature. Never a form that depends on the
  *   sex of the person, and none of the words that the texts of the app do not use.
  *
@@ -36,11 +38,11 @@ object ReminderMails {
      */
     fun maybe(to: String, title: String, dates: String, registrationsLink: String, stopLink: String): OutgoingMail = OutgoingMail(
         to = to,
-        subject = "Iscrizione in forse alla ${oneLine(title)}",
+        subject = "Iscrizione in forse per «${oneLine(title)}»",
         text = """
             Ciao,
 
-            c’è almeno un’iscrizione in forse alla ${oneLine(title)} ($dates).
+            c’è almeno un’iscrizione in forse per «${oneLine(title)}» ($dates).
 
             Puoi fare due cose.
 
@@ -68,11 +70,11 @@ object ReminderMails {
     /** «avviso»: [infoLink] is the address of the information page of the gathering (`/info/{codice}`), which whoever asked for the avviso may see. */
     fun notice(to: String, title: String, dates: String, infoLink: String, stopLink: String): OutgoingMail = OutgoingMail(
         to = to,
-        subject = "Iscrizioni aperte: ${oneLine(title)}",
+        subject = "Iscrizioni aperte per «${oneLine(title)}»",
         text = """
             Ciao,
 
-            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte quelle della ${oneLine(title)} ($dates).
+            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte le iscrizioni per «${oneLine(title)}» ($dates).
 
             Trovi le informazioni e il modo per iscrivere i bambini in questa pagina:
 

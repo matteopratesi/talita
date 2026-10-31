@@ -206,8 +206,8 @@ class ReminderQaE2eTest {
         for (person in x.silent) assertTrue(Mailbox.sentTo(person.email).isEmpty(), "${person.email} received a mail")
         for (person in x.silent) assertNull(e2e.codeOf(person.id), "${person.email} was not written to, so no code")
         assertEquals(stopLinkOf(toA.text).substringAfter("codice="), e2e.codeOf(x.a.id), "the link of the mail of A is the code that A has")
-        assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", toA.subject)
-        assertEquals("Iscrizioni aperte: Convivenza di settembre 2027", toB.subject)
+        assertEquals("Iscrizione in forse per «Convivenza di settembre 2027»", toA.subject)
+        assertEquals("Iscrizioni aperte per «Convivenza di settembre 2027»", toB.subject)
         assertEquals(listOf(x.a.email), toA.to)
         assertEquals(listOf(x.b.email), toB.to)
         assertEquals("Talità", toB.fromName)
@@ -223,7 +223,7 @@ class ReminderQaE2eTest {
         val expected = """
             Ciao,
 
-            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte quelle della Convivenza di settembre 2027 ($dates).
+            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte le iscrizioni per «Convivenza di settembre 2027» ($dates).
 
             Trovi le informazioni e il modo per iscrivere i bambini in questa pagina:
 
@@ -245,7 +245,7 @@ class ReminderQaE2eTest {
         // «In forse»: confirm or think about it, nothing to withdraw; the same way to stop. Nothing of the children, of the dates of birth, of the telephone, of the place or the fees.
         val text = toA.text
         assertTrue(text.startsWith("Ciao,"), text)
-        assertTrue(text.contains("c’è almeno un’iscrizione in forse alla Convivenza di settembre 2027 ($dates)."), text)
+        assertTrue(text.contains("c’è almeno un’iscrizione in forse per «Convivenza di settembre 2027» ($dates)."), text)
         assertTrue(text.contains("Conferma l’iscrizione"), text)
         assertTrue(text.contains("${TestcontainersConfiguration.PUBLIC_URL}/iscrizioni"), text)
         assertTrue(text.contains("Ci penso ancora un po’"), text)
@@ -864,7 +864,7 @@ class ReminderQaE2eTest {
 
         // The links of the mail are the real ones: the information page of the gathering (public), and the page for stopping.
         val mail = Mailbox.waitForMail(me)
-        assertEquals("Iscrizioni aperte: Convivenza di settembre 2027", mail.subject)
+        assertEquals("Iscrizioni aperte per «Convivenza di settembre 2027»", mail.subject)
         val stranger = e2e.newPage(signedIn = false)
         stranger.visit(e2e, e2e.pathOf(mail.links().first { it.contains("/info/") }))
         assertThat(stranger.locator("h1")).hasText("Convivenza di settembre 2027")

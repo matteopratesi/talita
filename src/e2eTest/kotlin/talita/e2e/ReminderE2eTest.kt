@@ -124,8 +124,8 @@ class ReminderE2eTest {
 
         // The mail, read from Mailpit: the subject and the text of the design with the decision of 24 October, no names, the link to stop and its header.
         val mail = Mailbox.waitForMail(w.parent)
-        assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", mail.subject)
-        assertTrue(mail.text.contains("c’è almeno un’iscrizione in forse alla Convivenza di settembre 2027 ("), mail.text)
+        assertEquals("Iscrizione in forse per «Convivenza di settembre 2027»", mail.subject)
+        assertTrue(mail.text.contains("c’è almeno un’iscrizione in forse per «Convivenza di settembre 2027» ("), mail.text)
         assertTrue(mail.text.contains("Conferma l’iscrizione: entra in Talità, apri la pagina «Iscrizioni» e cambia lo stato in «Confermata»."))
         assertTrue(mail.text.contains("Ci penso ancora un po’: non devi fare niente. L’iscrizione resta in forse finché le iscrizioni sono aperte."))
         assertTrue(mail.text.contains("${TestcontainersConfiguration.PUBLIC_URL}/iscrizioni"))
