@@ -212,6 +212,29 @@ class PasskeyOperationsTests(
         assertNull(passkeys.handleOf(account), "nothing was saved")
     }
 
+    @Test
+    fun `t15 c21 qa the handle that was given to a phone lasts as long as the setting of the challenge says, whatever it is, and not five minutes`() {
+        val short = settings.copy(confirmationChallengeValidity = Duration.ofSeconds(90))
+        val at = Stepping(java.time.Instant.parse("2027-10-05T10:00:00Z"))
+        val own = PasskeyOperations(support, passkeys, at, short)
+        val early = account()
+        val late = account()
+        val optionsEarly = own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(early)))
+        val optionsLate = own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(late)))
+
+        // 89 seconds: still good.
+        at.now = at.now.plusSeconds(89)
+        own.registerCredential(ImmutableRelyingPartyRegistrationRequest(optionsEarly, RelyingPartyPublicKey(phone().create(optionsEarly), "")))
+        assertContentEquals(optionsEarly.user.id.bytes, passkeys.handleOf(early))
+
+        // 91 seconds: gone, well before the five minutes of the default.
+        at.now = at.now.plusSeconds(2)
+        assertFailsWith<PasskeyRefusedException> {
+            own.registerCredential(ImmutableRelyingPartyRegistrationRequest(optionsLate, RelyingPartyPublicKey(phone().create(optionsLate), "")))
+        }
+        assertNull(passkeys.handleOf(late), "nothing was saved")
+    }
+
     // ---- The registration (criteria 20, 21) --------------------------------------------------------------------------------------------
 
     @Test

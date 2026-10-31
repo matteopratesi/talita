@@ -20,6 +20,9 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -134,6 +137,49 @@ class DeviceCookieTests(
         assertTrue(cookie(copy, "ricordami")!!.contains("Expires=Thu, 01 Jan 1970"), "the cookie is cancelled (a date in 1970)")
         val later = send(HttpRequest.newBuilder(uri("/profilo")).header("Cookie", "ricordami=$renewed").GET())
         assertEquals(302, later.statusCode(), "the device is gone for the person too")
+    }
+
+    @Test
+    fun `t15 c05 requests with the same cookie that arrive at the same instant over real connections all enter, exactly one changes the value, and the row keeps the hash of the old one and never a value`() {
+        // Several rounds, each with a device of its own: the sequential tests never have two requests read the row before either changes it, and here the gate lets them go together.
+        repeat(8) { round ->
+            val first = assertNotNull(enter(secure = false)["ricordami"]).substringBefore(";")
+            val (selector, oldValue) = Phone.decode(first.substringAfter("="))
+            val gate = CountDownLatch(1)
+            val pool = Executors.newFixedThreadPool(6)
+            val answers = try {
+                val submitted = (1..6).map { pool.submit<HttpResponse<String>> { gate.await(10, TimeUnit.SECONDS); send(HttpRequest.newBuilder(uri("/profilo")).header("Cookie", first).GET()) } }
+                gate.countDown()
+                submitted.map { it.get(30, TimeUnit.SECONDS) }
+            } finally {
+                pool.shutdownNow()
+            }
+
+            assertEquals(List(6) { 200 }, answers.map { it.statusCode() }, "round $round: nobody is taken for a thief")
+            val renewals = answers.mapNotNull { cookie(it, "ricordami") }
+            assertEquals(1, renewals.size, "round $round: exactly one request changes the value, the others leave the cookie alone: $renewals")
+            assertFalse(renewals.single().contains("1970"), "and it is not a cancellation")
+            val (sameSelector, newValue) = Phone.decode(renewals.single().substringBefore(";").substringAfter("="))
+            assertEquals(selector, sameSelector)
+            assertNotEquals(oldValue, newValue)
+
+            val row = dsl.selectFrom(REMEMBERED_DEVICE).where(REMEMBERED_DEVICE.SELECTOR.eq(selector)).fetchSingle()
+            fun sha256(value: String) = java.security.MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8)).toList()
+            assertEquals(sha256(newValue), row.validatorHash!!.toList(), "round $round: the row has the hash of the new value")
+            assertEquals(sha256(oldValue), row.previousHash!!.toList(), "and the hash of the old one")
+            assertEquals(32, row.validatorHash!!.size)
+            assertEquals(32, row.previousHash!!.size)
+            // What is in the row is a hash, not the value: not the 32 bytes that the cookie carries either.
+            val decoded = { value: String -> java.util.Base64.getUrlDecoder().decode(value).toList() }
+            for (hashed in listOf(row.validatorHash!!.toList(), row.previousHash!!.toList())) {
+                assertNotEquals(decoded(oldValue), hashed)
+                assertNotEquals(decoded(newValue), hashed)
+            }
+            val dump = dsl.fetch("select row_to_json(r)::text from remembered_device r where selector = ?", selector).getValue(0, 0).toString()
+            assertFalse(dump.contains(oldValue) || dump.contains(newValue), "the row says neither value")
+            // The browser that got the new value enters as usual afterwards.
+            assertEquals(200, send(HttpRequest.newBuilder(uri("/profilo")).header("Cookie", "ricordami=" + renewals.single().substringBefore(";").substringAfter("=")).GET()).statusCode())
+        }
     }
 
     @Test
