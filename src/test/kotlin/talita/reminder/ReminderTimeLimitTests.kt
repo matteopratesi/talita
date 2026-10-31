@@ -135,7 +135,7 @@ class ReminderTimeLimitTests(
         assertTrue(failed in 1..5, "some mails left and some did not: $failed failed")
         assertTrue(smtp.accepted.size >= 6 - failed, "the mails that the page counts as sent were taken by the server: ${smtp.accepted}")
         assertTrue(lockIsFree(s.gathering))
-        // The sending that was given up looks before each mail and sends nothing more; the connection is closed when its step ends.
+        // The sending that was given up starts no new mail (it looks before each one); the one in progress still arrives, and is not counted. The connection is closed when its step ends.
         assertTrue(connectionsClosed())
     }
 

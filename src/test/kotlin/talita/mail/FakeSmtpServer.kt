@@ -25,7 +25,13 @@ import kotlin.concurrent.thread
  * [openConnections] is how many connections are still open. A **slow** server answers everything, but each answer comes [delayMillis] late: no step is past the timeout of the
  * client, and the steps of a whole list add up.
  */
-class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: Mode = Mode.NORMAL, @Volatile var delayMillis: Long = 0) : AutoCloseable {
+class FakeSmtpServer(
+    private val refusing: String? = null,
+    @Volatile var mode: Mode = Mode.NORMAL,
+    @Volatile var delayMillis: Long = 0,
+    /** The answer to the `RCPT TO` of a recipient that contains [refusing]: a `550` (it does not exist) by default, a `450` (try again later) for a temporary one. */
+    private val refusal: String = "550 5.1.1 no such user",
+) : AutoCloseable {
 
     enum class Mode {
         NORMAL,
@@ -133,7 +139,7 @@ class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: M
                     upper.startsWith("RCPT TO") -> {
                         val address = line.substringAfter('<').substringBefore('>')
                         if (refusing != null && address.contains(refusing)) {
-                            say("550 5.1.1 no such user")
+                            say(refusal)
                         } else {
                             recipient = address
                             say("250 OK")

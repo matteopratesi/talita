@@ -56,8 +56,8 @@ enum class MailResult {
  * comment 4431895585): the caller goes on, so the caller lets go of its lock and this class gives back the place of every mail that is not SENT, the one in progress too. (1) The day count
  * can say one mail less than the server took. (2) If no mail was counted (nothing in the register, so no wait of 7 days), a teacher who sends again before the thread has closed, at
  * most one timeout later, can send the same reminder a second time to the person whose mail was in progress. The thread closes the connection when the step that it was in ends, at most
- * one timeout later. A server that refuses a **recipient** (a 550: a mail that does not exist) is not that: it is a failure of that mail alone,
- * and the others go on in the same connection.
+ * one timeout later. A server that refuses the **recipient** of a mail (a plain `SendFailedException`: a 550, or a 4xx such as greylisting or a mailbox that is full) is
+ * not that: it is a failure of that mail alone, and the others go on in the same connection. The refusals of the whole sending (`SMTPSendFailedException`) stop the list.
  *
  * The log never carries the address of the recipient, the text or a link: a failure is logged with
  * the type of the exception only (the message of a mail exception often names the address).
@@ -149,12 +149,14 @@ class Mailer(
                         synchronized(gate) { if (!gaveUp) results[index] = MailResult.SENT }
                     } catch (failure: Exception) {
                         synchronized(gate) { if (!gaveUp) reasons += failure.javaClass.name }
-                        // The server refused a **recipient** of this mail (a 550: an address that does not exist, `invalidAddresses` of the exception): that is about one person, and the next
-                        // ones can still go. Everything else stops the list, and the mails that are left fail at once: a step that did not answer in time or a socket that broke (the next
-                        // step would only wait for its own timeout), and the refusals of the whole sending, which are `SMTPSendFailedException`, a subclass of `SendFailedException` with no
-                        // invalid address: `MAIL FROM` refused (a sender that is not allowed), `DATA` or the end of the text refused (the text is the same for everyone), a 4xx of the
-                        // provider (the limit of the day). The connection is still open after them, and the next mail would get the same answer.
-                        if (failure !is SendFailedException || failure.invalidAddresses.isNullOrEmpty()) return@thread
+                        // Told by the type of the exception, which Angus Mail 2.0.5 sets (checked with the fake server, TALITA-16). A **plain `SendFailedException`** is the refusal of the recipients of
+                        // this mail, with a 5xx (an address that does not exist) or a 4xx (greylisting, a mailbox that is full: `validUnsentAddresses`, no `invalidAddresses`): it is about one
+                        // person, and the next ones can still go. Everything else stops the list, and the mails that are left fail at once: what is not a `SendFailedException` (a step that did
+                        // not answer in time, a socket that broke: the next step would only wait for its own timeout), and its subclasses, which are the refusals of the whole sending
+                        // (`SMTPSendFailedException`: `MAIL FROM`, `DATA` or the end of the text refused, a 4xx of the provider for the limit of the day; `SMTPSenderFailedException`, and
+                        // `SMTPAddressFailedException`, which the plain one carries inside). They live in the runtime module, so the check is on the exact class and not with `is`. The connection
+                        // is still open after all of them, and the next mail would get the same answer.
+                        if (failure.javaClass != SendFailedException::class.java) return@thread
                     }
                 }
             } finally {

@@ -96,7 +96,7 @@ class MailListTests(
     }
 
     @Test
-    fun `t16 c21 when the server refuses the sender, the text or the whole sending, the list stops at the first refusal, and when it refuses a recipient the list goes on`() {
+    fun `t16 c21 when the server refuses the sender, the text or the whole sending, the list stops at the first refusal, and when it refuses a recipient, for good or for a while, the list goes on`() {
         for (mode in listOf(FakeSmtpServer.Mode.REFUSE_SENDER, FakeSmtpServer.Mode.REFUSE_DATA, FakeSmtpServer.Mode.REFUSE_CONTENT, FakeSmtpServer.Mode.TEMPORARY_LIMIT)) {
             FakeSmtpServer(mode = mode).use { server ->
                 val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
@@ -112,13 +112,20 @@ class MailListTests(
                 assertEquals(10, quota.remaining(MailKind.REMINDER), "$mode: the places of the four mails are given back")
             }
         }
-        // A refused recipient is about one person: the list goes on, in the same connection.
-        FakeSmtpServer(refusing = "rifiutato").use { server ->
-            val results = mailerTo(server).sendAll(listOf(mail(Addresses.unique("avanti-uno")), mail(Addresses.unique("avanti-rifiutato")), mail(Addresses.unique("avanti-due"))), MailKind.REMINDER)
+        // A refused recipient is about one person: the list goes on, in the same connection. Also when the refusal is temporary (a 4xx: greylisting, a mailbox that is full), which
+        // the library reports as a plain `SendFailedException` too, with the address among the valid unsent ones and not among the invalid.
+        for (refusal in listOf("550 5.1.1 no such user", "450 4.2.0 try again later", "452 4.2.2 mailbox full")) {
+            FakeSmtpServer(refusing = "rifiutato", refusal = refusal).use { server ->
+                val results = mailerTo(server).sendAll(
+                    listOf(mail(Addresses.unique("avanti-uno")), mail(Addresses.unique("avanti-rifiutato")), mail(Addresses.unique("avanti-due")), mail(Addresses.unique("avanti-tre"))),
+                    MailKind.REMINDER,
+                )
 
-            assertEquals(listOf(MailResult.SENT, MailResult.FAILED, MailResult.SENT), results)
-            assertEquals(3, server.mailFromCount.get(), "the three mails were tried")
-            assertEquals(1, server.connectionCount.get())
+                assertEquals(listOf(MailResult.SENT, MailResult.FAILED, MailResult.SENT, MailResult.SENT), results, refusal)
+                assertEquals(4, server.mailFromCount.get(), "$refusal: the four mails were tried")
+                assertEquals(1, server.connectionCount.get(), refusal)
+                assertEquals(3, server.accepted.size, refusal)
+            }
         }
     }
 
