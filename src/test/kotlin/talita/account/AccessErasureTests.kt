@@ -9,12 +9,12 @@ import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialType
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
+import talita.CapturesOutput
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
@@ -53,7 +53,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class AccessErasureTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
@@ -238,28 +237,6 @@ class AccessErasureTests(
         assertEquals(afterTheRequest + 1, generation(teacher), "the next night has nothing to take away: the sessions are not closed again")
     }
 
-    /**
-     * Waits until the database says that the task is waiting for a lock that [holder] holds, and only then returns: a task that has not started yet is not blocked, and one that has finished never was, so letting
-     * the lock go after that would not test the case that the test says. Nothing here depends on how long the task takes to start: the database is asked every 20 ms, for 30 seconds at most.
-     * [what] is what the test says should happen. It is the helper of `RoomServiceTests`, copied here on purpose (TALITA-16 makes it common).
-     */
-    private fun awaitBlocked(task: java.util.concurrent.Future<*>, what: String, holder: Int, query: String) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
-        // It is the waiter that the test means: a backend that waits for a lock **held by [holder]** (the transaction that the test keeps open: `pg_blocking_pids`) with a statement that is the one of
-        // the task ([query] is a piece of its text), and not any backend that waits for any lock.
-        while (dsl.fetch(
-                "select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active' " +
-                    "and ? = any(pg_blocking_pids(pid)) and query ilike ?",
-                holder, "%$query%",
-            ).isEmpty()
-        ) {
-            if (task.isDone) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but it has finished (isDone = true, ${runCatching { task.get() }.fold({ "result $it" }, { "failed with ${it.cause ?: it}" })}) and was never blocked")
-            if (System.nanoTime() > deadline) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but no transaction waits for a lock after 30 seconds (isDone = ${task.isDone})")
-            Thread.sleep(20)
-        }
-        assertFalse(task.isDone, "$what: a transaction waits for a lock, so the task is not finished")
-    }
-
     /** A credential as the registration makes it: what the table keeps of a passkey. */
     private fun record(id: Int = 9): CredentialRecord = ImmutableCredentialRecord.builder()
         .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
@@ -300,10 +277,11 @@ class AccessErasureTests(
                 }
             }
             assertTrue(locked.await(10, TimeUnit.SECONDS))
-            val registration = pool.submit<Boolean> { store.addChecked(teacher, record(), ByteArray(64) { 7 }, started) }
             // Committing before the registration is really blocked on the lock of the account would let it find the account already erased, and the case that this test is about would not happen:
-            // the waiter is the registration (its statement reads the handle of the account `for update`), and what it waits for is the transaction of the erasure.
-            awaitBlocked(registration, "the registration should wait for the account that the erasure holds", holder.get(), "passkey_handle")
+            // the waiter is the registration (its statement reads the handle of the account `for update`, a text that has `passkey_handle`), and what it waits for is the transaction of the erasure.
+            val registration = LockWait.awaitBlocked(dsl, "the registration should wait for the account that the erasure holds", blockedBy = holder.get(), statementLike = "passkey_handle") {
+                pool.submit<Boolean> { store.addChecked(teacher, record(), ByteArray(64) { 7 }, started) }
+            }
             release.countDown()
             erasure.get(10, TimeUnit.SECONDS)
 
@@ -375,8 +353,9 @@ class AccessErasureTests(
             }
             assertTrue(inserted.await(10, TimeUnit.SECONDS))
             // The job looks at the accounts: the account is empty for it (the child is not committed), it is a candidate, and the rule has to lock it before it touches anything.
-            val run = pool.submit<RetentionReport> { job.run(kit.clockAt("2027-10-05T04:15")) }
-            awaitBlocked(run, "the rule of the accounts should wait for the registration that holds the account", holder.get(), "for update")
+            val run = LockWait.awaitBlocked(dsl, "the rule of the accounts should wait for the registration that holds the account", blockedBy = holder.get(), statementLike = "for update") {
+                pool.submit<RetentionReport> { job.run(kit.clockAt("2027-10-05T04:15")) }
+            }
             release.countDown()
             registering.get(10, TimeUnit.SECONDS)
 
@@ -395,6 +374,7 @@ class AccessErasureTests(
     // ---- The devices that expire (criterion 32) ------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t15 c32 every night the job deletes the devices past their day, with the length of the role of today, and the register of the deletions does not hear of it`(output: CapturedOutput) {
         // The parents have a child registered, so that their accounts are not empty (the job would delete an empty one with its devices).
         val gathering = kit.september2027()
@@ -429,6 +409,7 @@ class AccessErasureTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c32 every night the job empties the moment of the last re-entry and the hash of the value before it, in the rows whose 60 seconds are over, and keeps them in the rows still inside the margin`(output: CapturedOutput) {
         val parent = kit.account("genitore-a", bornOn = LocalDate.of(2027, 9, 20))
         kit.registration(kit.september2027(), parent, "Luca", "Rossi")
@@ -457,6 +438,7 @@ class AccessErasureTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c32 a run that has no device to delete writes nothing in the log`(output: CapturedOutput) {
         device(kit.account("genitore-a"), "2027-10-01")
 

@@ -14,14 +14,13 @@ import com.microsoft.playwright.options.AriaRole
 import com.microsoft.playwright.options.Cookie
 import com.microsoft.playwright.options.FormData
 import com.microsoft.playwright.options.RequestOptions
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import talita.Addresses
+import talita.CapturesOutput
 import talita.ClockConfiguration
 import talita.MutableClock
 import talita.TestcontainersConfiguration
@@ -74,7 +73,6 @@ annotation class PasskeyE2eApplication
  * Never a real phone and never a real passkey. axe on every state and no sideways scrolling at 320 px. Names and notes are synthetic.
  */
 @PasskeyE2eApplication
-@ExtendWith(OutputCaptureExtension::class)
 class PasskeyE2eTest {
 
     /** A phone that is inside the browser: it holds the passkeys that the page makes, and [verified] says whether the person puts their finger (or their face) on it. */
@@ -1202,6 +1200,7 @@ class PasskeyE2eTest {
     }
 
     @E2eTest(profiles = [Profile.DESKTOP])
+    @CapturesOutput
     fun `t15 c36 c33 the log has no selector, value, credential, handle, challenge, address or session id`(e2e: E2e, output: CapturedOutput) {
         val page = e2e.page
         val phone = e2e.phoneOf()
@@ -1373,7 +1372,7 @@ class PasskeyE2eTest {
         e2e.press(page.locator("#scheda").linkNamed("Aggiungi una passkey"))
         assertThat(page).hasURL(Pattern.compile("/profilo#passkey$"))
         page.waitForSettledContent()
-        assertEquals("passkey", page.evaluate("document.activeElement && document.activeElement.id"), "the focus is on the card")
+        page.focusIs("document.activeElement.id === 'passkey'")
 
         // From the notice after «Esci da tutti gli altri dispositivi», which sends a person who has passkeys to the card.
         e2e.addPasskey()

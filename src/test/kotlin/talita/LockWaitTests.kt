@@ -147,6 +147,50 @@ class LockWaitTests(
     }
 
     @Test
+    fun `t16 c01 the wait that is meant can be told by the backend that blocks it and by the text of its statement, and another wait is not the proof`() {
+        val pool = Executors.newFixedThreadPool(5)
+        val heldA = CountDownLatch(1)
+        val releaseA = CountDownLatch(1)
+        val heldB = CountDownLatch(1)
+        val releaseB = CountDownLatch(1)
+        val pidOfB = java.util.concurrent.atomic.AtomicInteger()
+        try {
+            hold(pool, 16_005, heldA, releaseA)
+            // The second holder says its backend, as the tests of the erasure do with the transaction that they keep open.
+            pool.submit {
+                dsl.transaction { configuration ->
+                    pidOfB.set(DSL.using(configuration).fetchOne("select pg_backend_pid()")!!.get(0, Int::class.java))
+                    DSL.using(configuration).fetch("select pg_advisory_xact_lock(?)", 16_006L)
+                    heldB.countDown()
+                    releaseB.await(30, TimeUnit.SECONDS)
+                }
+            }
+            assertTrue(heldA.await(30, TimeUnit.SECONDS) && heldB.await(30, TimeUnit.SECONDS))
+
+            // A task that waits for the lock of A is not blocked by B: with the backend of B the helper does not take it for the proof.
+            val wrongBackend = assertFailsWith<AssertionError> {
+                LockWait.awaitBlocked(dsl, "the task should wait for B", Duration.ofSeconds(1), blockedBy = pidOfB.get()) { waitFor(pool, 16_005) }
+            }
+            assertEquals("the task should wait for B: but no transaction waited for a lock in 1 seconds and the task has not finished", wrongBackend.message)
+            // A text that its statement does not have is not it either; one that it has is.
+            val wrongText = assertFailsWith<AssertionError> {
+                LockWait.awaitBlocked(dsl, "the task should wait", Duration.ofSeconds(1), statementLike = "a text that no statement has") { waitFor(pool, 16_006) }
+            }
+            assertTrue(wrongText.message!!.contains("no transaction waited for a lock in 1 seconds"), wrongText.message)
+            val task = LockWait.awaitBlocked(dsl, "the task should wait for B", blockedBy = pidOfB.get(), statementLike = "PG_ADVISORY_XACT_LOCK") { waitFor(pool, 16_006) }
+            assertFalse(task.isDone)
+
+            releaseA.countDown()
+            releaseB.countDown()
+            assertEquals(1, task.get(30, TimeUnit.SECONDS))
+        } finally {
+            releaseA.countDown()
+            releaseB.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
     fun `t16 c02 a task that neither waits for a lock nor ends fails when the maximum time has passed, and says so`() {
         val pool = Executors.newFixedThreadPool(2)
         val never = CountDownLatch(1)

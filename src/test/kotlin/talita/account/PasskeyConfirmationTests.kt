@@ -4,11 +4,9 @@ import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -16,6 +14,7 @@ import org.springframework.security.web.webauthn.api.Bytes
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
@@ -42,7 +41,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class PasskeyConfirmationTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -428,6 +426,7 @@ class PasskeyConfirmationTests(
     // ---- Cancelled, refused, no network (criterion 42) ------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t15 c42 a refused answer is a 403 with nothing in the session and a WARN without data, and the notes stay closed`(output: CapturedOutput) {
         val t = teacher()
         val other = teacher()
@@ -688,6 +687,7 @@ class PasskeyConfirmationTests(
     // ---- Register and log (criterion 48) --------------------------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t15 c48 after a confirmation the register has the row of always and nothing new, the session has only the moment and the challenge, and the log has no challenge, credential, handle or id`(output: CapturedOutput) {
         val t = teacher()
         val child = child()

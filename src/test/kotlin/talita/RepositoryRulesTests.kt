@@ -170,6 +170,7 @@ class RepositoryRulesTests {
         "src/e2eTest/kotlin/talita/e2e/ArrivalsE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
         "src/e2eTest/kotlin/talita/e2e/EnrollmentE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
         "src/e2eTest/kotlin/talita/e2e/LoginE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/RememberE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
         "src/e2eTest/kotlin/talita/e2e/RoomsQaE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
     )
 
@@ -233,9 +234,9 @@ class RepositoryRulesTests {
     fun `t16 c04 only the tests that read the log of the start put the capture of the output on the class`() {
         val withExtension = testSources().filter { "OutputCaptureExtension" in Files.readString(it) }.map { it.name }.sorted()
 
-        // `CapturesOutput` is the annotation, the other two are the classes that read the log of the start of the application (each says why).
-        assertEquals(listOf("BootstrapTeacherTests.kt", "CapturesOutput.kt", "NoMailTests.kt"), withExtension)
-        for (startup in listOf("BootstrapTeacherTests.kt", "NoMailTests.kt")) {
+        // `CapturesOutput` is the annotation, the other three are the classes that read the log of the start of the application (each says why).
+        assertEquals(listOf("BootstrapTeacherTests.kt", "CapturesOutput.kt", "NoMailTests.kt", "PasskeysOffTests.kt"), withExtension)
+        for (startup in listOf("BootstrapTeacherTests.kt", "NoMailTests.kt", "PasskeysOffTests.kt")) {
             val source = testSources().single { it.name == startup }
             assertEquals(1, Regex("""@ExtendWith\(OutputCaptureExtension::class\)""").findAll(Files.readString(source)).count(), "$startup: one class with the capture of the start")
         }

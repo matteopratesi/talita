@@ -4,16 +4,15 @@ import jakarta.servlet.http.Cookie
 import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
+import talita.CapturesOutput
 import talita.ClockConfiguration
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ACCOUNT
@@ -41,7 +40,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class RememberMeTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -225,6 +223,7 @@ class RememberMeTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c05 a cookie with an old value for a selector that exists is a copy, the row and the cookie go, nobody enters and the log has a WARN with no data`(output: CapturedOutput) {
         val email = person()
         val phone = phone()
@@ -256,6 +255,7 @@ class RememberMeTests(
     // ---- The margin of 60 seconds for the tabs that the phone reopens together (decision of Matteo, 31 October) ---------------------------
 
     @Test
+    @CapturesOutput
     fun `t15 c05 two requests with the same cookie a few milliseconds apart both enter, the row stays, and the second does not change the value or touch the cookie`(output: CapturedOutput) {
         val email = person()
         val owner = phone()
@@ -287,6 +287,7 @@ class RememberMeTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c05 the value before the last one is good for 60 seconds from the change, and after them it is a copy as before`(output: CapturedOutput) {
         val email = person()
         val owner = phone()
@@ -314,6 +315,7 @@ class RememberMeTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c05 a value from two changes ago is a copy at once, inside the margin of the last change as well`(output: CapturedOutput) {
         val email = person()
         val owner = phone()

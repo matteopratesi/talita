@@ -11,7 +11,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension
  * lines (t7 c15, t11 c20, t7 c28) would fail for lines that are not its own, and a positive check ("the log says X") could pass on a line written before. On a method there is
  * only the capture of the test: it begins before the `@BeforeEach` methods and ends after the test.
  *
- * The tests that read the log of the **start** of the application (`NoMailTests`, `BootstrapStartupTests`) put the extension on the class, on purpose, and say why.
+ * The tests that read the log of the **start** of the application (`NoMailTests`, `BootstrapStartupTests`, `PasskeysOffTests`) put the extension on the class, on purpose, and say why.
  * `RepositoryRulesTests` allows no other class.
  */
 @Target(AnnotationTarget.FUNCTION)

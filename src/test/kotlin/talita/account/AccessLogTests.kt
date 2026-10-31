@@ -3,17 +3,16 @@ package talita.account
 import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.security.web.webauthn.api.Bytes
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.PASSKEY
@@ -30,7 +29,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class AccessLogTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -54,6 +52,7 @@ class AccessLogTests(
     private fun phone() = Phone(mockMvc, tokens)
 
     @Test
+    @CapturesOutput
     fun `t15 c33 the log has no selector, value, fingerprint, id of a passkey, user handle, challenge, address or id of an account, from the way in to the passkeys and the confirmation`(output: CapturedOutput) {
         val secrets = mutableMapOf<String, String>()
         val email = Addresses.unique("log-maestro").also { made += it }
