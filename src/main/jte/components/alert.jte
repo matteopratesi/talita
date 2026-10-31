@@ -6,12 +6,13 @@
 @param String lead = null
 @param String actionLabel = null
 @param String actionHref = null
+@param boolean leadOnly = false
 <%-- A notice in the page (design guide 4.6). Colors by variant, written here because Tailwind reads the classes from the templates.
      `live`: the notice follows an action (a form sent again, a confirmation): it has the role that a screen reader announces
      and takes the focus after the page is replaced (data-fuoco, see app.js).
      `action`: a text button under the sentence (the reminder of an invitation has «Accetta l'invito»).
      `lead`, `actionLabel`, `actionHref`: a confirmation with two paragraphs (design TALITA-7, guide 6 «Conferme»): the first words in bold, then the sentence on
-     what stays and until when, and a text button that leads to it. --%>
+     what stays and until when, and a text button that leads to it. `leadOnly`: the notice is the bold words and nothing else («Dispositivo tolto.»). --%>
 !{AlertVariant kind = variant == null ? AlertVariant.INFO : variant;
 String box = switch (kind) {
     case INFO -> "bg-brand-soft";
@@ -32,7 +33,9 @@ String tone = switch (kind) {
       @if(lead != null)
         <p class="font-semibold wrap-anywhere">${lead}</p>
       @endif
-      <p class="wrap-anywhere">${content}</p>
+      @if(!leadOnly)
+        <p class="wrap-anywhere">${content}</p>
+      @endif
       @if(actionLabel != null)
         <div class="-mb-2 -ml-3">@template.components.linkButton(href = actionHref, label = actionLabel, variant = "text")</div>
       @endif

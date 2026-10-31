@@ -59,4 +59,7 @@ enum class Icon {
     DOWNLOAD,
     IMAGE,
     UTENSILS,
+    MONITOR_SMARTPHONE,
+    KEY_ROUND,
+    FINGERPRINT_PATTERN,
 }

@@ -56,6 +56,24 @@ class Accounts(private val dsl: DSLContext, private val clock: Clock) {
         return dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.EMAIL.eq(email.value)).fetchSingle(ACCOUNT.ID)!!
     }
 
+    /**
+     * The account with this id for a login that has no address to start from (the cookie of «Ricordami su questo telefono», a passkey): what the session remembers about it, or null if the
+     * account is gone. **It never creates the account**: a cookie or a passkey of an account that was deleted is worth nothing, and the account does not come back to life by being used (TALITA-7,
+     * criterion 26). The other reader is [AccountUserDetailsService], which is for the link and creates the account at the first login.
+     */
+    fun userDetailsById(id: Long): AccountUserDetails? =
+        dsl.select(ACCOUNT.ID, ACCOUNT.EMAIL).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchOne { AccountUserDetails(it[ACCOUNT.ID]!!, it[ACCOUNT.EMAIL]!!) }
+
+    /** The number of the sessions of [id] (it only grows, V12), or null if the account is gone. A session born with another number is over at its next request. */
+    fun sessionGeneration(id: Long): Int? = dsl.select(ACCOUNT.SESSION_GENERATION).from(ACCOUNT).where(ACCOUNT.ID.eq(id)).fetchOne(ACCOUNT.SESSION_GENERATION)
+
+    /**
+     * Closes every session of [id] but the one that the caller then writes the new number into: raises the number of the sessions and returns it. Inside the transaction of whoever calls
+     * ([context]), so that «Esci da tutti gli altri dispositivi» and the rows of the devices that it deletes go together.
+     */
+    fun raiseSessionGeneration(context: DSLContext, id: Long): Int =
+        context.update(ACCOUNT).set(ACCOUNT.SESSION_GENERATION, ACCOUNT.SESSION_GENERATION.plus(1)).where(ACCOUNT.ID.eq(id)).returning(ACCOUNT.SESSION_GENERATION).fetchOne()?.get(ACCOUNT.SESSION_GENERATION) ?: 0
+
     /** The account with this id as it is now, with its role, or null if it is gone. */
     fun current(id: Long): CurrentAccount? =
         dsl.select(ACCOUNT.ID, ACCOUNT.EMAIL, TEACHER.FIRST_NAME, TEACHER.LAST_NAME)

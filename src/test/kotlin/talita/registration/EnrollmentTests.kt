@@ -866,7 +866,7 @@ class EnrollmentTests(
         assertEquals(
             listOf(
                 "Chi è il titolare", "Quali dati raccogliamo", "A cosa servono e perché possiamo usarli", "Cosa è obbligatorio e cosa no", "Chi vede i dati",
-                "Chi li riceve per far funzionare Talità", "Per quanto tempo", "I tuoi diritti", "Reclamo", "L’accettazione dell’affidamento",
+                "Chi li riceve per far funzionare Talità", "Cookie e accesso", "Per quanto tempo", "I tuoi diritti", "Reclamo", "L’accettazione dell’affidamento",
             ),
             headings,
         )

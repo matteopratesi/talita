@@ -99,6 +99,10 @@ internal class RetentionTestKit(val dsl: DSLContext, val clock: Clock) {
 
     /** No account that is not a teacher: the database is shared, and a test that counts the accounts that go starts from a place where there are none. After [reset]. */
     fun removeAccountsWithoutRole() {
+        // The devices and the passkeys of TALITA-15 have no cascade: a test that made some leaves them, and they go before the account.
+        val noRole = org.jooq.impl.DSL.select(ACCOUNT.ID).from(ACCOUNT).whereNotExists(org.jooq.impl.DSL.selectOne().from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(ACCOUNT.ID)))
+        dsl.deleteFrom(talita.jooq.tables.references.REMEMBERED_DEVICE).where(talita.jooq.tables.references.REMEMBERED_DEVICE.ACCOUNT_ID.`in`(noRole)).execute()
+        dsl.deleteFrom(talita.jooq.tables.references.PASSKEY).where(talita.jooq.tables.references.PASSKEY.ACCOUNT_ID.`in`(noRole)).execute()
         dsl.deleteFrom(ACCOUNT).whereNotExists(org.jooq.impl.DSL.selectOne().from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(ACCOUNT.ID))).execute()
     }
 

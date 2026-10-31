@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component
 import talita.gathering.Badge
 import talita.gathering.GatheringFormat
 import talita.registration.DayKind
+import talita.account.NotesGate
 import talita.registration.NotesRead
 import talita.registration.RegistrationData
 import talita.registration.RegistrationFormat
@@ -97,7 +98,15 @@ data class ContactView(val phone: String, val telephone: String)
  * The card «Segnalazioni» (criteria 17, 18): closed, it is the same for every child (it does not say whether there is anything); open, it shows who read and when,
  * what is written, and the consent. It is open only in the answer to the touch that wrote the reading, and never after any other action.
  */
-data class NotesView(val shown: Boolean, val readLine: String?, val rows: List<Pair<String, String>>, val consent: String?, val deleted: NotesDeleted? = null)
+data class NotesView(
+    val shown: Boolean,
+    val readLine: String?,
+    val rows: List<Pair<String, String>>,
+    val consent: String?,
+    val deleted: NotesDeleted? = null,
+    /** What the card says about the confirmation with the passkey (TALITA-15): that the phone will ask, until when it holds, the notice that it is needed, the invitation to add a passkey. */
+    val gate: NotesGate = NotesGate.NONE,
+)
 
 /** A payment of the card: the amount, who registered it and when, and the dialog that takes it away (criterion 13). */
 data class PaymentRow(val id: Long, val amount: String, val meta: String, val removeHref: String, val removeLabel: String, val dialog: ConfirmModel)
@@ -213,9 +222,9 @@ class CardPresenter(
     }
 
     /** From the day of their date the card says that the notes were deleted, the same for every child, with no button: nothing can be read, so no reading is written (criterion 30). */
-    private fun notes(read: NotesRead?, reader: String, deleted: NotesDeleted?): NotesView {
+    private fun notes(read: NotesRead?, reader: String, deleted: NotesDeleted?, gate: NotesGate): NotesView {
         if (deleted != null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null, deleted = deleted)
-        if (read == null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null)
+        if (read == null) return NotesView(shown = false, readLine = null, rows = emptyList(), consent = null, gate = gate)
         val note = read.note
         val rows = buildList {
             note?.notes?.allergies?.let { add("Allergie" to it) }
@@ -279,7 +288,7 @@ class CardPresenter(
      * The card. [read] is the notes of the touch that wrote their reading (null for any other answer: they are closed and nobody is told whether there are any);
      * [reader] is who read. [typed] is what was typed in the form of the payment when the answer is the form again with an error.
      */
-    fun page(data: ArrivalsData, registration: RegistrationData, choice: DayChoice, flash: CardAlert?, read: NotesRead? = null, reader: String = "", typed: PaymentTyped? = null): CardPage {
+    fun page(data: ArrivalsData, registration: RegistrationData, choice: DayChoice, flash: CardAlert?, read: NotesRead? = null, reader: String = "", typed: PaymentTyped? = null, gate: NotesGate = NotesGate.NONE): CardPage {
         val withdrawn = data.withdrawn(registration)
         val duplicates = data.duplicates[registration.id].orEmpty().mapNotNull { other -> data.registrations.firstOrNull { it.id == other } }
         val siblings = data.registrations.filter { it.accountId != null && it.accountId == registration.accountId && it.id != registration.id }
@@ -297,7 +306,7 @@ class CardPresenter(
             phaseNotice = phaseNotice(choice),
             days = days(data, registration, choice),
             contact = ContactView(registration.phone, CheckinFormat.dialable(registration.phone)),
-            notes = notes(read, reader, if (policy.notesExpired(data.gathering.end, choice.today)) texts.notesDeleted(data.gathering.end) else null),
+            notes = notes(read, reader, if (policy.notesExpired(data.gathering.end, choice.today)) texts.notesDeleted(data.gathering.end) else null, gate),
             money = money(data, registration, choice, typed),
             custody = custody(registration),
             registration = RegistrationView(

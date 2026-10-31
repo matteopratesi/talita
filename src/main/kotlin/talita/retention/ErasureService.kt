@@ -7,6 +7,9 @@ import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import talita.ClockConfiguration
+import talita.account.Accounts
+import talita.account.Passkeys
+import talita.account.RememberedDevices
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
@@ -61,6 +64,9 @@ class ErasureService(
     private val policy: RetentionPolicy,
     private val healthNotes: HealthNotes,
     private val teachers: Teachers,
+    private val devices: RememberedDevices,
+    private val passkeys: Passkeys,
+    private val accounts: Accounts,
 ) {
 
     private val log = LoggerFactory.getLogger(ErasureService::class.java)
@@ -208,6 +214,8 @@ class ErasureService(
             markedUntil = farthest(endsOfWhatWasMarked(accountId, today)),
             blockers = classified.blockers,
             teacherBlock = TeacherBlock(block is RemovalResult.LastTeacher, (block as? RemovalResult.IsCustodian)?.gatherings.orEmpty()),
+            devices = devices.count(accountId),
+            passkeys = passkeys.count(accountId),
         )
     }
 
@@ -286,6 +294,10 @@ class ErasureService(
         var rows = healthNotes.removeOfRegistrations(tx, scope.rows.map { it.id }) + healthNotes.removeConsentedBy(tx, accountId, until = since)
         rows += deleteRegistrations(tx, classified.hidden + classified.fates.filter { it.goes }.map { it.registrationId })
         rows += removeFromRooms(tx, classified.fates.filter { !it.goes }.map { it.registrationId })
+        // The devices and the passkeys of the account go at once, whatever stays and whatever the request spares (TALITA-15, criteria 29, 30): they are the access of the person, and a
+        // person who asks to be deleted, or whose request is made again after a restore, enters again with a link. The keys to `account` have no cascade, so this comes before the `delete`.
+        val accessRows = devices.removeOfAccount(tx, accountId) + passkeys.removeOfAccount(tx, accountId)
+        rows += accessRows
         // What stays loses the link with the account (the acceptance, with the address copied into it, stays).
         tx.update(REGISTRATION).set(REGISTRATION.ACCOUNT_ID, null as Long?).where(REGISTRATION.ACCOUNT_ID.eq(accountId)).and(upToRequest(REGISTRATION.CREATED_AT)).execute()
         for (child in tx.select(CHILD.ID).from(CHILD).where(CHILD.ACCOUNT_ID.eq(accountId)).orderBy(CHILD.ID).forUpdate().fetch(CHILD.ID).map { it!! }) {
@@ -305,7 +317,15 @@ class ErasureService(
         // The register of the readings must say who read: the account stays, with the address alone, until the readings go. It stays also for what it was left with after a
         // request made again: `teacher` goes with the account (`on delete cascade`) and the other keys have no cascade.
         val stays = healthNotes.hasReadings(tx, accountId) || (since != null && holdsNewerActivity(tx, accountId, email))
-        if (!stays) rows += tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).execute()
+        if (!stays) {
+            rows += tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).execute()
+        } else {
+            // The account stays with the address alone (for the register of the readings): every other session of it ends at its next request, which closes the case that TALITA-7 left open, and
+            // the handle that the phones sent back with a passkey is not needed any more. **Only in the request itself, or in a redo that took some access away**: the job makes the request
+            // again every night for 37 days, and a person who came back after it (to register a child) must not be signed out every night at 4:15 for that long.
+            if (since == null || accessRows > 0) accounts.raiseSessionGeneration(tx, accountId)
+            passkeys.clearHandle(tx, accountId)
+        }
         // A request that finds nothing to change (an account that only stays for the readings, asked again after a restore) leaves nothing in the register.
         if (rule == RetentionLog.ACCOUNT_REQUEST || rows > 0) RetentionLog.write(tx, at, rule, rows, if (rule == RetentionLog.ACCOUNT_REQUEST) accountId else null)
         return AccountErasure.Done(stays, rows)

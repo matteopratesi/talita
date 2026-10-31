@@ -64,7 +64,10 @@ class InfoPageTests(
 
     @Test
     fun `t4 c39 the list of the public addresses has the information page, and not the registration nor the gathering of the teachers`() {
-        assertEquals(listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa", "/promemoria/smetti"), PublicPaths.pages)
+        assertEquals(
+            listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa", "/promemoria/smetti", "/webauthn/authenticate/options", "/login/webauthn"),
+            PublicPaths.pages,
+        )
         assertTrue(PublicPaths.matches("/info/$code"))
         assertTrue(PublicPaths.matches("/info/Q7vd_3KmZ0xRb-Ew"), "any code: the page decides if it exists")
         for (path in listOf("/info/$code/iscrizione", "/info", "/info/$code/altro", "/convivenza", "/convivenza/1", "/convivenza/1/anteprima", "/informazioni/$code")) {

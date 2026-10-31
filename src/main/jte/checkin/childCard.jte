@@ -111,7 +111,7 @@
       </div>
     </section>
 
-    <section id="segnalazioni" aria-labelledby="segnalazioni-titolo" tabindex="${page.getNotes().getShown() ? "-1" : null}" data-fuoco="${page.getNotes().getShown() ? "" : null}" class="rounded-2xl border ${page.getNotes().getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6">
+    <section id="segnalazioni" data-ambito data-esiti aria-labelledby="segnalazioni-titolo" tabindex="${page.getNotes().getShown() ? "-1" : null}" data-fuoco="${page.getNotes().getShown() ? "" : null}" class="rounded-2xl border ${page.getNotes().getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6">
       <h2 id="segnalazioni-titolo" class="text-lg font-semibold">Segnalazioni</h2>
       @if(page.getNotes().getDeleted() != null)
         <div class="mt-3 flex items-start gap-3">
@@ -125,12 +125,19 @@
         </div>
       @elseif(!page.getNotes().getShown())
         <p class="mt-2">Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.</p>
-        <form method="post" action="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-post="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-target="#scheda" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" class="mt-3">
-          @template.components.csrf(csrf = csrf)
-          <input type="hidden" name="giorno" value="${page.getDay()}">
-          @template.components.button(label = "Mostra le segnalazioni", busyLabel = "Apertura…", variant = "secondary", icon = Icon.EYE, width = "full")
-        </form>
-        <p class="mt-2 text-sm text-ink-muted">Per vederle serve la rete: la lettura si registra prima di mostrarle.</p>
+        @template.components.notesGate(gate = page.getNotes().getGate(), above = true)
+        @if(!page.getNotes().getGate().getServeNoJs())
+          <form method="post" action="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-post="${"/arrivi/" + page.getId() + "/segnalazioni"}" hx-target="#scheda" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" data-conferma="${page.getNotes().getGate().getConfirm() ? "segnalazioni" : null}" class="mt-3">
+            @template.components.csrf(csrf = csrf)
+            <input type="hidden" name="giorno" value="${page.getDay()}">
+            @template.components.button(label = "Mostra le segnalazioni", busyLabel = page.getNotes().getGate().getConfirm() ? "In attesa della conferma…" : "Apertura…", variant = "secondary", icon = Icon.EYE, width = "full")
+          </form>
+          @template.components.notesGate(gate = page.getNotes().getGate(), above = false)
+          <p class="mt-2 text-sm text-ink-muted">Per vederle serve la rete: la lettura si registra prima di mostrarle.</p>
+          @if(page.getNotes().getGate().getInvite())
+            @template.components.passkeyInvite(compact = true)
+          @endif
+        @endif
       @else
         <p class="mt-2 text-sm text-ink-muted">${page.getNotes().getReadLine()}</p>
         @if(page.getNotes().getRows().isEmpty())

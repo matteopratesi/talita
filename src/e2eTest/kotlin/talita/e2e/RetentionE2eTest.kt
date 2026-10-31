@@ -205,7 +205,7 @@ class RetentionE2eTest {
 
         e2e.open("/profilo")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Il tuo nome", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Il tuo nome", "I tuoi dati"))
         assertThat(page.locator("main")).containsText("Qui puoi cancellare il tuo account.")
         assertThat(page.locator("main")).containsText("Cancelliamo il tuo indirizzo email e il tuo nome. Non sarai più tra i maestri")
         page.fits320(e2e.profile.isPhone)
@@ -267,6 +267,26 @@ class RetentionE2eTest {
         assertFalse(page.locator("script:not([src])").count() > 0, "no inline script")
         page.fits320(e2e.profile.isPhone)
         assertAccessible(page, "complete notice (${e2e.profile.label})")
+    }
+
+    @E2eTest(signedIn = false)
+    fun `t15 c34 qa the complete notice says that the hour of the last re-entry is kept only for the two tabs and goes the night after, in the line of the data and in the row of the times`(e2e: E2e) {
+        val page = e2e.page
+
+        e2e.open("/informativa")
+
+        // The line of the data (the site of the tests has passkeys, so it is the line that speaks of them too).
+        val line = page.locator("main li:has-text('Di chi sceglie «Ricordami su questo telefono» o di usare una passkey:')")
+        assertThat(line).hasCount(1)
+        assertThat(line).containsText("Mai il modello del telefono, il browser o il luogo. Quando rientri senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non ti scolleghino, e la cancelliamo la notte dopo.")
+        // The row of the times, in the card that the profile links to.
+        val row = page.locator("#per-quanto-tempo dl > div:has(dt:has-text('Dispositivi collegati («Ricordami su questo telefono»)'))")
+        assertThat(row).hasCount(1)
+        assertThat(row).containsText("Talità li cancella da sola, ogni notte, quando scadono. L’ora dell’ultimo rientro senza link si cancella la notte dopo.")
+        // It does not say that nothing about the use is kept: the page says what is true.
+        assertThat(page.locator("main")).not().containsText("nessun ultimo uso")
+        page.fits320(e2e.profile.isPhone)
+        assertAccessible(page, "complete notice, line of the re-entry (${e2e.profile.label})")
     }
 
     // ---- Added by the QA of TALITA-7 ---------------------------------------------------------------------------------------------------------
@@ -338,7 +358,7 @@ class RetentionE2eTest {
         assertThat(page.locator("main")).containsText("invita un altro maestro: ora sei l’unico.")
         assertThat(page.locator("main").linkNamed("Vai a Maestri")).hasAttribute("href", "/maestri")
         assertThat(page.locator("main").linkNamed("Cancella il mio account")).hasCount(0)
-        assertThat(page.locator("dialog")).hasCount(0)
+        assertThat(page.locator("dialog[id^=cancella]")).hasCount(0)
         page.fits320(e2e.profile.isPhone)
         assertAccessible(page, "profile of the only teacher (${e2e.profile.label})")
 
@@ -392,7 +412,7 @@ class RetentionE2eTest {
         assertThat(page.locator("h1")).hasText("Non puoi vedere questa pagina")
         assertEquals(403, e2e.open("/arrivi").status())
         e2e.open("/profilo")
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "I tuoi dati"))
         assertThat(page.locator("main")).not().containsText("Il tuo nome")
     }
 

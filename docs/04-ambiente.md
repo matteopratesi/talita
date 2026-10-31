@@ -95,7 +95,10 @@ TALITA_PRIVACY_CONTACT=nome@example.org
 - `TALITA_MAIL_FROM`: il mittente, sul dominio di Talità (il nome mostrato è «Talità»).
 - `TALITA_PUBLIC_URL`: l'indirizzo del sito, senza barra finale. I link delle mail partono sempre da
   qui e mai dall'intestazione `Host` della richiesta, che chi attacca può falsificare. Senza, le mail
-  con un link non partono.
+  con un link non partono. **Da TALITA-15 è anche il sito delle passkey**: l'`rpId` è il nome del sito (il dominio
+  senza porta: `talita.example.org` qui sopra, `localhost` in sviluppo) e l'origine è l'indirizzo intero, e una passkey
+  accetta solo quelli. Senza (o con un valore che non è un indirizzo) le passkey **non ci sono**: né bottoni né indirizzi che
+  rispondano, il resto dell'accesso funziona e il log, all'avvio, avvisa con un WARN. Vedi «Le passkey» sotto.
 - `TALITA_BOOTSTRAP_TEACHER`: l'indirizzo del primo maestro. Solo se non c'è nessun maestro, all'avvio
   l'app crea un invito per quell'indirizzo (senza mail): la persona entra da `/accedi`, trova «Accetta
   l'invito», scrive nome e cognome ed è maestro. L'invito vale 7 giorni, come ogni altro
@@ -109,6 +112,28 @@ TALITA_PRIVACY_CONTACT=nome@example.org
   e nei test; i valori veri arrivano con TALITA-9 (`docs/03-privacy.md`). Lo smoke test del jar prova che senza le variabili l'app non parte e che con
   le variabili l'informativa completa nomina il titolare. Un altro test (`./gradlew build -Prelease`) non lascia uscire un rilascio con i testi ancora
   di prova.
+
+## Le passkey e «Ricordami su questo telefono»
+
+Due modi di entrare senza chiedere un link ogni volta (TALITA-15, `docs/03-privacy.md`). **Nessuna variabile nuova**: i valori (tetto della sessione `talita.login.session-max-age`, finestra della conferma `talita.login.confirmation-validity`) hanno un default in `LoginSettings` e le durate dei dispositivi sono in `RetentionPolicy`; le passkey seguono `TALITA_PUBLIC_URL`.
+
+- **«Ricordami su questo telefono»** non ha bisogno di niente: un cookie e una riga nel database. Dura 30 giorni per i genitori e 7 per i maestri, dal giorno in cui si spunta la casella (`RetentionPolicy`); la sessione dura 2 ore senza uso e 12 ore al massimo (`talita.login.session-max-age`).
+- **L'`rpId` è il dominio di `TALITA_PUBLIC_URL`** (senza porta) e l'origine l'indirizzo intero. In sviluppo il profilo `dev` imposta `http://localhost:8081`: l'`rpId` è `localhost`, e i browser accettano le passkey su `localhost` anche senza HTTPS. In produzione serve HTTPS e il dominio definitivo (TALITA-8 e TALITA-9): finché non ci sono, **il dominio provvisorio non va in `TALITA_PUBLIC_URL` con utenti veri**.
+- **Cambiare dominio fa perdere le passkey.** Una passkey è legata al nome del sito per sempre: con un dominio nuovo il telefono non la offre più e il server non la accetta. Dopo il cambio **il titolare cancella tutte le passkey sul server**, altrimenti i maestri che ne hanno una non potrebbero confermare prima delle segnalazioni né toglierla dal profilo (la conferma si chiede a chi ne ha almeno una). Tutti entrano con il link, e le aggiungono di nuovo. Sul server, sul database di produzione (regola 1 di `CLAUDE.md`: mai in locale):
+
+  ```sql
+  delete from passkey;
+  update account set passkey_handle = null;
+  ```
+- **La passkey persa di un maestro.** Se un maestro perde il telefono e quella era l'unica passkey che aveva (solo su un dispositivo), non può toglierla dal profilo: «Togli» vuole una conferma con una passkey che ha già. Un altro maestro apre le segnalazioni nel frattempo, e il titolare la toglie sul server, dopo avere chiesto all'interessato (per telefono, di persona) quale indirizzo è il suo:
+
+  ```sql
+  delete from passkey where account_id = (select id from account where email = 'nome@example.org');
+  ```
+
+  Con quella tolta il maestro non ha più passkey, entra con il link e ne aggiunge una nuova dal telefono nuovo. Se la passkey era sincronizzata (portachiavi iCloud, Gestore delle password di Google) la ritrova sul telefono nuovo e non serve fare niente. Le righe di `passkey` non hanno nomi: l'indirizzo si risolve con la query sopra, e il titolare non copia mai niente fuori dal server.
+- **Provare le passkey in sviluppo**: con `./gradlew bootRun` si entra con il link (Mailpit, <http://localhost:8026>), si apre il profilo e si tocca «Aggiungi una passkey». Con Chromium si può usare l'autenticatore virtuale (DevTools, scheda «WebAuthn»: «Enable virtual authenticator environment», con trasporto interno, «Supports resident keys» e «Supports user verification»), con Safari e Firefox il portachiavi del PC. Una passkey fatta su `localhost` non vale in produzione.
+- **Test**: gli unitari parlano con l'app con un autenticatore fatto a mano (`SoftPasskey`: firma ed errori veri, senza browser). Gli e2e usano l'**autenticatore virtuale di Chromium** (CDP, `WebAuthn.addVirtualAuthenticator`), in un'app con la propria porta e `talita.public-url` su `localhost`: mai un telefono né una passkey vera, e nessun dato reale. Il telefono vero (iPhone con Safari, Android con Chrome), il computer con il telefono del QR e il dominio vero li prova Matteo prima del rilascio (`docs/03-privacy.md`, «Prima del rilascio»).
 
 ## Il job della conservazione dei dati
 

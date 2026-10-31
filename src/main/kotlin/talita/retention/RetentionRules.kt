@@ -5,6 +5,8 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
+import talita.account.Passkeys
+import talita.account.RememberedDevices
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
@@ -120,7 +122,12 @@ class InvitationsRule(private val policy: RetentionPolicy) : RetentionRule {
  */
 @Component
 @Order(50)
-class AccountsRule(private val policy: RetentionPolicy, private val healthNotes: HealthNotes) : RetentionRule {
+class AccountsRule(
+    private val policy: RetentionPolicy,
+    private val healthNotes: HealthNotes,
+    private val devices: RememberedDevices,
+    private val passkeys: Passkeys,
+) : RetentionRule {
 
     override val name: String = "accounts"
 
@@ -134,8 +141,17 @@ class AccountsRule(private val policy: RetentionPolicy, private val healthNotes:
         val candidates = tx.select(ACCOUNT.ID, ACCOUNT.CREATED_ON).from(ACCOUNT).where(empty()).fetch()
             .filter { !policy.emptyAccountDeletionDate(it[ACCOUNT.CREATED_ON]!!).isAfter(context.today) }.map { it[ACCOUNT.ID]!! }
         if (candidates.isEmpty()) return listOf(Deleted("accounts", 0))
-        // The conditions are asked again in the statement that deletes: an account that got a child in the meantime is not deleted.
-        return listOf(Deleted("accounts", tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).and(empty()).execute()))
+        // The candidates are locked first, in the order of their ids: a registration, a child or a teacher row that is written for one of them takes a lock on its row of `account` (the foreign
+        // key: `FOR KEY SHARE`), which a `FOR UPDATE` waits for, and which makes a registration that comes after wait for this transaction. Then «still empty» is asked again in a statement of its own, that
+        // sees what was committed while the lock was waited for: an account that got a child in the meantime is not touched at all, and keeps its devices and its passkeys.
+        tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).orderBy(ACCOUNT.ID).forUpdate().fetch()
+        val stillEmpty = tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).and(empty()).fetch(ACCOUNT.ID).map { it!! }
+        if (stillEmpty.isEmpty()) return listOf(Deleted("accounts", 0))
+        // The devices and the passkeys of an empty account go with it, in the same transaction (TALITA-15, criterion 31): the keys to `account` have no cascade. Only the accounts that are deleted.
+        devices.removeOfAccounts(tx, stillEmpty)
+        passkeys.removeOfAccounts(tx, stillEmpty)
+        // The conditions are asked once more in the statement that deletes (the lock is held: nothing can have been written for these accounts since).
+        return listOf(Deleted("accounts", tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.`in`(stillEmpty)).and(empty()).execute()))
     }
 }
 
@@ -154,6 +170,46 @@ class RedoRequestsRule(private val erasures: ErasureService) : RetentionRule {
 
     override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
         for (line in erasures.redo(tx, context.now)) log.info("Retention: rule {} deleted {} rows.", line.rule, line.rows)
+        return emptyList()
+    }
+}
+
+/**
+ * The devices of «Ricordami su questo telefono» that are past their day (TALITA-15, criterion 32): the day they were made plus the length of the role of the person today (30 days for a
+ * parent, 7 for a teacher). The register of the deletions does not hear of it (it is not personal data that is being deleted but a session that has ended, as for the numbers that expire
+ * below): the log says how many.
+ */
+@Component
+@Order(55)
+class DevicesRule(private val devices: RememberedDevices) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(DevicesRule::class.java)
+
+    override val name: String = "devices"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val rows = devices.removeExpired(tx, context.today)
+        if (rows > 0) log.info("Retention: rule {} deleted {} rows.", name, rows)
+        return emptyList()
+    }
+}
+
+/**
+ * The moment of the last re-entry with the cookie of a device and the hash of the value before it (`rotated_at` and `previous_hash`, TALITA-15), emptied every night in the rows whose margin of 60
+ * seconds is over. They only exist for the margin (two tabs that the phone reopens together), and `rotated_at` is in fact the moment of the last use of the device: the minimization does not keep
+ * it a night longer than that. Nothing is deleted and the register of the deletions does not hear of it; the log says how many rows were emptied.
+ */
+@Component
+@Order(56)
+class DeviceRotationsRule(private val devices: RememberedDevices) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(DeviceRotationsRule::class.java)
+
+    override val name: String = "device-rotations"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val rows = devices.clearRotations(tx, context.now)
+        if (rows > 0) log.info("Retention: rule {} emptied {} rows.", name, rows)
         return emptyList()
     }
 }

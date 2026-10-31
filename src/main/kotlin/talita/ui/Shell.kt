@@ -20,6 +20,8 @@ class Shell(
     val noindex: Boolean = false,
     /** The page needs more width than the others (`max-w-5xl` and not `max-w-3xl`): the tables that are printed (design guide 2.6). */
     val wide: Boolean = false,
+    /** This site can use passkeys (there is a public address, TALITA-15): the pages load `passkeys.js`, which does nothing where the markup is not. */
+    val passkeys: Boolean = false,
 ) {
     val isSignedIn: Boolean get() = profile != null
 

@@ -75,9 +75,9 @@ class ReminderSchemaTests(
         assertNull(kit.codeOf(person.id))
         // An account that was there before the migration has nothing in them, and the others are not touched: only these three columns were added to account.
         assertEquals(
-            setOf("id", "email", "created_on", "notice_consent_at", "reminders_off_at", "reminder_code"),
+            setOf("id", "email", "created_on", "notice_consent_at", "reminders_off_at", "reminder_code", "session_generation", "passkey_handle"),
             columns.keys,
-            "no other datum about a person was added to the account",
+            "no other datum about a person was added to the account (the two of TALITA-15: a number of the sessions and the handle of the passkeys)",
         )
     }
 
