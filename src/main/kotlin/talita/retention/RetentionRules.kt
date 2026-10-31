@@ -141,12 +141,17 @@ class AccountsRule(
         val candidates = tx.select(ACCOUNT.ID, ACCOUNT.CREATED_ON).from(ACCOUNT).where(empty()).fetch()
             .filter { !policy.emptyAccountDeletionDate(it[ACCOUNT.CREATED_ON]!!).isAfter(context.today) }.map { it[ACCOUNT.ID]!! }
         if (candidates.isEmpty()) return listOf(Deleted("accounts", 0))
-        // The devices and the passkeys of an empty account go with it, in the same transaction (TALITA-15, criterion 31): the keys to `account` have no cascade. An account that is not deleted
-        // after all (it got a child in the meantime) only loses its access, which costs a link.
-        devices.removeOfAccounts(tx, candidates)
-        passkeys.removeOfAccounts(tx, candidates)
-        // The conditions are asked again in the statement that deletes: an account that got a child in the meantime is not deleted.
-        return listOf(Deleted("accounts", tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).and(empty()).execute()))
+        // The candidates are locked first, in the order of their ids: a registration, a child or a teacher row that is written for one of them takes a lock on its row of `account` (the foreign
+        // key: `FOR KEY SHARE`), which a `FOR UPDATE` waits for, and which makes a registration that comes after wait for this transaction. Then «still empty» is asked again in a statement of its own, that
+        // sees what was committed while the lock was waited for: an account that got a child in the meantime is not touched at all, and keeps its devices and its passkeys.
+        tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).orderBy(ACCOUNT.ID).forUpdate().fetch()
+        val stillEmpty = tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.`in`(candidates)).and(empty()).fetch(ACCOUNT.ID).map { it!! }
+        if (stillEmpty.isEmpty()) return listOf(Deleted("accounts", 0))
+        // The devices and the passkeys of an empty account go with it, in the same transaction (TALITA-15, criterion 31): the keys to `account` have no cascade. Only the accounts that are deleted.
+        devices.removeOfAccounts(tx, stillEmpty)
+        passkeys.removeOfAccounts(tx, stillEmpty)
+        // The conditions are asked once more in the statement that deletes (the lock is held: nothing can have been written for these accounts since).
+        return listOf(Deleted("accounts", tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.`in`(stillEmpty)).and(empty()).execute()))
     }
 }
 

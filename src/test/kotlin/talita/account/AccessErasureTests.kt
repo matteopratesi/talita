@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Import
 import talita.TestcontainersConfiguration
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
+import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.PASSKEY
 import talita.jooq.tables.references.REMEMBERED_DEVICE
 import talita.jooq.tables.references.RETENTION_LOG
@@ -28,6 +29,7 @@ import talita.retention.ErasureService
 import talita.retention.RetentionJob
 import talita.retention.RetentionLog
 import talita.retention.RetentionPolicy
+import talita.retention.RetentionReport
 import talita.retention.RetentionTestKit
 import talita.teacher.Teachers
 import java.time.Clock
@@ -237,13 +239,20 @@ class AccessErasureTests(
     }
 
     /**
-     * Waits until the database says that a transaction is waiting for a lock, and only then returns: a task that has not started yet is not blocked, and one that has finished never was, so letting
+     * Waits until the database says that the task is waiting for a lock that [holder] holds, and only then returns: a task that has not started yet is not blocked, and one that has finished never was, so letting
      * the lock go after that would not test the case that the test says. Nothing here depends on how long the task takes to start: the database is asked every 20 ms, for 30 seconds at most.
      * [what] is what the test says should happen. It is the helper of `RoomServiceTests`, copied here on purpose (TALITA-16 makes it common).
      */
-    private fun awaitBlocked(task: java.util.concurrent.Future<*>, what: String) {
+    private fun awaitBlocked(task: java.util.concurrent.Future<*>, what: String, holder: Int, query: String) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
-        while (dsl.fetch("select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
+        // It is the waiter that the test means: a backend that waits for a lock **held by [holder]** (the transaction that the test keeps open: `pg_blocking_pids`) with a statement that is the one of
+        // the task ([query] is a piece of its text), and not any backend that waits for any lock.
+        while (dsl.fetch(
+                "select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active' " +
+                    "and ? = any(pg_blocking_pids(pid)) and query ilike ?",
+                holder, "%$query%",
+            ).isEmpty()
+        ) {
             if (task.isDone) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but it has finished (isDone = true, ${runCatching { task.get() }.fold({ "result $it" }, { "failed with ${it.cause ?: it}" })}) and was never blocked")
             if (System.nanoTime() > deadline) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but no transaction waits for a lock after 30 seconds (isDone = ${task.isDone})")
             Thread.sleep(20)
@@ -280,17 +289,21 @@ class AccessErasureTests(
             val locked = CountDownLatch(1)
             val release = CountDownLatch(1)
             // The erasure is in its transaction: it has the account locked, and it commits when the test says.
+            val holder = java.util.concurrent.atomic.AtomicInteger()
             val erasure = pool.submit {
                 dsl.transaction { configuration ->
-                    service("2027-10-05T10:00").eraseAccountIn(DSL.using(configuration), teacher, kit.moment("2027-10-05T10:00"), RetentionLog.ACCOUNT_REQUEST)
+                    val tx = DSL.using(configuration)
+                    service("2027-10-05T10:00").eraseAccountIn(tx, teacher, kit.moment("2027-10-05T10:00"), RetentionLog.ACCOUNT_REQUEST)
+                    holder.set(tx.fetchOne("select pg_backend_pid()")!!.get(0, Int::class.java))
                     locked.countDown()
                     release.await(30, TimeUnit.SECONDS)
                 }
             }
             assertTrue(locked.await(10, TimeUnit.SECONDS))
             val registration = pool.submit<Boolean> { store.addChecked(teacher, record(), ByteArray(64) { 7 }, started) }
-            // Committing before the registration is really blocked on the lock of the account would let it find the account already erased, and the case that this test is about would not happen.
-            awaitBlocked(registration, "the registration should wait for the account that the erasure holds")
+            // Committing before the registration is really blocked on the lock of the account would let it find the account already erased, and the case that this test is about would not happen:
+            // the waiter is the registration (its statement reads the handle of the account `for update`), and what it waits for is the transaction of the erasure.
+            awaitBlocked(registration, "the registration should wait for the account that the erasure holds", holder.get(), "passkey_handle")
             release.countDown()
             erasure.get(10, TimeUnit.SECONDS)
 
@@ -339,6 +352,44 @@ class AccessErasureTests(
         assertEquals(1, devices(withChild), "an account that is not empty keeps its access")
         assertEquals(1, passkeys(withChild))
         assertEquals(1, report.deleted.single { it.rule == "accounts" }.rows)
+    }
+
+    @Test
+    fun `t15 c31 an empty account that gets a child while the job runs is not deleted, and keeps its devices and its passkeys`() {
+        val empty = kit.account("vuoto", bornOn = LocalDate.of(2027, 9, 1))
+        device(empty, "2027-10-01"); passkey(empty)
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val holder = java.util.concurrent.atomic.AtomicInteger()
+            val inserted = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            // A registration that has written a child for the account and has not committed yet: it holds the lock that a foreign key takes on the row of the account.
+            val registering = pool.submit {
+                dsl.transaction { configuration ->
+                    val tx = DSL.using(configuration)
+                    tx.insertInto(CHILD).set(CHILD.ACCOUNT_ID, empty).set(CHILD.FIRST_NAME, "Luca").set(CHILD.LAST_NAME, "Rossi").set(CHILD.BIRTH_DATE, LocalDate.of(2016, 4, 4)).execute()
+                    holder.set(tx.fetchOne("select pg_backend_pid()")!!.get(0, Int::class.java))
+                    inserted.countDown()
+                    release.await(30, TimeUnit.SECONDS)
+                }
+            }
+            assertTrue(inserted.await(10, TimeUnit.SECONDS))
+            // The job looks at the accounts: the account is empty for it (the child is not committed), it is a candidate, and the rule has to lock it before it touches anything.
+            val run = pool.submit<RetentionReport> { job.run(kit.clockAt("2027-10-05T04:15")) }
+            awaitBlocked(run, "the rule of the accounts should wait for the registration that holds the account", holder.get(), "for update")
+            release.countDown()
+            registering.get(10, TimeUnit.SECONDS)
+
+            val report = run.get(30, TimeUnit.SECONDS)
+            assertEquals(emptyList(), report.failed, "no rule failed: the account is not deleted, and nothing goes back")
+            assertEquals(0, report.deleted.filter { it.rule == "accounts" }.sumOf { it.rows })
+        } finally {
+            pool.shutdownNow()
+        }
+        assertTrue(kit.accountExists(empty), "the account got a child: it is not empty any more")
+        assertEquals(1, dsl.fetchCount(CHILD, CHILD.ACCOUNT_ID.eq(empty)))
+        assertEquals(1, devices(empty), "and it keeps its device")
+        assertEquals(1, passkeys(empty), "and its passkey")
     }
 
     // ---- The devices that expire (criterion 32) ------------------------------------------------------------------------------------------
