@@ -296,7 +296,8 @@ class ErasureService(
         rows += removeFromRooms(tx, classified.fates.filter { !it.goes }.map { it.registrationId })
         // The devices and the passkeys of the account go at once, whatever stays and whatever the request spares (TALITA-15, criteria 29, 30): they are the access of the person, and a
         // person who asks to be deleted, or whose request is made again after a restore, enters again with a link. The keys to `account` have no cascade, so this comes before the `delete`.
-        rows += devices.removeOfAccount(tx, accountId) + passkeys.removeOfAccount(tx, accountId)
+        val accessRows = devices.removeOfAccount(tx, accountId) + passkeys.removeOfAccount(tx, accountId)
+        rows += accessRows
         // What stays loses the link with the account (the acceptance, with the address copied into it, stays).
         tx.update(REGISTRATION).set(REGISTRATION.ACCOUNT_ID, null as Long?).where(REGISTRATION.ACCOUNT_ID.eq(accountId)).and(upToRequest(REGISTRATION.CREATED_AT)).execute()
         for (child in tx.select(CHILD.ID).from(CHILD).where(CHILD.ACCOUNT_ID.eq(accountId)).orderBy(CHILD.ID).forUpdate().fetch(CHILD.ID).map { it!! }) {
@@ -320,8 +321,9 @@ class ErasureService(
             rows += tx.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).execute()
         } else {
             // The account stays with the address alone (for the register of the readings): every other session of it ends at its next request, which closes the case that TALITA-7 left open, and
-            // the handle that the phones sent back with a passkey is not needed any more.
-            accounts.raiseSessionGeneration(tx, accountId)
+            // the handle that the phones sent back with a passkey is not needed any more. **Only in the request itself, or in a redo that took some access away**: the job makes the request
+            // again every night for 37 days, and a person who came back after it (to register a child) must not be signed out every night at 4:15 for that long.
+            if (since == null || accessRows > 0) accounts.raiseSessionGeneration(tx, accountId)
             passkeys.clearHandle(tx, accountId)
         }
         // A request that finds nothing to change (an account that only stays for the readings, asked again after a restore) leaves nothing in the register.

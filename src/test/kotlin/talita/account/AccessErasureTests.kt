@@ -174,6 +174,47 @@ class AccessErasureTests(
         assertNull(handleOf(teacher))
     }
 
+    @Test
+    fun `t15 c30 a person who came back after the request, with no new device or passkey, is not signed out by the job that makes the request again, night after night`() {
+        val gathering = kit.september2027()
+        val teacher = kit.teacher("maestro-m")
+        kit.teacher("maestro-n")
+        val child = kit.registration(gathering, kit.account("genitore-a"), notes = notes)
+        kit.reading(child, teacher)
+        device(teacher); handle(teacher)
+        service("2027-10-05T10:00").eraseAccount(teacher)
+        // After the request the person came back with a link and registered a child of their own: the account stays with that, and the register still has the request for 37 days.
+        kit.rows.register(gathering, teacher, "Luca", "Verdi", at = kit.moment("2027-10-06T09:00"))
+        val afterTheRequest = generation(teacher)
+
+        job.run(kit.clockAt("2027-10-07T04:15"))
+        job.run(kit.clockAt("2027-10-08T04:15"))
+
+        assertTrue(kit.accountExists(teacher))
+        assertEquals(afterTheRequest, generation(teacher), "the sessions that the person opened after the request stay: nothing was taken away, so there is nothing to close")
+        assertEquals(emptyList(), kit.log().filter { it.first == "account-redo" }, "and the redo has nothing to write")
+    }
+
+    @Test
+    fun `t15 c30 a person who came back after the request and has a device that was born after it is signed out once, by the first night that takes the device away, and not by the nights after`() {
+        val gathering = kit.september2027()
+        val teacher = kit.teacher("maestro-m")
+        kit.teacher("maestro-n")
+        val child = kit.registration(gathering, kit.account("genitore-a"), notes = notes)
+        kit.reading(child, teacher)
+        service("2027-10-05T10:00").eraseAccount(teacher)
+        kit.rows.register(gathering, teacher, "Luca", "Verdi", at = kit.moment("2027-10-06T09:00"))
+        device(teacher, "2027-10-06")
+        val afterTheRequest = generation(teacher)
+
+        job.run(kit.clockAt("2027-10-07T04:15"))
+
+        assertEquals(0, devices(teacher), "the device that was born after the request goes, as criterion 30 says")
+        assertEquals(afterTheRequest + 1, generation(teacher), "and the number of the sessions grows, because an access was taken away")
+        job.run(kit.clockAt("2027-10-08T04:15"))
+        assertEquals(afterTheRequest + 1, generation(teacher), "the next night has nothing to take away: the sessions are not closed again")
+    }
+
     // ---- The accounts that stay empty (criterion 31) ----------------------------------------------------------------------------------
 
     @Test

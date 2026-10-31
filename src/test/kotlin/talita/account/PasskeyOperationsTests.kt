@@ -167,6 +167,50 @@ class PasskeyOperationsTests(
         assertFalse(optionsFirst.user.id == optionsSecond.user.id)
     }
 
+    /** A clock of this test alone, which the test moves by hand: the clock of the application is shared by every test, and a test that moves it makes the others (the cleanup of the links) fail. */
+    private class Stepping(var now: java.time.Instant) : java.time.Clock() {
+        override fun getZone(): java.time.ZoneId = java.time.ZoneOffset.UTC
+
+        override fun withZone(zone: java.time.ZoneId): java.time.Clock = this
+
+        override fun instant(): java.time.Instant = now
+    }
+
+    @Test
+    fun `t15 c21 D2 the handle that was given to a phone lives as long as the newest options that carry it, so a registration that answers late still succeeds`() {
+        val at = Stepping(java.time.Instant.parse("2027-10-05T10:00:00Z"))
+        val own = PasskeyOperations(support, passkeys, at)
+        val account = account()
+        val options = { own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(account))) }
+
+        // At T the options are asked and the phone is cancelled; at T+4:30 they are asked again (another tap, the same session) and the phone answers at T+5:30: the first handle would be
+        // gone at T+5:00, but the options that the phone answers were made at T+4:30 and are good until T+9:30.
+        options()
+        at.now = at.now.plus(Duration.ofMinutes(4).plusSeconds(30))
+        val latest = options()
+        at.now = at.now.plus(Duration.ofMinutes(1))
+
+        own.registerCredential(ImmutableRelyingPartyRegistrationRequest(latest, RelyingPartyPublicKey(phone().create(latest), "")))
+
+        assertContentEquals(latest.user.id.bytes, passkeys.handleOf(account))
+        assertEquals(1, passkeys.count(account))
+    }
+
+    @Test
+    fun `t15 c21 D2 a handle that was given and not used is not good after its five minutes`() {
+        val at = Stepping(java.time.Instant.parse("2027-10-05T10:00:00Z"))
+        val own = PasskeyOperations(support, passkeys, at)
+        val account = account()
+        val options = own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(account)))
+        at.now = at.now.plus(Duration.ofMinutes(5).plusSeconds(1))
+
+        assertFailsWith<PasskeyRefusedException> {
+            own.registerCredential(ImmutableRelyingPartyRegistrationRequest(options, RelyingPartyPublicKey(phone().create(options), "")))
+        }
+
+        assertNull(passkeys.handleOf(account), "nothing was saved")
+    }
+
     // ---- The registration (criteria 20, 21) --------------------------------------------------------------------------------------------
 
     @Test

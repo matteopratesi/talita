@@ -93,7 +93,8 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
     private fun pendingFor(accountId: Long): Bytes {
         val now = clock.instant()
         pending.values.removeIf { !now.isBefore(it.at.plus(PENDING_HANDLE_VALIDITY)) }
-        return pending.compute(accountId) { _, held -> held ?: PendingHandle(accountId, Bytes(passkeys.newHandle()), now) }!!.handle
+        // The same handle for every tab, and it lives as long as the newest options that carry it: the time is renewed at every reuse.
+        return pending.compute(accountId) { _, held -> PendingHandle(accountId, held?.handle ?: Bytes(passkeys.newHandle()), now) }!!.handle
     }
 
     private fun accountOfPending(handle: Bytes): Long? {
