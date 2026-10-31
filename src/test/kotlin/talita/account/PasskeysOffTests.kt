@@ -48,6 +48,9 @@ class PasskeysOffTests(
         assertTrue(page.contains("Cookie e accesso"))
         assertTrue(page.contains("«Ricordami su questo telefono» non è obbligatorio: il link funziona sempre."))
         assertTrue(page.contains("Di chi sceglie «Ricordami su questo telefono»: il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo."))
+        // The hour of the last re-entry is kept only for the two tabs and goes the night after: the line of the data and the row of the times say it (without passkeys the line speaks of «rientra»).
+        assertTrue(page.contains("Quando rientra senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non lo scolleghino, e la cancelliamo la notte dopo."))
+        assertTrue(page.contains("Talità li cancella da sola, ogni notte, quando scadono. L’ora dell’ultimo rientro senza link si cancella la notte dopo."))
         assertTrue(page.contains("I dispositivi collegati li vedi solo tu, nel tuo profilo."))
         assertTrue(page.contains("Sempre dal «Profilo» togli i dispositivi collegati."))
         assertTrue(page.contains("Dispositivi collegati («Ricordami su questo telefono»)"))
