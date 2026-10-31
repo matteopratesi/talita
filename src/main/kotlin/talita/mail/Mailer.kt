@@ -51,8 +51,11 @@ enum class MailResult {
  * What happens when the limit passes, or when the server stops answering: the mails that left are SENT, the ones that did not leave are FAILED **at once**, each without
  * waiting for its own 10 seconds, and the caller goes on. The sending runs in a thread of its own that the caller stops waiting for. **When the 15 seconds are over, no new mail
  * starts (the thread looks before each one); the mail that is in progress at that moment still arrives, if the server takes it, but it is not counted**: it is FAILED for the
- * caller, so the page and the register can say one mail less than the server took (a decision of Matteo, docs/05, «Parte 5»). The thread closes the connection when the step that it
- * was in ends, at most one timeout later. A server that answers «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the
+ * caller, so the page and the register can say one mail less than the server took (a decision of Matteo, docs/05, «Parte 5»). **Two effects, accepted by Matteo** (CodeRabbit, PR 14,
+ * comment 4431895585): the caller goes on, so the caller lets go of its lock and this class gives back the place of every mail that is not SENT, the one in progress too. (1) The day count
+ * can say one mail less than the server took. (2) If no mail was counted (nothing in the register, so no wait of 7 days), a teacher who sends again before the thread has closed, at
+ * most one timeout later, can send the same reminder a second time to the person whose mail was in progress. The thread closes the connection when the step that it was in ends, at most
+ * one timeout later. A server that answers «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the
  * others go on in the same connection.
  *
  * The log never carries the address of the recipient, the text or a link: a failure is logged with
@@ -123,7 +126,8 @@ class Mailer(
     /**
      * Sends [built] in one connection, in a thread of its own, and waits for it at most [LIST_LIMIT]. [results] and [reasons] are written by that thread only while the caller is still
      * waiting (under [gate]): when the limit passes, what has not been written stays FAILED, and what the thread does after that is not counted (the mail that was in progress may
-     * still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more), so the numbers that the caller gives are those of the moment when it gave up.
+     * still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more; the place of that mail in the day count is given back, and the lock of the caller is let go: see the class), so the numbers that the caller gives
+     * are those of the moment when it gave up.
      */
     private fun deliver(sender: JavaMailSender, built: List<Pair<Int, MimeMessage>>, results: MutableList<MailResult>, reasons: MutableSet<String>) {
         val gate = Any()
