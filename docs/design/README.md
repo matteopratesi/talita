@@ -20,6 +20,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-12/` sono i mockup del menù della convivenza (TALITA-12, Grace Kerning): 9 pagine statiche più l'indice (`index.html`), con dati sintetici e senza risorse esterne né script: la scheda «Menù» del dettaglio (senza file, con il file, dialogo «Togli»), la pagina per caricare e sostituire (in attesa, errore di tipo, errore di dimensione) e «Menù» in Arrivi. Dove il mockup e il testo del ticket non vanno d'accordo, vale il testo. Il campo per il file, la scheda con un file e il dialogo sono in 4.2, 4.4 e 4.8.
 
+`docs/design/TALITA-16/` sono i mockup degli aiuti e dell'errore del nome sotto i quattro testi pubblici della convivenza (TALITA-16, Grace Kerning): 7 pagine statiche più l'indice (`index.html`) e `talita-16.css`, con dati sintetici e senza risorse esterne né script; partono da quelle di TALITA-4 e cambiano solo aiuti ed errori.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -1802,7 +1804,12 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 
 - **«Promemoria» e «avviso»**: due parole per due cose. Il promemoria «in forse» invita a **confermare** («Conferma l’iscrizione», «Ci penso ancora un po’»), mai a ritirare (decisione di Matteo, commento 10950); l'avviso dice che le iscrizioni di una nuova convivenza sono aperte. Per fermarli si dice «smettere» (non «annullare» né «disiscriversi»): «Non mandarmi più promemoria» è il testo del bottone e quello che le mail ripetono.
 - **Attesa e invii**: «Potrai rimandarlo dal 21 giugno 2027 alle 21:30.», «Promemoria mandato a 3 persone.», «Mandato a 2 persone su 3: per una la mail non è partita.», «Oggi si possono mandare ancora 12 promemoria, ma questo ne richiede 30. Riprova domani.» (la quota è una finestra di 24 ore, ma si dice «domani», come per i link di accesso) e «Nessuno da avvisare: …» con il perché. Un conteggio che è zero dice «Nessuno», non «0».
-- **Le mail** (una voce nuova): solo testo, «Ciao,», frasi corte, il tu, una riga che dice perché la si riceve e il modo per smettere con le parole del bottone, «Questa mail è automatica: non risponderle. Se hai bisogno di aiuto, scrivi a chi organizza la convivenza.» e la firma «Talità». Mai nomi o dati dei bambini, **nemmeno quanti sono**: «c’è almeno un’iscrizione in forse». Mai forme accordate al sesso. Il testo è nel codice (`ReminderMails`) e non lo scrivono i maestri; dalla convivenza vengono solo il titolo e le date.
+- **Le mail** (una voce nuova): solo testo, «Ciao,», frasi corte, il tu, una riga che dice perché la si riceve e il modo per smettere con le parole del bottone, «Questa mail è automatica: non risponderle. Se hai bisogno di aiuto, scrivi a chi organizza la convivenza.» e la firma «Talità». Mai nomi o dati dei bambini, **nemmeno quanti sono**: «c’è almeno un’iscrizione in forse». Mai forme accordate al sesso. Il testo è nel codice (`ReminderMails`) e non lo scrivono i maestri; dalla convivenza vengono solo il titolo e le date. **Il titolo non ha mai un articolo davanti** (TALITA-16): è quello che hanno scritto i maestri, e «alla Campo estivo» non è italiano. Va fra virgolette basse, dopo «per», che funziona con ogni titolo: «Iscrizione in forse per «Campo estivo»» e «Iscrizioni aperte per «Campo estivo»» negli oggetti, «c’è almeno un’iscrizione in forse per «Campo estivo» (…)» e «ora sono aperte le iscrizioni per «Campo estivo» (…)» nel testo.
+
+### Testi pubblici (TALITA-16)
+
+- **Gli aiuti** sotto i quattro testi che legge chiunque abbia il link (titolo, luogo, informazioni, cosa portare) dicono dove compare il testo e finiscono sempre con «Non scrivere nome e cognome di bambini o maestri, numeri di telefono né email.». Sono costanti (`PublicText`), uguali in ogni pagina in cui il campo compare. «Serve per aprire le iscrizioni» non sta sotto «Luogo»: lo dice il dettaglio della convivenza.
+- **Il nome** si scrive «nome e cognome di bambini o maestri» o «di una persona», mai «nomi» in generale: il solo nome passa. L'errore non ripete il nome e non dice se è un bambino o un maestro: «Qui ci sono nome e cognome di una persona. Toglili: la pagina la legge chiunque abbia il link.». Con email, telefono o IBAN la frase li elenca tutti, il nome per primo, sempre al plurale.
 
 ## 7. Accessibilità: controlli prima della PR
 
