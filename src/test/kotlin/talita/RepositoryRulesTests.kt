@@ -158,6 +158,7 @@ class RepositoryRulesTests {
         "src/test/kotlin/talita/LockWait.kt" to waits(1, Why.POLL),
         "src/test/kotlin/talita/mail/Mailbox.kt" to waits(1, Why.POLL),
         "src/e2eTest/kotlin/talita/e2e/ShellPages.kt" to waits(1, Why.POLL),
+        "src/test/kotlin/talita/mail/FakeSmtpServer.kt" to waits(1, Why.SLOW_SERVER),
         "src/e2eTest/kotlin/talita/e2e/MenuSlowUploadE2eTest.kt" to waits(1, Why.SLOW_SERVER),
         "src/e2eTest/kotlin/talita/e2e/LoadingStateE2eTest.kt" to waits(5, Why.NOTHING_HAPPENS, Why.SLOW_SERVER),
         "src/e2eTest/kotlin/talita/e2e/MessagesE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
