@@ -79,11 +79,12 @@ class PasskeyLimitException : RuntimeException("the account has the most passkey
  * The confirmation before the notes on health ([PasskeyConfirmations]) uses the same verification, with options of its own ([confirmationOptions]).
  */
 @Component
-class PasskeyOperations(private val support: PasskeySupport, private val passkeys: Passkeys, private val clock: java.time.Clock) : WebAuthnRelyingPartyOperations {
+class PasskeyOperations(private val support: PasskeySupport, private val passkeys: Passkeys, private val clock: java.time.Clock, private val settings: LoginSettings) : WebAuthnRelyingPartyOperations {
 
     /**
      * The handle that the options of a registration give to the phone when the account has none yet (it has no passkey: the handle is saved with the first one, [Passkeys.addChecked]). It is kept in
-     * memory, **one per account and for five minutes**: the second request of the same account (another tab) gets the same, so that the registration of the first is not refused; a phone that
+     * memory, **one per account and for as long as the options that carry it** (`talita.login.confirmation-challenge-validity`, five minutes, the same setting that the repositories of the held options
+     * use, so that the two cannot diverge; the time is renewed at every request of options): the second request of the same account (another tab) gets the same, so that the registration of the first is not refused; a phone that
      * cancels leaves it to expire, and nothing is written. It is looked up by the handle that the held options carry, which only the application and that phone know.
      */
     private class PendingHandle(val accountId: Long, val handle: Bytes, val at: java.time.Instant)
@@ -92,14 +93,24 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
 
     private fun pendingFor(accountId: Long): Bytes {
         val now = clock.instant()
-        pending.values.removeIf { !now.isBefore(it.at.plus(PENDING_HANDLE_VALIDITY)) }
+        pending.values.removeIf { !now.isBefore(it.at.plus(settings.confirmationChallengeValidity)) }
         // The same handle for every tab, and it lives as long as the newest options that carry it: the time is renewed at every reuse.
         return pending.compute(accountId) { _, held -> PendingHandle(accountId, held?.handle ?: Bytes(passkeys.newHandle()), now) }!!.handle
     }
 
     private fun accountOfPending(handle: Bytes): Long? {
         val now = clock.instant()
-        return pending.values.firstOrNull { it.handle == handle && now.isBefore(it.at.plus(PENDING_HANDLE_VALIDITY)) }?.accountId
+        return pending.values.firstOrNull { it.handle == handle && now.isBefore(it.at.plus(settings.confirmationChallengeValidity)) }?.accountId
+    }
+
+    /**
+     * The number of the sessions that a registration started with: the one of the session that makes the request (the guard let it in with that number, so the window that this closes includes the
+     * time between the guard and here), or, when there is no request (a test of the operations alone), the one of the account now.
+     */
+    private fun generationOfRegistration(accountId: Long): Int {
+        val request = (org.springframework.web.context.request.RequestContextHolder.getRequestAttributes() as? org.springframework.web.context.request.ServletRequestAttributes)?.request
+        val ofSession = (request?.getSession(false)?.getAttribute(SessionOrigins.KEY) as? SessionOrigin)?.takeIf { it.accountId == accountId }?.generation
+        return ofSession ?: passkeys.generationOf(accountId) ?: throw PasskeyRefusedException("the account is gone")
     }
 
     private val manager = WebAuthnManager.createNonStrictWebAuthnManager()
@@ -147,6 +158,8 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
         val credentialId = credential.rawId
         if (passkeys.findByCredentialId(credentialId) != null) throw PasskeyRefusedException("the credential exists already")
         val accountId = passkeys.accountOfHandle(options.user.id.bytes) ?: accountOfPending(options.user.id) ?: throw PasskeyRefusedException("the handle belongs to nobody")
+        // The number of the sessions that this registration started with, before anything slow: it is checked again under the lock of the account, when the passkey is saved.
+        val generation = generationOfRegistration(accountId)
 
         val serverProperty = ServerProperty(origins(), options.rp.id, DefaultChallenge(options.challenge.bytes))
         val transports = response.transports?.map { it.value }?.toSet()
@@ -176,7 +189,7 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
             .label("")
             .build()
         val saved = try {
-            passkeys.addChecked(accountId, record, options.user.id.bytes)
+            passkeys.addChecked(accountId, record, options.user.id.bytes, generation)
         } catch (e: IllegalArgumentException) {
             throw PasskeyRefusedException("the account has another handle", e)
         }
@@ -264,9 +277,6 @@ class PasskeyOperations(private val support: PasskeySupport, private val passkey
     companion object {
         /** What the phone shows in its list of passkeys, for every account: the name of the app, never the address (decision of Matteo, question 4). */
         const val PHONE_NAME = "Talità"
-
-        /** How long the handle of a first registration that is not finished is kept in memory (the time of the options: five minutes). */
-        private val PENDING_HANDLE_VALIDITY: Duration = Duration.ofMinutes(5)
     }
 }
 

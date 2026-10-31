@@ -84,15 +84,26 @@ class Passkeys(private val dsl: DSLContext, private val clock: Clock) : UserCred
         return dsl.deleteFrom(PASSKEY).where(PASSKEY.CREDENTIAL_ID.eq(id)).and(PASSKEY.ACCOUNT_ID.eq(accountId)).execute() > 0
     }
 
+    /** The number of the sessions of [accountId] now (it only grows: [Accounts.sessionGeneration]), or null if the account is gone. */
+    fun generationOf(accountId: Long): Int? = dsl.select(ACCOUNT.SESSION_GENERATION).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.SESSION_GENERATION)
+
     /**
      * Adds the passkey, unless the account has [MAX_PER_ACCOUNT] already (checked under the lock of the account, so two phones that add together do not make an eleventh). Returns whether it
      * was added. **The handle is saved here, with the first passkey, and not when the options were asked** (a person who cancels on the phone leaves nothing): [handle] is the one that the options
      * gave to the phone. If the account has one already it must be the same, else two phones that made their first passkey together had two handles, and the second is refused (it asks again and
      * gets the one that was saved).
+     *
+     * **[generation] is the number of the sessions that the registration started with, and it is checked under the lock.** The registration finds its account, verifies what the phone made and
+     * only then waits for the lock; if in the meantime the account was erased (for the register of the readings it stays, with the address alone: the number of the sessions grew, the passkeys
+     * went and the handle was emptied) the passkey must not be saved: it would give access again to an account that the person asked to delete. A different number, or an account that is not there,
+     * refuses the registration ([PasskeyRefusedException]) and saves nothing.
      */
-    fun addChecked(accountId: Long, record: CredentialRecord, handle: ByteArray): Boolean = dsl.transactionResult { configuration ->
+    fun addChecked(accountId: Long, record: CredentialRecord, handle: ByteArray, generation: Int): Boolean = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
-        val stored = tx.select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).forUpdate().fetchOne(ACCOUNT.PASSKEY_HANDLE)
+        val account = tx.select(ACCOUNT.PASSKEY_HANDLE, ACCOUNT.SESSION_GENERATION).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).forUpdate().fetchOne()
+            ?: throw PasskeyRefusedException("the account is gone")
+        if (account[ACCOUNT.SESSION_GENERATION] != generation) throw PasskeyRefusedException("the sessions of the account were closed while the passkey was made")
+        val stored = account[ACCOUNT.PASSKEY_HANDLE]
         if (tx.fetchCount(PASSKEY, PASSKEY.ACCOUNT_ID.eq(accountId)) >= MAX_PER_ACCOUNT) return@transactionResult false
         if (stored == null) {
             tx.update(ACCOUNT).set(ACCOUNT.PASSKEY_HANDLE, handle).where(ACCOUNT.ID.eq(accountId)).execute()

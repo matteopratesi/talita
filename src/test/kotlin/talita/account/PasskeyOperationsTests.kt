@@ -42,6 +42,7 @@ class PasskeyOperationsTests(
     @Autowired private val operations: PasskeyOperations,
     @Autowired private val passkeys: Passkeys,
     @Autowired private val support: PasskeySupport,
+    @Autowired private val settings: LoginSettings,
     @Autowired private val clock: java.time.Clock,
 ) {
 
@@ -179,7 +180,7 @@ class PasskeyOperationsTests(
     @Test
     fun `t15 c21 D2 the handle that was given to a phone lives as long as the newest options that carry it, so a registration that answers late still succeeds`() {
         val at = Stepping(java.time.Instant.parse("2027-10-05T10:00:00Z"))
-        val own = PasskeyOperations(support, passkeys, at)
+        val own = PasskeyOperations(support, passkeys, at, settings)
         val account = account()
         val options = { own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(account))) }
 
@@ -199,7 +200,7 @@ class PasskeyOperationsTests(
     @Test
     fun `t15 c21 D2 a handle that was given and not used is not good after its five minutes`() {
         val at = Stepping(java.time.Instant.parse("2027-10-05T10:00:00Z"))
-        val own = PasskeyOperations(support, passkeys, at)
+        val own = PasskeyOperations(support, passkeys, at, settings)
         val account = account()
         val options = own.createPublicKeyCredentialCreationOptions(ImmutablePublicKeyCredentialCreationOptionsRequest(inside(account)))
         at.now = at.now.plus(Duration.ofMinutes(5).plusSeconds(1))

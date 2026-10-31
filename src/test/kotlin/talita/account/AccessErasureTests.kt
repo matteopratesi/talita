@@ -1,6 +1,12 @@
 package talita.account
 
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
+import org.springframework.security.web.webauthn.api.Bytes
+import org.springframework.security.web.webauthn.api.CredentialRecord
+import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord
+import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialType
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -20,12 +26,18 @@ import talita.registration.Notes
 import talita.retention.AccountErasure
 import talita.retention.ErasureService
 import talita.retention.RetentionJob
+import talita.retention.RetentionLog
 import talita.retention.RetentionPolicy
 import talita.retention.RetentionTestKit
 import talita.teacher.Teachers
 import java.time.Clock
 import java.time.LocalDate
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -213,6 +225,75 @@ class AccessErasureTests(
         assertEquals(afterTheRequest + 1, generation(teacher), "and the number of the sessions grows, because an access was taken away")
         job.run(kit.clockAt("2027-10-08T04:15"))
         assertEquals(afterTheRequest + 1, generation(teacher), "the next night has nothing to take away: the sessions are not closed again")
+    }
+
+    /** A credential as the registration makes it: what the table keeps of a passkey. */
+    private fun record(id: Int = 9): CredentialRecord = ImmutableCredentialRecord.builder()
+        .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
+        .credentialId(Bytes(ByteArray(32) { id.toByte() }))
+        .userEntityUserId(Bytes(ByteArray(64) { 7 }))
+        .publicKey(ImmutablePublicKeyCose(byteArrayOf(1, 2, 3)))
+        .signatureCount(0)
+        .uvInitialized(true)
+        .transports(emptySet())
+        .backupEligible(false)
+        .backupState(false)
+        .label("")
+        .build()
+
+    @Test
+    fun `t15 c29 a passkey that was being made while the account was erased is refused when it gets the lock, and nothing is saved, so the account that stays for the readings cannot be entered`() {
+        val gathering = kit.september2027()
+        val teacher = kit.teacher("maestro-m")
+        kit.teacher("maestro-n")
+        val child = kit.registration(gathering, kit.account("genitore-a"), notes = notes)
+        kit.reading(child, teacher)
+        // The registration found the account and verified what the phone made: it started with this number of the sessions, and now it waits for the lock of the account.
+        val started = generation(teacher)
+        val store = Passkeys(dsl, clock)
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val locked = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            // The erasure is in its transaction: it has the account locked, and it commits when the test says.
+            val erasure = pool.submit {
+                dsl.transaction { configuration ->
+                    service("2027-10-05T10:00").eraseAccountIn(DSL.using(configuration), teacher, kit.moment("2027-10-05T10:00"), RetentionLog.ACCOUNT_REQUEST)
+                    locked.countDown()
+                    release.await(30, TimeUnit.SECONDS)
+                }
+            }
+            assertTrue(locked.await(10, TimeUnit.SECONDS))
+            val registration = pool.submit<Boolean> { store.addChecked(teacher, record(), ByteArray(64) { 7 }, started) }
+            Thread.sleep(700)
+            assertFalse(registration.isDone, "the registration waits for the account that the erasure holds")
+            release.countDown()
+            erasure.get(10, TimeUnit.SECONDS)
+
+            val failure = assertFailsWith<ExecutionException> { registration.get(30, TimeUnit.SECONDS) }
+            assertIs<PasskeyRefusedException>(failure.cause, "the registration found that the account had been erased")
+        } finally {
+            pool.shutdownNow()
+        }
+        assertTrue(kit.accountExists(teacher), "the address stays, alone, for the register of the readings")
+        assertEquals(0, passkeys(teacher), "and no passkey was saved: it would have given access again to an account that was deleted")
+        assertNull(handleOf(teacher), "and no handle either")
+        assertEquals(started + 1, generation(teacher))
+    }
+
+    @Test
+    fun `t15 c29 a registration with the number of the sessions that the account has saves the passkey, and one with an old number is refused`() {
+        val account = kit.account("genitore-a")
+        val store = Passkeys(dsl, clock)
+        val current = generation(account)
+
+        assertFailsWith<PasskeyRefusedException> { store.addChecked(account, record(), ByteArray(64) { 7 }, current - 1) }
+        assertEquals(0, passkeys(account))
+        assertNull(handleOf(account))
+
+        assertTrue(store.addChecked(account, record(), ByteArray(64) { 7 }, current))
+        assertEquals(1, passkeys(account))
+        assertEquals(64, handleOf(account)!!.size)
     }
 
     // ---- The accounts that stay empty (criterion 31) ----------------------------------------------------------------------------------
