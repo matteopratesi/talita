@@ -38,6 +38,18 @@ class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: M
 
         /** Every answer, the greeting included, comes [delayMillis] late. */
         SLOW,
+
+        /** The server refuses the sender of every message, for all the recipients: a `553` to `MAIL FROM`, as a provider does with an address that is not its own. */
+        REFUSE_SENDER,
+
+        /** The server takes the sender and the recipients and refuses the message after its text, a `554`: what it does with a content that it does not like. */
+        REFUSE_CONTENT,
+
+        /** The server refuses to start the message: a `554` to `DATA` itself. */
+        REFUSE_DATA,
+
+        /** A temporary refusal of the whole sending, a `452` to `MAIL FROM`: what a provider says when the limit of the day is over. */
+        TEMPORARY_LIMIT,
     }
 
     private val server = ServerSocket(0, 5, InetAddress.getLoopbackAddress())
@@ -50,6 +62,9 @@ class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: M
 
     /** How many connections the server has seen. */
     val connectionCount = AtomicInteger()
+
+    /** How many times a client began a message (`MAIL FROM`): a list that stops at the first refusal has one. */
+    val mailFromCount = AtomicInteger()
 
     /** How many connections are open now: the ones that the client has not closed yet. */
     val openConnections = AtomicInteger()
@@ -106,7 +121,15 @@ class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: M
                 val upper = line.uppercase()
                 when {
                     upper.startsWith("EHLO") || upper.startsWith("HELO") -> say("250 fake")
-                    upper.startsWith("MAIL FROM") -> if (mode == Mode.SILENT_AFTER_TWO_MESSAGES && accepted.size >= 2) return silence(reader) else say("250 OK")
+                    upper.startsWith("MAIL FROM") -> {
+                        mailFromCount.incrementAndGet()
+                        when {
+                            mode == Mode.SILENT_AFTER_TWO_MESSAGES && accepted.size >= 2 -> return silence(reader)
+                            mode == Mode.REFUSE_SENDER -> say("553 5.7.1 sender not allowed")
+                            mode == Mode.TEMPORARY_LIMIT -> say("452 4.2.2 sending limit reached")
+                            else -> say("250 OK")
+                        }
+                    }
                     upper.startsWith("RCPT TO") -> {
                         val address = line.substringAfter('<').substringBefore('>')
                         if (refusing != null && address.contains(refusing)) {
@@ -116,13 +139,19 @@ class FakeSmtpServer(private val refusing: String? = null, @Volatile var mode: M
                             say("250 OK")
                         }
                     }
-                    upper == "DATA" -> {
+                    upper == "DATA" -> if (mode == Mode.REFUSE_DATA) {
+                        say("554 5.6.0 no data today")
+                    } else {
                         say("354 go on")
                         while (reader.readLine().let { it != null && it != "." }) {
                             // the body is not kept
                         }
-                        recipient?.let { accepted += it }
-                        say("250 OK")
+                        if (mode == Mode.REFUSE_CONTENT) {
+                            say("554 5.6.0 content refused")
+                        } else {
+                            recipient?.let { accepted += it }
+                            say("250 OK")
+                        }
                     }
                     upper == "RSET" -> say("250 OK")
                     upper == "NOOP" -> say("250 OK")

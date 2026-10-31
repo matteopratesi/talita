@@ -96,6 +96,33 @@ class MailListTests(
     }
 
     @Test
+    fun `t16 c21 when the server refuses the sender, the text or the whole sending, the list stops at the first refusal, and when it refuses a recipient the list goes on`() {
+        for (mode in listOf(FakeSmtpServer.Mode.REFUSE_SENDER, FakeSmtpServer.Mode.REFUSE_DATA, FakeSmtpServer.Mode.REFUSE_CONTENT, FakeSmtpServer.Mode.TEMPORARY_LIMIT)) {
+            FakeSmtpServer(mode = mode).use { server ->
+                val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+                val whole = Mailer(senderTo(server.host, server.port), settings, quota)
+
+                val results = whole.sendAll(List(4) { mail(Addresses.unique("rifiuto-$mode-$it")) }, MailKind.REMINDER)
+
+                assertEquals(List(4) { MailResult.FAILED }, results, "$mode")
+                // The answer is the same for every mail (the same sender, the same text, the same limit): one try, and the four fail without the other three.
+                assertEquals(1, server.mailFromCount.get(), "$mode: the list went on after a refusal of the whole sending")
+                assertEquals(1, server.connectionCount.get(), "$mode")
+                assertTrue(server.accepted.isEmpty(), "$mode")
+                assertEquals(10, quota.remaining(MailKind.REMINDER), "$mode: the places of the four mails are given back")
+            }
+        }
+        // A refused recipient is about one person: the list goes on, in the same connection.
+        FakeSmtpServer(refusing = "rifiutato").use { server ->
+            val results = mailerTo(server).sendAll(listOf(mail(Addresses.unique("avanti-uno")), mail(Addresses.unique("avanti-rifiutato")), mail(Addresses.unique("avanti-due"))), MailKind.REMINDER)
+
+            assertEquals(listOf(MailResult.SENT, MailResult.FAILED, MailResult.SENT), results)
+            assertEquals(3, server.mailFromCount.get(), "the three mails were tried")
+            assertEquals(1, server.connectionCount.get())
+        }
+    }
+
+    @Test
     @CapturesOutput
     fun `t13 c06 a mail that the server refuses is a failure of that mail only, the others leave, and the place of the one that failed is given back`(output: CapturedOutput) {
         FakeSmtpServer(refusing = "rifiutato").use { server ->

@@ -49,14 +49,15 @@ enum class MailResult {
  * answers nothing makes the steps add up (the greeting, then `EHLO`, then `HELO`; or a pause at every mail of a list of 40): the limit is for all of them together.
  *
  * What happens when the limit passes, or when the server stops answering: the mails that left are SENT, the ones that did not leave are FAILED **at once**, each without
- * waiting for its own 10 seconds, and the caller goes on. The sending runs in a thread of its own that the caller stops waiting for. **When the 15 seconds are over, no new mail
+ * waiting for its own 10 seconds, and the caller goes on. The same when the server refuses the whole sending (the sender, `DATA`, the text, or a temporary limit): the list stops at the
+ * first refusal. The sending runs in a thread of its own that the caller stops waiting for. **When the 15 seconds are over, no new mail
  * starts (the thread looks before each one); the mail that is in progress at that moment still arrives, if the server takes it, but it is not counted**: it is FAILED for the
  * caller, so the page and the register can say one mail less than the server took (a decision of Matteo, docs/05, «Parte 5»). **Two effects, accepted by Matteo** (CodeRabbit, PR 14,
  * comment 4431895585): the caller goes on, so the caller lets go of its lock and this class gives back the place of every mail that is not SENT, the one in progress too. (1) The day count
  * can say one mail less than the server took. (2) If no mail was counted (nothing in the register, so no wait of 7 days), a teacher who sends again before the thread has closed, at
  * most one timeout later, can send the same reminder a second time to the person whose mail was in progress. The thread closes the connection when the step that it was in ends, at most
- * one timeout later. A server that answers «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the
- * others go on in the same connection.
+ * one timeout later. A server that refuses a **recipient** (a 550: a mail that does not exist) is not that: it is a failure of that mail alone,
+ * and the others go on in the same connection.
  *
  * The log never carries the address of the recipient, the text or a link: a failure is logged with
  * the type of the exception only (the message of a mail exception often names the address).
@@ -148,9 +149,12 @@ class Mailer(
                         synchronized(gate) { if (!gaveUp) results[index] = MailResult.SENT }
                     } catch (failure: Exception) {
                         synchronized(gate) { if (!gaveUp) reasons += failure.javaClass.name }
-                        // The server answered «no» to this mail (a recipient that does not exist): the next ones can still go. Anything else is the connection (a step that did not
-                        // answer in time, a socket that broke): the mails that are left fail at once, and the next step would only wait for its own timeout.
-                        if (failure !is SendFailedException) return@thread
+                        // The server refused a **recipient** of this mail (a 550: an address that does not exist, `invalidAddresses` of the exception): that is about one person, and the next
+                        // ones can still go. Everything else stops the list, and the mails that are left fail at once: a step that did not answer in time or a socket that broke (the next
+                        // step would only wait for its own timeout), and the refusals of the whole sending, which are `SMTPSendFailedException`, a subclass of `SendFailedException` with no
+                        // invalid address: `MAIL FROM` refused (a sender that is not allowed), `DATA` or the end of the text refused (the text is the same for everyone), a 4xx of the
+                        // provider (the limit of the day). The connection is still open after them, and the next mail would get the same answer.
+                        if (failure !is SendFailedException || failure.invalidAddresses.isNullOrEmpty()) return@thread
                     }
                 }
             } finally {
