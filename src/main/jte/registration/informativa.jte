@@ -26,9 +26,9 @@
         <li class="pl-1"><span class="font-semibold">Facoltativi:</span> allergie, intolleranze e farmaci dei bambini, solo con il consenso del genitore.</li>
         <li class="pl-1"><span class="font-semibold">Dei maestri:</span> nome, cognome e indirizzo email.</li>
         @if(page.getPasskeys())
-          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono» o di usare una passkey:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo o la passkey. Mai il modello del telefono, il browser o il luogo.</li>
+          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono» o di usare una passkey:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo o la passkey. Mai il modello del telefono, il browser o il luogo. Quando rientri senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non ti scolleghino, e la cancelliamo la notte dopo.</li>
         @else
-          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono»:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo. Mai il modello del telefono, il browser o il luogo.</li>
+          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono»:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo. Mai il modello del telefono, il browser o il luogo. Quando rientra senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non lo scolleghino, e la cancelliamo la notte dopo.</li>
         @endif
       </ul>
       <p class="mt-3">Non raccogliamo mai il sesso, il luogo di nascita, documenti o firme.</p>

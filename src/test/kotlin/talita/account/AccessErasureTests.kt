@@ -87,6 +87,15 @@ class AccessErasureTests(
         )!!.get(0, Long::class.java)
     }
 
+    /** The device was last re-entered with its cookie at [moment] (a moment of Rome): the hash of the value before, and the moment, as a re-entry writes them. */
+    private fun rotated(id: Long, moment: String) {
+        dsl.update(REMEMBERED_DEVICE).set(REMEMBERED_DEVICE.PREVIOUS_HASH, ByteArray(32) { 3 }).set(REMEMBERED_DEVICE.ROTATED_AT, kit.moment(moment)).where(REMEMBERED_DEVICE.ID.eq(id)).execute()
+    }
+
+    /** What the row holds of the last re-entry: the hash of the value before and the moment, each or null. */
+    private fun rotation(id: Long): Pair<ByteArray?, java.time.OffsetDateTime?> =
+        dsl.select(REMEMBERED_DEVICE.PREVIOUS_HASH, REMEMBERED_DEVICE.ROTATED_AT).from(REMEMBERED_DEVICE).where(REMEMBERED_DEVICE.ID.eq(id)).fetchSingle().let { it.value1() to it.value2() }
+
     private fun passkey(account: Long): Int {
         serial += 1
         return dsl.execute(
@@ -227,6 +236,21 @@ class AccessErasureTests(
         assertEquals(afterTheRequest + 1, generation(teacher), "the next night has nothing to take away: the sessions are not closed again")
     }
 
+    /**
+     * Waits until the database says that a transaction is waiting for a lock, and only then returns: a task that has not started yet is not blocked, and one that has finished never was, so letting
+     * the lock go after that would not test the case that the test says. Nothing here depends on how long the task takes to start: the database is asked every 20 ms, for 30 seconds at most.
+     * [what] is what the test says should happen. It is the helper of `RoomServiceTests`, copied here on purpose (TALITA-16 makes it common).
+     */
+    private fun awaitBlocked(task: java.util.concurrent.Future<*>, what: String) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+        while (dsl.fetch("select pid from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
+            if (task.isDone) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but it has finished (isDone = true, ${runCatching { task.get() }.fold({ "result $it" }, { "failed with ${it.cause ?: it}" })}) and was never blocked")
+            if (System.nanoTime() > deadline) org.junit.jupiter.api.Assertions.fail<Unit>("$what: but no transaction waits for a lock after 30 seconds (isDone = ${task.isDone})")
+            Thread.sleep(20)
+        }
+        assertFalse(task.isDone, "$what: a transaction waits for a lock, so the task is not finished")
+    }
+
     /** A credential as the registration makes it: what the table keeps of a passkey. */
     private fun record(id: Int = 9): CredentialRecord = ImmutableCredentialRecord.builder()
         .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
@@ -265,8 +289,8 @@ class AccessErasureTests(
             }
             assertTrue(locked.await(10, TimeUnit.SECONDS))
             val registration = pool.submit<Boolean> { store.addChecked(teacher, record(), ByteArray(64) { 7 }, started) }
-            Thread.sleep(700)
-            assertFalse(registration.isDone, "the registration waits for the account that the erasure holds")
+            // Committing before the registration is really blocked on the lock of the account would let it find the account already erased, and the case that this test is about would not happen.
+            awaitBlocked(registration, "the registration should wait for the account that the erasure holds")
             release.countDown()
             erasure.get(10, TimeUnit.SECONDS)
 
@@ -351,6 +375,34 @@ class AccessErasureTests(
         assertEquals(1, devices(parent))
         job.run(kit.clockAt("2027-10-17T00:30"))
         assertEquals(0, devices(parent))
+    }
+
+    @Test
+    fun `t15 c32 every night the job empties the moment of the last re-entry and the hash of the value before it, in the rows whose 60 seconds are over, and keeps them in the rows still inside the margin`(output: CapturedOutput) {
+        val parent = kit.account("genitore-a", bornOn = LocalDate.of(2027, 9, 20))
+        kit.registration(kit.september2027(), parent, "Luca", "Rossi")
+        val over = device(parent, "2027-09-22")
+        val inside = device(parent, "2027-09-22")
+        val never = device(parent, "2027-09-22")
+        // Two re-entries with the cookie, at 04:13:00 and at 04:14:30, and a device that never came back; the job runs at 04:15:00.
+        rotated(over, "2027-09-23T04:13:00")
+        rotated(inside, "2027-09-23T04:14:30")
+
+        val report = job.run(kit.clockAt("2027-09-23T04:15:00"))
+
+        assertEquals(null to null, rotation(over), "the margin of this row was over: both columns are empty, together")
+        assertEquals(true to true, rotation(inside).let { (it.first != null) to (it.second != null) }, "this one is still inside its 60 seconds: both stay, for the margin")
+        assertEquals(null to null, rotation(never))
+        assertEquals(3, devices(parent), "no device was deleted: only the two columns were emptied")
+        assertEquals(emptyList(), report.deleted, "the register of the deletions does not hear of it")
+        assertEquals(0, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("device-rotations")))
+        assertTrue(output.all.contains("Retention: rule device-rotations emptied 1 rows."), output.all)
+
+        // The night after the other row is emptied too (at most until the night after), and the third night finds nothing and says nothing.
+        job.run(kit.clockAt("2027-09-24T04:15:00"))
+        assertEquals(null to null, rotation(inside), "at most until the night after")
+        job.run(kit.clockAt("2027-09-25T04:15:00"))
+        assertEquals(2, output.all.lines().count { it.contains("rule device-rotations emptied 1 rows") }, "one line for each of the two nights that emptied a row, and none for the third")
     }
 
     @Test

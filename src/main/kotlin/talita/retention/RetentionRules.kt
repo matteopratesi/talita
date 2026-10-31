@@ -190,6 +190,26 @@ class DevicesRule(private val devices: RememberedDevices) : RetentionRule {
 }
 
 /**
+ * The moment of the last re-entry with the cookie of a device and the hash of the value before it (`rotated_at` and `previous_hash`, TALITA-15), emptied every night in the rows whose margin of 60
+ * seconds is over. They only exist for the margin (two tabs that the phone reopens together), and `rotated_at` is in fact the moment of the last use of the device: the minimization does not keep
+ * it a night longer than that. Nothing is deleted and the register of the deletions does not hear of it; the log says how many rows were emptied.
+ */
+@Component
+@Order(56)
+class DeviceRotationsRule(private val devices: RememberedDevices) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(DeviceRotationsRule::class.java)
+
+    override val name: String = "device-rotations"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val rows = devices.clearRotations(tx, context.now)
+        if (rows > 0) log.info("Retention: rule {} emptied {} rows.", name, rows)
+        return emptyList()
+    }
+}
+
+/**
  * The numbers of the children and of the accounts deleted on request, taken out of the register 37 days after the request (criterion 27): the rotation of the backups
  * and a week. The row of the register stays, without the number: it says that a request was made, never whose.
  */

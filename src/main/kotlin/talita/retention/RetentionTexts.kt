@@ -123,7 +123,7 @@ class RetentionTexts(private val policy: RetentionPolicy) {
         TimeRow(
             "Dispositivi collegati («Ricordami su questo telefono»)",
             "$devicesParent dal giorno in cui spunti la casella, $devicesTeacherNumber per i maestri. Prima, se esci, li togli dal tuo profilo o cancelli l’account. " +
-                "Talità li cancella da sola, ogni notte, quando scadono.",
+                "Talità li cancella da sola, ogni notte, quando scadono. L’ora dell’ultimo rientro senza link si cancella la notte dopo.",
         ),
         TimeRow("Passkey", "Finché non le togli dal tuo profilo o non cancelli l’account. Se l’account si cancella da solo perché è vuoto, si cancellano con lui."),
         TimeRow(

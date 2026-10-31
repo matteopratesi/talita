@@ -50,7 +50,8 @@ class NewDevice(val row: DeviceRow, val cookie: DeviceCookie)
  * - **The row** has the account, a random selector (128 bits), the SHA-256 of a random value (256 bits) and the day it was made (a day of Rome, from the one clock). The value is never
  *   written, not even here: whoever reads the database cannot enter.
  * - **The expiry is not in the row.** It is the day of the touch plus the length of the role of the person today ([RetentionPolicy.deviceGoneOn]: 30 days for a parent, 7 for a teacher), so
- *   a parent who becomes a teacher shortens the rows that he or she already has. No last use, no name of the device, no browser, no address of the network.
+ *   a parent who becomes a teacher shortens the rows that he or she already has. No last use that is kept, no name of the device, no browser, no address of the network. The one moment
+ *   that the row holds, `rotated_at` (the last re-entry with the cookie), is only there for the margin of 60 seconds and the job empties it the night after ([clearRotations]).
  * - **At most [MAX_PER_ACCOUNT] rows per account**: the eleventh takes away the oldest. A browser that touches the box again has one row only (the one of its cookie goes).
  * - **The value changes at every re-entry** ([rotate]): a value that is not the last one with a selector that exists is a cookie that was copied, and the row goes.
  */
@@ -139,6 +140,14 @@ class RememberedDevices(private val dsl: DSLContext, private val clock: Clock, p
             .where(REMEMBERED_DEVICE.ID.eq(row.id)).and(REMEMBERED_DEVICE.VALIDATOR_HASH.eq(row.validatorHash)).execute()
         return if (changed == 1) cookie else null
     }
+
+    /**
+     * Empties `previous_hash` and `rotated_at` of the rows whose margin of [ROTATION_MARGIN] is over as of [now] (the job, every night): `rotated_at` is the moment of the last re-entry with the cookie,
+     * which only the margin needs, and the minimization does not keep it a night longer than that. Both go together (a rule of the table). Returns how many rows were emptied.
+     */
+    fun clearRotations(context: DSLContext, now: OffsetDateTime): Int =
+        context.update(REMEMBERED_DEVICE).setNull(REMEMBERED_DEVICE.PREVIOUS_HASH).setNull(REMEMBERED_DEVICE.ROTATED_AT)
+            .where(REMEMBERED_DEVICE.ROTATED_AT.isNotNull).and(REMEMBERED_DEVICE.ROTATED_AT.le(now.minus(ROTATION_MARGIN))).execute()
 
     fun delete(id: Long): Boolean = dsl.deleteFrom(REMEMBERED_DEVICE).where(REMEMBERED_DEVICE.ID.eq(id)).execute() > 0
 

@@ -101,10 +101,10 @@ class PasskeyDocsTests(
         val model = doc("docs/02-modello-dati.md")
 
         for (part in listOf(
-            "`remembered_device`", "`V12__devices_and_passkeys.sql`", "SHA-256 del valore del cookie", "Il valore non si salva mai", "**Niente ultimo uso, nome del dispositivo, browser, indirizzo di rete né luogo**",
+            "`remembered_device`", "`V12__devices_and_passkeys.sql`", "SHA-256 del valore del cookie", "Il valore non si salva mai", "**Niente nome del dispositivo, browser, indirizzo di rete né luogo, e nessun ultimo uso che resti oltre quella notte**", "**`rotated_at` è il momento dell'ultimo rientro con il cookie**", "la regola `device-rotations`", "serve **solo** al margine di 60 secondi per due schede riaperte insieme",
             "Cookie «Ricordami su questo telefono»", "Passkey (`passkey`)", "**Non si salvano** attestazione, client data e AAGUID", "`account.passkey_handle`", "lo «user handle» di WebAuthn", "`account.session_generation`",
             "chiude il caso che TALITA-7 aveva lasciato aperto", "il momento dell'ultima conferma con la passkey, e la sfida della conferma fino al suo uso", "il registro delle letture non cambia",
-            "**nemmeno l'ultimo uso di un dispositivo o di una passkey**", "**con quale passkey si conferma, quante conferme ci sono state, quelle annullate o rifiutate**", "TALITA-15",
+            "**nemmeno l'ultimo uso di una passkey; di un dispositivo collegato resta, al più fino alla notte dopo, il momento dell'ultimo rientro con il cookie (`rotated_at`), che serve solo al margine di 60 secondi**", "**con quale passkey si conferma, quante conferme ci sono state, quelle annullate o rifiutate**", "TALITA-15",
         )) {
             assertTrue(model.contains(part), "docs/02 does not say: $part")
         }

@@ -12,10 +12,11 @@
 -- `remembered_device` is the row of a browser that touched «Ricordami su questo telefono»: the account, a random `selector` (128 bits, in the cookie and in the row, it says which row) and the
 -- SHA-256 of the random value of the cookie (256 bits: the value is never written here), and the day it was made (a day of Rome, from the one clock of the application). It does not say
 -- when it expires: the expiry is the day of creation plus the length of the role of the person today (30 days for a parent, 7 for a teacher, `RetentionPolicy`), and the job deletes the
--- row that night. No last use, no name of the device, no browser, no address of the network.
+-- row that night. No last use that is kept, no name of the device, no browser, no address of the network.
 -- The value of the cookie changes at every re-entry, and for 60 seconds after a change the value before it is good too (two tabs that the phone reopens together present the same cookie, and
--- the second must not be taken for a thief): `previous_hash` is the SHA-256 of that value (never the value) and `rotated_at` the moment of the change, from the one clock of the application.
--- Both are empty until the first re-entry and say nothing of the person or of the device.
+-- the second must not be taken for a thief): `previous_hash` is the SHA-256 of that value (never the value) and `rotated_at` the moment of the change, from the one clock of the application, which
+-- is the moment of the last re-entry with the cookie. They are empty until the first re-entry, they are only for the margin, and the job of the retention empties both the night after (the rows
+-- whose 60 seconds are over): they are not a last use that stays.
 --
 -- `passkey` is a passkey of an account: the identifier of the credential (the phone chooses it), the public key (the private one never leaves the phone), the counter of the signatures, the
 -- flags that the phone gave at the creation (verification of the person done, can be synchronized, is synchronized), the transports that tell the browser where to look for it and the day
