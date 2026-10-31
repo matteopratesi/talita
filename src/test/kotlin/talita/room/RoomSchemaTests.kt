@@ -192,8 +192,9 @@ class RoomSchemaTests(
             }
             held.await(20, java.util.concurrent.TimeUnit.SECONDS)
             // The second one waits for the first (the row is not committed yet) and, when it is, changes the room of the row that is there: no error, one row.
-            val secondWriter = pool.submit { dsl.transaction { configuration -> upsert(org.jooq.impl.DSL.using(configuration), setup.id, luca, second) } }
-            Thread.sleep(300)
+            val secondWriter = talita.LockWait.awaitBlocked(dsl, "the second write should wait for the first, which has not committed") {
+                pool.submit { dsl.transaction { configuration -> upsert(org.jooq.impl.DSL.using(configuration), setup.id, luca, second) } }
+            }
             release.countDown()
             firstWriter.get(20, java.util.concurrent.TimeUnit.SECONDS)
             secondWriter.get(20, java.util.concurrent.TimeUnit.SECONDS)

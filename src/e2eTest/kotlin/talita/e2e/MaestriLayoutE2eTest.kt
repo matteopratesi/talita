@@ -236,13 +236,13 @@ class MaestriLayoutE2eTest {
 
         val notice = page.locator("#maestri-contenuto [role=status]")
         assertThat(notice).hasText("Invito mandato.")
-        page.waitUntil("document.activeElement && document.activeElement.getAttribute('role') === 'status'")
-        Thread.sleep(400) // the scroll to the notice, if it is smooth, has to finish
-        val header = page.locator("header").first().box()
-        val box = notice.box()
-        assertTrue(
-            box.y >= header.y + header.height - 1,
-            "the notice starts at ${box.y} px and the header reaches ${header.y + header.height} px: the notice (${box.height} px high) is under the bar",
-        )
+        page.focusIs("document.activeElement.getAttribute('role') === 'status'")
+        // The scroll to the notice, if it is smooth, has to finish: the position is a condition that is waited for, with the last values in the message.
+        awaitCondition("the notice to be under the header and not behind it") {
+            val header = page.locator("header").first().box()
+            val box = notice.box()
+            if (box.y >= header.y + header.height - 1) null
+            else "the notice starts at ${box.y} px and the header reaches ${header.y + header.height} px: the notice (${box.height} px high) is under the bar"
+        }
     }
 }

@@ -2,11 +2,9 @@ package talita.gathering
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -16,6 +14,7 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.post
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.TeacherPaths
 import talita.checkin.CheckinTestKit
@@ -33,7 +32,6 @@ import kotlin.test.assertTrue
  * never a page, the link «Menù» of Arrivi, the 403 of a parent on every address (page and form), the 404 of a gathering that does not exist and of a gathering with no
  * menu, and a log that has the id of the gathering, the kind and the size, and never the name or the content of the file.
  */
-@ExtendWith(OutputCaptureExtension::class)
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -290,6 +288,7 @@ class MenuDownloadTests(
     // ---- The log (criterion 11) ---------------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t12 c11 the log has the gathering, the kind and the size of what was uploaded, refused, downloaded and taken away, and never the name or the content`(output: CapturedOutput) {
         val w = menus.World()
         val secret = "Zuppa-Quagliotti-Segreta"

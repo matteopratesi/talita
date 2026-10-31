@@ -4,11 +4,9 @@ import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
@@ -16,6 +14,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
+import talita.CapturesOutput
 import talita.MutableClock
 import talita.TestcontainersConfiguration
 import talita.account.EmailAddress
@@ -45,7 +44,6 @@ private fun card(html: String): String = Regex("""<section id="promemoria".*?</s
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["spring.mail.port=1"])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class ReminderMailDownTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -58,6 +56,7 @@ class ReminderMailDownTests(
     private val browsers = ReminderBrowsers(mockMvc, tokens, dsl)
 
     @Test
+    @CapturesOutput
     fun `t13 c06 with the mail server down nothing is sent, the page says so with the notice of an error, the register has no row, and one can try again at once`(output: CapturedOutput) {
         val s = kit.scenario()
         kit.inForse(s.gathering, "giu-e")
@@ -97,7 +96,6 @@ class ReminderMailDownTests(
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["talita.public-url="])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class ReminderWithoutPublicUrlTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -106,6 +104,7 @@ class ReminderWithoutPublicUrlTests(
 ) {
 
     @Test
+    @CapturesOutput
     fun `t13 c06 without talita public-url no mail leaves, the page says so, nothing is written, and the log says why without an address`(output: CapturedOutput) {
         val kit = ReminderTestKit(dsl, clock)
         val s = kit.scenario()
@@ -153,7 +152,6 @@ class ReminderWithoutSenderTests(
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class ReminderPartialFailureTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -172,6 +170,7 @@ class ReminderPartialFailureTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t13 c06 when the mail does not leave for one person of three the page says Mandato a 2 persone su 3, the register has the row, and the wait begins`(output: CapturedOutput) {
         val s = kit.scenario()
         val refused = kit.inForse(s.gathering, "rifiuta-uno")

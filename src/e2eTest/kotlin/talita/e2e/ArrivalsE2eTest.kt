@@ -190,6 +190,8 @@ class ArrivalsE2eTest {
         // «Invio» closes the keyboard and marks nobody.
         field.fill("anna")
         field.press("Enter")
+        // «The focus is not on the field» is read once the page has stopped: the closing of the keyboard is the last thing that the page does with Enter.
+        page.waitForHtmxIdle()
         assertEquals("", page.evaluate("document.activeElement.id === 'cerca' ? 'cerca' : ''"))
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
     }

@@ -1,12 +1,17 @@
 package talita.mail
 
+import jakarta.mail.SendFailedException
+import jakarta.mail.Transport
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import org.slf4j.LoggerFactory
-import org.springframework.mail.MailSendException
 import org.springframework.mail.javamail.JavaMailSender
+import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Component
+import java.time.Duration
+import java.util.Date
+import kotlin.concurrent.thread
 
 /**
  * A mail of Talità: always plain text, written by the code that asks for it.
@@ -39,7 +44,14 @@ enum class MailResult {
  * Mailjet. The text is written as it is, without HTML escaping.
  *
  * [send] is for one mail on the first count of the day (links and invitations). [sendAll] is for a list, in **one connection** to the server (so that 40 mails
- * stay well under the 20 seconds that htmx waits), with an outcome for each mail, on the count of the kind that the caller says (the reminders have their own).
+ * stay well under the 20 seconds that htmx waits), with an outcome for each mail, on the count of the kind that the caller says (the reminders have their own), and
+ * **with a limit for the whole list**: [LIST_LIMIT], 15 seconds (TALITA-16, criterion 21). The timeouts of the connection (10 seconds) are for one step each, and a server that
+ * answers nothing makes the steps add up (the greeting, then `EHLO`, then `HELO`; or a pause at every mail of a list of 40): the limit is for all of them together.
+ *
+ * What happens when the limit passes, or when the server stops answering: the mails that left are SENT, the ones that did not leave are FAILED **at once**, each without
+ * waiting for its own 10 seconds, and the caller goes on. The sending runs in a thread of its own that the caller stops waiting for: it does not send anything after the
+ * moment when the caller gave up (it looks before each mail), and it closes the connection when the step that it was in ends, at most one timeout later. A server that answers
+ * «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the others go on in the same connection.
  *
  * The log never carries the address of the recipient, the text or a link: a failure is logged with
  * the type of the exception only (the message of a mail exception often names the address).
@@ -97,29 +109,65 @@ class Mailer(
                 reasons += failure.javaClass.name
             }
         }
-        if (built.isNotEmpty()) {
-            try {
-                sender.send(*built.map { it.second }.toTypedArray())
-                built.forEach { (index, _) -> results[index] = MailResult.SENT }
-            } catch (failure: MailSendException) {
-                // The messages that failed are the keys of the map; the others, in the same connection, left.
-                val failed = failure.failedMessages.keys
-                built.forEach { (index, message) -> if (failed.none { it === message }) results[index] = MailResult.SENT }
-                failure.failedMessages.values.forEach { reasons += it.javaClass.name }
-                if (failure.failedMessages.isEmpty()) {
-                    built.forEach { (index, _) -> results[index] = MailResult.FAILED }
-                    reasons += failure.javaClass.name
-                }
-            } catch (failure: Exception) {
-                reasons += failure.javaClass.name
-            }
-        }
+        if (built.isNotEmpty()) deliver(sender, built, results, reasons)
         val notSent = results.count { it != MailResult.SENT }
         if (notSent > 0) {
             quota.release(kind, notSent)
             log.error("Mails not sent: {} of {} ({}).", notSent, mails.size, reasons.joinToString(", "))
         }
         return results
+    }
+
+    /**
+     * Sends [built] in one connection, in a thread of its own, and waits for it at most [LIST_LIMIT]. [results] and [reasons] are written by that thread only while the caller is still
+     * waiting (under [gate]): when the limit passes, what has not been written stays FAILED, and what the thread does after that is not counted, so the numbers that the caller gives
+     * are those of the moment when it gave up.
+     */
+    private fun deliver(sender: JavaMailSender, built: List<Pair<Int, MimeMessage>>, results: MutableList<MailResult>, reasons: MutableSet<String>) {
+        val gate = Any()
+        var gaveUp = false
+        val worker = thread(isDaemon = true, name = "mail-list") {
+            var transport: Transport? = null
+            try {
+                for ((index, message) in built) {
+                    if (synchronized(gate) { gaveUp }) return@thread
+                    try {
+                        if (transport?.isConnected != true) {
+                            runCatching { transport?.close() }
+                            transport = connect(sender)
+                        }
+                        if (message.sentDate == null) message.sentDate = Date()
+                        message.saveChanges()
+                        transport!!.sendMessage(message, message.allRecipients ?: emptyArray())
+                        synchronized(gate) { if (!gaveUp) results[index] = MailResult.SENT }
+                    } catch (failure: Exception) {
+                        synchronized(gate) { if (!gaveUp) reasons += failure.javaClass.name }
+                        // The server answered «no» to this mail (a recipient that does not exist): the next ones can still go. Anything else is the connection (a step that did not
+                        // answer in time, a socket that broke): the mails that are left fail at once, and the next step would only wait for its own timeout.
+                        if (failure !is SendFailedException) return@thread
+                    }
+                }
+            } finally {
+                runCatching { transport?.close() }
+            }
+        }
+        worker.join(LIST_LIMIT.toMillis())
+        synchronized(gate) {
+            if (worker.isAlive) {
+                gaveUp = true
+                reasons += "list limit of ${LIST_LIMIT.toSeconds()} seconds"
+            }
+        }
+    }
+
+    /** A connection to the server as Spring makes it for [JavaMailSenderImpl] (the same host, port, user and password), kept open for the whole list. */
+    private fun connect(sender: JavaMailSender): Transport {
+        val impl = sender as? JavaMailSenderImpl ?: error("the application sends mail with JavaMailSenderImpl")
+        val transport = impl.session.getTransport(impl.protocol ?: impl.session.getProperty("mail.transport.protocol") ?: JavaMailSenderImpl.DEFAULT_PROTOCOL)
+        val user = impl.username?.takeIf { it.isNotEmpty() }
+        val password = if (user == null) impl.password?.takeIf { it.isNotEmpty() } else impl.password
+        transport.connect(impl.host, impl.port, user, password)
+        return transport
     }
 
     /** The message of [mail], with what every mail of Talità has. */
@@ -135,5 +183,10 @@ class Mailer(
         message.setHeader("X-Mailjet-TrackClick", "0")
         mail.unsubscribe?.let { message.setHeader("List-Unsubscribe", "<$it>") }
         return message
+    }
+
+    companion object {
+        /** The most that a list of mails ([sendAll]) takes, from the first connection to the last mail: under the 20 seconds that htmx waits for the answer of a page. */
+        val LIST_LIMIT: Duration = Duration.ofSeconds(15)
     }
 }

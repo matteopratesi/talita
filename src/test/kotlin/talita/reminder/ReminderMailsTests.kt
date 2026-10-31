@@ -27,12 +27,12 @@ class ReminderMailsTests {
     @Test
     fun `t13 c08 the mail in forse has the subject and the text of the design, with the decision of Matteo`() {
         assertEquals("nome@example.org", maybe.to)
-        assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", maybe.subject)
+        assertEquals("Iscrizione in forse per «Convivenza di settembre 2027»", maybe.subject)
         assertEquals(
             """
             Ciao,
 
-            c’è almeno un’iscrizione in forse alla Convivenza di settembre 2027 (17–19 settembre 2027).
+            c’è almeno un’iscrizione in forse per «Convivenza di settembre 2027» (17–19 settembre 2027).
 
             Puoi fare due cose.
 
@@ -74,12 +74,12 @@ class ReminderMailsTests {
 
     @Test
     fun `t13 c08 the mail of the avviso has the subject and the text of the design`() {
-        assertEquals("Iscrizioni aperte: Convivenza di settembre 2027", notice.subject)
+        assertEquals("Iscrizioni aperte per «Convivenza di settembre 2027»", notice.subject)
         assertEquals(
             """
             Ciao,
 
-            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte quelle della Convivenza di settembre 2027 (17–19 settembre 2027).
+            hai chiesto di ricevere un avviso quando si aprono le iscrizioni di una nuova convivenza dei bambini: ora sono aperte le iscrizioni per «Convivenza di settembre 2027» (17–19 settembre 2027).
 
             Trovi le informazioni e il modo per iscrivere i bambini in questa pagina:
 
@@ -127,10 +127,29 @@ class ReminderMailsTests {
     }
 
     @Test
+    fun `t16 c20 whatever the title is, the subject and the text of both mails put it between guillemets after per, with no article before it`() {
+        val article = Regex("""(?i)(?<![\p{L}])(il|lo|la|l’|i|gli|le|un|uno|una|al|allo|alla|del|dello|della|dei|degli|delle)\s+«""")
+
+        for (title in listOf("Campo estivo", "Convivenza di settembre 2027", "Gita al lago", "Estate 2027", "Il ritrovo")) {
+            val inForse = ReminderMails.maybe("nome@example.org", title, dates, registrations, stop)
+            val avviso = ReminderMails.notice("nome@example.org", title, dates, info, stop)
+
+            assertEquals("Iscrizione in forse per «$title»", inForse.subject)
+            assertEquals("Iscrizioni aperte per «$title»", avviso.subject)
+            assertTrue(inForse.text.contains("c’è almeno un’iscrizione in forse per «$title» ($dates)."), inForse.text)
+            assertTrue(avviso.text.contains("ora sono aperte le iscrizioni per «$title» ($dates)."), avviso.text)
+            for (part in listOf(inForse.subject, inForse.text, avviso.subject, avviso.text)) {
+                assertFalse(article.containsMatchIn(part), "an article before the title «$title»: $part")
+                assertFalse(part.contains("alla $title") || part.contains("della $title"), "the title after an article: $part")
+            }
+        }
+    }
+
+    @Test
     fun `t13 c08 a title with line breaks or extra spaces cannot break the subject`() {
         val mail = ReminderMails.maybe("nome@example.org", "Convivenza\r\nBcc: altro  di settembre ", dates, registrations, stop)
 
-        assertEquals("Iscrizione in forse alla Convivenza Bcc: altro di settembre", mail.subject)
+        assertEquals("Iscrizione in forse per «Convivenza Bcc: altro di settembre»", mail.subject)
         assertFalse(mail.subject.contains('\n') || mail.subject.contains('\r'))
         assertNull(ReminderMails.notice("nome@example.org", "A\nB", dates, info, stop).subject.lines().getOrNull(1))
     }

@@ -3,16 +3,15 @@ package talita.room
 import org.jooq.DSLContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.checkin.words
 import talita.gathering.GatheringFormat
@@ -50,7 +49,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class RoomRetentionTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -141,6 +139,7 @@ class RoomRetentionTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t11 c20 the register and the log say the rule and a number of rows and nothing of a person or of a room`(output: CapturedOutput) {
         val w = Old()
 

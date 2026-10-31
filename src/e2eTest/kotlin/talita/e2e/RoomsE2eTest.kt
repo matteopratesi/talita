@@ -146,7 +146,8 @@ class RoomsE2eTest {
         e2e.press(page.locator("main").buttonNamed("Metti Sara Neri in camera"))
         assertThat(page.locator("#camera-b${c.sara}-errore")).hasText("Scegli la camera.")
         assertThat(page.getByLabel("Camera di Sara Neri")).hasAttribute("aria-invalid", "true")
-        assertTrue(page.evaluate("document.activeElement && document.activeElement.id") == "camera-b${c.sara}", "the focus is on the select that is wrong")
+        // The focus goes to the select that is wrong when the page has settled after the answer: it is waited for, not read once.
+        page.focusIs("document.activeElement.id === 'camera-b${c.sara}'")
         assertAccessible(page, "rooms with a choice that was not made (${e2e.profile.label})")
     }
 
@@ -205,10 +206,17 @@ class RoomsE2eTest {
             assertThat(page.locator("#libero-b${listOf(c.davide, others[0], others[1], c.luca)[index]}")).containsText("$name è in Camera 1.")
             assertTrue(page.sameDocument(), "the page was not loaded again")
             assertTrue(page.focusOnNotice(), "the focus is on the message of the row")
-            // The page did not go back to the top (the focus did not move it: the notice was in sight), and the notice that took the focus is on the screen.
-            val after = (page.evaluate("window.scrollY") as Number).toDouble()
-            val notice = page.locator("#libero-b${listOf(c.davide, others[0], others[1], c.luca)[index]}").box()
-            assertTrue(after > 0 && notice.y >= 0 && notice.y + notice.height <= page.viewport().height, "scroll $after, notice $notice (was $before, then $atStart)")
+            // The page did not go back to the top, and the notice that took the focus is on the screen: all of it, and on the phone below the bar at the top (the focus scrolls it to the
+            // edge, under the padding of the page, with its row partly behind the bar: it is the notice that has to be seen, not the row). The scroll and the position are a condition that
+            // is waited for (the browser may still be scrolling when the focus arrives, and where it stops depends on how far the page had got), with the last values read in the message.
+            val notice = page.locator("#libero-b${listOf(c.davide, others[0], others[1], c.luca)[index]} [data-fuoco]")
+            awaitCondition("the notice of «$name» to be on the screen, below the bar, with the page not at the top") {
+                val after = (page.evaluate("window.scrollY") as Number).toDouble()
+                val box = notice.box()
+                val top = if (e2e.profile.isPhone) page.locator("header").first().box().let { it.y + it.height } else 0.0
+                if (after > 0 && box.y >= top - 1 && box.y + box.height <= page.viewport().height) null
+                else "scroll $after, notice at y ${box.y} with a height of ${box.height}, the screen is ${page.viewport().height} high and the bar ends at $top (scroll was $before, then $atStart)"
+            }
             assertThat(page.locator("#esito")).hasText("$name è in Camera 1.")
         }
         assertEquals("Riepilogo Stampa Camere 2 Posti letto 6 Persone in camera 4 bambini e maestri Bambini senza camera 3 Vai a chi è senza camera", page.summary())

@@ -1,15 +1,14 @@
 package talita.account
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.mail.Mailbox
 import kotlin.test.assertFalse
@@ -18,10 +17,10 @@ import kotlin.test.assertFalse
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class LogsTests(@Autowired private val mockMvc: MockMvc) {
 
     @Test
+    @CapturesOutput
     fun `t3 c26 the log has no address, token or link during a link, a login, a link that does not work, an exit and a wrong address`(output: CapturedOutput) {
         val address = Addresses.unique("diario")
         val wrong = "indirizzo-sbagliato-" + System.nanoTime()

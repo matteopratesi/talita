@@ -2,9 +2,7 @@ package talita.registration
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -12,6 +10,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.account.TestAccounts
@@ -44,7 +43,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class TeacherRegistrationTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired tokens: OneTimeTokenService,
@@ -643,6 +641,7 @@ class TeacherRegistrationTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t5 c36 the log has no name, phone, note or address while the teachers read, type in, correct and withdraw`(output: CapturedOutput) {
         val setup = kit.start()
         val id = rows.register(setup.id, parentAccount(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), phone = "333 777 8888", notes = Notes("Arachidi", null, null))

@@ -1,5 +1,6 @@
 @import org.springframework.security.web.csrf.CsrfToken
 @import talita.gathering.InfoForm
+@import talita.gathering.PublicText
 @import talita.ui.Shell
 @param Shell shell
 @param InfoForm page
@@ -18,8 +19,8 @@
   <form method="post" action="${"/convivenza/" + page.getId() + "/informazioni"}" novalidate hx-disabled-elt="find button[type=submit]" class="rounded-2xl border border-line bg-surface p-4 lg:p-6">
     @template.components.csrf(csrf = csrf)
     <div class="space-y-5">
-      @template.components.textAreaField(id = "informazioni", name = "infoText", label = "Informazioni per i genitori", value = page.getInfo(), rows = 9, hint = "Chi può partecipare, gli orari, come si arriva, l’aiuto per i trasporti. Non scrivere nomi, numeri di telefono né indirizzi email: la pagina la legge chiunque abbia il link.", error = page.getInfoError())
-      @template.components.textAreaField(id = "cosa-portare", name = "whatToBring", label = "Cosa portare", value = page.getWhatToBring(), rows = 6, hint = "Scrivi una cosa per riga: nella pagina diventa un elenco.", error = page.getWhatToBringError())
+      @template.components.textAreaField(id = "informazioni", name = "infoText", label = "Informazioni per i genitori", value = page.getInfo(), rows = 9, hint = PublicText.INFO_HELP, error = page.getInfoError())
+      @template.components.textAreaField(id = "cosa-portare", name = "whatToBring", label = "Cosa portare", value = page.getWhatToBring(), rows = 6, hint = PublicText.BRING_HELP, error = page.getWhatToBringError())
     </div>
     <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
       @template.components.button(label = "Salva le modifiche", busyLabel = "Salvataggio…")

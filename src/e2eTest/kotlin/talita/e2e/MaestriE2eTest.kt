@@ -65,8 +65,6 @@ class MaestriE2eTest {
         touch(button)
     }
 
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
     /** A page that was just loaded, with its entrance animation over (Playwright does not tap what is moving, and with JavaScript off it cannot tell). */
     private fun Page.settled() {
         waitForLoadState()
@@ -137,9 +135,7 @@ class MaestriE2eTest {
         e2e.press(page.row(address).buttonNamed("Manda di nuovo"))
         assertThat(page.locator("#maestri-contenuto [role=status]")).hasText("Invito mandato.")
         assertThat(page.row(address)).hasCount(1)
-        val deadline = System.nanoTime() + 10_000_000_000L
-        while (Mailbox.sentTo(address).size < 2 && System.nanoTime() < deadline) Thread.sleep(100)
-        assertEquals(2, Mailbox.sentTo(address).size)
+        assertEquals(2, Mailbox.waitForMails(address, 2).size)
     }
 
     @E2eTest

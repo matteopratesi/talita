@@ -192,10 +192,16 @@ class RoomsQaE2eTest {
 
     // ---- The form of a room (criteria 2, 3, 5) --------------------------------------------------------------------------------------------
 
+    /**
+     * Fills the form and sends it, and returns the answer once htmx has put the new page in place. The answer arrives before that: a step that follows at once would write in the old form,
+     * and the text of the answer is the same as the one before when the same mistake is made twice in a row (TALITA-16, criterion 7).
+     */
     private fun E2e.save(form: String, name: String, beds: String): Response {
         page.getByLabel("Nome della camera").fill(name)
         page.getByLabel("Posti letto").fill(beds)
-        return page.waitForResponse({ it.url().endsWith(form) && it.request().method() == "POST" }) { press(page.locator("main").buttonNamed("Salva la camera")) }
+        val answer = page.waitForResponse({ it.url().endsWith(form) && it.request().method() == "POST" }) { press(page.locator("main").buttonNamed("Salva la camera")) }
+        page.waitForHtmxIdle()
+        return answer
     }
 
     @E2eTest
@@ -926,22 +932,23 @@ class RoomsQaE2eTest {
         summary.focus()
         page.keyboard().press("Shift+Tab")
         page.keyboard().press("Tab")
-        assertTrue(page.evaluate("document.activeElement.tagName") == "SUMMARY", "the focus is on «Cambia»")
+        page.focusIs("document.activeElement.tagName === 'SUMMARY'")
         assertTrue(page.focusIsDrawn(), "«Cambia» has no visible focus")
         page.keyboard().press("Enter")
         assertThat(page.getByLabel("Camera di Luca Rossi")).isVisible()
         // Tab goes to the select (its name says the child), the arrows choose the room, and nothing is sent by the arrows.
         page.keyboard().press("Tab")
-        assertEquals("sposta-b${c.luca}", page.evaluate("document.activeElement.id"))
+        page.focusIs("document.activeElement.id === 'sposta-b${c.luca}'")
         assertTrue(page.focusIsDrawn(), "the select has no visible focus")
         page.keyboard().press("ArrowDown")
         page.keyboard().press("ArrowDown")
+        // The arrows choose the room (a condition that is waited for), and they send nothing: that is a «does not happen», so a time has to pass.
+        page.focusIs("document.activeElement.value === '$two'")
         page.waitForTimeout(400.0)
         assertEquals(one, e2e.roomOf(c.luca), "the arrows send nothing")
-        assertEquals(two.toString(), page.evaluate("document.activeElement.value"), "the arrows chose the room")
         // Tab goes to «Sposta», its focus is drawn, Enter sends.
         page.keyboard().press("Tab")
-        assertEquals("sposta", page.evaluate("document.activeElement.value"), "the focus is on the button «Sposta»")
+        page.focusIs("document.activeElement.value === 'sposta'")
         assertTrue(page.focusIsDrawn(), "«Sposta» has no visible focus")
         page.keyboard().press("Enter")
         assertThat(page.locator("#camera-$two #persona-b${c.luca}")).isVisible()

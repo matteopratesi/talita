@@ -390,7 +390,7 @@ class GatheringPagesTests(
         // A date and a time, and an amount, pass.
         assertEquals(303, browser.send("/convivenza/$id/informazioni", mapOf("infoText" to "Ci si ritrova il 17/09/2027 alle 18:30, dalle 9.30, per 60 €.", "whatToBring" to "")).status())
         // The help says why and what not to write.
-        assertTrue(browser.get("/convivenza/$id/informazioni").body().contains("Non scrivere nomi, numeri di telefono né indirizzi email: la pagina la legge chiunque abbia il link."))
+        assertTrue(browser.get("/convivenza/$id/informazioni").body().contains("Non scrivere nome e cognome di bambini o maestri, numeri di telefono né email."))
     }
 
     @Test
