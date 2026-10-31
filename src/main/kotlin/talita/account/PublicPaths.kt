@@ -18,8 +18,14 @@ object PublicPaths {
      * (`/info/{codice}`, TALITA-4). The registration under it (`/info/{codice}/iscrizione`) is not here: it asks for an account. The complete
      * notice on the privacy (`/informativa`, TALITA-5) is public: the parents read it before they have an account, and it holds nothing personal. The page for stopping the reminders
      * (`/promemoria/smetti`, TALITA-13) is the one that the link of every reminder leads to: for a person who has the mail and may not be inside (GET and POST: it asks for a tap).
+     * The two addresses of the access with a passkey (`/webauthn/authenticate/options`, `/login/webauthn`, TALITA-15) are POSTs for a person who is not inside yet; without `talita.public-url` nothing answers there.
      */
-    val pages: List<String> = listOf("/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa", "/promemoria/smetti")
+    val pages: List<String> = listOf(
+        "/accedi/**", "/actuator/health", "/error", "/info/*", "/informativa", "/promemoria/smetti",
+        // The access with a passkey (TALITA-15): the options for the phone and the answer of the phone, two POSTs that carry the CSRF code of the access page. The addresses of the confirmation before the
+        // notes on health are not here: they want a person who is inside.
+        "/webauthn/authenticate/options", "/login/webauthn",
+    )
 
     /**
      * The static files of the app. The fingerprint in the name (`/css/app-<hash>.css`) is added by

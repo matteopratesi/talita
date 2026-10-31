@@ -8,20 +8,28 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.servlet.view.RedirectView
+import org.springframework.beans.factory.ObjectProvider
+import talita.retention.RetentionTexts
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.WARNING
 import talita.ui.Flash
 import talita.ui.ShellFactory
 
-/** Model of the page of access: what is in the field, the error of the field, the notice above the card. */
-data class LoginPage(val email: String, val emailError: String?, val alert: Alert?)
+/**
+ * Model of the page of access: what is in the field, the error of the field, the notice above the card. [passkeys] says that the site can use passkeys (there is a public address, TALITA-15): the
+ * block «Entra con una passkey» is in the page, hidden until the script sees that the browser can use them, and the notices show their second sentence under the same condition.
+ */
+data class LoginPage(val email: String, val emailError: String?, val alert: Alert?, val passkeys: Boolean = false)
 
 /** Model of "Controlla la posta": the address that was just written, if the session still knows it. */
 data class CheckMailPage(val email: String?, val validityMinutes: Long)
 
-/** Model of "Conferma l'accesso": the link to confirm (it goes back in the form), and a notice if the page was open too long. */
-data class ConfirmPage(val token: String, val alert: Alert?)
+/** The box «Ricordami su questo telefono» of the page of the link: its name, what it does and for how long (the numbers come from the policy of the retention), and the advice not to touch it on the phone of others. */
+data class RememberBox(val label: String, val lasts: String, val advice: String)
+
+/** Model of "Conferma l'accesso": the link to confirm (it goes back in the form), a notice if the page was open too long, and the box that keeps the person inside on this phone. */
+data class ConfirmPage(val token: String, val alert: Alert?, val remember: RememberBox)
 
 /** Model of "Il link non vale più". */
 data class ExpiredLinkPage(val validityMinutes: Long)
@@ -66,14 +74,22 @@ class LoginController(
     private val links: LoginLinks,
     private val settings: LoginSettings,
     private val accounts: CurrentAccounts,
+    private val retention: RetentionTexts,
+    private val destinations: ObjectProvider<PostLoginDestination>,
+    private val passkeys: PasskeySupport,
 ) {
 
-    /** Ask for a link. Whoever is already inside goes to the home. */
+    /**
+     * Ask for a link. Whoever is already inside, with a session or with the cookie of «Ricordami su questo telefono», goes where a person goes after the link: to «Accetta l'invito» if there is
+     * an invitation for their address (the link of the mail of the invitation leads here), else to the home (TALITA-15, criterion 9).
+     */
     @GetMapping("/accedi")
     fun login(request: HttpServletRequest): ModelAndView {
-        if (accounts.current() != null) return ModelAndView(RedirectView("/"))
+        accounts.current()?.let { return ModelAndView(RedirectView(destinationOf(it))) }
         return loginForm(email = TypedAddress.take(request).orEmpty(), emailError = null, alert = Flash.take(request), status = HttpStatus.OK)
     }
+
+    private fun destinationOf(account: CurrentAccount): String = destinations.orderedStream().toList().firstNotNullOfOrNull { it.forNewLogin(account.email) } ?: "/"
 
     @PostMapping("/accedi")
     fun requestLink(@RequestParam(defaultValue = "") email: String, request: HttpServletRequest): ModelAndView {
@@ -116,7 +132,7 @@ class LoginController(
     @GetMapping("/accedi/conferma")
     fun confirm(@RequestParam(required = false) token: String?, request: HttpServletRequest): ModelAndView {
         if (token.isNullOrBlank()) return seeOther("/accedi/link-scaduto")
-        return page("Conferma l’accesso", "pages/confirmLogin", ConfirmPage(token.trim(), Flash.take(request)))
+        return page("Conferma l’accesso", "pages/confirmLogin", ConfirmPage(token.trim(), Flash.take(request), rememberBox()))
     }
 
     /** "Il link non vale più". Whoever is already inside in this browser goes to the home. */
@@ -126,8 +142,15 @@ class LoginController(
         return page("Il link non vale più", "pages/expiredLink", ExpiredLinkPage(settings.linkValidity.toMinutes()))
     }
 
+    /** The box of the page of the link: the lengths are those of the policy (30 days for a parent, 7 for a teacher), the page does not know who is entering and says both. */
+    private fun rememberBox(): RememberBox = RememberBox(
+        label = "Ricordami su questo telefono",
+        lasts = "Entri in Talità senza chiedere un nuovo link, per ${retention.devicesParent} (${retention.devicesTeacherNumber} se sei tra i maestri) o finché non esci.",
+        advice = "Non spuntarla su un telefono o un computer di altri: chi lo usa entrerebbe al posto tuo.",
+    )
+
     private fun loginForm(email: String, emailError: String?, alert: Alert?, status: HttpStatus): ModelAndView =
-        page("Accedi", "pages/login", LoginPage(email, emailError, alert)).also { it.status = status }
+        page("Accedi", "pages/login", LoginPage(email, emailError, alert, passkeys.enabled)).also { it.status = status }
 
     private fun page(title: String, view: String, model: Any): ModelAndView =
         ModelAndView(view, mapOf("shell" to shells.shell(page = title, current = null), "page" to model))

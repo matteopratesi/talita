@@ -10,6 +10,7 @@
 // - a request that does not change the page and gets a 5xx, a missing network or no answer in
 //   time leaves the page as it is and shows a pop-up message (texts are in the layout, as <template>);
 //   the same for the back button without network;
+// - the pop-up messages can also be asked for by `passkeys.js` (the event `talita:messaggio`), which makes its own requests;
 // - touching another link while a page change is on its way: the last touch wins;
 // - the address of the information page of a gathering can be copied and shared (`data-azione="copia"` and `"condividi"`, shown only if the
 //   browser can) and the preview, the register, the list for the venue and the sheet for the teachers can be printed (`"stampa"`, hidden in the page and shown here):
@@ -216,6 +217,12 @@
     if (event.detail.shouldSwap && event.detail.target === document.body && request.elt) {
       request.elt.classList.remove("htmx-request");
     }
+  });
+
+  // A message that another script of the app asks for (the passkeys, which do not go through htmx): the same pop-up, and never «Riprova», because what failed was a send.
+  document.addEventListener("talita:messaggio", (event) => {
+    const kind = event.detail && event.detail.kind;
+    if (TEMPLATES[kind]) showMessage(kind, { elt: null, verb: "post", boosted: false, eventType: null });
   });
 
   document.addEventListener("htmx:sendError", (event) => showMessage("network", describe(event.detail)));

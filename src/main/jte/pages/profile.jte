@@ -35,7 +35,17 @@
         @template.components.button(label = "Esci", busyLabel = "Uscita…", variant = "secondary", icon = Icon.LOG_OUT)
       </form>
       <p class="mt-3 text-sm text-ink-muted">Se usi un telefono o un computer di altri, esci quando hai finito.</p>
+      @if(page.getAccess() != null)
+        @template.profile.devicesBlock(block = page.getAccess(), csrf = csrf)
+      @endif
     </section>
+
+    @if(page.getPasskeys() != null)
+      <section id="passkey" tabindex="-1" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="passkey-titolo">
+        <h2 id="passkey-titolo" class="text-lg font-semibold">Passkey</h2>
+        @template.profile.passkeysBlock(block = page.getPasskeys(), csrf = csrf)
+      </section>
+    @endif
 
     @if(page.getNameForm() != null)
       <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="nome-titolo">

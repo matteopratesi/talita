@@ -2,7 +2,7 @@
 @import talita.ui.PublicShell
 @param PublicShell shell
 @param InformativaPage page
-<%-- The complete notice (criteria 33, 34; design D, 3): ten cards in the public shell, no script and nothing personal but the controller. The frame at the
+<%-- The complete notice (criteria 33, 34; design D, 3): eleven cards in the public shell, no script and nothing personal but the controller. The frame at the
      top says that the text is not final: a test of the release (-Prelease) does not let it go out. --%>
 
 @template.layout.public(shell = shell, content = @`
@@ -25,6 +25,11 @@
         <li class="pl-1"><span class="font-semibold">Scelta dai maestri per la convivenza:</span> la camera in cui dorme ogni bambino, che non dice mai il sesso né il perché di una scelta.</li>
         <li class="pl-1"><span class="font-semibold">Facoltativi:</span> allergie, intolleranze e farmaci dei bambini, solo con il consenso del genitore.</li>
         <li class="pl-1"><span class="font-semibold">Dei maestri:</span> nome, cognome e indirizzo email.</li>
+        @if(page.getPasskeys())
+          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono» o di usare una passkey:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo o la passkey. Mai il modello del telefono, il browser o il luogo. Quando rientri senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non ti scolleghino, e la cancelliamo la notte dopo.</li>
+        @else
+          <li class="pl-1"><span class="font-semibold">Di chi sceglie «Ricordami su questo telefono»:</span> il giorno in cui l’ha fatto e un codice casuale che riconosce il dispositivo. Mai il modello del telefono, il browser o il luogo. Quando rientra senza link teniamo anche l’ora di quel rientro, solo perché due schede aperte insieme non lo scolleghino, e la cancelliamo la notte dopo.</li>
+        @endif
       </ul>
       <p class="mt-3">Non raccogliamo mai il sesso, il luogo di nascita, documenti o firme.</p>
     </section>
@@ -38,6 +43,11 @@
         <li class="pl-1">Partecipare a una convivenza organizzata da parrocchie può far capire le convinzioni religiose della famiglia: per questo, nell’iscrizione, ti chiediamo il consenso con una casella a parte.</li>
         <li class="pl-1">Il tuo indirizzo email serve anche a ricordarti di confermare un’iscrizione in forse: lo facciamo perché hai fatto l’iscrizione. L’avviso per una nuova convivenza ti arriva solo se lo chiedi: ci vuole il tuo consenso, e lo togli quando vuoi. In ogni mail c’è il modo per smettere.</li>
         <li class="pl-1">I dati dei maestri servono a organizzare la convivenza insieme.</li>
+        @if(page.getPasskeys())
+          <li class="pl-1">«Ricordami su questo telefono» e le passkey: li usiamo perché lo chiedi tu. Sono facoltativi, e il link funziona sempre.</li>
+        @else
+          <li class="pl-1">«Ricordami su questo telefono»: lo usiamo perché lo chiedi tu. È facoltativo, e il link funziona sempre.</li>
+        @endif
       </ul>
     </section>
 
@@ -48,12 +58,31 @@
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="visibilita">
       <h2 id="visibilita" class="text-lg font-semibold">Chi vede i dati</h2>
-      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati. La camera in cui dorme ogni bambino la vedono solo i maestri. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro.</p>
+      <p class="mt-3">I maestri della convivenza vedono le iscrizioni. Le presenze e i pagamenti li vedono solo i maestri, con il nome di chi li ha segnati. La camera in cui dorme ogni bambino la vedono solo i maestri. Le segnalazioni le vedono solo i maestri, solo quando le chiedono, e ogni lettura resta registrata: chi e quando, non cosa c’era scritto. Un altro genitore non vede niente dei tuoi figli. La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro. ${page.getPasskeys() ? "I dispositivi collegati e le passkey li vedi solo tu, nel tuo profilo." : "I dispositivi collegati li vedi solo tu, nel tuo profilo."}</p>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="fornitori">
       <h2 id="fornitori" class="text-lg font-semibold">Chi li riceve per far funzionare Talità</h2>
       <p class="mt-3">Chi ospita il sito, nell’Unione europea; il servizio che manda le email, che riceve l’indirizzo e il testo del messaggio (anche dei promemoria, mai con dati dei bambini) e che per proteggersi da spam e frodi usa l’indirizzo come titolare autonomo, secondo la sua informativa; chi tiene le copie di sicurezza, cifrate prima di lasciare il server. Nessun altro: niente pubblicità, niente statistiche, niente servizi esterni nelle pagine.</p>
+    </section>
+
+    <section id="cookie-e-accesso" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="cookie">
+      <h2 id="cookie" class="text-lg font-semibold">Cookie e accesso</h2>
+      <p class="mt-3">${page.getCookies().getIntro()}</p>
+      <ul class="mt-3 list-disc space-y-2 pl-5 marker:text-ink-muted">
+        @for(talita.registration.Lead bullet : page.getCookies().getBullets())
+          <li class="pl-1"><span class="font-semibold">${bullet.getLead()}</span> ${bullet.getText()}</li>
+        @endfor
+      </ul>
+      <div class="mt-3 space-y-3">
+        @for(talita.registration.Lead paragraph : page.getCookies().getParagraphs())
+          @if(paragraph.getLead().isEmpty())
+            <p>${paragraph.getText()}</p>
+          @else
+            <p><span class="font-semibold">${paragraph.getLead()}</span> ${paragraph.getText()}</p>
+          @endif
+        @endfor
+      </div>
     </section>
 
     <section id="per-quanto-tempo" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="tempi">

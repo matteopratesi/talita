@@ -14,6 +14,9 @@ import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import talita.TestcontainersConfiguration
+import talita.account.Accounts
+import talita.account.Passkeys
+import talita.account.RememberedDevices
 import talita.checkin.words
 import talita.gathering.GatheringFormat
 import talita.gathering.body
@@ -281,7 +284,7 @@ class RoomRetentionTests(
 
     private fun service(at: String): ErasureService {
         val fixed = retention.clockAt(at)
-        return ErasureService(dsl, fixed, policy, HealthNotes(dsl, fixed, policy), Teachers(dsl, fixed))
+        return ErasureService(dsl, fixed, policy, HealthNotes(dsl, fixed, policy), Teachers(dsl, fixed), RememberedDevices(dsl, fixed, policy), Passkeys(dsl, fixed), Accounts(dsl, fixed))
     }
 
     @Test

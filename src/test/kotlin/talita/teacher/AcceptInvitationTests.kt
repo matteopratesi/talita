@@ -282,7 +282,8 @@ class AcceptInvitationTests(
             assertEquals("Accetta l’invito", heading(page.response.contentAsString))
             val csrf = MockBrowser.csrfIn(page.response.contentAsString)
 
-            if (how == "expired") clock.advance(invitations.validity.plusMinutes(1)) else invitations.withdraw(address)
+            // The invitation expires while the page is open. The clock is not moved: after the 7 days of an invitation the session of the person, which lasts 12 hours at most (TALITA-15), would be over.
+            if (how == "expired") dsl.execute("update teacher_invitation set expires_at = now() - interval '1 minute' where email = ?", address) else invitations.withdraw(address)
             val result = browser.post("/invito", mapOf("nome" to "Elisa", "cognome" to "Conti"), csrf)
 
             assertEquals(303, result.response.status, how)

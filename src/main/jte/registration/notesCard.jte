@@ -8,7 +8,7 @@
      «Mostra le segnalazioni» is a POST that writes the reading and then answers, so the notes are never in a page that nobody asked for. With htmx the answer is
      this card (the page is not replaced) and, out of band, the card of the readings (`oob`). --%>
 !{talita.registration.NotesView notes = page.getNotes();}
-<section id="segnalazioni" class="rounded-2xl border ${notes.getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6" aria-labelledby="segnalazioni-titolo">
+<section id="segnalazioni" data-ambito data-esiti class="rounded-2xl border ${notes.getShown() ? "border-line-strong" : "border-line"} bg-surface p-4 lg:p-6" aria-labelledby="segnalazioni-titolo">
   <h2 id="segnalazioni-titolo" class="text-lg font-semibold">Segnalazioni</h2>
   @if(notes.getDeleted() != null)
     <div class="mt-3 flex items-start gap-3">
@@ -22,11 +22,15 @@
     </div>
   @elseif(!notes.getShown())
     <p class="mt-3">Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.</p>
-    <form method="post" action="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-post="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-target="#segnalazioni" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" class="mt-3">
-      @template.components.csrf(csrf = csrf)
-      @template.components.button(label = "Mostra le segnalazioni", busyLabel = "Apertura…", variant = "secondary", icon = Icon.EYE, width = "full")
-    </form>
-    <p class="mt-2 text-sm text-ink-muted">Per vederle serve la rete: la lettura si registra prima di mostrarle.</p>
+    @template.components.notesGate(gate = notes.getGate(), above = true)
+    @if(!notes.getGate().getServeNoJs())
+      <form method="post" action="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-post="${"/iscrizioni/" + notes.getId() + "/mostra-segnalazioni"}" hx-target="#segnalazioni" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" data-conferma="${notes.getGate().getConfirm() ? "segnalazioni" : null}" class="mt-3">
+        @template.components.csrf(csrf = csrf)
+        @template.components.button(label = "Mostra le segnalazioni", busyLabel = notes.getGate().getConfirm() ? "In attesa della conferma…" : "Apertura…", variant = "secondary", icon = Icon.EYE, width = "full")
+      </form>
+      @template.components.notesGate(gate = notes.getGate(), above = false)
+      <p class="mt-2 text-sm text-ink-muted">Per vederle serve la rete: la lettura si registra prima di mostrarle.</p>
+    @endif
   @else
     <p class="mt-3 text-sm text-ink-muted" data-fuoco tabindex="-1">${notes.getReadAt()}</p>
     @if(notes.getRows().isEmpty())

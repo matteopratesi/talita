@@ -26,7 +26,18 @@ data class NameForm(val first: String, val last: String, val firstError: String?
  * [data] is the card «I tuoi dati» (TALITA-7): the children, with the way to delete their data, and the account. [emailCard] is the card «Email da Talità» (TALITA-13): the avviso and the stop,
  * for who has children and for who stopped the reminders (null for anyone else).
  */
-data class ProfilePage(val email: String, val role: String?, val nameForm: NameForm?, val alert: Alert?, val data: YourData, val emailCard: EmailCard? = null)
+data class ProfilePage(
+    val email: String,
+    val role: String?,
+    val nameForm: NameForm?,
+    val alert: Alert?,
+    val data: YourData,
+    val emailCard: EmailCard? = null,
+    /** How the person enters (TALITA-15): the devices where they touched «Ricordami su questo telefono». */
+    val access: DevicesBlock? = null,
+    /** The card «Passkey», or null when this site has none (there is no public address). */
+    val passkeys: PasskeysBlock? = null,
+)
 
 /**
  * The profile, two taps from every page (the pill in the header, then "Esci"): the address with which
@@ -34,7 +45,16 @@ data class ProfilePage(val email: String, val role: String?, val nameForm: NameF
  * and of the account, with the way to delete them (`talita.retention`, TALITA-7). Every account has one.
  */
 @Controller
-class ProfileController(private val shells: ShellFactory, private val yourData: YourDataPresenter, private val notices: NoticePresenter) {
+class ProfileController(
+    private val shells: ShellFactory,
+    private val yourData: YourDataPresenter,
+    private val notices: NoticePresenter,
+    private val access: AccessPresenter,
+    private val passkeyPresenter: PasskeyPresenter,
+    private val confirmations: PasskeyConfirmations,
+    /** The request of the thread: the profile is drawn from many controllers, and the devices ask which one the person is on. */
+    private val request: HttpServletRequest,
+) {
 
     @GetMapping("/profilo")
     fun profile(account: CurrentAccount, request: HttpServletRequest): ModelAndView = page(account, Flash.take(request), HttpStatus.OK)
@@ -57,6 +77,8 @@ class ProfileController(private val shells: ShellFactory, private val yourData: 
                     alert = alert,
                     data = yourData.forProfile(account),
                     emailCard = notices.card(account.id, full = true),
+                    access = access.devices(account, request, AccessFlash.take(request, "dispositivi")),
+                    passkeys = passkeyPresenter.block(account, AccessFlash.take(request, "passkey"), confirmations.needed(account, request.getSession(false))),
                 ),
             ),
         ).also { it.status = status }

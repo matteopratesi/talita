@@ -635,8 +635,8 @@ class LoginFlowTests(
                 assertEquals("/accedi", location(result))
             }
             // The access page then tells, once, that the access closed on its own.
-            assertTrue(browser.page("/accedi").contains("Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link."), "htmx=$htmx")
-            assertFalse(browser.page("/accedi").contains("l’accesso si chiude da solo"), "htmx=$htmx")
+            assertTrue(browser.page("/accedi").contains("L’accesso si chiude da solo dopo 2 ore che non usi Talità, e comunque dopo 12 ore dall’entrata. Per rientrare, chiedi un nuovo link."), "htmx=$htmx")
+            assertFalse(browser.page("/accedi").contains("si chiude da solo"), "htmx=$htmx")
         }
         // Whoever never was inside is not told that the access closed.
         val first = mockMvc.get("/iscrizioni").andReturn()

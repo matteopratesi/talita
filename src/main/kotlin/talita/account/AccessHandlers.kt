@@ -55,11 +55,11 @@ private fun Authentication?.isSignedIn(): Boolean =
  * (`HX-History-Restore-Request`), where htmx does not read `HX-Redirect`: there a 401 makes htmx give up
  * and app.js load the address as a whole page.
  *
- * If the browser carries the cookie of a session that the server no longer knows (more than two hours
- * without touching anything, or a restart), the person is told that the access closed on its own: a
- * person who never was inside is not.
+ * If the browser carries the cookie of a session that the server no longer knows (more than two hours without touching anything, or a restart), the person is told that the access closed on its own: a
+ * person who never was inside is not. The same page says other things when they are true (TALITA-15): that the access on this phone was closed (the device was taken away, «Esci da tutti» was
+ * touched on another one, or the cookie of «Ricordami su questo telefono» was not accepted), and that the session passed its 12 hours.
  */
-class LoginEntryPoint : AuthenticationEntryPoint {
+class LoginEntryPoint(private val texts: SessionTexts) : AuthenticationEntryPoint {
 
     override fun commence(request: HttpServletRequest, response: HttpServletResponse, authException: AuthenticationException) {
         goToLogin(request, response)
@@ -75,8 +75,11 @@ class LoginEntryPoint : AuthenticationEntryPoint {
         }
         // A session that was closed because its account is gone (TALITA-7) says so with its own notice, and not that the access closed by itself.
         val sessionExpired = request.requestedSessionId != null && !request.isRequestedSessionIdValid && request.getAttribute(ACCOUNT_GONE) != true
-        if (sessionExpired) {
-            Flash.put(request, Alert(INFO, INACTIVITY_NOTICE))
+        val ended = request.getAttribute(SESSION_ENDED) as? SessionEnd
+        when {
+            ended != null -> Flash.put(request, texts.of(ended))
+            request.getAttribute(DeviceRememberMeServices.CLOSED_BY_COOKIE) == true -> Flash.put(request, texts.closedHere)
+            sessionExpired -> Flash.put(request, texts.inactivity)
         }
         if (request.isHtmx()) {
             response.status = HttpStatus.OK.value()
@@ -92,7 +95,8 @@ class LoginEntryPoint : AuthenticationEntryPoint {
         /** The attribute of a request whose session was closed because the account it pointed at is gone ([CurrentAccountFilter]). */
         const val ACCOUNT_GONE = "talita.account.gone"
 
-        const val INACTIVITY_NOTICE = "Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link."
+        /** The attribute of a request whose session was closed by [SessionGuardFilter]: the [SessionEnd] that says why. */
+        const val SESSION_ENDED = "talita.account.sessionEnded"
     }
 }
 
@@ -110,6 +114,9 @@ internal const val PAGE_EXPIRED = "La pagina era aperta da troppo tempo. Riprova
 /** The forms of the pages that are open to anyone and that have a tap with a CSRF code: the two of access (the link, and its confirmation) and the one for stopping the reminders (TALITA-13). */
 private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma", "/promemoria/smetti")
 
+/** The two requests of «Entra con una passkey» (TALITA-15), which the script of the access page sends with the CSRF code of the page: when it expired the access page comes back as itself, as for its forms. */
+private val PASSKEY_ENTRY = setOf("/webauthn/authenticate/options", "/login/webauthn")
+
 /**
  * What happens when the request is refused to someone who is inside, and when the CSRF code of a
  * form does not match.
@@ -120,12 +127,12 @@ private val ACCESS_FORMS = setOf("/accedi", "/accedi/conferma", "/promemoria/sme
  *   try again. Never "Non puoi vedere questa pagina". The page for stopping the reminders comes back the same way, with its code.
  * - Any other form without the code, from someone who is not inside any more: the access page, as
  *   for any request without access.
- * - The same with a person who is inside (two tabs, a form from before the login): the page is
- *   reloaded (htmx) or the person goes to the home.
+ * - The same with a person who is inside (two tabs, a form from before the login), or who is inside by the cookie of «Ricordami su questo telefono» and whose session
+ *   ended: the page is reloaded (htmx) or the person goes to the home, with the notice «La pagina era aperta da troppo tempo. Riprova.».
  * - Anything else is a 403, which the error page shows (or, for a request that does not change the
  *   page, the message "Accesso negato").
  */
-class AccessHandler(private val entryPoint: LoginEntryPoint) : AccessDeniedHandler {
+class AccessHandler(private val entryPoint: LoginEntryPoint, private val remembered: DeviceRememberMeServices) : AccessDeniedHandler {
 
     override fun handle(request: HttpServletRequest, response: HttpServletResponse, accessDeniedException: AccessDeniedException) {
         if (accessDeniedException is CsrfException) {
@@ -140,14 +147,31 @@ class AccessHandler(private val entryPoint: LoginEntryPoint) : AccessDeniedHandl
         when {
             path in ACCESS_FORMS -> backToAccessForm(path, request, response)
 
-            !SecurityContextHolder.getContext().authentication.isSignedIn() -> entryPoint.goToLogin(request, response)
+            // «Entra con una passkey» on an access page that was left open for hours (TALITA-15, criterion 8): the page comes back with a new code and the notice, like the form of the link. The script
+            // asks as htmx and follows `HX-Redirect`; anything else gets the redirect.
+            path in PASSKEY_ENTRY -> {
+                Flash.put(request, Alert(WARNING, PAGE_EXPIRED))
+                if (request.isHtmx()) {
+                    response.status = HttpStatus.OK.value()
+                    response.setHeader("HX-Redirect", LoginEntryPoint.LOGIN_PATH)
+                } else {
+                    response.redirectSeeOther(LoginEntryPoint.LOGIN_PATH)
+                }
+            }
+
+            // A person who has no session any more but the cookie of «Ricordami su questo telefono» is still inside: the form of a page that was open for hours has no code that the session knows, and
+            // the person must not see «Accedi» for it (TALITA-15, criterion 8). The cookie is not used here (it is used by the next request, a page): it is only looked at.
+            !SecurityContextHolder.getContext().authentication.isSignedIn() && !remembered.canEnter(request) -> entryPoint.goToLogin(request, response)
 
             request.isHtmx() -> {
                 response.status = HttpStatus.OK.value()
                 response.setHeader("HX-Refresh", "true")
             }
 
-            else -> response.redirectSeeOther("/")
+            else -> {
+                Flash.put(request, Alert(WARNING, PAGE_EXPIRED))
+                response.redirectSeeOther("/")
+            }
         }
     }
 }
@@ -193,14 +217,25 @@ fun interface PostLoginDestination {
 class LoginSuccessHandler(
     private val requestCache: RequestCache,
     private val destinations: List<PostLoginDestination> = emptyList(),
+    private val origins: SessionOrigins? = null,
 ) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
-        val email = (authentication.principal as? AccountUserDetails)?.username
+        response.redirectSeeOther(enter(request, response, authentication))
+    }
+
+    /**
+     * What happens at every way in, and where the person goes: the origin of the session is written (the number of the sessions of the account, the moment, the device that the box made if it was touched, so
+     * that the session ends when it must: TALITA-15) and the page that was asked for is forgotten. The link redirects to the address that this returns, a passkey says it in JSON.
+     */
+    fun enter(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication): String {
+        val person = authentication.principal as? AccountUserDetails
+        if (person != null) origins?.stamp(request, person.id, request.getAttribute(DeviceRememberMeServices.DEVICE) as? Long)
+        val email = person?.username
         val urgent = email?.let { address -> destinations.firstNotNullOfOrNull { it.forNewLogin(address) } }
         val target = urgent ?: destination(request, response)
         requestCache.removeRequest(request, response)
-        response.redirectSeeOther(target)
+        return target
     }
 
     private fun destination(request: HttpServletRequest, response: HttpServletResponse): String {
@@ -228,18 +263,14 @@ class LoginFailureHandler : AuthenticationFailureHandler {
 }
 
 /** After "Esci": the access page, with the confirmation, once. The session is new: the old one is over. */
-class LogoutRedirect : LogoutSuccessHandler {
+class LogoutRedirect(private val texts: SessionTexts) : LogoutSuccessHandler {
 
     private val log = LoggerFactory.getLogger(LogoutRedirect::class.java)
 
     override fun onLogoutSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication?) {
-        Flash.put(request, Alert(SUCCESS, SIGNED_OUT_NOTICE))
+        Flash.put(request, texts.signedOut)
         log.debug("Signed out.")
         response.redirectSeeOther(LoginEntryPoint.LOGIN_PATH)
-    }
-
-    companion object {
-        const val SIGNED_OUT_NOTICE = "Accesso chiuso. Per rientrare, chiedi un nuovo link."
     }
 }
 

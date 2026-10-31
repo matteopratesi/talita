@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
 import talita.account.CurrentAccount
+import talita.account.NotesGate
 import talita.account.seeOther
 import talita.gathering.Badge
 import talita.gathering.GatheringFormat
@@ -139,6 +140,8 @@ data class HealthPage(
     val paper: Boolean = false,
     val intro: Boolean = true,
     val warning: String? = null,
+    /** The page of a teacher who has a passkey and has not confirmed: it has no fields and reads nothing, and asks the phone first (TALITA-15, criterion 39). Null: the page as always. */
+    val confirm: NotesGate? = null,
 )
 
 /** Builds what the pages of the parent show of the registrations they have made. The sentences are those of the design (B of TALITA-5). */

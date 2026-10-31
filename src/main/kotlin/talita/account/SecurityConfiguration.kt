@@ -1,6 +1,7 @@
 package talita.account
 
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.http.HttpMethod
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcTemplate
@@ -15,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter
 import org.springframework.security.web.authentication.AuthenticationConverter
 import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
 import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy
@@ -31,7 +33,8 @@ import java.time.Clock
  *   tokens (`/ott/generate`) is switched off: it generates nothing and sends nothing.
  * - **Opening the link does not log in** (mail programs open links to look at them): the page asks
  *   for a tap, and the tap is a POST with the CSRF code, to `/accedi/conferma`.
- * - **The session** lives in memory and ends after two hours without use (`server.servlet.session.timeout`).
+ * - **The session** lives in memory and ends after two hours without use (`server.servlet.session.timeout`) and, used or not, after 12 hours ([SessionGuardFilter]). A person who touched
+ *   «Ricordami su questo telefono» when entering has a cookie ([DeviceRememberMeServices]) that lets the browser in again by itself, without a link, for 30 days (7 for a teacher).
  * - **The headers** of every response: a Content-Security-Policy that allows only what the app
  *   serves itself, no referrer outside the site, no sniffing of the type of file.
  */
@@ -50,14 +53,30 @@ class SecurityConfiguration {
         tokens: OneTimeTokenService,
         accounts: Accounts,
         destinations: ObjectProvider<PostLoginDestination>,
+        texts: SessionTexts,
+        origins: SessionOrigins,
+        remembered: DeviceRememberMeServices,
+        passkeySupport: PasskeySupport,
+        passkeyOperations: PasskeyOperations,
+        passkeys: Passkeys,
+        passkeyListeners: ObjectProvider<PasskeySignInListener>,
+        currentAccounts: CurrentAccounts,
+        confirmations: PasskeyConfirmations,
+        passkeyPresenter: PasskeyPresenter,
+        settings: LoginSettings,
+        clock: Clock,
     ): SecurityFilterChain {
-        val entryPoint = LoginEntryPoint()
+        val entryPoint = LoginEntryPoint(texts)
         val requests = requestCache()
+        // The one way in after a link and after a passkey: the origin of the session, and where the person goes.
+        val login = LoginSuccessHandler(requests, destinations.orderedStream().toList(), origins)
 
         http {
             authorizeHttpRequests {
                 PublicPaths.all.forEach { authorize(it, permitAll) }
                 TeacherPaths.patterns.forEach { authorize(it, hasRole("TEACHER")) }
+                // The removal of a passkey is ours (`POST /profilo/passkey/togli`, which a person can use only for their own): Spring's `DELETE /webauthn/register/{id}` is closed (TALITA-15, criterion 26).
+                authorize(HttpMethod.DELETE, "/webauthn/register/**", denyAll)
                 authorize(anyRequest, authenticated)
             }
 
@@ -67,7 +86,7 @@ class SecurityConfiguration {
                 loginProcessingUrl = "/accedi/conferma"
                 showDefaultSubmitPage = false
                 authenticationConverter = LinkFromForm()
-                authenticationSuccessHandler = LoginSuccessHandler(requests, destinations.orderedStream().toList())
+                authenticationSuccessHandler = login
                 authenticationFailureHandler = LoginFailureHandler()
                 // Links are made by LoginLinks and nowhere else: this one makes none and sends none.
                 generateRequestResolver = GenerateOneTimeTokenRequestResolver { null }
@@ -76,17 +95,25 @@ class SecurityConfiguration {
                 }
             }
 
+            // «Ricordami su questo telefono» (TALITA-15): our own services on top of Spring's, which wire the session strategy and the way out by themselves.
+            rememberMe {
+                rememberMeServices = remembered
+            }
+
             logout {
                 logoutUrl = "/esci"
-                logoutSuccessHandler = LogoutRedirect()
+                logoutSuccessHandler = LogoutRedirect(texts)
             }
 
             exceptionHandling {
                 authenticationEntryPoint = entryPoint
-                accessDeniedHandler = AccessHandler(entryPoint)
+                accessDeniedHandler = AccessHandler(entryPoint, remembered)
             }
 
             requestCache { requestCache = requests }
+
+            // Passkeys (TALITA-15): the filters of Spring's WebAuthn, wired by us. Without `talita.public-url` there are none.
+            with(PasskeyConfigurer(passkeySupport, passkeyOperations, passkeys, accounts, login, passkeyListeners, settings, clock, listOf(passkeyGuard(currentAccounts, passkeys, confirmations, passkeyPresenter))))
 
             headers {
                 contentSecurityPolicy {
@@ -97,12 +124,24 @@ class SecurityConfiguration {
                 }
             }
 
+            // A session that must not count any more ends before the cookie of a device is looked at, so the person with a good cookie enters again in the same request.
+            addFilterBefore<RememberMeAuthenticationFilter>(SessionGuardFilter(origins))
             addFilterBefore<AnonymousAuthenticationFilter>(CurrentAccountFilter(accounts))
             // A form with a file that is past the limit of the container (TALITA-12): Tomcat throws when the filter of the CSRF code asks for the code, so this one comes before.
             addFilterBefore<CsrfFilter>(TooLargeUploadFilter())
         }
         return http.build()
     }
+
+    /**
+     * What a request to add a passkey meets first: the most passkeys, the confirmation of a teacher who already has one (criterion 45: without it `POST /webauthn/register/options` answers
+     * «serve-conferma» and nothing changes), and the notice that a registration leaves for the profile.
+     */
+    private fun passkeyGuard(accounts: CurrentAccounts, passkeys: Passkeys, confirmations: PasskeyConfirmations, presenter: PasskeyPresenter) = PasskeyRegistrationGuard(
+        accounts, passkeys,
+        before = listOf({ account, request -> if (confirmations.needed(account, request.getSession(false))) "serve-conferma" else null }),
+        registered = { account, request -> AccessFlash.put(request, "passkey", presenter.added(account.isTeacher)) },
+    )
 
     companion object {
         /**

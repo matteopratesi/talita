@@ -103,6 +103,9 @@ data class AccountPlan(
     val markedUntil: LocalDate?,
     val blockers: List<Blocker>,
     val teacherBlock: TeacherBlock,
+    /** The devices of «Ricordami su questo telefono» and the passkeys of the account (TALITA-15): they go at once, and the dialog says so. */
+    val devices: Int = 0,
+    val passkeys: Int = 0,
 ) {
     /** The registrations that are not withdrawn and the teacher block: the account cannot be deleted before. */
     val blocked: Boolean get() = blockers.isNotEmpty() || teacherBlock.any

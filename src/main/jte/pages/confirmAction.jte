@@ -9,7 +9,15 @@
 @template.layout.shell(shell = shell, content = @`
   <div class="mx-auto w-full max-w-md">
     @template.components.pageHead(title = page.getTitle())
-    <p class="text-ink-muted wrap-anywhere">${page.getText()}</p>
+    <div class="space-y-2 text-ink-muted">
+      <p class="wrap-anywhere">${page.getText()}</p>
+      @for(String paragraph : page.getMore())
+        <p class="wrap-anywhere">${paragraph}</p>
+      @endfor
+      @if(page.getNote() != null)
+        <p class="text-sm wrap-anywhere">${page.getNote()}</p>
+      @endif
+    </div>
     <form method="post" action="${page.getAction()}" hx-disabled-elt="find button[type=submit]" class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
       @template.components.csrf(csrf = csrf)
       <input type="hidden" name="${page.getField()}" value="${page.getValue()}">

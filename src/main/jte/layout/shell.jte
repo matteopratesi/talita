@@ -19,6 +19,9 @@
   <link rel="stylesheet" href="${shell.getAssets().url("/css/app.css")}">
   <script src="${shell.getAssets().url("/js/htmx.min.js")}" defer></script>
   <script src="${shell.getAssets().url("/js/app.js")}" defer></script>
+  @if(shell.getPasskeys())
+    <script src="${shell.getAssets().url("/js/passkeys.js")}" defer></script>
+  @endif
 </head>
 <body hx-boost="true" class="min-h-dvh bg-canvas font-sans text-base text-ink antialiased">
 

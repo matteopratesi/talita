@@ -216,6 +216,11 @@ class YourDataPresenter(private val erasures: ErasureService, private val texts:
     fun accountDialog(plan: AccountPlan): ErasureDialog {
         val now = buildList {
             add(if (plan.addressStays) "Il tuo accesso a Talità." else "Il tuo indirizzo email e il tuo accesso a Talità.")
+            // What a person has done to enter without a link goes at once, and the dialog says it only if there is something (TALITA-15, criterion 29): on how many phones, and that a passkey stays in the phone.
+            if (plan.devices == 1) add("Il dispositivo collegato: da lì esci da Talità.")
+            if (plan.devices > 1) add("I dispositivi collegati: da tutti i telefoni e i computer esci da Talità.")
+            if (plan.passkeys == 1) add("La passkey: resta nel telefono, ma non fa più entrare.")
+            if (plan.passkeys > 1) add("Le passkey: restano nei telefoni, ma non fanno più entrare.")
             if (plan.isTeacher) add("Il tuo nome e cognome dall’elenco dei maestri: non gestirai più la convivenza né vedrai i bambini.")
             if (plan.hasInvitations) add("Gli inviti mandati a questo indirizzo.")
             for (child in plan.children) {
