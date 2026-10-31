@@ -1,5 +1,6 @@
 @import org.springframework.security.web.csrf.CsrfToken
 @import talita.gathering.NewPage
+@import talita.gathering.PublicText
 @import talita.ui.AlertVariant
 @import talita.ui.Shell
 @param Shell shell
@@ -26,7 +27,7 @@
     <form method="post" action="/convivenza/nuova" novalidate hx-disabled-elt="find button[type=submit]" class="rounded-2xl border border-line bg-surface p-4 lg:p-6">
       @template.components.csrf(csrf = csrf)
       <div class="space-y-5">
-        @template.components.field(id = "titolo", name = "title", label = "Titolo", value = page.getTitle(), hint = "Per esempio «Convivenza di settembre 2027». Compare nella pagina per i genitori e nell’anteprima del link.", error = page.getTitleError(), autocomplete = "off", autocapitalize = "sentences")
+        @template.components.field(id = "titolo", name = "title", label = "Titolo", value = page.getTitle(), hint = PublicText.TITLE_HELP, error = page.getTitleError(), autocomplete = "off", autocapitalize = "sentences")
         @template.components.field(id = "primo-giorno", name = "startDate", label = "Primo giorno", type = "date", value = page.getStartDate(), error = page.getStartError())
         @template.components.field(id = "ultimo-giorno", name = "endDate", label = "Ultimo giorno", type = "date", value = page.getEndDate(), hint = "I giorni di presenza sono tutti quelli dal primo all’ultimo, al massimo 7.", error = page.getEndError())
       </div>

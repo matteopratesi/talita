@@ -17,9 +17,20 @@ object Limits {
     const val MAX_FEE_CENTS = 100_000
 }
 
-/** A text as it will be saved, and what is wrong with it (null: nothing). */
-data class TextCheck(val value: String, val error: String?) {
+/**
+ * A text as it will be saved, and what is wrong with it (null: nothing).
+ *
+ * [publicFindings] is there only for a text that goes on the public page, is not empty and is not too long (a length error is the only one then, and an empty text has nothing to
+ * check): what the pure check found in it (email, phone, IBAN), waiting for the answer on names, which only the database gives ([PublicNames]). The controller asks for all the texts of a
+ * form at once and gives each answer to [withName]. [askForName] says that this text is one to ask about.
+ */
+data class TextCheck(val value: String, val error: String?, val publicFindings: PublicText.Findings? = null) {
     val valid: Boolean get() = error == null
+
+    val askForName: Boolean get() = publicFindings != null
+
+    /** The same text once the database has said whether it holds the first and last name of a person that the application knows: one error, that lists everything found. */
+    fun withName(found: Boolean): TextCheck = publicFindings?.let { copy(error = it.copy(name = found).message()) } ?: this
 }
 
 /** A fee as typed, in cents when it is good (null when it is empty), and what is wrong with it. */
@@ -81,11 +92,24 @@ object GatheringChecks {
     /** A text of one line: control characters (and line breaks) become a space. */
     private fun oneLine(raw: String?): String = clean(raw).replace(Regex("""\s*\n\s*"""), " ").replace(controls, " ").trim()
 
-    /** The text that goes on the public page: not longer than [max] and with no email, phone number or IBAN. */
+    /**
+     * The text that goes on the public page: not longer than [max] (checked first) and with no email, phone number or IBAN. The check of the names is the one that needs the
+     * database: the result carries what was found, and the controller finishes it with [TextCheck.withName].
+     */
     private fun publicText(value: String, max: Int, tooLong: (Int) -> String): TextCheck {
         val size = length(value)
         if (size > max) return TextCheck(value, tooLong(size))
-        return TextCheck(value, PublicText.check(value).message())
+        val findings = PublicText.check(value)
+        return TextCheck(value, findings.message(), findings)
+    }
+
+    /**
+     * The texts of a form once the database has answered on their names ([PublicNames.contain], for the texts that [TextCheck.askForName] and in their order): a pure function of
+     * the checks and of the answers, so that the words and the order of the checks stay in this object.
+     */
+    fun withNames(checks: List<TextCheck>, found: List<Boolean>): List<TextCheck> {
+        val answers = found.iterator()
+        return checks.map { if (it.askForName) it.withName(answers.next()) else it }
     }
 
     fun title(raw: String?): TextCheck {

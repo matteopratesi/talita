@@ -241,6 +241,49 @@ class GatheringRulesTests {
     }
 
     @Test
+    fun `t16 c15 with a name the sentence is always plural, lists the name first and everything else after it, and never says whose the name is`() {
+        val tail = "Toglili: la pagina la legge chiunque abbia il link."
+
+        assertEquals("Qui ci sono nome e cognome di una persona. $tail", PublicText.Findings(email = false, phone = false, iban = false, name = true).message())
+        assertEquals("Qui ci sono nome e cognome di una persona e un numero di telefono. $tail", PublicText.Findings(email = false, phone = true, iban = false, name = true).message())
+        assertEquals("Qui ci sono nome e cognome di una persona e un indirizzo email. $tail", PublicText.Findings(email = true, phone = false, iban = false, name = true).message())
+        assertEquals("Qui ci sono nome e cognome di una persona, un indirizzo email e un numero di telefono. $tail", PublicText.Findings(email = true, phone = true, iban = false, name = true).message())
+        assertEquals("Qui ci sono nome e cognome di una persona e un IBAN. $tail", PublicText.Findings(email = false, phone = false, iban = true, name = true).message())
+        assertEquals(
+            "Qui ci sono nome e cognome di una persona, un indirizzo email, un numero di telefono e un IBAN. $tail",
+            PublicText.Findings(email = true, phone = true, iban = true, name = true).message(),
+        )
+        // Without the name the sentences are the ones of today.
+        assertEquals("Qui c’è un indirizzo email. Toglilo: la pagina la legge chiunque abbia il link.", PublicText.Findings(email = true, phone = false, iban = false).message())
+        assertNull(PublicText.Findings(email = false, phone = false, iban = false).message())
+        assertTrue(PublicText.Findings(email = false, phone = false, iban = false, name = true).any)
+    }
+
+    @Test
+    fun `t16 c15 the pure checks leave the answer on names for the end, only for a text that is not empty and not too long, and then give one error for the field`() {
+        val title = GatheringChecks.title("Convivenza con Luca Rossi")
+        val empty = GatheringChecks.title("   ")
+        val tooLong = GatheringChecks.title("Luca Rossi " + "x".repeat(100))
+        val place = GatheringChecks.place("", required = false)
+        val withPhone = GatheringChecks.info("Luca Rossi 333 123 4567")
+
+        assertTrue(title.askForName && title.valid, "there is nothing to take away yet, and the name is still to be asked")
+        assertTrue(withPhone.askForName)
+        assertEquals(listOf(false, false, false), listOf(empty.askForName, tooLong.askForName, place.askForName), "an empty or too long text is not asked about")
+
+        val answered = GatheringChecks.withNames(listOf(title, empty, withPhone, tooLong, place), listOf(true, true))
+
+        assertEquals("Qui ci sono nome e cognome di una persona. Toglili: la pagina la legge chiunque abbia il link.", answered[0].error)
+        assertEquals("Scrivi il titolo.", answered[1].error)
+        assertEquals("Qui ci sono nome e cognome di una persona e un numero di telefono. Toglili: la pagina la legge chiunque abbia il link.", answered[2].error)
+        assertTrue(answered[3].error!!.startsWith("Il titolo può avere al massimo 100 caratteri"))
+        assertNull(answered[4].error)
+        // A text with a name that is not found is as it was.
+        assertNull(GatheringChecks.withNames(listOf(title), listOf(false)).single().error)
+        assertEquals("Qui c’è un numero di telefono. Toglilo: la pagina la legge chiunque abbia il link.", GatheringChecks.withNames(listOf(GatheringChecks.info("Chiama il 333 1234567")), listOf(false)).single().error)
+    }
+
+    @Test
     fun `t4 c03 the dates are required, real, in order, at most seven days, and new or changed ones are not in the past`() {
         val today = LocalDate.of(2027, 9, 1)
 
