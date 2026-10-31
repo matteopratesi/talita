@@ -354,6 +354,10 @@ testing {
                     // Playwright for Java would download Chromium, Firefox and WebKit on its own;
                     // playwrightInstall has already installed the only one we use.
                     environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
+                    // Two test JVMs at the same time (TALITA-16, docs/05): the time of the suite is the number of tests (more than 700, about 2 seconds each, a good part of it
+                    // axe) and not what surrounds them. Each JVM has everything of its own: the application, its Postgres and its Mailpit from Testcontainers (random ports) and
+                    // its Chromium, so the tests share nothing; the classes go to whichever is free. `-Pe2eForks=1` runs them one JVM at a time, to look at a failure.
+                    maxParallelForks = (project.findProperty("e2eForks") ?: "2").toString().toInt()
                     // Trace and screenshot of every failed test end up here (see E2eExtension).
                     val artifacts = layout.buildDirectory.dir("e2e-artifacts")
                     systemProperty("e2e.artifacts", artifacts.get().asFile.path)
