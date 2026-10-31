@@ -17,18 +17,26 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Settings of the login link (`talita.login.*`).
+ * Settings of the login link and of the session (`talita.login.*`).
  *
  * @property linkValidity how long a link works. 15 minutes: the 5 of Spring are few for someone who
  * goes through the mail app with little signal
  * @property linksPerAddress most links that can be asked for one address in [window]
  * @property window the time in which [linksPerAddress] count
+ * @property sessionMaxAge the longest a session lives, used or not (TALITA-15, decision of Matteo): the two hours without use of the container stay, and this is the cap on top of them. A
+ * person with the cookie of «Ricordami su questo telefono» enters again by themselves; the others ask for a link
+ * @property confirmationValidity how long a confirmation with the passkey holds before the notes on health (TALITA-15, decision of Matteo): from the moment of the confirmation, and
+ * the use of the app does not lengthen it. It ends with the session in any case
+ * @property confirmationChallengeValidity how long the challenge of a confirmation can be answered: five minutes, one use
  */
 @ConfigurationProperties("talita.login")
 data class LoginSettings(
     @DefaultValue("15m") val linkValidity: Duration,
     @DefaultValue("3") val linksPerAddress: Int,
     @DefaultValue("15m") val window: Duration,
+    @DefaultValue("12h") val sessionMaxAge: Duration = Duration.ofHours(12),
+    @DefaultValue("10m") val confirmationValidity: Duration = Duration.ofMinutes(10),
+    @DefaultValue("5m") val confirmationChallengeValidity: Duration = Duration.ofMinutes(5),
 )
 
 /**
@@ -44,6 +52,15 @@ class PublicUrl(@Value("\${talita.public-url:}") raw: String) {
 
     /** The address of [path] on the site, or null if the public address is missing or wrong. */
     fun of(path: String): String? = base?.let { it + path }
+
+    /**
+     * The origin of the site (`https://host`, with the port if there is one): the only origin that a passkey accepts (TALITA-15). Null if the public address is missing or wrong: then there
+     * are no passkeys.
+     */
+    val origin: String? get() = base
+
+    /** The name of the site without the port (`talita.example.org`, `localhost`): the `rpId` of WebAuthn, which a passkey is tied to for good. Null as [origin]. */
+    val host: String? get() = base?.substringAfter("://")?.substringBefore(':')
 
     private companion object {
         /** `https://host` or `http://host:port`, nothing else. */

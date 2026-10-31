@@ -288,7 +288,7 @@ class EnrollmentE2eTest {
 
         assertThat(page).hasTitle("Informativa sulla privacy · Talità")
         assertThat(page.locator("h1")).hasText("Informativa sulla privacy")
-        assertThat(page.locator("main h2")).hasCount(10)
+        assertThat(page.locator("main h2")).hasCount(11)
         assertThat(page.locator("main")).containsText("Il titolare del trattamento è Titolare di esempio")
         assertEquals(emptyList<String>(), scripts, "the page loads no script")
         assertEquals(0, (page.evaluate("document.querySelectorAll('script').length") as Number).toInt())

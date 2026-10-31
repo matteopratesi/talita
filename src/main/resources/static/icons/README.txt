@@ -19,6 +19,8 @@ Aggiunte da TALITA-6: phone (Chiama), list (elenco per la struttura), clipboard-
 
 Aggiunte da TALITA-11: bed-double (camere: la scheda nella Convivenza, la pagina, lo stato vuoto, la scheda del bambino in Arrivi).
 
+Aggiunte da TALITA-15: monitor-smartphone (un dispositivo collegato), key-round (una passkey nell'elenco), fingerprint-pattern (Entra con una passkey, Aggiungi una passkey, la conferma prima delle segnalazioni).
+
 Usate nel guscio: house, users-round, clipboard-check, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
 nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.

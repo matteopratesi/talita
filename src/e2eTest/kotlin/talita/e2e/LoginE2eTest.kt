@@ -21,7 +21,7 @@ class LoginE2eTest {
 
     private fun Page.field() = getByLabel("Indirizzo email")
 
-    private fun Page.button(name: String) = getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(name))
+    private fun Page.button(name: String) = getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(name).setExact(true))
 
     private fun Page.link(name: String) = getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName(name))
 
@@ -53,7 +53,7 @@ class LoginE2eTest {
         assertThat(page.locator("header")).containsText("Talità")
         assertEquals(0, page.locator("header a").count())
         assertEquals(0, page.locator("nav").count())
-        assertEquals(0, page.getByText("Profilo").count())
+        assertEquals(0, page.getByText("Profilo", Page.GetByTextOptions().setExact(true)).count())
         // The column is narrow and centered.
         val main = page.locator("main > div").box()
         assertTrue(main.width <= 448 + 1, "the column is ${main.width} px wide")
@@ -318,7 +318,7 @@ class LoginE2eTest {
 
         assertThat(page).hasURL(e2e.url("/accedi"))
         val notice = page.locator("main [role=status]")
-        assertThat(notice).hasText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
+        assertThat(notice).containsText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
         page.focusIs("document.activeElement.hasAttribute('data-fuoco')")
         assertAccessible(page, "access page after the exit (${e2e.profile.label})")
         // Once: a reload does not say it again.
@@ -351,7 +351,7 @@ class LoginE2eTest {
         assertThat(page.locator("h1")).hasText("Accedi a Talità")
         // A whole page: the old one is gone, and what was put in it with it.
         assertEquals(null, page.evaluate("window.__marker"))
-        assertThat(page.locator("main")).containsText("Dopo un po’ che non usi Talità, l’accesso si chiude da solo. Per rientrare, chiedi un nuovo link.")
+        assertThat(page.locator("main")).containsText("L’accesso si chiude da solo dopo 2 ore che non usi Talità, e comunque dopo 12 ore dall’entrata. Per rientrare, chiedi un nuovo link.")
         assertEquals(0, page.messages().count())
         assertEquals(0, page.locator("nav").count())
         assertAccessible(page, "access page after a session that ended (${e2e.profile.label})")
@@ -509,7 +509,7 @@ class LoginE2eTest {
 
         assertThat(page).hasURL(e2e.url("/accedi"))
         page.waitForSettledContent()
-        assertThat(page.locator("main [role=status]")).hasText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
+        assertThat(page.locator("main [role=status]")).containsText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
         // Wrong address without JavaScript: the same page, with the error.
         page.field().fill("nome")
         page.button("Ricevi il link").click()

@@ -11,8 +11,11 @@ import org.springframework.context.annotation.Import
 import talita.CapturesOutput
 import talita.LockWait
 import talita.TestcontainersConfiguration
+import talita.account.Accounts
 import talita.account.CurrentAccount
 import talita.account.EmailAddress
+import talita.account.Passkeys
+import talita.account.RememberedDevices
 import talita.account.TeacherName
 import talita.account.TestAccounts
 import talita.jooq.enums.GatheringStatus
@@ -70,7 +73,7 @@ class ErasureTests(
     /** The service as it is on the day of [at], with the clock fixed (the plan and the checks look at the day). */
     private fun service(at: String = "2027-10-05T10:00"): ErasureService {
         val fixed = kit.clockAt(at)
-        return ErasureService(dsl, fixed, policy, HealthNotes(dsl, fixed, policy), Teachers(dsl, fixed))
+        return ErasureService(dsl, fixed, policy, HealthNotes(dsl, fixed, policy), Teachers(dsl, fixed), RememberedDevices(dsl, fixed, policy), Passkeys(dsl, fixed), Accounts(dsl, fixed))
     }
 
     // ---- The plan (criteria 18, 19) -------------------------------------------------------------------------------------------------

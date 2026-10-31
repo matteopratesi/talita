@@ -61,6 +61,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    // Passkeys (TALITA-15). The version is the one of the BOM of Spring Boot; the module brings webauthn4j, a library that runs inside the app (no service, no network).
+    implementation("org.springframework.security:spring-security-webauthn")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("gg.jte:jte-spring-boot-starter-4:$jteVersion")

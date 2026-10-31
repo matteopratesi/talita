@@ -441,7 +441,7 @@ class MaestriE2eTest {
         val page = e2e.page
         e2e.onlyTeachers()
         e2e.open("/profilo")
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Il tuo nome", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Il tuo nome", "I tuoi dati"))
         val first = page.getByLabel("Nome", Page.GetByLabelOptions().setExact(true))
         val last = page.getByLabel("Cognome")
         assertThat(first).hasValue("Elisa")
@@ -483,7 +483,7 @@ class MaestriE2eTest {
         val page = e2e.page
         e2e.open("/profilo")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "I tuoi dati"))
         assertThat(page.getByText("Il tuo nome")).hasCount(0)
         assertThat(page.getByLabel("Cognome")).hasCount(0)
     }

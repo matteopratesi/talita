@@ -182,8 +182,9 @@ class MaestriTests(
         val guest = Addresses.unique("rinnovato")
         val browser = support.browser(me)
         browser.act("/maestri/invita", mapOf("email" to guest))
+        // Three days go by. The clock is not moved: the session of the teacher, which lasts 12 hours at most (TALITA-15), would be over. The invitation is made older instead, as it would be.
+        dsl.execute("update teacher_invitation set invited_at = invited_at - interval '3 days', expires_at = expires_at - interval '3 days' where email = ?", guest)
         val first = invitations.pendingFor(guest)!!.expiresAt
-        clock.advance(Duration.ofDays(3))
 
         browser.act("/maestri/invita", mapOf("email" to guest))
         val again = browser.act("/maestri/inviti/rimanda", mapOf("email" to guest))

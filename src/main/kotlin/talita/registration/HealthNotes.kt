@@ -5,6 +5,7 @@ import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.impl.DSL
 import org.springframework.stereotype.Component
+import talita.account.ConfirmationProof
 import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
@@ -105,12 +106,16 @@ class HealthNotes(private val dsl: DSLContext, private val clock: Clock, private
     /**
      * The notes for a teacher: the reading is written first and then the notes are read, in one transaction. If the writing fails the
      * exception goes up and no note leaves this method. Written also when there are no notes (the register does not say).
+     *
+     * **It wants a [ConfirmationProof]** (TALITA-15, criterion 39): the proof that the teacher has no passkey, or has confirmed with one in the last ten minutes. Nothing outside the class that
+     * checks can make one, so a call that did not go through the check does not compile: the three places that open the notes (the detail of a registration, the card in the arrivals, the
+     * correction of a paper form) cannot forget it. This class knows nothing of sessions or passkeys: it only asks for the proof, and the teacher who read is the one that the proof is for.
      */
-    fun readForTeacher(registrationId: Long, teacherAccountId: Long): NotesRead = dsl.transactionResult { configuration ->
+    fun readForTeacher(registrationId: Long, proof: ConfirmationProof): NotesRead = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
         // Past their date there is nothing to read, so nothing to register: the same answer as for no notes, without a row in the register.
         if (expired(transaction, registrationId)) return@transactionResult NotesRead(null, now())
-        val at = recordReading(transaction, registrationId, teacherAccountId)
+        val at = recordReading(transaction, registrationId, proof.accountId)
         NotesRead(read(transaction, registrationId), at)
     }
 

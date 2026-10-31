@@ -67,6 +67,8 @@ verificare prima del rilascio (sotto).
   Da far verificare prima del rilascio (sotto).
 - **Account dei maestri** (inviti e accesso): ipotesi di legittimo interesse del titolare
   a organizzare la convivenza con i maestri che partecipano; da verificare.
+- **«Ricordami su questo telefono» e passkey** (TALITA-15): esecuzione della richiesta della persona (art. 6.1.b), che chiede di restare collegata o di aggiungere una passkey. Sono tutte e due facoltative e il link resta; ipotesi, da verificare con le altre.
+  **Cookie** (linee guida del Garante del 10/06/2021, **interpretazione da far verificare prima del rilascio**): il cookie della sessione è tecnico; quello di «Ricordami su questo telefono» lo mette solo chi spunta la casella, che non è preselezionata, è casuale, non traccia niente, dura il minimo che serve (7 o 30 giorni) e si toglie quando si vuole. Quindi basta l'informativa, senza banner: nessun cookie di terzi e nessuna statistica.
 
 ## Fornitori che ricevono dati
 
@@ -88,6 +90,8 @@ del sito), GitHub e la CI (solo codice e dati sintetici) e Jira (nei ticket mai 
 **Mailpit**, che in sviluppo e nei test prende la posta al posto di Mailjet, gira solo in locale e non
 inoltra niente: non è un fornitore.
 
+**Passkey (TALITA-15): nessun fornitore nuovo.** La chiave privata la crea il telefono e non arriva mai a Talità, che riceve solo la chiave pubblica. La libreria che verifica le firme (webauthn4j, usata da Spring Security) gira dentro l'app: Talità non chiama servizi esterni, nemmeno il FIDO Metadata Service. Se il telefono sincronizza le passkey (portachiavi iCloud, Gestore delle password di Google), la passkey sta nel servizio che la persona ha scelto per le sue password, cifrata end-to-end, e Talità non gli manda niente. Se un maestro conferma dal computer con il telefono (il browser mostra un QR), il computer trova il telefono via Bluetooth e i due parlano attraverso un tramite del sistema (Apple o Google), con i messaggi cifrati fra i due dispositivi: Talità non lo sceglie, non lo configura e non lo chiama, e riceve l'asserzione dal browser come sempre. Sono canali della persona e del suo sistema, non fornitori di Talità; l'informativa completa lo dice in una frase.
+
 ## Misure
 
 Previste dal progetto, con il ticket in cui diventano vere:
@@ -104,9 +108,14 @@ Previste dal progetto, con il ticket in cui diventano vere:
     ore in tutto (sotto la quota gratuita di Mailjet), contati in memoria.
   - **L'indirizzo del link** viene da `TALITA_PUBLIC_URL` e mai dall'intestazione `Host`, che chi attacca
     può falsificare.
-  - **La sessione** sta in memoria (si perde al riavvio) e finisce dopo due ore senza usarla. Il cookie
+  - **La sessione** sta in memoria (si perde al riavvio) e finisce dopo due ore senza usarla, e in ogni caso **dopo 12 ore** dall'accesso, anche se la si usa (TALITA-15). Il cookie
     porta solo l'id di sessione, è `HttpOnly`, `SameSite=Lax` e `Secure` in HTTPS, e l'id cambia a ogni
     accesso. Le pagine di chi è dentro non si tengono nel browser (`Cache-Control: no-store`).
+  - **«Ricordami su questo telefono»** (TALITA-15): una casella non spuntata, nella conferma del link. Spuntata, nasce una riga (`remembered_device`) con un selettore casuale e l'**impronta SHA-256 del valore**, che sta solo nel cookie e **mai nel database**; un cookie tecnico `HttpOnly`, `SameSite=Lax`, `Secure` in HTTPS. Quando la sessione manca (2 ore senza uso, riavvio, browser chiuso) il cookie fa rientrare la persona senza link, con un id di sessione nuovo, e **il valore cambia a ogni rientro** (rotazione; il selettore resta). Un cookie con un selettore che esiste e un valore vecchio è un cookie copiato: la riga si cancella, il cookie anche, il log ha un WARN senza dati, e si scollega anche chi aveva il valore nuovo. **Con un margine di 60 secondi** (decisione di Matteo, 31/10): per 60 secondi dal cambio vale anche il valore di prima (se ne tiene l'impronta, mai il valore), così due schede che il telefono riapre insieme entrano tutte e due; la seconda entra come un rientro qualunque ma non cambia il valore un'altra volta e non tocca il cookie. Dopo i 60 secondi, o per un valore di due cambi fa, è un furto come sopra. **Il momento del cambio** (`rotated_at`) è di fatto l'ora dell'ultimo rientro con il cookie: serve solo al margine, non si mostra e non si usa per altro, e **il job di notte lo svuota** (con l'impronta del valore precedente) nelle righe in cui i 60 secondi sono passati, quindi resta al più fino alla notte dopo. **La durata è del ruolo di adesso** (genitori 30 giorni, maestri 7, dal giorno della spunta, da `RetentionPolicy`): chi diventa maestro dopo non rientra oltre i 7. Al massimo 10 dispositivi per account (l'undicesimo toglie il più vecchio), e un browser ha una riga sola. L'account si legge per id: il cookie di un account cancellato non lo fa rinascere. Dal profilo si vedono i dispositivi con il solo giorno, si toglie un dispositivo e si esce da tutti gli altri.
+  - **Il contatore delle sessioni** (`account.session_generation`): «Esci da tutti gli altri dispositivi» lo alza, e ogni altra sessione dell'account finisce alla richiesta dopo. Chiude anche il caso che TALITA-7 aveva lasciato aperto: le altre sessioni di un account rimasto per le letture dopo la richiesta di cancellarlo.
+  - **Le passkey** (TALITA-15): la persona le aggiunge dal profilo dopo un accesso con il link, e da quel momento entra con l'impronta, il volto o il codice del telefono senza scrivere l'indirizzo e senza mail. **Verifica della persona obbligatoria** (UV), attestazione `none` (non si salva niente di quello che dice il modello del telefono), passkey individuabili ed escluse quelle che l'account ha già, al massimo 10 per account. L'`rpId` e l'origine sono quelli di `talita.public-url`: senza, le passkey non ci sono. Una passkey non crea mai un account, e un'asserzione senza verifica o da un'altra origine non fa entrare nessuno. **Il link resta**, per un telefono nuovo o una passkey persa. Nella passkey il telefono mostra «Talità», mai l'indirizzo.
+  - **La conferma con la passkey** (TALITA-15, decisioni del 29/10): un maestro con almeno una passkey, prima di vedere le segnalazioni di un bambino (dal dettaglio dell'iscrizione, da Arrivi o dalla correzione di una cartacea) e prima di togliere o aggiungere una passkey, conferma con l'impronta, il volto o il codice del telefono (verifica della persona obbligatoria, fra le passkey dell'account). **Vale 10 minuti** dalla conferma, che l'uso non allunga, e finisce con la sessione; l'accesso con la passkey vale come conferma, il rientro con il link o con il cookie no. Senza una conferma valida **non si legge niente e non si scrive nessuna lettura**, anche con una richiesta a mano: il codice che legge vuole la prova del controllo. Un maestro senza passkey non conferma (scelta di Matteo), e un genitore non conferma mai. Non si raccoglie nient'altro: nella sessione il solo momento e la sfida fino al suo uso, e nel registro delle letture la riga di sempre.
+  - **Il log** a livello INFO e oltre non ha mai selettori, valori dei cookie, impronte, id delle passkey, user handle, sfide, indirizzi né id di account: una conferma o un cookie rifiutati hanno un WARN senza dati.
   - **Content-Security-Policy** su ogni risposta (solo risorse dell'app, niente script né stili in linea,
     nessun frame), `Referrer-Policy: same-origin`, `X-Content-Type-Options: nosniff`.
   - **Il log**, a livello INFO e oltre, non contiene indirizzi email, token né link: un errore di invio si
@@ -124,7 +133,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **Togliere un maestro** cancella nome e cognome e il ruolo; l'account resta, come genitore, e con
     l'account i diritti di quella persona. Un invito si salva solo se la mail parte: la persona non si trova
     mai un invito di cui nessuno le ha detto niente. Il log non scrive mai l'indirizzo invitato.
-  - **Non si raccoglie** ultimo accesso, indirizzo IP, browser, registro degli accessi, chi ha invitato chi: se
+  - **Non si raccoglie** ultimo accesso (nemmeno l'ultimo uso di una passkey; di un dispositivo collegato resta al più fino alla notte dopo il momento dell'ultimo rientro con il cookie, che serve solo al margine di 60 secondi e si svuota), indirizzo IP, browser, modello del dispositivo, registro degli accessi, chi ha invitato chi: se
     servono (per esempio per gli account inattivi) li aggiunge il ticket che ne ha bisogno, con il suo scopo.
 - **Minimizzazione**: ogni dato ha uno scopo scritto in `docs/02-modello-dati.md`; mai sesso né
   luogo di nascita; nessun documento caricato (con la sola eccezione del file del menù: sezione «Il file del menù», sotto), nessuna firma.
@@ -133,6 +142,7 @@ Previste dal progetto, con il ticket in cui diventano vere:
   - **una sola classe del codice** (`HealthNotes`) legge e scrive la tabella delle segnalazioni e quella delle letture: un test fallisce se
     un'altra classe usa le tabelle che jOOQ genera; il check-in (TALITA-6) passa di lì e le cancellazioni (TALITA-7) passano di lì. Dalla data di cancellazione (un mese dopo la fine)
     la classe non le legge più, nemmeno nelle ore fra la mezzanotte e il job: una pagina non mostra mai un dato sulla salute scaduto;
+  - **un maestro con una passkey conferma prima** (TALITA-15): con l'impronta, il volto o il codice del telefono, e la conferma vale 10 minuti (sopra, «La conferma con la passkey»). **I limiti**, da dire: il codice è quello del telefono, e chi lo conosce supera la conferma; un maestro senza passkey non conferma; la posta del telefono sbloccato, da sola, non apre le segnalazioni di un maestro con una passkey. La lettura si registra come prima, senza un segno della conferma;
   - **il contenuto si vede solo a richiesta**: l'elenco e il dettaglio dei maestri non dicono nemmeno se ci sono segnalazioni; «Mostra le
     segnalazioni» scrive la lettura (maestro, iscrizione, data e ora) **prima** di rispondere, nella stessa transazione, e se non riesce a
     scriverla non si vede niente. Ogni risposta con segnalazioni e ogni modifica fatta da un maestro è una riga del registro; le letture del
@@ -249,7 +259,9 @@ dal 17 al 19 settembre, è finita il 20; chi dorme dove va via il 20 settembre 2
 | Registro degli invii dei promemoria (`reminder_batch`) | resta con la convivenza | — | nessun dato personale: convivenza, tipo, momento e due numeri |
 | Maestro (nome e cognome, momento in cui lo è diventato) | con «Togli» o con l'account cancellato | maestri, persona | |
 | Invito (indirizzo, scadenza, momento dell'invito) | **30 giorni dopo la scadenza**; prima: accettato o ritirato, o su richiesta | job, persona | per 30 giorni i maestri vedono «Scaduto» |
-| Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | |
+| Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | la sessione: 2 ore senza uso, 12 ore al massimo (TALITA-15); il momento della conferma e la sfida stanno nella sessione |
+| Dispositivi collegati (`remembered_device`, TALITA-15) | **7 giorni (maestro) o 30 (genitore) dal giorno della casella**, col ruolo di adesso; il job cancella la riga quella notte (e svuota ogni notte l'ora dell'ultimo rientro con il cookie, che serve solo ai 60 secondi di margine); prima: «Esci» da quel browser, «Togli», «Esci da tutti gli altri dispositivi», cookie copiato, cancellazione dell'account (anche vuoto), rifacimento dopo un ripristino | job, persona | senza riga nel registro delle cancellazioni (come i numeri scaduti), con una riga di log con il numero; i giorni vengono da `RetentionPolicy` |
+| Passkey (`passkey`, TALITA-15) e `account.passkey_handle` | quando la persona le toglie; con l'account (richiesta, account vuoto dopo 30 giorni, rifacimento) | persona, job | `passkey_handle` si svuota anche quando la richiesta di cancellazione lascia l'account per le letture |
 | Id nel registro delle cancellazioni | dopo **37 giorni** (rotazione dei backup più 7) | job | il resto del registro non ha dati personali e resta |
 | Backup | **entro 30 giorni** dalla cancellazione | TALITA-8 | requisiti sopra |
 | Carta: manleve firmate e registro stampato | un anno dopo la fine | titolare | il foglio per i maestri alla fine della convivenza (TALITA-6); l'elenco resta alla struttura |
@@ -282,6 +294,7 @@ I testi devono contenere:
   un'**ipotesi di lavoro**: la casella c'è nell'iscrizione e nelle informative finché la verifica di «Prima del rilascio» (con la DPIA) non decide se
   serve; se non serve, si toglie dalla pagina, dal testo conservato e dalle informative;
 - **i promemoria** (TALITA-13): che l'indirizzo email serve anche a ricordare di confermare un'iscrizione in forse (perché la persona ha fatto l'iscrizione) e, solo se lo chiede, ad avvisare quando si aprono le iscrizioni di una nuova convivenza (consenso, che si toglie quando si vuole); che in ogni mail c'è come smettere; che il fornitore della posta riceve indirizzo e testo (mai dati dei bambini) e per antispam è titolare autonomo;
+- **i cookie e l'accesso** (TALITA-15, scheda «Cookie e accesso»): il cookie della sessione e quello di «Ricordami su questo telefono» (solo se si spunta, quanto dura, cosa contiene), che non ce ne sono altri né di terzi, e le passkey (restano nel telefono; se si sincronizzano lo fa il servizio della persona, cifrato, e Talità non manda niente ad Apple o Google);
 - chi li riceve (i fornitori della tabella) e dove stanno i dati;
 - per quanto tempo si conservano, **anche per presenze e pagamenti**: vanno via con l'iscrizione, un anno dopo la fine della convivenza (TALITA-7 ne prende il tempo da
   `RetentionPolicy`), e **chi dorme in quale camera**, che va via alla fine della convivenza (TALITA-11, stessa fonte: la riga «Chi dorme in quale camera» della scheda «Per quanto tempo»);
@@ -320,6 +333,9 @@ ancora un segnaposto):
 - **le stampe di Arrivi da Safari su iPhone** (lo prova Matteo, perché la prova automatica usa Chromium): registro, elenco e foglio su A4, con i titoli delle
   colonne su ogni foglio e senza righe spezzate (TALITA-6);
 - **i promemoria** (TALITA-13): il parere sulla base (6.1.b oppure 6.1.f) e sulla natura di servizio della mail «in forse» (art. 130 del Codice privacy, linee guida del Garante sullo spam del 4/7/2013); il testo del consenso all'avviso; la verifica dei trasferimenti nell'accordo di Mailjet (DPA Sinch, versione 8): finché non è verificata, «solo UE» non si scrive; la DPIA comprende i promemoria; e in produzione il dominio verificato in Mailjet, con SPF e DKIM (TALITA-9): fino ad allora i promemoria si provano con Mailpit;
+- **cookie e accesso** (TALITA-15): la verifica che i cookie tecnici bastano con l'informativa e senza banner (sopra, «Base giuridica»);
+- **passkey e conferma sui dispositivi veri** (le prova Matteo, perché gli e2e usano Chromium con un autenticatore virtuale): casella, passkey e conferma su iPhone (Safari) e Android (Chrome), sul dominio vero, e la conferma dal computer con il telefono (QR);
+- **il dominio di `talita.public-url` non cambia più dopo il rilascio**: le passkey sono legate al nome del sito, e cambiandolo non valgono più (`docs/04-ambiente.md` dice cosa fa il titolare);
 - l'indirizzo vero del titolare (TALITA-9).
 
 ## Diritti degli interessati
@@ -333,7 +349,8 @@ Il genitore li esercita **dal suo account**, per i dati suoi e dei suoi figli:
 - **cancella i dati dei figli, o l'account, quando vuole** (TALITA-7), dal «Profilo»: cosa si cancella subito e cosa resta (la manleva e il registro, con la data in cui vanno via e il perché; l'indirizzo di chi ha letto segnalazioni,
   finché restano le letture) lo dice il dialogo prima di confermare;
 - revoca il consenso alle segnalazioni, che vengono tolte;
-- **si oppone ai promemoria con un tocco, dalla mail o dal profilo** (TALITA-13), e toglie la richiesta di avviso negli stessi posti.
+- **si oppone ai promemoria con un tocco, dalla mail o dal profilo** (TALITA-13), e toglie la richiesta di avviso negli stessi posti;
+- **toglie dispositivi e passkey dal profilo** (TALITA-15), uno per uno o tutti gli altri insieme, e con loro finisce l'accesso senza link.
 
 Per quello che l'app non permette di fare da sé (anche per le famiglie del cartaceo, che non hanno un account), scrive al titolare, che risponde **entro un mese** (art. 12.3), con una proroga di due mesi solo motivata; anche
 un rifiuto va motivato entro un mese. Il
