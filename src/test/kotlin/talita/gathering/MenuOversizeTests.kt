@@ -5,13 +5,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.context.annotation.Import
 import org.springframework.core.env.Environment
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.TestAccounts
 import talita.jooq.enums.GatheringStatus
@@ -37,7 +36,6 @@ import kotlin.test.assertTrue
  * The client is the one of the JDK, with a cookie jar and no redirect followed: it enters with the link (the real way in), asks for the page of the form for the
  * code against forgery, and sends the form by hand as a browser does (`multipart/form-data`, the code first and then the file).
  */
-@ExtendWith(OutputCaptureExtension::class)
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MenuOversizeTests(
@@ -123,6 +121,7 @@ class MenuOversizeTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t12 c11 a file past the limit of the container is in the log with its size and the address, never its name`(output: CapturedOutput) {
         val id = gathering()
         val me = enter(teacher = true)

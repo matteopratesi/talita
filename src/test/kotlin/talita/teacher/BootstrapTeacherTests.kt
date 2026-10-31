@@ -11,6 +11,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.core.io.ClassPathResource
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.TestAccounts
 import talita.jooq.tables.references.TEACHER_INVITATION
@@ -24,7 +25,6 @@ import kotlin.test.assertTrue
 /** The first teacher, from `TALITA_BOOTSTRAP_TEACHER` (criterion 30): the logic, in the shared application. */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class BootstrapTeacherTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val realTeachers: Teachers,
@@ -42,6 +42,7 @@ class BootstrapTeacherTests(
     private fun bootstrap(configured: String, teachers: Teachers = noTeachers) = BootstrapTeacher(BootstrapSettings(configured), teachers, invitations)
 
     @Test
+    @CapturesOutput
     fun `t3 c30 with no teacher the address of the variable gets an invitation, normalized, and no mail leaves, and the log does not say the address`(output: CapturedOutput) {
         val local = "primo-" + System.nanoTime()
 
@@ -68,6 +69,7 @@ class BootstrapTeacherTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t3 c30 without the variable and without teachers the application goes on and the log warns`(output: CapturedOutput) {
         val before = dsl.fetchCount(TEACHER_INVITATION)
 
@@ -79,6 +81,7 @@ class BootstrapTeacherTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t3 c30 a variable that is not an address invites nobody and says so without writing it`(output: CapturedOutput) {
         val before = dsl.fetchCount(TEACHER_INVITATION)
 
@@ -106,7 +109,12 @@ class BootstrapTeacherTests(
     }
 }
 
-/** The application that starts with no teacher and the variable set: the invitation is there when it is ready (criterion 30). */
+/**
+ * The application that starts with no teacher and the variable set: the invitation is there when it is ready (criterion 30).
+ *
+ * The capture of the output is on the **class** on purpose (TALITA-16, criterion 4): the test reads the log of the start of the application ("is invited (no mail sent)"), which is
+ * written while the context starts, before the test. This class has a context of its own (the property of the variable), so nothing else wrote before it.
+ */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["talita.bootstrap.teacher=" + "primo.maestro" + "@" + "example.org"])
 @ExtendWith(OutputCaptureExtension::class)

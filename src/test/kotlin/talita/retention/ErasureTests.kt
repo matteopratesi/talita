@@ -4,12 +4,11 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
+import talita.CapturesOutput
 import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.CurrentAccount
@@ -50,7 +49,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class ErasureTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
@@ -451,6 +449,7 @@ class ErasureTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c28 a request that is blocked after a restore is left, with a warning without data, and the number stays`(output: CapturedOutput) {
         val gathering = kit.september2027(status = GatheringStatus.open)
         val a = kit.account("genitore-a")

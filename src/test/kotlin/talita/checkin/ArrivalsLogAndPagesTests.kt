@@ -2,17 +2,16 @@ package talita.checkin
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.body
@@ -35,7 +34,6 @@ import kotlin.test.assertTrue
  * no phone, no amount, no note and no address of a person; and every page and piece of page of Arrivi names nothing of the other project, has no style, no inline script,
  * no handler and no link outside the app. Names, numbers and notes are synthetic, and unusual, so that a word of the log cannot be one of them by chance.
  */
-@ExtendWith(OutputCaptureExtension::class)
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,6 +60,7 @@ class ArrivalsLogAndPagesTests(
     // ---- The log (criterion 30) -------------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t6 c30 the log has no name, phone, amount, note or address while the teachers mark, pay, read the notes and print`(output: CapturedOutput) {
         val w = World()
         val marta = w.setup.marta

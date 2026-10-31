@@ -3,17 +3,16 @@ package talita.reminder
 import org.jooq.DSLContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.PublicCodes
@@ -35,7 +34,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class StopPageTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -183,6 +181,7 @@ class StopPageTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t13 c12 the code of the link is never in the log, whatever happens to the page`(output: CapturedOutput) {
         val s = kit.scenario()
         val code = newCode()

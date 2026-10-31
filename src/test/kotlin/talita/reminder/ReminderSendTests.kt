@@ -4,15 +4,14 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.CapturesOutput
 import talita.ClockConfiguration
 import talita.LockWait
 import talita.TestcontainersConfiguration
@@ -52,7 +51,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class ReminderSendTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -441,6 +439,7 @@ class ReminderSendTests(
     // ---- Criterion 12: the log ----------------------------------------------------------------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t13 c12 the log has the gathering, the kind and the numbers, and never an address, a code or a link`(output: CapturedOutput) {
         val (s, e, f) = three()
         val browser = browsers.enter(s.m.email)

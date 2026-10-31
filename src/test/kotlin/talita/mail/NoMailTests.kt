@@ -22,6 +22,9 @@ import kotlin.test.assertTrue
 /**
  * The application as the smoke test starts it: no profile and no `spring.mail.host`. Only the
  * database is there; no mail server, no sender address, no public address.
+ *
+ * The capture of the output is on the **class** on purpose (TALITA-16, criterion 4): the first test reads the log of the start of the application ("Mail is not configured"),
+ * which is written while the context starts, before any test. The other tests only look for what they do not want in it (an address).
  */
 @Import(PostgresConfiguration::class)
 @SpringBootTest(properties = [PostgresConfiguration.PRIVACY_CONTROLLER, PostgresConfiguration.PRIVACY_CONTACT])

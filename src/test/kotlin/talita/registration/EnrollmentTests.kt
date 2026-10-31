@@ -3,17 +3,16 @@ package talita.registration
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import talita.CapturesOutput
 import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
@@ -53,7 +52,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class EnrollmentTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired tokens: OneTimeTokenService,
@@ -878,6 +876,7 @@ class EnrollmentTests(
     // ---- What is not written in the log, and what is shown as text (criterion 36) --------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t5 c36 the log has no name, date of birth, phone, note or address, and a text with markup is shown as text`(output: CapturedOutput) {
         val setup = kit.start()
         val email = talita.Addresses.unique("diario-genitore")

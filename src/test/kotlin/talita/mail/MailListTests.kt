@@ -2,16 +2,15 @@ package talita.mail
 
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.function.ThrowingSupplier
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import talita.Addresses
+import talita.CapturesOutput
 import talita.MutableClock
 import talita.TestcontainersConfiguration
 import java.io.IOException
@@ -33,7 +32,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class MailListTests(
     @Autowired private val mailer: Mailer,
     @Autowired private val mailSender: JavaMailSender,
@@ -98,6 +96,7 @@ class MailListTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t13 c06 a mail that the server refuses is a failure of that mail only, the others leave, and the place of the one that failed is given back`(output: CapturedOutput) {
         FakeSmtpServer(refusing = "rifiutato").use { server ->
             val good = Addresses.unique("parziale-uno")
@@ -200,6 +199,7 @@ class MailListTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t13 c06 without a server or a sender nothing leaves, nothing is counted, and the log says why`(output: CapturedOutput) {
         val quota = MailQuota(settings, clock)
 

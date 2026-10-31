@@ -4,16 +4,15 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.support.CronExpression
+import talita.CapturesOutput
 import talita.ClockConfiguration
 import talita.LockWait
 import talita.TestcontainersConfiguration
@@ -39,7 +38,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class RetentionJobTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
@@ -77,6 +75,7 @@ class RetentionJobTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c15 for each rule that deleted something there is a row of the register and a line of the log, with numbers only`(output: CapturedOutput) {
         oldData(children = 2)
 
@@ -122,6 +121,7 @@ class RetentionJobTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c14 a rule that fails goes back and leaves nothing, the other rules run, the log has an ERROR without data, and the next run tries again`(output: CapturedOutput) {
         oldData(children = 2)
         val failing = Failing()

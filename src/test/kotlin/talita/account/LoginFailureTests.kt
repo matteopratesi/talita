@@ -3,12 +3,10 @@ package talita.account
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.function.ThrowingSupplier
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -16,6 +14,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import talita.Addresses
+import talita.CapturesOutput
 import talita.PostgresConfiguration
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ONE_TIME_TOKENS
@@ -40,10 +39,10 @@ private const val SEND_FAILED = "Non siamo riusciti a mandare il link. Riprova t
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["spring.mail.port=1"])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class LoginMailDownTests(@Autowired private val mockMvc: MockMvc, @Autowired private val dsl: DSLContext) {
 
     @Test
+    @CapturesOutput
     fun `t3 c15 with the mail server down the page stays filled in with a notice, no link is left, and the log has neither the address nor the link`(output: CapturedOutput) {
         val address = Addresses.unique("guasto")
         val before = dsl.fetchCount(ONE_TIME_TOKENS)
@@ -71,10 +70,10 @@ class LoginMailDownTests(@Autowired private val mockMvc: MockMvc, @Autowired pri
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["talita.public-url="])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class LoginWithoutPublicUrlTests(@Autowired private val mockMvc: MockMvc, @Autowired private val dsl: DSLContext) {
 
     @Test
+    @CapturesOutput
     fun `t3 c15 without talita public-url no mail with a link leaves, the person is told, and the log says why`(output: CapturedOutput) {
         val address = Addresses.unique("senza-indirizzo")
         val before = dsl.fetchCount(ONE_TIME_TOKENS)
