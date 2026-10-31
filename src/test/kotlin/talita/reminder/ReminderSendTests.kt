@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.ClockConfiguration
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.text
@@ -340,10 +341,8 @@ class ReminderSendTests(
             dsl.transaction { configuration ->
                 val holder = DSL.using(configuration)
                 holder.fetch("select pg_advisory_xact_lock(?, ?)", Reminders.LOCK_NAMESPACE, Reminders.lockKey(s.gathering, ReminderType.MAYBE))
-                waiting = pool.submit<SendResult> { reminders.send(s.gathering, ReminderType.MAYBE) }
-
-                Thread.sleep(800)
-                assertFalse(waiting!!.isDone, "the second request goes on while the first holds the lock: two mails for each person")
+                // The second request has to be waiting for the lock of the first, not on its way to it: that it goes on while the first holds the lock would mean two mails for each person.
+                waiting = LockWait.awaitBlocked(dsl, "the second request should wait for the lock that the first holds") { pool.submit<SendResult> { reminders.send(s.gathering, ReminderType.MAYBE) } }
                 assertTrue(Mailbox.sentTo(s.a.email).isEmpty())
                 // The first one has sent, and writes its row; it lets go of the lock when it commits.
                 holder.insertInto(REMINDER_BATCH)

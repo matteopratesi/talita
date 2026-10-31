@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.gathering.DatesResult
 import talita.gathering.Fees
@@ -280,9 +281,9 @@ class GatheringRegistrationRulesTests(
                 }
             }
             assertTrue(sharing.await(10, TimeUnit.SECONDS))
-            val changing = pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, "Casa per ritiri di esempio", usage, arrivals) }
-            Thread.sleep(700)
-            assertFalse(changing.isDone, "the change of the dates waits for the registration that is being made")
+            val changing = LockWait.awaitBlocked(dsl, "the change of the dates should wait for the registration that is being made") {
+                pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, "Casa per ritiri di esempio", usage, arrivals) }
+            }
             finish.countDown()
             registering.get(20, TimeUnit.SECONDS)
             val result = changing.get(20, TimeUnit.SECONDS)

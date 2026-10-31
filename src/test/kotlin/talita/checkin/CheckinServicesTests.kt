@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.gathering.ArrivalUsage
 import talita.gathering.DatesResult
@@ -38,7 +39,6 @@ import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -209,9 +209,7 @@ class CheckinServicesTests(
                 }
             }
             assertTrue(holding.await(10, TimeUnit.SECONDS))
-            val marking = pool.submit<MarkResult> { checkins.mark(first, setup.today, setup.martaId) }
-            Thread.sleep(700)
-            assertFalse(marking.isDone, "the presence waits for the withdrawal that is in progress")
+            val marking = LockWait.awaitBlocked(dsl, "the presence should wait for the withdrawal that is in progress") { pool.submit<MarkResult> { checkins.mark(first, setup.today, setup.martaId) } }
             release.countDown()
             withdrawing.get(20, TimeUnit.SECONDS)
             assertEquals(MarkResult.Withdrawn, marking.get(20, TimeUnit.SECONDS))
@@ -232,9 +230,7 @@ class CheckinServicesTests(
                 }
             }
             assertTrue(marked.await(10, TimeUnit.SECONDS))
-            val withdraws = pool.submit<ChangeResult> { registrations.withdraw(second, null) }
-            Thread.sleep(700)
-            assertFalse(withdraws.isDone, "the withdrawal waits for the presence that is being made")
+            val withdraws = LockWait.awaitBlocked(dsl, "the withdrawal should wait for the presence that is being made") { pool.submit<ChangeResult> { registrations.withdraw(second, null) } }
             finish.countDown()
             presence.get(20, TimeUnit.SECONDS)
             assertEquals(ChangeResult.Done, withdraws.get(20, TimeUnit.SECONDS))

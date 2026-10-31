@@ -15,6 +15,7 @@ import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.support.CronExpression
 import talita.ClockConfiguration
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.RETENTION_LOG
@@ -180,7 +181,8 @@ class RetentionJobTests(
     @Test
     fun `t7 c13 a rule takes the advisory lock of its name, so a second run waits for the first one`() {
         oldData(children = 1)
-        val pool = Executors.newFixedThreadPool(1)
+        // One thread for the transaction that holds the lock, one for the run that waits for it.
+        val pool = Executors.newFixedThreadPool(2)
         try {
             val holding = java.util.concurrent.CountDownLatch(1)
             val release = java.util.concurrent.CountDownLatch(1)
@@ -193,9 +195,7 @@ class RetentionJobTests(
                 }
             }
             assertTrue(holding.await(10, TimeUnit.SECONDS))
-            val waiting = Executors.newSingleThreadExecutor().submit<RetentionReport> { job.run(kit.clockAt("2027-10-20T04:15")) }
-            Thread.sleep(700)
-            assertFalse(waiting.isDone, "the run waits for the lock of «notes»")
+            val waiting = LockWait.awaitBlocked(dsl, "the run should wait for the lock of «notes»") { pool.submit<RetentionReport> { job.run(kit.clockAt("2027-10-20T04:15")) } }
             assertEquals(1, kit.notes())
             release.countDown()
             holder.get(10, TimeUnit.SECONDS)

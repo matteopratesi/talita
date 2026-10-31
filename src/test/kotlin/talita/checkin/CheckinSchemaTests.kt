@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHECKIN
@@ -23,7 +24,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -82,9 +82,9 @@ class CheckinSchemaTests(
                 }
             }
             assertTrue(first.await(10, TimeUnit.SECONDS))
-            val second = pool.submit<Int> { dsl.transactionResult { configuration -> insert(DSL.using(configuration), other, setup.today, setup.paoloId) } }
-            Thread.sleep(500)
-            assertFalse(second.isDone, "the second insert waits for the first, which has not ended")
+            val second = LockWait.awaitBlocked(dsl, "the second insert should wait for the first, which has not ended") {
+                pool.submit<Int> { dsl.transactionResult { configuration -> insert(DSL.using(configuration), other, setup.today, setup.paoloId) } }
+            }
             release.countDown()
             assertEquals(1, writer.get(20, TimeUnit.SECONDS))
             assertEquals(0, second.get(20, TimeUnit.SECONDS), "the second finds the pair there and writes nothing")

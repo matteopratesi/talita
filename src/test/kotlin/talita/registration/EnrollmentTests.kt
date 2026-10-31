@@ -14,6 +14,7 @@ import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.body
@@ -747,9 +748,7 @@ class EnrollmentTests(
                 }
             }
             assertTrue(holding.await(10, TimeUnit.SECONDS))
-            val confirming = pool.submit<Int> { confirm(parent, setup, html, kit.boxes()).status() }
-            Thread.sleep(700)
-            assertFalse(confirming.isDone, "the confirmation waits for the closing that is in progress")
+            val confirming = LockWait.awaitBlocked(dsl, "the confirmation should wait for the closing that is in progress") { pool.submit<Int> { confirm(parent, setup, html, kit.boxes()).status() } }
             release.countDown()
             closing.get(20, TimeUnit.SECONDS)
             assertEquals(409, confirming.get(20, TimeUnit.SECONDS))
@@ -768,9 +767,7 @@ class EnrollmentTests(
                 }
             }
             assertTrue(sharing.await(10, TimeUnit.SECONDS))
-            val closes = pool.submit<Any> { gatherings.change(setup.id, talita.gathering.StateAction.CLOSE) }
-            Thread.sleep(700)
-            assertFalse(closes.isDone, "the closing waits for the registration that is being made")
+            val closes = LockWait.awaitBlocked(dsl, "the closing should wait for the registration that is being made") { pool.submit<Any> { gatherings.change(setup.id, talita.gathering.StateAction.CLOSE) } }
             finish.countDown()
             registering.get(20, TimeUnit.SECONDS)
             assertTrue(closes.get(20, TimeUnit.SECONDS) is talita.gathering.TransitionResult.Done)

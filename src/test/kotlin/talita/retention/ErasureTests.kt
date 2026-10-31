@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
 import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.CurrentAccount
 import talita.account.EmailAddress
@@ -203,9 +204,7 @@ class ErasureTests(
             }
             assertTrue(locked.await(10, TimeUnit.SECONDS))
             // Mid-gathering the registration would block; the request has to wait for the lock and then look again.
-            val request = pool.submit<ChildErasure> { service("2027-09-18T10:00").eraseChild(a, kit.childOf(luca)) }
-            Thread.sleep(700)
-            assertFalse(request.isDone, "the request waits for the row that the withdrawal holds")
+            val request = LockWait.awaitBlocked(dsl, "the request should wait for the row that the withdrawal holds") { pool.submit<ChildErasure> { service("2027-09-18T10:00").eraseChild(a, kit.childOf(luca)) } }
             release.countDown()
             withdrawal.get(10, TimeUnit.SECONDS)
             val done = assertIs<ChildErasure.Done>(request.get(30, TimeUnit.SECONDS), "it found the withdrawal that was committed, so nothing blocks any more")
