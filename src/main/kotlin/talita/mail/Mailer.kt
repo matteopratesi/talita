@@ -49,9 +49,11 @@ enum class MailResult {
  * answers nothing makes the steps add up (the greeting, then `EHLO`, then `HELO`; or a pause at every mail of a list of 40): the limit is for all of them together.
  *
  * What happens when the limit passes, or when the server stops answering: the mails that left are SENT, the ones that did not leave are FAILED **at once**, each without
- * waiting for its own 10 seconds, and the caller goes on. The sending runs in a thread of its own that the caller stops waiting for: it does not send anything after the
- * moment when the caller gave up (it looks before each mail), and it closes the connection when the step that it was in ends, at most one timeout later. A server that answers
- * «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the others go on in the same connection.
+ * waiting for its own 10 seconds, and the caller goes on. The sending runs in a thread of its own that the caller stops waiting for. **When the 15 seconds are over, no new mail
+ * starts (the thread looks before each one); the mail that is in progress at that moment still arrives, if the server takes it, but it is not counted**: it is FAILED for the
+ * caller, so the page and the register can say one mail less than the server took (a decision of Matteo, docs/05, «Parte 5»). The thread closes the connection when the step that it
+ * was in ends, at most one timeout later. A server that answers «no» to a recipient (a 550: a mail that does not exist) is not that: it is a failure of that mail alone, and the
+ * others go on in the same connection.
  *
  * The log never carries the address of the recipient, the text or a link: a failure is logged with
  * the type of the exception only (the message of a mail exception often names the address).
@@ -120,8 +122,8 @@ class Mailer(
 
     /**
      * Sends [built] in one connection, in a thread of its own, and waits for it at most [LIST_LIMIT]. [results] and [reasons] are written by that thread only while the caller is still
-     * waiting (under [gate]): when the limit passes, what has not been written stays FAILED, and what the thread does after that is not counted, so the numbers that the caller gives
-     * are those of the moment when it gave up.
+     * waiting (under [gate]): when the limit passes, what has not been written stays FAILED, and what the thread does after that is not counted (the mail that was in progress may
+     * still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more), so the numbers that the caller gives are those of the moment when it gave up.
      */
     private fun deliver(sender: JavaMailSender, built: List<Pair<Int, MimeMessage>>, results: MutableList<MailResult>, reasons: MutableSet<String>) {
         val gate = Any()

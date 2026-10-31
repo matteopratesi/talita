@@ -92,7 +92,7 @@ TALITA_PRIVACY_CONTACT=nome@example.org
 
 - `SPRING_MAIL_*`: il server SMTP. Con STARTTLS obbligatorio e timeout di 10 secondi
   (`application.yaml`, per ogni passo della conversazione); nome e password sono quelli dell'account Mailjet.
-  Un elenco di promemoria ha in più un tetto di **15 secondi in tutto** (`Mailer.LIST_LIMIT`, TALITA-16): se il server non risponde le mail rimaste falliscono subito e la pagina dice quante sono partite.
+  Un elenco di promemoria ha in più un tetto di **15 secondi in tutto** (`Mailer.LIST_LIMIT`, TALITA-16): se il server non risponde le mail rimaste falliscono subito e la pagina dice quante sono partite. Allo scadere dei 15 secondi non parte nessuna mail nuova; quella già in corso arriva lo stesso ma non viene contata, quindi la pagina e il registro possono dirne una in meno.
 - `TALITA_MAIL_FROM`: il mittente, sul dominio di Talità (il nome mostrato è «Talità»).
 - `TALITA_PUBLIC_URL`: l'indirizzo del sito, senza barra finale. I link delle mail partono sempre da
   qui e mai dall'intestazione `Host` della richiesta, che chi attacca può falsificare. Senza, le mail
