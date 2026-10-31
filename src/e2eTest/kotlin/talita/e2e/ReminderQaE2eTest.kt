@@ -3,6 +3,7 @@ package talita.e2e
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
+import com.microsoft.playwright.assertions.LocatorAssertions
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.AriaRole
 import com.microsoft.playwright.options.FormData
@@ -21,6 +22,7 @@ import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.REMINDER_BATCH
 import talita.jooq.tables.references.RETENTION_LOG
+import talita.mail.FakeSmtpServer
 import talita.mail.MailKind
 import talita.mail.MailQuota
 import talita.mail.Mailbox
@@ -971,5 +973,125 @@ class ReminderQaE2eTest {
         e2e.open("/iscrizioni")
         e2e.page.settled()
         assertEquals(0, e2e.page.locator("#avviso-card").count(), "the page of the teachers has no such card: it is in the profile")
+    }
+
+    // ---- TALITA-16: the title in the mails, and the limit of the whole list (criteria 20 and 21) ---------------------------------------------------------
+
+    @E2eTest(teacher = false)
+    fun `t16 c20 a title that is not a phrase, Campo estivo, has no article before it in the subject and in the text of the two mails that Mailpit receives`(e2e: E2e) {
+        val x = e2e.example()
+        e2e.dsl().update(GATHERING).set(GATHERING.TITLE, "Campo estivo").where(GATHERING.ID.eq(x.gathering.id)).execute()
+        val teacher = e2e.newPage(teacher = true)
+        teacher.visit(e2e, "/convivenza/${x.gathering.id}")
+        val card = teacher.locator("#promemoria")
+
+        e2e.sendFromTheDialog(teacher, "Manda il promemoria a chi ha un’iscrizione in forse", "Manda il promemoria")
+        assertThat(card.locator("[role=status]")).containsText("Promemoria mandato a 1 persona.")
+        e2e.press(card.linkNamed("Manda il promemoria a chi ha chiesto l’avviso"))
+        teacher.waitForSettledDialog()
+        e2e.touch(teacher.openDialog().buttonNamed("Manda l’avviso"))
+        assertThat(card.locator("#promemoria-notice")).containsText("Potrai rimandarlo dal ")
+
+        val inForse = Mailbox.waitForMail(x.a.email)
+        val notice = Mailbox.waitForMail(x.b.email)
+        assertEquals("Iscrizione in forse per «Campo estivo»", inForse.subject)
+        assertEquals("Iscrizioni aperte per «Campo estivo»", notice.subject)
+        assertTrue(inForse.text.contains("c’è almeno un’iscrizione in forse per «Campo estivo» ("), inForse.text)
+        assertTrue(notice.text.contains("ora sono aperte le iscrizioni per «Campo estivo» ("), notice.text)
+        // Wherever the title is, in the subject and in the text of both mails, it is between guillemets and «per» is the only word before it: no «alla», «della», «la» or «il» in front.
+        for (written in listOf(inForse.subject, inForse.text, notice.subject, notice.text)) {
+            val places = Regex("""(\S+\s+)?«?Campo estivo""").findAll(written).toList()
+            assertTrue(places.isNotEmpty(), written)
+            for (place in places) assertEquals("per «Campo estivo", place.value.trim(), "something other than «per» is before the title: ${place.value} in $written")
+        }
+    }
+
+    /** Runs [body] with the application sending its mail to [server] and not to Mailpit (the host and port of the mail sender are put back afterwards, and the server is closed). */
+    private fun <T> E2e.withMailServer(server: FakeSmtpServer, body: () -> T): T {
+        val sender = org.springframework.beans.BeanWrapperImpl(application.getBean("mailSender"))
+        val host = sender.getPropertyValue("host")
+        val port = sender.getPropertyValue("port")
+        try {
+            sender.setPropertyValue("host", server.host)
+            sender.setPropertyValue("port", server.port)
+            return body()
+        } finally {
+            sender.setPropertyValue("host", host)
+            sender.setPropertyValue("port", port)
+            server.close()
+        }
+    }
+
+    /**
+     * A mail server that accepts the connection and answers every step late (2 seconds), so that the steps of a list of six add up well over 15 seconds, in the real application
+     * with the real timeouts of 10 seconds for each step. The teacher's page, in a real browser, gets its answer before htmx gives up (20 seconds), with the true numbers: the
+     * mails that left, the ones that did not, and the register and the codes as the rules of TALITA-13 say.
+     */
+    @E2eTest(profiles = [Profile.PHONE], teacher = false)
+    fun `t16 c21 a mail server that answers every step late stops the whole list at 15 seconds and the page says the true numbers before htmx gives up`(e2e: E2e) {
+        val x = e2e.example(extraInForse = 5)
+        val teacher = e2e.newPage(teacher = true)
+        teacher.visit(e2e, "/convivenza/${x.gathering.id}")
+        val card = teacher.locator("#promemoria")
+        assertThat(card.locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*6 persone.*", Pattern.DOTALL))
+        val quota = e2e.application.getBean(MailQuota::class.java)
+        val quotaBefore = quota.remaining(MailKind.REMINDER)
+
+        val slow = FakeSmtpServer(mode = FakeSmtpServer.Mode.SLOW, delayMillis = 2_000)
+        e2e.withMailServer(slow) {
+            e2e.press(card.linkNamed("Manda il promemoria a chi ha un’iscrizione in forse"))
+            teacher.waitForSettledDialog()
+            val began = System.nanoTime()
+            e2e.touch(teacher.openDialog().buttonNamed("Manda il promemoria"))
+            val notice = card.locator("[role=status], [role=alert]")
+            assertThat(notice).containsText(Pattern.compile("Mandato a .+ su 6: per .+ non (è|sono) partit[ae]\\."), LocatorAssertions.ContainsTextOptions().setTimeout(25_000.0))
+            val took = Duration.ofNanos(System.nanoTime() - began).toMillis() / 1000.0
+
+            assertTrue(took < 18.5, "the page waited $took seconds for the list: htmx gives up after 20")
+            assertTrue(took >= 13.5, "the list was stopped by the limit of 15 seconds and not before ($took seconds): every step answers in 2 seconds, well inside the 10 of its timeout")
+            val reached = Regex("""Mandato a (\d+|una) persone?""").find(notice.innerText())!!.groupValues[1].let { if (it == "una") 1 else it.toInt() }
+            assertTrue(reached in 1..5, "some mails left and some did not: $reached")
+            assertTrue(slow.accepted.size >= reached, "the mails that the page counts as sent were taken by the server: ${slow.accepted}")
+            val batch = e2e.dsl().select(REMINDER_BATCH.RECIPIENTS, REMINDER_BATCH.FAILED).from(REMINDER_BATCH).where(REMINDER_BATCH.GATHERING_ID.eq(x.gathering.id)).fetchSingle()
+            assertEquals(6, batch.value1()?.toInt())
+            assertEquals(6 - reached, batch.value2()?.toInt(), "the register says the same numbers as the page")
+            assertEquals(quotaBefore - reached, quota.remaining(MailKind.REMINDER), "the places of the mails that did not leave went back to the quota")
+            for (person in listOf(x.a) + x.others) assertNotNull(e2e.codeOf(person.id), "the code to stop of ${person.email} was written before the sending")
+            assertTrue(slow.awaitClosed(30), "the connection to the server is closed after the list was given up")
+            // The page is usable (the dialog is closed, the card says when to send again) and accessible, and the lock of the sending is free: Postgres has no wait for a lock.
+            assertThat(card.locator("#promemoria-maybe")).containsText("Potrai rimandarlo dal ")
+            assertEquals(0L, e2e.dsl().fetchOne("select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and state = 'active'")!!.get(0, Long::class.java))
+            assertAccessible(teacher, "the card after a list that was stopped by its limit (${e2e.profile.label})")
+        }
+    }
+
+    /** The case of the criterion in its own words: a server that accepts the connection, greets, and then answers nothing, with the real timeouts. No mail leaves, so no row of the register. */
+    @E2eTest(profiles = [Profile.PHONE], teacher = false)
+    fun `t16 c21 a mail server that greets and then says nothing makes the page say that no mail left, within the limit, with no row of the register and the codes written`(e2e: E2e) {
+        val x = e2e.example(extraInForse = 2)
+        val teacher = e2e.newPage(teacher = true)
+        teacher.visit(e2e, "/convivenza/${x.gathering.id}")
+        val card = teacher.locator("#promemoria")
+        val quota = e2e.application.getBean(MailQuota::class.java)
+        val quotaBefore = quota.remaining(MailKind.REMINDER)
+
+        val silent = FakeSmtpServer(mode = FakeSmtpServer.Mode.SILENT_AFTER_GREETING)
+        e2e.withMailServer(silent) {
+            e2e.press(card.linkNamed("Manda il promemoria a chi ha un’iscrizione in forse"))
+            teacher.waitForSettledDialog()
+            val began = System.nanoTime()
+            e2e.touch(teacher.openDialog().buttonNamed("Manda il promemoria"))
+            assertThat(card.locator("[role=alert]")).containsText("Non siamo riusciti a mandare le mail. Riprova tra qualche minuto.", LocatorAssertions.ContainsTextOptions().setTimeout(25_000.0))
+            val took = Duration.ofNanos(System.nanoTime() - began).toMillis() / 1000.0
+
+            assertTrue(took < 18.5, "the page waited $took seconds for the list: htmx gives up after 20")
+            assertTrue(silent.accepted.isEmpty())
+            assertEquals(0, e2e.batches(x.gathering.id), "no mail left, so the register has no row")
+            assertEquals(quotaBefore, quota.remaining(MailKind.REMINDER), "no place of the quota was used")
+            for (person in listOf(x.a) + x.others) assertNotNull(e2e.codeOf(person.id), "the code to stop of ${person.email} was written before the sending")
+            assertTrue(silent.awaitClosed(30), "the connection to the server is closed")
+            assertThat(card.linkNamed("Manda il promemoria a chi ha un’iscrizione in forse")).isVisible()
+            assertAccessible(teacher, "the card after a list that did not leave (${e2e.profile.label})")
+        }
     }
 }
