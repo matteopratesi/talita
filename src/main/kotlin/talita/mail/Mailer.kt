@@ -129,7 +129,7 @@ class Mailer(
 
     /**
      * Sends [built] in one connection, in a thread of its own, and waits for it at most [listLimit]. The limit is a **moment** (`deadline`, on the monotonic clock), the same for the
-     * caller and for the thread: the thread looks at it, under [gate], before every mail and when a mail ends, so it does not depend on the caller having got there first. [results] and
+     * caller and for the thread: the thread looks at it, under [gate], before every mail, again after the connection is open and the message is ready (right before it leaves), and when a mail ends, so it does not depend on the caller having got there first. [results] and
      * [reasons] are written by that thread only before the deadline (under [gate]): when it passes, what has not been written stays FAILED, and what the thread does after that is not
      * counted (the mail that was in progress may still arrive, and stays FAILED for the caller: the numbers say one mail less, never one more; the place of that mail in the day count is
      * given back, and the lock of the caller is let go: see the class), so the numbers that the caller gives are those of the moment when it gave up. No mail starts after the deadline.
@@ -162,6 +162,8 @@ class Mailer(
                         }
                         if (message.sentDate == null) message.sentDate = Date()
                         message.saveChanges()
+                        // Once more, right before the mail leaves: the connection (greeting, `EHLO`) takes steps of its own, and may end after the deadline.
+                        if (synchronized(gate) { timeIsOver() }) return@thread
                         transport!!.sendMessage(message, message.allRecipients ?: emptyArray())
                         // A mail that ends after the deadline is not counted, even if the caller has not yet looked at the time.
                         synchronized(gate) { if (!timeIsOver()) results[index] = MailResult.SENT }

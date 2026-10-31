@@ -151,6 +151,26 @@ class MailListTests(
     }
 
     @Test
+    fun `t16 c21 a connection that is open after the limit of the list does not send the first mail either`() {
+        // Every answer of the server comes 1.2 s late: the greeting and `EHLO` make 2.4 s, and the limit is 1.5 s. At the first look (before the connection) the time is not over; when the
+        // connection is open it is, and the mail must not start: the server must not see a single `MAIL FROM`.
+        FakeSmtpServer(mode = FakeSmtpServer.Mode.SLOW, delayMillis = 1_200).use { server ->
+            val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+            val limited = Mailer(senderTo(server.host, server.port), settings, quota).apply { listLimit = Duration.ofMillis(1_500) }
+
+            val results = limited.sendAll(List(3) { mail(Addresses.unique("connessione-$it")) }, MailKind.REMINDER)
+
+            assertEquals(List(3) { MailResult.FAILED }, results)
+            assertEquals(10, quota.remaining(MailKind.REMINDER), "the places are given back")
+            // The thread ends by itself once the connection is open and the time is seen to be over; then the server has seen everything that there is to see.
+            assertTrue(server.awaitClosed(30), "the connection was closed")
+            assertEquals(1, server.connectionCount.get(), "the connection was opened")
+            assertEquals(0, server.mailFromCount.get(), "no mail began after the deadline, not even the first")
+            assertTrue(server.accepted.isEmpty())
+        }
+    }
+
+    @Test
     @CapturesOutput
     fun `t13 c06 a mail that the server refuses is a failure of that mail only, the others leave, and the place of the one that failed is given back`(output: CapturedOutput) {
         FakeSmtpServer(refusing = "rifiutato").use { server ->
