@@ -30,12 +30,17 @@ import talita.account.TestAccounts
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.PASSKEY
+import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.REMEMBERED_DEVICE
+import talita.jooq.tables.references.RETENTION_LOG
+import talita.jooq.tables.references.TEACHER
 import talita.mail.Mailbox
 import talita.registration.Notes
+import talita.retention.RetentionJob
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.function.Predicate
@@ -1064,6 +1069,136 @@ class PasskeyE2eTest {
         assertThat(page.locator("[data-passkey-esito=non-valida]")).containsText("Questa passkey non funziona.")
         assertThat(page).hasURL(e2e.url("/accedi"))
         assertEquals(accounts - 1, e2e.dsl().fetchCount(ACCOUNT), "a passkey never makes an account")
+    }
+
+    /**
+     * The QA of the fix after the review (commit 154958c, criterion 30): a teacher whose address stays for the readings, who came back with a link and registered a child, is not signed
+     * out by the job that makes the request again every night (and at every start), and a device that was born after the request goes with its sessions once, by the first run. The
+     * request itself still closes the other phones (t7 c25, t15 c29).
+     */
+    @E2eTest(teacher = false)
+    fun `t15 c30 a teacher who stays for the readings and came back to register a child is not signed out by the job night after night, and a device born after the request goes once with its sessions`(e2e: E2e) {
+        val page = e2e.page
+        val job = e2e.application.getBean(RetentionJob::class.java)
+        val gathering = e2e.openGathering()
+        e2e.dsl().deleteFrom(RETENTION_LOG).execute()
+        val email = checkNotNull(e2e.signedInAs)
+        TestAccounts.makeTeacher(e2e.dsl(), email, "Giulia", "Serra")
+        val me = e2e.accountId(email)
+        val anna = e2e.rows().register(gathering.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), notes = Notes("Arachidi", null, null))
+        e2e.dsl().insertInto(HEALTH_NOTE_ACCESS).set(HEALTH_NOTE_ACCESS.REGISTRATION_ID, anna).set(HEALTH_NOTE_ACCESS.TEACHER_ACCOUNT_ID, me)
+            .set(HEALTH_NOTE_ACCESS.ACCESSED_AT, OffsetDateTime.now(e2e.clock())).execute()
+
+        fun generation(): Int = e2e.dsl().select(ACCOUNT.SESSION_GENERATION).from(ACCOUNT).where(ACCOUNT.ID.eq(me)).fetchSingle(ACCOUNT.SESSION_GENERATION)!!
+        fun devices(): Int = e2e.dsl().fetchCount(REMEMBERED_DEVICE, REMEMBERED_DEVICE.ACCOUNT_ID.eq(me))
+        fun enterWithTheBox(on: Page) {
+            val link = e2e.application.getBean(OneTimeTokenService::class.java).generate(GenerateOneTimeTokenRequest(email, Duration.ofMinutes(15))).tokenValue
+            on.navigate(e2e.url("/accedi/conferma?token=$link"))
+            on.waitForSettledContent()
+            on.getByLabel("Ricordami su questo telefono").check()
+            e2e.touch(on.exact("Entra"))
+            on.waitForURL(e2e.url("/"))
+        }
+        fun inside(on: Page): Boolean {
+            on.navigate(e2e.url("/iscrizioni"))
+            on.waitForSettledContent()
+            return on.url() == e2e.url("/iscrizioni")
+        }
+
+        // The person has the box on another phone, and asks to delete the account: the other phone is out at its next request, the devices are gone, the address stays for the readings.
+        val elsewhere = e2e.newPage(signedIn = false, teacher = false)
+        enterWithTheBox(elsewhere)
+        assertEquals(1, devices())
+        assertTrue(inside(elsewhere))
+        val beforeTheRequest = generation()
+        e2e.open("/profilo")
+        e2e.press(page.locator("main").linkNamed("Cancella il mio account"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Cancella il mio account"))
+        assertThat(page).hasURL(e2e.url("/accedi"))
+        assertTrue(e2e.dsl().fetchExists(ACCOUNT, ACCOUNT.ID.eq(me)), "the address stays for the readings")
+        assertFalse(e2e.dsl().fetchExists(TEACHER, TEACHER.ACCOUNT_ID.eq(me)), "and the person is not a teacher any more")
+        assertEquals(0, devices())
+        assertEquals(beforeTheRequest + 1, generation(), "the request closes the other sessions")
+        assertFalse(inside(elsewhere), "the other phone is out: no session, and the cookie of the box finds nothing")
+
+        // The person comes back with a link and registers a child of their own, by the form: the account stays with that, for the 37 days that the register remembers the request.
+        e2e.signIn(page, email, teacher = false)
+        e2e.open("/info/${gathering.code}/iscrizione")
+        page.settled()
+        page.locator("#telefono").fill("333 123 4567")
+        page.fillBlock(0, "Marco", "Verdi", "12", "5", "2017")
+        page.locator("input[name='children[0].presence'][value='all_days']").check()
+        e2e.press(page.locator("main").buttonNamed("Controlla e accetta"))
+        page.locator("#altro-genitore").check()
+        page.locator("#accetto").check()
+        page.locator("#convinzioni").check()
+        e2e.press(page.locator("main").buttonNamed("Accetta e iscrivi"))
+        assertThat(page).hasURL(e2e.url("/iscrizioni"))
+        assertEquals(1, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(me)))
+        val afterTheRequest = generation()
+
+        // Two runs of the job, the night and the start: nothing to take away, so the person stays inside and the number of the sessions does not move.
+        job.run()
+        job.run()
+        assertEquals(afterTheRequest, generation(), "the job does not close the sessions of a person who has nothing taken away")
+        assertTrue(e2e.dsl().fetchExists(ACCOUNT, ACCOUNT.ID.eq(me)))
+        assertEquals(1, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.ACCOUNT_ID.eq(me)), "what the person did after the request stays")
+        assertTrue(inside(page), "still inside after two runs")
+
+        // A device born after the request: the first run takes it away and the sessions end once, the next run has nothing to do.
+        val phone = e2e.newPage(signedIn = false, teacher = false)
+        enterWithTheBox(phone)
+        assertEquals(1, devices())
+        assertTrue(inside(phone))
+        job.run()
+        assertEquals(0, devices(), "the device that was born after the request goes")
+        assertEquals(afterTheRequest + 1, generation(), "and the sessions end, once")
+        assertFalse(inside(page), "the page that was inside is out")
+        assertFalse(inside(phone), "and so is the phone of the device, which the cookie of the box cannot bring back")
+        // The page that was refused kept «Iscrizioni» as the page to go back to: with its cookies cleared the link leads to the home, as for anybody who comes in.
+        page.context().clearCookies()
+        e2e.signIn(page, email, teacher = false)
+        job.run()
+        assertEquals(afterTheRequest + 1, generation(), "the next run closes nothing")
+        assertTrue(inside(page), "and the person who came in again stays inside")
+    }
+
+    /**
+     * The QA of the fix after the review (commit 154958c, criterion 21): the options of a first registration are asked and the phone is cancelled; they are asked again 4 minutes and 30 seconds
+     * later (another tap, the same session) and the phone answers a minute after that. The first handle would be gone at the fifth minute, but the options that the phone answers are good until
+     * 9:30: the registration succeeds, with the same handle for the account.
+     */
+    @E2eTest(teacher = false, profiles = [Profile.DESKTOP])
+    fun `t15 c21 a registration that is asked again after four and a half minutes and answered a minute later succeeds, with a single handle`(e2e: E2e) {
+        val page = e2e.page
+        val phone = e2e.phoneOf()
+        e2e.open("/profilo")
+        val card = page.locator("#passkey-contenuto")
+        val email = checkNotNull(e2e.signedInAs)
+        val me = e2e.accountId(email)
+
+        val (status, first) = page.fetchJson("POST", "/webauthn/register/options")
+        assertEquals(200, status)
+        val handle = JsonParser.parseString(first).asJsonObject["user"].asJsonObject["id"].asString
+        assertNull(e2e.dsl().select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(me)).fetchSingle(ACCOUNT.PASSKEY_HANDLE), "a phone that is cancelled leaves nothing")
+        e2e.clock().advance(Duration.ofMinutes(4).plusSeconds(30))
+
+        // The page asks again by itself (the tap) and the answer of the phone reaches the server a minute later: the clock is moved just before the registration is sent.
+        val again = page.waitForResponse(Predicate<Response> { it.url().endsWith("/webauthn/register/options") }, Runnable {
+            page.route("**/webauthn/register") { route ->
+                e2e.clock().advance(Duration.ofMinutes(1))
+                route.resume()
+            }
+            e2e.press(card.buttonNamed("Aggiungi una passkey su questo telefono"))
+        })
+        assertEquals(handle, JsonParser.parseString(again.text()).asJsonObject["user"].asJsonObject["id"].asString, "the same handle for the same account")
+        assertThat(card.locator("[role=status]").first()).containsText("Passkey aggiunta.")
+        page.unroute("**/webauthn/register")
+        assertEquals(1, e2e.passkeys())
+        assertEquals(1, phone.credentials())
+        assertEquals(handle, Base64.getUrlEncoder().withoutPadding().encodeToString(e2e.dsl().select(ACCOUNT.PASSKEY_HANDLE).from(ACCOUNT).where(ACCOUNT.ID.eq(me)).fetchSingle(ACCOUNT.PASSKEY_HANDLE)!!), "and it is the one that was saved")
+        assertEquals(1, e2e.dsl().fetchCount(ACCOUNT, ACCOUNT.ID.eq(me).and(ACCOUNT.PASSKEY_HANDLE.isNotNull)), "one handle for the account")
     }
 
     @E2eTest(profiles = [Profile.DESKTOP])
