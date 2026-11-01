@@ -19,6 +19,9 @@ import kotlin.test.assertTrue
 /**
  * The application as the smoke test starts it, with no public address of the site (TALITA-15, criterion 28): there are no passkeys, with no buttons, no pages that offer them and no addresses that
  * answer; the rest of the access works, with the link and with the box «Ricordami su questo telefono», and the log says at the start that the passkeys are off. Only the database is there.
+ *
+ * The capture of the output is on the **class** on purpose (TALITA-16, criterion 4): the test reads the log of the start of the application ("Passkeys are off"), which is written while the
+ * context starts, before the test. This class has a context of its own (the extra property), so nothing else wrote before it.
  */
 @Import(PostgresConfiguration::class)
 // The extra property is only there so that this class has an application of its own: the test that reads the log of the start (the one of the mail, in `NoMailTests`) would not find it in an application that

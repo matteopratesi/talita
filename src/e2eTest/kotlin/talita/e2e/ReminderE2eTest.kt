@@ -124,8 +124,8 @@ class ReminderE2eTest {
 
         // The mail, read from Mailpit: the subject and the text of the design with the decision of 24 October, no names, the link to stop and its header.
         val mail = Mailbox.waitForMail(w.parent)
-        assertEquals("Iscrizione in forse alla Convivenza di settembre 2027", mail.subject)
-        assertTrue(mail.text.contains("c’è almeno un’iscrizione in forse alla Convivenza di settembre 2027 ("), mail.text)
+        assertEquals("Iscrizione in forse per «Convivenza di settembre 2027»", mail.subject)
+        assertTrue(mail.text.contains("c’è almeno un’iscrizione in forse per «Convivenza di settembre 2027» ("), mail.text)
         assertTrue(mail.text.contains("Conferma l’iscrizione: entra in Talità, apri la pagina «Iscrizioni» e cambia lo stato in «Confermata»."))
         assertTrue(mail.text.contains("Ci penso ancora un po’: non devi fare niente. L’iscrizione resta in forse finché le iscrizioni sono aperte."))
         assertTrue(mail.text.contains("${TestcontainersConfiguration.PUBLIC_URL}/iscrizioni"))
@@ -280,16 +280,8 @@ class ReminderE2eTest {
 
         // The login link still comes to who stopped: it is not a reminder.
         assertEquals(LinkOutcome.SENT, e2e.application.getBean(LoginLinks::class.java).request(EmailAddress.parse(w.parent)!!))
-        e2e.page.waitUntilMail { Mailbox.sentTo(w.parent).any { it.subject.contains("link per entrare") } }
-    }
-
-    /** Waits (up to 10 seconds) until [condition] holds: the mail leaves when the request is over, and Mailpit shows it a moment later. */
-    private fun Page.waitUntilMail(condition: () -> Boolean) {
-        val deadline = System.nanoTime() + 10_000_000_000L
-        while (!condition()) {
-            check(System.nanoTime() < deadline) { "the mail did not arrive in 10 seconds" }
-            waitForTimeout(100.0)
-        }
+        // The mail leaves when the request is over, and Mailpit shows it a moment later.
+        Mailbox.waitFor(w.parent, "the login link") { mails -> mails.any { it.subject.contains("link per entrare") } }
     }
 
     // ---- The quota of the day (criterion 7) ---------------------------------------------------------------------------------------------------

@@ -3,17 +3,17 @@ package talita.registration
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import talita.CapturesOutput
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.gathering.body
@@ -52,7 +52,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class EnrollmentTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired tokens: OneTimeTokenService,
@@ -747,9 +746,7 @@ class EnrollmentTests(
                 }
             }
             assertTrue(holding.await(10, TimeUnit.SECONDS))
-            val confirming = pool.submit<Int> { confirm(parent, setup, html, kit.boxes()).status() }
-            Thread.sleep(700)
-            assertFalse(confirming.isDone, "the confirmation waits for the closing that is in progress")
+            val confirming = LockWait.awaitBlocked(dsl, "the confirmation should wait for the closing that is in progress") { pool.submit<Int> { confirm(parent, setup, html, kit.boxes()).status() } }
             release.countDown()
             closing.get(20, TimeUnit.SECONDS)
             assertEquals(409, confirming.get(20, TimeUnit.SECONDS))
@@ -768,9 +765,7 @@ class EnrollmentTests(
                 }
             }
             assertTrue(sharing.await(10, TimeUnit.SECONDS))
-            val closes = pool.submit<Any> { gatherings.change(setup.id, talita.gathering.StateAction.CLOSE) }
-            Thread.sleep(700)
-            assertFalse(closes.isDone, "the closing waits for the registration that is being made")
+            val closes = LockWait.awaitBlocked(dsl, "the closing should wait for the registration that is being made") { pool.submit<Any> { gatherings.change(setup.id, talita.gathering.StateAction.CLOSE) } }
             finish.countDown()
             registering.get(20, TimeUnit.SECONDS)
             assertTrue(closes.get(20, TimeUnit.SECONDS) is talita.gathering.TransitionResult.Done)
@@ -881,6 +876,7 @@ class EnrollmentTests(
     // ---- What is not written in the log, and what is shown as text (criterion 36) --------------------------------------------------
 
     @Test
+    @CapturesOutput
     fun `t5 c36 the log has no name, date of birth, phone, note or address, and a text with markup is shown as text`(output: CapturedOutput) {
         val setup = kit.start()
         val email = talita.Addresses.unique("diario-genitore")

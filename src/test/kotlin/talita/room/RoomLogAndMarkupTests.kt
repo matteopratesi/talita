@@ -2,15 +2,14 @@ package talita.room
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.account.MockBrowser
 import talita.checkin.htmx
@@ -30,7 +29,6 @@ import kotlin.test.assertTrue
  * name of a person, no name of a room and no address; and every page and piece of page of the rooms has no style, no inline script, no handler, no link outside the app, no word of the other
  * project and nothing that says the sex. Names are synthetic and unusual, so that a word of the log cannot be one of them by chance.
  */
-@ExtendWith(OutputCaptureExtension::class)
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -47,6 +45,7 @@ class RoomLogAndMarkupTests(
         submit("/profilo", base + tail, fields, if (viaHtmx) htmx() else ({}))
 
     @Test
+    @CapturesOutput
     fun `t11 c21 the log has no name of a person, no name of a room and no address while the teachers write the rooms, move the people and print`(output: CapturedOutput) {
         val setup = kit.start()
         val base = "/convivenza/${setup.id}/camere"

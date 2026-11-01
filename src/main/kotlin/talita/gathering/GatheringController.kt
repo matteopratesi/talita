@@ -35,6 +35,7 @@ class GatheringController(
     private val presenter: GatheringPresenter,
     private val usage: RegistrationUsage,
     private val arrivals: ArrivalUsage,
+    private val names: PublicNames,
 ) {
 
     // ---- The section ---------------------------------------------------------------------------------------------------------
@@ -60,7 +61,7 @@ class GatheringController(
         // Somebody made one (or it was there all along, for a request made by hand): the page says so, nothing is created.
         gatherings.current()?.let { return newPage(blocked(it), HttpStatus.CONFLICT) }
 
-        val titleCheck = GatheringChecks.title(title)
+        val (titleCheck) = withNames(GatheringChecks.title(title))
         val dates = GatheringChecks.dates(startDate, endDate, gatherings.today())
         val errors = listOfNotNull(titleCheck.error, dates.startError, dates.endError).size
         if (errors > 0) {
@@ -105,8 +106,7 @@ class GatheringController(
 
         // After the end the dates do not change: a request made by hand that carries other dates is refused whole, nothing is saved.
         val changesDates = over && ((startDate != null && startDate.trim() != gathering.startDate.toString()) || (endDate != null && endDate.trim() != gathering.endDate.toString()))
-        val titleCheck = GatheringChecks.title(title)
-        val placeCheck = GatheringChecks.place(place, required = gathering.state != GatheringState.DRAFT)
+        val (titleCheck, placeCheck) = withNames(GatheringChecks.title(title), GatheringChecks.place(place, required = gathering.state != GatheringState.DRAFT))
         if (changesDates) {
             val form = DatesForm(id, titleCheck.value.take(MAX_ECHO), "", "", placeCheck.value.take(MAX_ECHO), titleCheck.error, null, null, placeCheck.error, lockedDates(gathering), Alert(WARNING, GatheringChecks.DATES_CLOSED), hasRegistrations(id))
             return datesPage(form, HttpStatus.CONFLICT)
@@ -224,8 +224,7 @@ class GatheringController(
         request: HttpServletRequest,
     ): ModelAndView {
         found(id)
-        val infoCheck = GatheringChecks.info(info)
-        val bringCheck = GatheringChecks.whatToBring(whatToBring)
+        val (infoCheck, bringCheck) = withNames(GatheringChecks.info(info), GatheringChecks.whatToBring(whatToBring))
         val errors = listOfNotNull(infoCheck.error, bringCheck.error).size
         if (errors > 0) {
             val form = InfoForm(id, infoCheck.value.take(MAX_ECHO_LONG), bringCheck.value.take(MAX_ECHO_LONG), infoCheck.error, bringCheck.error, errorsAlert(errors))
@@ -236,6 +235,17 @@ class GatheringController(
     }
 
     // ---- Support -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The texts of a form with the check of the names done (criteria 12-16): one question to the database for all the texts that still have to be asked about, which answers only
+     * yes or no for each; the words and the order of the errors are those of [GatheringChecks.withNames]. A text that is empty or too long is not asked about, and a form with no
+     * text to ask about does not ask.
+     */
+    private fun withNames(vararg checks: TextCheck): List<TextCheck> {
+        val asked = checks.filter { it.askForName }
+        val found = if (asked.isEmpty()) emptyList() else names.contain(asked.map { it.value })
+        return GatheringChecks.withNames(checks.toList(), found)
+    }
 
     /** The gathering, or the page «Pagina non trovata» (an id that does not exist). */
     private fun found(id: Long): Gathering = gatherings.find(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)

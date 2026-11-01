@@ -62,8 +62,6 @@ internal fun Page.settled() {
 
 internal fun Page.noHorizontalScroll(): Boolean = (evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") as Number).toInt() <= 0
 
-internal fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
 /** The button with exactly this name: «Segnalazioni di Anna» is not the name of «Togli le segnalazioni di Anna». */
 internal fun Locator.buttonNamed(name: String): Locator = getByRole(AriaRole.BUTTON, Locator.GetByRoleOptions().setName(name).setExact(true))
 

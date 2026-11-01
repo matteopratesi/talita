@@ -2,16 +2,15 @@ package talita.mail
 
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.function.ThrowingSupplier
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import talita.Addresses
+import talita.CapturesOutput
 import talita.MutableClock
 import talita.TestcontainersConfiguration
 import java.io.IOException
@@ -33,7 +32,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class MailListTests(
     @Autowired private val mailer: Mailer,
     @Autowired private val mailSender: JavaMailSender,
@@ -98,6 +96,82 @@ class MailListTests(
     }
 
     @Test
+    fun `t16 c21 when the server refuses the sender, the text or the whole sending, the list stops at the first refusal, and when it refuses a recipient, for good or for a while, the list goes on`() {
+        for (mode in listOf(FakeSmtpServer.Mode.REFUSE_SENDER, FakeSmtpServer.Mode.REFUSE_DATA, FakeSmtpServer.Mode.REFUSE_CONTENT, FakeSmtpServer.Mode.TEMPORARY_LIMIT)) {
+            FakeSmtpServer(mode = mode).use { server ->
+                val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+                val whole = Mailer(senderTo(server.host, server.port), settings, quota)
+
+                val results = whole.sendAll(List(4) { mail(Addresses.unique("rifiuto-$mode-$it")) }, MailKind.REMINDER)
+
+                assertEquals(List(4) { MailResult.FAILED }, results, "$mode")
+                // The answer is the same for every mail (the same sender, the same text, the same limit): one try, and the four fail without the other three.
+                assertEquals(1, server.mailFromCount.get(), "$mode: the list went on after a refusal of the whole sending")
+                assertEquals(1, server.connectionCount.get(), "$mode")
+                assertTrue(server.accepted.isEmpty(), "$mode")
+                assertEquals(10, quota.remaining(MailKind.REMINDER), "$mode: the places of the four mails are given back")
+            }
+        }
+        // A refused recipient is about one person: the list goes on, in the same connection. Also when the refusal is temporary (a 4xx: greylisting, a mailbox that is full), which
+        // the library reports as a plain `SendFailedException` too, with the address among the valid unsent ones and not among the invalid.
+        for (refusal in listOf("550 5.1.1 no such user", "450 4.2.0 try again later", "452 4.2.2 mailbox full")) {
+            FakeSmtpServer(refusing = "rifiutato", refusal = refusal).use { server ->
+                val results = mailerTo(server).sendAll(
+                    listOf(mail(Addresses.unique("avanti-uno")), mail(Addresses.unique("avanti-rifiutato")), mail(Addresses.unique("avanti-due")), mail(Addresses.unique("avanti-tre"))),
+                    MailKind.REMINDER,
+                )
+
+                assertEquals(listOf(MailResult.SENT, MailResult.FAILED, MailResult.SENT, MailResult.SENT), results, refusal)
+                assertEquals(4, server.mailFromCount.get(), "$refusal: the four mails were tried")
+                assertEquals(1, server.connectionCount.get(), refusal)
+                assertEquals(3, server.accepted.size, refusal)
+            }
+        }
+    }
+
+    @Test
+    fun `t16 c21 a mail that is in progress when the limit of the list passes arrives and is not counted, and no other mail starts after it`() {
+        // Every answer of the server comes 600 ms late: the connection takes about 1.2 s, the first mail about 2.4 s more. With a limit of 2.5 s the first mail begins before it and ends well
+        // after it. The second must not begin, at the moment when that mail ends, whatever the caller has done by then: the thread looks at the deadline itself.
+        FakeSmtpServer(mode = FakeSmtpServer.Mode.SLOW, delayMillis = 600).use { server ->
+            val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+            val limited = Mailer(senderTo(server.host, server.port), settings, quota).apply { listLimit = Duration.ofMillis(2_500) }
+
+            val results = limited.sendAll(List(3) { mail(Addresses.unique("scadenza-$it")) }, MailKind.REMINDER)
+
+            // For the caller nothing was counted, and the places are given back.
+            assertEquals(List(3) { MailResult.FAILED }, results)
+            assertEquals(10, quota.remaining(MailKind.REMINDER))
+            // The thread ends by itself, after the mail that was in progress; then the server has seen everything that there is to see.
+            assertTrue(server.awaitClosed(30), "the connection was closed")
+            assertEquals(1, server.mailFromCount.get(), "no mail began after the deadline: only the first, which was in progress")
+            assertEquals(1, server.accepted.size, "the mail in progress arrived, and was not counted")
+            assertEquals(1, server.connectionCount.get())
+        }
+    }
+
+    @Test
+    fun `t16 c21 a connection that is open after the limit of the list does not send the first mail either`() {
+        // Every answer of the server comes 1.2 s late: the greeting and `EHLO` make 2.4 s, and the limit is 1.5 s. At the first look (before the connection) the time is not over; when the
+        // connection is open it is, and the mail must not start: the server must not see a single `MAIL FROM`.
+        FakeSmtpServer(mode = FakeSmtpServer.Mode.SLOW, delayMillis = 1_200).use { server ->
+            val quota = MailQuota(settings.copy(reminderDailyLimit = 10), clock)
+            val limited = Mailer(senderTo(server.host, server.port), settings, quota).apply { listLimit = Duration.ofMillis(1_500) }
+
+            val results = limited.sendAll(List(3) { mail(Addresses.unique("connessione-$it")) }, MailKind.REMINDER)
+
+            assertEquals(List(3) { MailResult.FAILED }, results)
+            assertEquals(10, quota.remaining(MailKind.REMINDER), "the places are given back")
+            // The thread ends by itself once the connection is open and the time is seen to be over; then the server has seen everything that there is to see.
+            assertTrue(server.awaitClosed(30), "the connection was closed")
+            assertEquals(1, server.connectionCount.get(), "the connection was opened")
+            assertEquals(0, server.mailFromCount.get(), "no mail began after the deadline, not even the first")
+            assertTrue(server.accepted.isEmpty())
+        }
+    }
+
+    @Test
+    @CapturesOutput
     fun `t13 c06 a mail that the server refuses is a failure of that mail only, the others leave, and the place of the one that failed is given back`(output: CapturedOutput) {
         FakeSmtpServer(refusing = "rifiutato").use { server ->
             val good = Addresses.unique("parziale-uno")
@@ -200,6 +274,7 @@ class MailListTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t13 c06 without a server or a sender nothing leaves, nothing is counted, and the log says why`(output: CapturedOutput) {
         val quota = MailQuota(settings, clock)
 

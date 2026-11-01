@@ -141,7 +141,7 @@ class HistoryConsistencyE2eTest {
     }
 
     private fun assertNothingKept(page: Page, step: String) {
-        page.waitUntil("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
+        page.waitForHtmxIdle()
         assertEquals(0, (page.evaluate("localStorage.length") as Number).toInt(), "$step: localStorage is not empty")
         assertEquals(emptyList<String>(), page.evaluate("Object.keys(sessionStorage)") as List<*>, "$step: sessionStorage is not empty")
     }

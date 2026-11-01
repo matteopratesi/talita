@@ -4,6 +4,7 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.AriaRole
+import talita.LockWait
 import talita.gathering.GatheringFormat
 import talita.gathering.GatheringSupport
 import talita.gathering.MenuSamples
@@ -242,12 +243,7 @@ class RoomsReviewQaE2eTest {
             }
             assertTrue(written.await(30, TimeUnit.SECONDS))
             // This teacher touches «Copia»: the page asked while the rooms were not there, and the request waits for the other copy to end.
-            e2e.press(copy)
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
-            while (dsl.fetch("select pid from pg_stat_activity where wait_event_type = 'Lock' and state = 'active'").isEmpty()) {
-                assertTrue(System.nanoTime() < deadline && !other.isDone, "the request of the copy should wait for the other copy")
-                Thread.sleep(20)
-            }
+            LockWait.awaitBlocked(dsl, "the request of the copy should wait for the other copy", finished = { if (other.isDone) "the other copy has ended" else null }) { e2e.press(copy) }
             commit.countDown()
             other.get(30, TimeUnit.SECONDS)
         } finally {

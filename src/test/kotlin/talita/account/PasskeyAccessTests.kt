@@ -3,11 +3,9 @@ package talita.account
 import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
@@ -18,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import org.springframework.test.web.servlet.delete
 import talita.Addresses
+import talita.CapturesOutput
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.PASSKEY
@@ -39,7 +38,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class PasskeyAccessTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -222,6 +220,7 @@ class PasskeyAccessTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t15 c20 a registration of a person not verified, or from another origin, is refused with a 400 and nothing is saved`(output: CapturedOutput) {
         val email = person()
         val phone = phone()

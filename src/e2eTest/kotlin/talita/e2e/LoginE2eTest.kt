@@ -69,7 +69,10 @@ class LoginE2eTest {
         val button = page.button("Ricevi il link").box()
         assertTrue(button.width >= card.width - 2 * 25, "the button is ${button.width} px wide in a card of ${card.width}")
         assertTrue(button.height >= 48, "the button is ${button.height} px tall")
-        // The keyboard does not rise on its own (it would cover the introduction on a phone).
+        // The keyboard does not rise on its own (it would cover the introduction on a phone). That the focus is not on the field is read once the page has stopped moving: before
+        // that, a focus that would arrive a moment later would not have been seen.
+        page.waitForHtmxIdle()
+        page.waitForSettledContent()
         assertNotEquals("email", page.evaluate("document.activeElement.id"))
         assertAccessible(page, "access page (${e2e.profile.label})")
     }
@@ -110,7 +113,7 @@ class LoginE2eTest {
         assertThat(page.field()).hasAttribute("aria-invalid", "true")
         assertThat(page.field()).hasAttribute("aria-describedby", "email-aiuto email-errore")
         assertThat(page).hasURL(e2e.url("/accedi"))
-        page.waitUntil("document.activeElement && document.activeElement.id === 'email'")
+        page.focusIs("document.activeElement.id === 'email'")
         assertEquals(entries.toInt(), (page.evaluate("history.length") as Number).toInt(), "the failed attempt added an entry to the history")
         // A single error: no notice above the form.
         assertEquals(0, page.locator("main [data-fuoco]").count())
@@ -257,7 +260,7 @@ class LoginE2eTest {
         assertThat(page.field()).hasValue(address)
         assertThat(page).hasURL(e2e.url("/accedi"))
         // The focus goes to the notice, which a screen reader reads.
-        page.waitUntil("document.activeElement && document.activeElement.hasAttribute('data-fuoco')")
+        page.focusIs("document.activeElement.hasAttribute('data-fuoco')")
         assertAccessible(page, "too many links (${e2e.profile.label})")
         assertEquals(3, Mailbox.sentTo(address).size)
     }
@@ -316,7 +319,7 @@ class LoginE2eTest {
         assertThat(page).hasURL(e2e.url("/accedi"))
         val notice = page.locator("main [role=status]")
         assertThat(notice).containsText("Accesso chiuso. Per rientrare, chiedi un nuovo link.")
-        page.waitUntil("document.activeElement && document.activeElement.hasAttribute('data-fuoco')")
+        page.focusIs("document.activeElement.hasAttribute('data-fuoco')")
         assertAccessible(page, "access page after the exit (${e2e.profile.label})")
         // Once: a reload does not say it again.
         page.reload()

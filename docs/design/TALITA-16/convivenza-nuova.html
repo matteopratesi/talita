@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Nuova convivenza · Talità</title>
+<link rel="stylesheet" href="talita-16.css">
+</head>
+<body>
+<!-- Mockup statico di TALITA-16: dati e testi sintetici, nessuna risorsa esterna. Criteri 10, 11. «Nuova convivenza»: l’aiuto di «Titolo» dice dove compare e cosa non scrivere. -->
+<a class="skip-link" href="#contenuto">Vai al contenuto</a>
+<div id="caricamento" class="indicator" aria-hidden="true"><div class="indicator__bar"></div></div>
+<header class="app-header app-header--auth"><a class="wordmark" href="../TALITA-3/home-maestro.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10.5 9h11M16 9v14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Talità</span></a><a class="profile-pill" href="../TALITA-3/profilo-maestro.html"><span class="profile-pill__initials" aria-hidden="true">MB</span><span class="profile-pill__label">Profilo</span></a></header>
+<nav class="nav" aria-label="Navigazione principale"><ul>
+      <li><a href="../TALITA-3/home-maestro.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></span><span class="nav__label">Home</span></a></li>
+      <li><a href="../TALITA-4/convivenza-sezione.html" aria-current="page"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg></span><span class="nav__label">Convivenza</span></a></li>
+      <li><a href="../TALITA-5/elenco-maestro.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg></span><span class="nav__label">Iscrizioni</span></a></li>
+      <li><a href="../TALITA-6/arrivi.html"><span class="nav__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg></span><span class="nav__label">Arrivi</span></a></li>
+  </ul></nav>
+<main id="contenuto" tabindex="-1">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title" tabindex="-1">Nuova convivenza</h1>
+      <p class="lead">Per cominciare bastano il titolo e le date. Il resto lo aggiungi dopo.</p>
+    </div>
+    <form class="card" method="post" action="#" novalidate>
+    <div class="field">
+      <label class="label" for="titolo">Titolo</label>
+      <p class="hint" id="titolo-aiuto">Per esempio «Convivenza di settembre 2027». Compare nella pagina per i genitori, nell’anteprima del link e nei promemoria. Non scrivere nome e cognome di bambini o maestri, numeri di telefono né email.</p>
+      <input class="input" id="titolo" name="titolo" type="text" aria-describedby="titolo-aiuto" autocomplete="off" autocapitalize="sentences">
+    </div>
+    <div class="field">
+      <label class="label" for="primo-giorno">Primo giorno</label>
+      <input class="input" id="primo-giorno" name="primo-giorno" type="date">
+    </div>
+    <div class="field">
+      <label class="label" for="ultimo-giorno">Ultimo giorno</label>
+      <p class="hint" id="ultimo-giorno-aiuto">I giorni di presenza sono tutti quelli dal primo all’ultimo, al massimo 7.</p>
+      <input class="input" id="ultimo-giorno" name="ultimo-giorno" type="date" aria-describedby="ultimo-giorno-aiuto">
+    </div>
+      <div class="actions form-actions"><button class="btn btn--primary btn--block" type="submit">Crea la convivenza</button><a class="btn btn--secondary btn--block" href="../TALITA-4/convivenza-sezione.html">Annulla</a></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

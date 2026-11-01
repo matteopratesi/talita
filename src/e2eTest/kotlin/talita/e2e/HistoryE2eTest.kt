@@ -19,14 +19,9 @@ class HistoryE2eTest {
     /** The names of the pages, to tell that address and content go together. */
     private val headings = mapOf("/" to "Ti diamo il benvenuto", "/convivenza" to "Convivenza", "/iscrizioni" to "Iscrizioni", "/arrivi" to "Arrivi")
 
-    /** Waits until htmx is done with the page: no request in flight, nothing settling. */
-    private fun Page.settled() {
-        waitUntil("document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping, .htmx-added') === null")
-    }
-
     /** What criterion 22 asks, and a little more: no copy of the pages in any browser memory. */
     private fun assertNothingKept(page: Page, step: String) {
-        page.settled()
+        page.waitForHtmxIdle()
         assertEquals(0, (page.evaluate("localStorage.length") as Number).toInt(), "$step: localStorage is not empty")
         assertEquals(emptyList<String>(), page.evaluate("Object.keys(sessionStorage)") as List<*>, "$step: sessionStorage is not empty")
         assertEquals(emptyList<String>(), page.evaluate("caches.keys()") as List<*>, "$step: the Cache API is not empty")
@@ -114,7 +109,7 @@ class HistoryE2eTest {
         assertEquals(e2e.url("/convivenza"), page.url())
         assertThat(page.locator("h1")).hasText("Convivenza")
         assertThat(page.messages()).hasCount(0)
-        page.settled()
+        page.waitForHtmxIdle()
         assertEquals("Convivenza", page.mainNavigation().locator("a[aria-current=page]").innerText().trim())
     }
 
@@ -136,7 +131,7 @@ class HistoryE2eTest {
         assertThat(page.messages()).hasCount(0)
         assertThat(page.locator("h1")).hasText("Iscrizioni")
         assertEquals(1, page.mainNavigation().locator("a[aria-current=page]").count())
-        page.settled()
+        page.waitForHtmxIdle()
     }
 
     @E2eTest
@@ -291,7 +286,7 @@ class HistoryE2eTest {
         assertEquals(e2e.url("/arrivi"), page.url())
         assertThat(page.locator("h1")).hasText("Arrivi")
         assertThat(page.messages()).hasCount(0)
-        page.settled()
+        page.waitForHtmxIdle()
         assertEquals("Arrivi", page.mainNavigation().locator("a[aria-current=page]").innerText().trim())
     }
 }

@@ -4,17 +4,17 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.support.CronExpression
+import talita.CapturesOutput
 import talita.ClockConfiguration
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.RETENTION_LOG
@@ -38,7 +38,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class RetentionJobTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
@@ -76,6 +75,7 @@ class RetentionJobTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c15 for each rule that deleted something there is a row of the register and a line of the log, with numbers only`(output: CapturedOutput) {
         oldData(children = 2)
 
@@ -121,6 +121,7 @@ class RetentionJobTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c14 a rule that fails goes back and leaves nothing, the other rules run, the log has an ERROR without data, and the next run tries again`(output: CapturedOutput) {
         oldData(children = 2)
         val failing = Failing()
@@ -180,7 +181,8 @@ class RetentionJobTests(
     @Test
     fun `t7 c13 a rule takes the advisory lock of its name, so a second run waits for the first one`() {
         oldData(children = 1)
-        val pool = Executors.newFixedThreadPool(1)
+        // One thread for the transaction that holds the lock, one for the run that waits for it.
+        val pool = Executors.newFixedThreadPool(2)
         try {
             val holding = java.util.concurrent.CountDownLatch(1)
             val release = java.util.concurrent.CountDownLatch(1)
@@ -193,9 +195,7 @@ class RetentionJobTests(
                 }
             }
             assertTrue(holding.await(10, TimeUnit.SECONDS))
-            val waiting = Executors.newSingleThreadExecutor().submit<RetentionReport> { job.run(kit.clockAt("2027-10-20T04:15")) }
-            Thread.sleep(700)
-            assertFalse(waiting.isDone, "the run waits for the lock of «notes»")
+            val waiting = LockWait.awaitBlocked(dsl, "the run should wait for the lock of «notes»") { pool.submit<RetentionReport> { job.run(kit.clockAt("2027-10-20T04:15")) } }
             assertEquals(1, kit.notes())
             release.countDown()
             holder.get(10, TimeUnit.SECONDS)

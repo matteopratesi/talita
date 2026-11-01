@@ -52,8 +52,6 @@ class GatheringE2eTest {
 
     private fun Locator.linkNamed(name: String): Locator = getByRole(AriaRole.LINK, Locator.GetByRoleOptions().setName(name))
 
-    private fun Page.focusIs(expression: String) = waitUntil("document.activeElement && ($expression)")
-
     private fun Page.settled() {
         waitForLoadState()
         waitForSettledContent()
@@ -229,7 +227,7 @@ class GatheringE2eTest {
         val id = e2e.gatherings().make(status = GatheringStatus.draft, custodians = listOf(me))
         e2e.open("/convivenza/$id/informazioni")
 
-        assertThat(page.locator("main")).containsText("Non scrivere nomi, numeri di telefono né indirizzi email: la pagina la legge chiunque abbia il link.")
+        assertThat(page.locator("main")).containsText("Non scrivere nome e cognome di bambini o maestri, numeri di telefono né email.")
         assertThat(page.locator("#informazioni")).hasAttribute("rows", "9")
         assertThat(page.locator("#cosa-portare")).hasAttribute("rows", "6")
         page.settled()

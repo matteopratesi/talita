@@ -4,12 +4,12 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
+import talita.CapturesOutput
+import talita.LockWait
 import talita.TestcontainersConfiguration
 import talita.account.Accounts
 import talita.account.CurrentAccount
@@ -52,7 +52,6 @@ import kotlin.test.assertTrue
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-@ExtendWith(OutputCaptureExtension::class)
 class ErasureTests(
     @Autowired private val dsl: DSLContext,
     @Autowired private val clock: Clock,
@@ -206,9 +205,7 @@ class ErasureTests(
             }
             assertTrue(locked.await(10, TimeUnit.SECONDS))
             // Mid-gathering the registration would block; the request has to wait for the lock and then look again.
-            val request = pool.submit<ChildErasure> { service("2027-09-18T10:00").eraseChild(a, kit.childOf(luca)) }
-            Thread.sleep(700)
-            assertFalse(request.isDone, "the request waits for the row that the withdrawal holds")
+            val request = LockWait.awaitBlocked(dsl, "the request should wait for the row that the withdrawal holds") { pool.submit<ChildErasure> { service("2027-09-18T10:00").eraseChild(a, kit.childOf(luca)) } }
             release.countDown()
             withdrawal.get(10, TimeUnit.SECONDS)
             val done = assertIs<ChildErasure.Done>(request.get(30, TimeUnit.SECONDS), "it found the withdrawal that was committed, so nothing blocks any more")
@@ -455,6 +452,7 @@ class ErasureTests(
     }
 
     @Test
+    @CapturesOutput
     fun `t7 c28 a request that is blocked after a restore is left, with a warning without data, and the number stays`(output: CapturedOutput) {
         val gathering = kit.september2027(status = GatheringStatus.open)
         val a = kit.account("genitore-a")

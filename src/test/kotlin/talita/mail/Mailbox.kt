@@ -49,12 +49,26 @@ object Mailbox {
         return ids.map { read(it) }.reversed()
     }
 
-    /** The mails that arrive for [recipient] within [seconds]: waits for the first one. */
-    fun waitForMail(recipient: String, seconds: Long = 10): ReceivedMail {
+    /** The last mail that arrives for [recipient] within [seconds]: waits for the first one. */
+    fun waitForMail(recipient: String, seconds: Long = 10): ReceivedMail = waitForMails(recipient, 1, seconds).last()
+
+    /**
+     * The mails of [recipient] once there are at least [count] of them, within [seconds] (TALITA-16). The mail leaves before the answer of a request, but Mailpit is another
+     * process and shows it a moment later: a test that counts the mails waits for them here and does not pause for a time.
+     */
+    fun waitForMails(recipient: String, count: Int, seconds: Long = 10): List<ReceivedMail> =
+        waitFor(recipient, "$count mail" + (if (count == 1) "" else "s"), seconds) { it.size >= count }
+
+    /**
+     * The mails of [recipient] once [condition] holds for them (all the mails that [recipient] has, oldest first), looking again every 100 ms for [seconds] at most. [what] says what the
+     * test waits for, for the message of the failure, which also says how many mails there were at the end.
+     */
+    fun waitFor(recipient: String, what: String, seconds: Long = 10, condition: (List<ReceivedMail>) -> Boolean): List<ReceivedMail> {
         val deadline = System.nanoTime() + Duration.ofSeconds(seconds).toNanos()
         while (true) {
-            sentTo(recipient).lastOrNull()?.let { return it }
-            check(System.nanoTime() < deadline) { "no mail arrived for $recipient in $seconds seconds" }
+            val mails = sentTo(recipient)
+            if (condition(mails)) return mails
+            check(System.nanoTime() < deadline) { "waiting for $what for $recipient: ${mails.size} mail(s) after $seconds seconds" }
             Thread.sleep(100)
         }
     }

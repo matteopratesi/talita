@@ -2,16 +2,15 @@ package talita.teacher
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.system.CapturedOutput
-import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.Addresses
+import talita.CapturesOutput
 import talita.MutableClock
 import talita.TestcontainersConfiguration
 import talita.account.EmailAddress
@@ -35,7 +34,6 @@ private const val DAILY_LIMIT = "Oggi Talità ha già mandato tante mail e non p
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["spring.mail.port=1"])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class MaestriMailDownTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -47,6 +45,7 @@ class MaestriMailDownTests(
     private val support = MaestriSupport(mockMvc, tokens, dsl)
 
     @Test
+    @CapturesOutput
     fun `t3 c41 with the mail server down no invitation is saved, the field stays filled in with the notice, and the log has neither the address nor the person`(output: CapturedOutput) {
         val me = Addresses.unique("guasto-invita")
         support.onlyTeachers(Person(me, "Elisa", "Conti"))
@@ -93,7 +92,6 @@ class MaestriMailDownTests(
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(properties = ["talita.public-url="])
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension::class)
 class MaestriWithoutPublicUrlTests(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val tokens: OneTimeTokenService,
@@ -101,6 +99,7 @@ class MaestriWithoutPublicUrlTests(
 ) {
 
     @Test
+    @CapturesOutput
     fun `t3 c41 without talita public-url no invitation is saved and no mail leaves, the page says so, and the log says why without the address`(output: CapturedOutput) {
         val support = MaestriSupport(mockMvc, tokens, dsl)
         val me = Addresses.unique("senza-url")

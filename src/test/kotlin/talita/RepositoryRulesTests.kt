@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.extension
 import kotlin.io.path.name
+import kotlin.io.path.readLines
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -128,6 +130,116 @@ class RepositoryRulesTests {
         assertTrue(cache.contains("si può copiare il file `tailwindcss-linux-x64`"))
         assertTrue(cache.contains("nella cartella della cache: la build ne controlla comunque lo SHA-256"))
         assertTrue(cache.contains("`timeout-minutes`"))
+    }
+
+    // ---- Tests that wait for a condition, not for a time (TALITA-16, criterion 8) ------------------------------------
+
+    /** Why a test may still wait for a fixed time: the three reasons of the list. */
+    private enum class Why {
+        /** A loop that asks again, with a condition and a maximum time, inside a helper that all the tests share. */
+        POLL,
+
+        /** A server that is slow, simulated: the test holds the answer or sleeps in the handler of the request. */
+        SLOW_SERVER,
+
+        /** The proof that something does not happen, or that a time has to pass: it cannot fail for a slow runner, at most it proves nothing. */
+        NOTHING_HAPPENS,
+    }
+
+    private data class AllowedWaits(val count: Int, val why: Set<Why>)
+
+    private fun waits(count: Int, vararg why: Why) = AllowedWaits(count, why.toSet())
+
+    /**
+     * Every file of the tests that still has a wait of a fixed time (a sleep of the thread, or `waitForTimeout` of Playwright), with how many and why. **No test of concurrency is
+     * here**: they wait for the lock with `LockWait`; and the waits of the mail, of the focus, of the scroll and of htmx are conditions too. A file that is not here may have none.
+     */
+    private val allowedWaits: Map<String, AllowedWaits> = mapOf(
+        "src/test/kotlin/talita/LockWait.kt" to waits(1, Why.POLL),
+        "src/test/kotlin/talita/mail/Mailbox.kt" to waits(1, Why.POLL),
+        "src/e2eTest/kotlin/talita/e2e/ShellPages.kt" to waits(1, Why.POLL),
+        "src/test/kotlin/talita/mail/FakeSmtpServer.kt" to waits(1, Why.SLOW_SERVER),
+        "src/e2eTest/kotlin/talita/e2e/MenuSlowUploadE2eTest.kt" to waits(1, Why.SLOW_SERVER),
+        "src/e2eTest/kotlin/talita/e2e/LoadingStateE2eTest.kt" to waits(5, Why.NOTHING_HAPPENS, Why.SLOW_SERVER),
+        "src/e2eTest/kotlin/talita/e2e/MessagesE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/NavigationE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/HistoryE2eTest.kt" to waits(3, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/HistoryRecoveryE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/HistoryConsistencyE2eTest.kt" to waits(11, Why.NOTHING_HAPPENS, Why.POLL),
+        "src/e2eTest/kotlin/talita/e2e/ArrivalsDayE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/ArrivalsE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/EnrollmentE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/LoginE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/RememberE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+        "src/e2eTest/kotlin/talita/e2e/RoomsQaE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+    )
+
+    private val timedWait = Regex("""Thread\.sleep\(|TimeUnit\.[A-Z]+\.sleep\(|waitForTimeout\(""")
+
+    /** The sources of the tests, unit and e2e, without this file (which is the one that holds the rule), as paths with `/`. */
+    private fun testSources(): List<Path> = listOf("src/test", "src/e2eTest").map(root::resolve).filter(Files::isDirectory).flatMap { folder ->
+        Files.walk(folder).use { stream -> stream.filter { Files.isRegularFile(it) && it.extension == "kt" && it.name != "RepositoryRulesTests.kt" }.toList() }
+    }
+
+    private fun relative(path: Path): String = root.relativize(path).joinToString("/").removePrefix("./")
+
+    /** How many waits of a fixed time a source has: the lines of code, not those of a comment. */
+    private fun timedWaitsIn(path: Path): Int =
+        path.readLines().filterNot { it.trimStart().let { line -> line.startsWith("//") || line.startsWith("*") || line.startsWith("/*") } }.sumOf { timedWait.findAll(it).count() }
+
+    @Test
+    fun `t16 c08 a test waits for a condition and not for a time, except the waits of the list, that have a reason`() {
+        val found = testSources().associate { relative(it) to timedWaitsIn(it) }.filterValues { it > 0 }
+        val use = "wait for the condition: `LockWait.awaitBlocked` for a lock, `focusIs` for the focus, `waitUntil` or `awaitCondition` for the page and for a position, `waitForHtmxIdle` for htmx, " +
+            "`assertThat` of Playwright for what is on the page, `Mailbox.waitForMails` for a mail. A test that proves that something does not happen, or that a time has to pass, " +
+            "goes in the list of RepositoryRulesTests, with the reason"
+
+        for ((file, count) in found) {
+            val allowed = allowedWaits[file]
+            assertTrue(allowed != null, "$file has $count wait(s) of a fixed time and is not in the list: $use")
+            assertTrue(count <= allowed.count, "$file has $count wait(s) of a fixed time and the list allows ${allowed.count}: $use")
+        }
+        // The list stays true: a file that was cleaned has to come out of it (or lose the waits that it does not have any more), so that nobody finds room for a new wait.
+        for ((file, allowed) in allowedWaits) {
+            assertEquals(allowed.count, found[file] ?: 0, "the list allows ${allowed.count} wait(s) in $file and the file has ${found[file] ?: 0}: update the list")
+            assertTrue(allowed.why.isNotEmpty(), "$file has no reason in the list")
+            assertTrue(Files.isRegularFile(root.resolve(file)), "$file is in the list and is not there")
+        }
+    }
+
+    @Test
+    fun `t16 c08 the rule counts a wait in a line of code and not in a comment, and counts every kind`() {
+        val dir = Files.createTempDirectory("waits")
+        try {
+            val source = dir.resolve("Example.kt")
+            Files.writeString(
+                source,
+                listOf(
+                    "// Thread." + "sleep(10) in a comment",
+                    " * page.waitFor" + "Timeout(10.0) in a KDoc",
+                    "    Thread." + "sleep(300)",
+                    "    java.util.concurrent.TimeUnit.SECONDS." + "sleep(1)",
+                    "    page.waitFor" + "Timeout(500.0)",
+                ).joinToString("\n"),
+            )
+            assertEquals(3, timedWaitsIn(source))
+        } finally {
+            Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+        }
+    }
+
+    // ---- The output of a test is the output of the test (TALITA-16, criterion 4) --------------------------------------
+
+    @Test
+    fun `t16 c04 only the tests that read the log of the start put the capture of the output on the class`() {
+        val withExtension = testSources().filter { "OutputCaptureExtension" in Files.readString(it) }.map { it.name }.sorted()
+
+        // `CapturesOutput` is the annotation, the other three are the classes that read the log of the start of the application (each says why).
+        assertEquals(listOf("BootstrapTeacherTests.kt", "CapturesOutput.kt", "NoMailTests.kt", "PasskeysOffTests.kt"), withExtension)
+        for (startup in listOf("BootstrapTeacherTests.kt", "NoMailTests.kt", "PasskeysOffTests.kt")) {
+            val source = testSources().single { it.name == startup }
+            assertEquals(1, Regex("""@ExtendWith\(OutputCaptureExtension::class\)""").findAll(Files.readString(source)).count(), "$startup: one class with the capture of the start")
+        }
     }
 
     // ---- Two projects on the same PC ------------------------------------------------------------
