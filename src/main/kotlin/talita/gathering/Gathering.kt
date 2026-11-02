@@ -30,10 +30,11 @@ data class Custodian(val accountId: Long, val first: String, val last: String) {
 }
 
 /**
- * A gathering. It holds no personal data: it is an event and its place. The public page shows only some of it (see
+ * A gathering. It holds no personal data: it is an event and the house where it is held. The public page shows only some of it (see
  * [PublicInfo]), never the custodians.
  *
  * @property publicCode the 16 characters of the address of the public page; never changes
+ * @property venueId the house where it is held (TALITA-20): its name and its place are the venue's, and `talita.venue` answers for them ([GatheringVenues]); a draft may have none
  */
 data class Gathering(
     val id: Long,
@@ -41,7 +42,7 @@ data class Gathering(
     val title: String,
     val startDate: LocalDate,
     val endDate: LocalDate,
-    val place: String?,
+    val venueId: Long?,
     val fees: Fees,
     val infoText: String?,
     val whatToBring: String?,
@@ -62,7 +63,7 @@ data class Gathering(
 
 /** What a draft still needs before the registrations open (criterion 10), in the order of the forms. */
 enum class Missing(val text: String, val path: (Long) -> String) {
-    PLACE("Scrivi il luogo", { "/convivenza/$it/date#luogo" }),
+    VENUE("Scegli la struttura", { "/convivenza/$it/date#struttura" }),
     FULL_FEE("Scrivi la quota intera", { "/convivenza/$it/quote#quota-intera" }),
     CUSTODIAN("Scegli almeno un maestro affidatario", { "/convivenza/$it/affidatari" }),
     DATES("Cambia le date: l’ultimo giorno è già passato", { "/convivenza/$it/date#ultimo-giorno" }),
@@ -77,6 +78,11 @@ data class GatheringInfo(
     val end: LocalDate,
     /** Every day of presence, in order. */
     val days: List<LocalDate>,
+    /** The venue (TALITA-20): null for a draft that has none. */
+    val venueId: Long?,
+    /** The name of the venue, public like the place: null with no venue. */
+    val venueName: String?,
+    /** The place of the venue, as the text of the custody and the public page say it: null with no venue. */
     val place: String?,
     /** In cents; null means not provided. */
     val fees: Fees,
@@ -131,4 +137,26 @@ interface ArrivalUsage {
 
     /** For each of [days], how many presences of [gatheringId] are marked on it, whatever the state of the registration. A day nobody was marked on is not in the answer. */
     fun presenceUsers(context: DSLContext, gatheringId: Long, days: Collection<LocalDate>): Map<LocalDate, Int>
+}
+
+/** A venue as the gathering reads it (TALITA-20): the name and the place of a house, both public text like the place was. No contact, no address in fields. */
+data class VenueRef(val id: Long, val name: String, val place: String)
+
+/**
+ * What the venues tell the gathering (as [RegistrationUsage] does for the registrations): the gathering asks, `talita.venue` answers, and this package never reads the table of the venues. The name and
+ * the place of the venue are what the parents read, and a gathering takes them from here every time: there is no copy to keep in step.
+ */
+interface GatheringVenues {
+
+    /** The venue [id], or null if there is none. */
+    fun find(id: Long): VenueRef?
+
+    /**
+     * The venue [id] inside the transaction of [context]. With [lock] the row is locked for sharing: a teacher who changes the name or the place of the venue waits for this transaction to end,
+     * and the other way round, so that a text that is saved has always the place of that moment (the confirmation of a registration reads it like this).
+     */
+    fun findIn(context: DSLContext, id: Long, lock: Boolean = false): VenueRef?
+
+    /** Every venue by name: the choices of «Modifica titolo, date e luogo». */
+    fun all(): List<VenueRef>
 }

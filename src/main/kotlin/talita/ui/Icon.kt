@@ -62,4 +62,7 @@ enum class Icon {
     MONITOR_SMARTPHONE,
     KEY_ROUND,
     FINGERPRINT_PATTERN,
+
+    /** The venues (TALITA-20): a house. */
+    BUILDING_2,
 }

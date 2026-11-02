@@ -68,8 +68,10 @@ data class DetailPage(
     val state: StateCard,
     val dialog: ConfirmModel?,
     val days: String,
-    val place: String?,
-    val placeNeeded: Boolean,
+    /** The venue (TALITA-20): its name as a link to its page, and its place; null when the gathering has none. */
+    val venue: VenueLine?,
+    /** A draft with no venue: «Non indicata» and «Da completare». */
+    val venueNeeded: Boolean,
     val fees: List<FeeLine>,
     val custodians: List<CustodianLine>,
     val custodiansNeeded: Boolean,
@@ -86,6 +88,9 @@ data class DetailPage(
     /** The card «Menù» (TALITA-12): in every state of the gathering, with the file or without it. */
     val menu: MenuCard,
 )
+
+/** The venue of a gathering in the card «Quando e dove» (TALITA-20): the name, that leads to the page of the venue, and the place, which is the venue's. */
+data class VenueLine(val name: String, val href: String, val place: String)
 
 /** A row of the card «Conservazione dei dati»: the data, when they go (in the tense of the date), and why. */
 data class RetentionLine(val label: String, val value: String, val why: String)
@@ -118,21 +123,32 @@ data class LinkCard(
     val copyPrimary: Boolean,
 )
 
-/** «Titolo, date e luogo»: the dates are shown as text, with no fields, when the gathering is over (criterion 17). */
+/**
+ * A venue among the choices of «Modifica titolo, date e luogo» (TALITA-20): what it sends ([value], its id), what it says ([label], its name) and the place that the parents will read.
+ * The first choice, «Scegli la struttura», has no value and no place.
+ */
+data class VenueChoice(val value: String, val label: String, val selected: Boolean, val place: String?)
+
+/** «Titolo, date e luogo»: the dates are shown as text, with no fields, when the gathering is over (criterion 17). The place is the venue's: the form chooses the venue (TALITA-20). */
 data class DatesForm(
     val id: Long,
     val title: String,
     val startDate: String,
     val endDate: String,
-    val place: String,
+    /** The choices of the venue, the first one without a value; the one that was chosen is selected. */
+    val venues: List<VenueChoice>,
     val titleError: String?,
     val startError: String?,
     val endError: String?,
-    val placeError: String?,
+    val venueError: String?,
     val lockedDates: String?,
     val alert: Alert?,
     /** There are registrations that are not withdrawn: the help under «Ultimo giorno» says that a day that has been chosen cannot be taken away, and what adding one does. */
     val withRegistrations: Boolean = false,
+    /** «Luogo di adesso»: the place of the venue that the gathering has now (what the parents read until this form is saved); null when it has none. */
+    val currentPlace: String? = null,
+    /** The id of the venue that the gathering has now, or empty: the script compares it with the choice to know that the venue changes. */
+    val currentVenue: String = "",
 )
 
 /** «Quote»: three fields of an amount. */

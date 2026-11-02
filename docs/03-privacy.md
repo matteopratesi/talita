@@ -157,8 +157,8 @@ Previste dal progetto, con il ticket in cui diventano vere:
 - **La pagina informativa non mostra dati personali** (TALITA-4): niente nomi dei maestri, né email o telefoni, né numeri sulle
   iscrizioni; a un indirizzo con un codice che non si indovina, mai indicizzata (`noindex` nella pagina e nell'intestazione), mai
   conservata (`Cache-Control`), senza cookie, senza script e senza nulla caricato da altri indirizzi; chi la riceve da un'app di
-  messaggi vede un'anteprima con titolo, date e luogo e nessuna immagine. A convivenza finita dice solo titolo e date.
-  **Titolo, luogo, informazioni e «cosa portare»** (i quattro testi che scrive un maestro e che legge chiunque abbia il link) non possono contenere
+  messaggi vede un'anteprima con titolo, date, nome della struttura e luogo e nessuna immagine. A convivenza finita dice solo titolo e date.
+  **Titolo, nome e luogo della struttura, informazioni e «cosa portare»** (i cinque testi che scrive un maestro e che legge chiunque abbia il link; dal TALITA-20 il nome e il luogo sono quelli della struttura, che dura più convivenze) non possono contenere
   indirizzi email, telefoni né IBAN, **né il nome e il cognome di un bambino o di un maestro che l'app conosce** (TALITA-16): al salvataggio
   una sola domanda al database (`PublicNames`, con `unaccent`) risponde sì o no per ogni testo, e i nomi non arrivano all'applicazione, non si
   salvano, non si tengono fra due richieste e non vanno nel log (INFO e oltre), nemmeno quando ne trova uno. È una rete e non una prova:

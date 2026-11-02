@@ -6,7 +6,8 @@
 @param int level = 1
 @param boolean preview = false
 <%-- The content of the information page (criteria 24, 26, 27, 28, 33), one component for the public page (`level` 1: the title is the h1, the cards h2) and for
-     the preview of the teachers (`level` 2: the title is an h2 of the same size, the cards h3). Nothing here is personal data: [info] holds only what the page shows.
+     the preview of the teachers (`level` 2: the title is an h2 of the same size, the cards h3). Nothing here is personal data: [info] holds only what the page shows
+     (the name of the venue and its place, TALITA-20, in the row «Dove»: never its rooms or its forms).
      The parts that are empty are not drawn, cards included. The cards that can be long (the information and the things to bring: up to 5,000 and 2,000
      characters) are not kept whole on a sheet, or the sheets would stay half empty: they split between pages (app.css keeps the heading with the text that
      follows and the lines of a list whole); the short ones (date, fees) stay whole with `break-inside-avoid`. In print (app.css and the `print:` classes) the button and its line are not printed, and where the button is
@@ -38,10 +39,10 @@
           <dt class="text-sm text-ink-muted">Quando</dt>
           <dd class="font-medium wrap-anywhere">${info.getDays()}</dd>
         </div>
-        @if(info.getPlace() != null)
+        @if(info.getVenueName() != null)
           <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
             <dt class="text-sm text-ink-muted">Dove</dt>
-            <dd class="font-medium wrap-anywhere">${info.getPlace()}</dd>
+            <dd class="font-medium wrap-anywhere">${info.getVenueName()}<span class="block font-normal wrap-anywhere">${info.getPlace()}</span></dd>
           </div>
         @endif
       </dl>

@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 class GatheringRulesTests {
 
     private fun gathering(start: LocalDate, end: LocalDate, state: GatheringState = GatheringState.OPEN) = Gathering(
-        1, "q7Vd_3KmZ0xRb-Ew", "Convivenza di settembre 2027", start, end, "Casa per ritiri di esempio", Fees(6000, 2500, 1000), null, null, state,
+        1, "q7Vd_3KmZ0xRb-Ew", "Convivenza di settembre 2027", start, end, 7L, Fees(6000, 2500, 1000), null, null, state,
     )
 
     private val friday = LocalDate.of(2027, 9, 17)
@@ -167,9 +167,7 @@ class GatheringRulesTests {
     }
 
     @Test
-    fun `t4 c05 place, information and what to bring have their maximums and the error says them`() {
-        assertEquals("Il luogo può avere al massimo 200 caratteri: ne hai scritti 201.", GatheringChecks.place("a".repeat(201), required = false).error)
-        assertNull(GatheringChecks.place("a".repeat(200), required = false).error)
+    fun `t4 c05 information and what to bring have their maximums and the error says them`() {
         assertEquals("Le informazioni possono avere al massimo 5.000 caratteri: ne hai scritti 5.001.", GatheringChecks.info("a".repeat(5001)).error)
         assertNull(GatheringChecks.info("a".repeat(5000)).error)
         assertEquals("L’elenco può avere al massimo 2.000 caratteri: ne hai scritti 2.001.", GatheringChecks.whatToBring("a".repeat(2001)).error)
@@ -182,14 +180,12 @@ class GatheringRulesTests {
 
         assertEquals("Primo paragrafo\n\n\nSecondo, con\ndue righe", GatheringChecks.info(written).value)
         assertEquals("", GatheringChecks.info("  \n  ").value)
-        // A place is one line: a line break becomes a space.
-        assertEquals("Casa per ritiri di esempio", GatheringChecks.place("Casa per\nritiri di  esempio".replace("  ", " "), required = false).value)
+        // A title is one line: a line break becomes a space.
+        assertEquals("Convivenza di settembre", GatheringChecks.title("Convivenza di\nsettembre").value)
     }
 
     @Test
-    fun `t4 c05 without a place the draft is fine and a gathering that is not a draft any more has an error`() {
-        assertNull(GatheringChecks.place("", required = false).error)
-        assertEquals(GatheringChecks.PLACE_MISSING, GatheringChecks.place("  ", required = true).error)
+    fun `t4 c05 without the full fee the draft is fine and a gathering that is not a draft any more has an error`() {
         assertNull(GatheringChecks.fee("", required = false).error)
         assertEquals(GatheringChecks.FULL_FEE_MISSING, GatheringChecks.fee("", required = true).error)
     }
@@ -232,10 +228,10 @@ class GatheringRulesTests {
             "Qui ci sono un indirizzo email e un numero di telefono. Toglili: la pagina la legge chiunque abbia il link.",
             GatheringChecks.whatToBring("nome@example.org e 333 1234567").error,
         )
-        assertEquals("Qui c’è un IBAN. Toglilo: la pagina la legge chiunque abbia il link.", GatheringChecks.place("IT60X0542811101000000123456", required = false).error)
-        // Title and place are public texts as well.
+        assertEquals("Qui c’è un IBAN. Toglilo: la pagina la legge chiunque abbia il link.", GatheringChecks.info("IT60X0542811101000000123456").error)
+        // The title is a public text as well (the name and the place of a venue are checked by `VenueChecks`, with the same words).
         assertNotNull(GatheringChecks.title("Convivenza di nome@example.org").error)
-        assertNotNull(GatheringChecks.place("Casa, tel. 333 1234567", required = false).error)
+        assertNotNull(GatheringChecks.title("Convivenza, tel. 333 1234567").error)
         // A text with nothing to take away says nothing.
         assertNull(GatheringChecks.info("Ci si ritrova venerdì alle 18:30 e si finisce domenica dopo pranzo.").error)
     }
@@ -264,7 +260,7 @@ class GatheringRulesTests {
         val title = GatheringChecks.title("Convivenza con Luca Rossi")
         val empty = GatheringChecks.title("   ")
         val tooLong = GatheringChecks.title("Luca Rossi " + "x".repeat(100))
-        val place = GatheringChecks.place("", required = false)
+        val place = GatheringChecks.info("")
         val withPhone = GatheringChecks.info("Luca Rossi 333 123 4567")
 
         assertTrue(title.askForName && title.valid, "there is nothing to take away yet, and the name is still to be asked")

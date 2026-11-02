@@ -419,7 +419,7 @@ class EnrollmentE2eTest {
         val code = e2e.openGathering().code
         page.toStepTwo(e2e, code)
         page.tickTheThreeBoxes()
-        e2e.dsl().update(GATHERING).set(GATHERING.PLACE, "Una casa nuova per ritiri").execute()
+        e2e.dsl().update(talita.jooq.tables.references.VENUE).set(talita.jooq.tables.references.VENUE.PLACE, "Una casa nuova per ritiri").execute()
 
         e2e.press(page.locator("main").buttonNamed("Accetta e iscrivi"))
 

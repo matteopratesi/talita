@@ -35,7 +35,7 @@ telefono**, con le stampe per il registro e per la struttura (al posto del regis
   (magic link, senza password), iscrive i suoi figli e accetta l'affidamento. Può correggere
   l'iscrizione finché le iscrizioni sono aperte. Vede solo i suoi figli. Quasi sempre dal telefono,
   poco pratico con l'informatica.
-- **Il maestro** crea e configura la convivenza (date, luogo, giorni, quote, maestri affidatari,
+- **Il maestro** crea e configura la convivenza (date, struttura e luogo, giorni, quote, maestri affidatari,
   testo informativo), invita gli altri maestri via email, inserisce le iscrizioni arrivate sul
   modulo cartaceo (per chi non usa l'app), e nei giorni dell'evento fa il check-in dal telefono: cerca
   il bambino, segna l'arrivo e la quota pagata, legge le segnalazioni e chiama il genitore. Vede
@@ -72,6 +72,8 @@ per conto suo: è una questione di Koinè, non di Talità.
 ## Cosa resta fuori dal primo rilascio
 
 **Camere, cucina e menù, solleciti via email sono nel primo rilascio.** Dall'esito di KOINE-29 ne erano fuori; il 24/10/2026 Matteo li ha messi dentro (`docs/05-decisioni.md`): camere (TALITA-11), cucina e menù (TALITA-12), solleciti via email (TALITA-13), tutti sotto l'epica TALITA-1 (M1 · Primo rilascio). Le analisi sono nei ticket, e i vincoli che vi sono già scritti restano.
+
+**Le strutture sono nel primo rilascio** (TALITA-20, richiesta di Matteo del 2/11/2026): una convivenza si fa in una casa per ritiri, e la stessa casa torna negli anni, quindi il luogo non si riscrive più ogni anno. Un'anagrafe delle strutture, solo per i maestri, con il nome («Casa del bosco») e il luogo; la convivenza ne sceglie una e ne prende il luogo, e la pagina per i genitori e l'anteprima del link dicono il nome e il luogo. Scala minima: due o tre strutture in tutto, niente ricerca, mappe o foto, e **nessun referente**: né il nome né il telefono di persone. Le camere della struttura e i moduli che chiede sono gli altri due passi dello stesso ticket.
 
 **Cucina e menù entra solo come file** (TALITA-12, decisione di Matteo del 24/10/2026: «Keep it simple per ora mettiamolo solo come caricamento di un file per averlo sempre disponibile»). Un maestro carica il file del menù della convivenza (un PDF, o la foto del foglio), lo sostituisce o lo toglie, e i maestri lo scaricano, anche dal telefono durante la convivenza: la scheda «Menù» nel dettaglio e un collegamento in Arrivi. Lo vedono solo i maestri, non i genitori né la pagina informativa. Restano fuori, per un ticket futuro: pasti e menù per pasto, coperti calcolati dalle presenze, una vista per la cucina sulle segnalazioni (mostrando il minimo, mai nomi accanto ai dati sanitari) e le stampe per la cucina e per i tavoli.
 

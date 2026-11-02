@@ -9,6 +9,7 @@ import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.HEALTH_NOTE_ACCESS
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.REGISTRATION_DAY
+import talita.jooq.tables.references.VENUE
 import java.time.Clock
 import java.time.LocalDate
 
@@ -18,7 +19,8 @@ import java.time.LocalDate
  * gathering that was made yesterday. Dates are made from the day of the test clock (a fixed date of 2027 would stop being in the future
  * one day): the sentences that need exact dates are tried by the tests of the formatter, with fixed dates.
  *
- * Every title, place and name here is synthetic.
+ * Every title, place and name here is synthetic. The place of a gathering is the one of its venue (TALITA-20): `make` finds or writes the venue that has the place that it is given, so that the tests
+ * of before, which say «a gathering with this place», say the same thing.
  */
 class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
 
@@ -33,7 +35,22 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
         dsl.deleteFrom(CHILD).execute()
         dsl.deleteFrom(GATHERING_CUSTODIAN).execute()
         dsl.deleteFrom(GATHERING).execute()
+        // The rooms hang from the venues, and nobody is in them any more: the venues go too (the gatherings that used them are gone).
+        dsl.deleteFrom(VENUE).execute()
     }
+
+    /**
+     * A venue made straight in the table: its id. [name] is unique (the index of the table): with none, the name is the first 50 characters of the place with a number that grows, so two
+     * venues with different places never collide, however alike the places are.
+     */
+    fun makeVenue(place: String = "Casa per ritiri di esempio", name: String? = null): Long {
+        val chosen = name ?: (place.take(50).trim() + " " + ++venueCounter)
+        return dsl.insertInto(VENUE).set(VENUE.NAME, chosen).set(VENUE.PLACE, place).returningResult(VENUE.ID).fetchSingle().value1()!!
+    }
+
+    /** The venue that has this place (the first one), or a new one: a gathering made with the same place as another one shares its venue, as the gatherings did when the place was a text. */
+    fun venueOf(place: String): Long =
+        dsl.select(VENUE.ID).from(VENUE).where(VENUE.PLACE.eq(place)).orderBy(VENUE.ID).limit(1).fetchOne(VENUE.ID) ?: makeVenue(place)
 
     /**
      * A gathering made straight in the table. By default a complete draft of three days that starts in a month. Returns its id; the code
@@ -45,6 +62,7 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
         end: LocalDate = start.plusDays(2),
         status: GatheringStatus = GatheringStatus.draft,
         place: String? = "Casa per ritiri di esempio",
+        venue: Long? = null,
         full: Int? = 6000,
         daily: Int? = 2500,
         lunchOnly: Int? = 1000,
@@ -58,7 +76,7 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
             .set(GATHERING.TITLE, title)
             .set(GATHERING.START_DATE, start)
             .set(GATHERING.END_DATE, end)
-            .set(GATHERING.PLACE, place)
+            .set(GATHERING.VENUE_ID, venue ?: place?.let(::venueOf))
             .set(GATHERING.FULL_FEE_CENTS, full)
             .set(GATHERING.DAILY_FEE_CENTS, daily)
             .set(GATHERING.LUNCH_ONLY_FEE_CENTS, lunchOnly)
@@ -72,6 +90,9 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
         return id
     }
 
+    /** The venue of a gathering (null: none). */
+    fun venueIdOf(id: Long): Long? = dsl.select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.VENUE_ID)
+
     fun statusOf(id: Long): GatheringStatus = dsl.select(GATHERING.STATUS).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.STATUS)!!
 
     fun custodiansOf(id: Long): List<Long> =
@@ -80,6 +101,7 @@ class GatheringSupport(private val dsl: DSLContext, private val clock: Clock) {
 
     companion object {
         private var counter = 0L
+        private var venueCounter = 0L
 
         /** A code of 16 characters of the alphabet of the codes, different every time. */
         @Synchronized

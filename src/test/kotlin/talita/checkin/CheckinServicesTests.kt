@@ -178,7 +178,7 @@ class CheckinServicesTests(
         val id = kit.rows.register(setup.id, kit.account(), "Anna", "Rossi", status = RegistrationStatus.withdrawn, days = mapOf(setup.tomorrow to "full"))
         // The last day goes (the registration is withdrawn: it does not hold it).
         val info = reader.byId(setup.id)!!
-        assertEquals(DatesResult.Saved, gatherings.saveDates(setup.id, info.title, setup.yesterday, setup.today, info.place, usage, arrivals))
+        assertEquals(DatesResult.Saved, gatherings.saveDates(setup.id, info.title, setup.yesterday, setup.today, info.venueId, usage, arrivals))
 
         assertEquals(RestoreResult.MustBeCorrected, registrations.restoreConfirmed(id))
         assertEquals("withdrawn", kit.statusOf(id))
@@ -438,7 +438,7 @@ class CheckinServicesTests(
         kit.rows.register(setup.id, kit.account(), "Anna", "Rossi", days = mapOf(setup.today to "full"))
         kit.presence(withdrawn, setup.today, setup.martaId)
         kit.presence(withdrawn, setup.yesterday, setup.martaId)
-        fun save(start: java.time.LocalDate, end: java.time.LocalDate) = gatherings.saveDates(setup.id, info.title, start, end, info.place, usage, arrivals)
+        fun save(start: java.time.LocalDate, end: java.time.LocalDate) = gatherings.saveDates(setup.id, info.title, start, end, info.venueId, usage, arrivals)
 
         // Yesterday is held by a presence alone (no registration chose it, the withdrawn one does not count).
         assertEquals(DatesResult.DaysInUse(listOf(DayInUse(setup.yesterday, registrations = 0, presences = 1))), save(setup.today, setup.tomorrow))

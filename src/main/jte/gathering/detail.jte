@@ -29,7 +29,7 @@
     </div>
   @elseif(page.getAlert() != null)
     <div class="mb-3">
-      @template.components.alert(variant = page.getAlert().getVariant(), live = true, content = @`${page.getAlert().getText()}`)
+      @template.components.alert(variant = page.getAlert().getVariant(), live = true, lead = page.getAlert().getLead(), content = @`${page.getAlert().getText()}`)
     </div>
   @elseif(page.getStanding() != null)
     <div class="mb-3">
@@ -127,18 +127,24 @@
           <dd class="font-medium wrap-anywhere">${page.getDays()}</dd>
         </div>
         <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
-          <dt class="text-sm text-ink-muted">Dove</dt>
+          <dt class="text-sm text-ink-muted">Struttura</dt>
           <dd class="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-            @if(page.getPlace() != null)
-              <span class="wrap-anywhere">${page.getPlace()}</span>
+            @if(page.getVenue() != null)
+              <a href="${page.getVenue().getHref()}" class="font-semibold text-brand underline underline-offset-2 wrap-anywhere">${page.getVenue().getName()}</a>
             @else
-              <span class="font-normal text-ink-muted">Non indicato</span>
-              @if(page.getPlaceNeeded())
+              <span class="font-normal text-ink-muted">Non indicata</span>
+              @if(page.getVenueNeeded())
                 @template.components.badge(label = "Da completare", tone = "warning")
               @endif
             @endif
           </dd>
         </div>
+        @if(page.getVenue() != null)
+          <div class="sm:grid sm:grid-cols-[11rem_1fr] sm:gap-6">
+            <dt class="text-sm text-ink-muted">Dove</dt>
+            <dd class="font-medium wrap-anywhere">${page.getVenue().getPlace()}</dd>
+          </div>
+        @endif
       </dl>
     </section>
 

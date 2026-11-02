@@ -79,7 +79,7 @@ class GatheringE2eTest {
         assertThat(page).hasTitle("Convivenza · Talità")
         assertThat(page.locator("h1")).hasText("Convivenza")
         assertThat(page.locator("nav a[aria-current=page]")).hasText("Convivenza")
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Nessuna convivenza in programma", "Maestri"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Nessuna convivenza in programma", "Strutture", "Maestri"))
         assertThat(page.locator("main")).containsText("Quando la crei, la trovi qui con le date, i maestri e il link per i genitori.")
         assertThat(page.locator("main").linkNamed("Crea la convivenza")).isVisible()
         assertThat(page.locator("main").linkNamed("Maestri")).isVisible()
@@ -105,7 +105,7 @@ class GatheringE2eTest {
 
         e2e.open("/convivenza")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Convivenza corrente", "Convivenze chiuse", "Maestri"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Convivenza corrente", "Convivenze chiuse", "Strutture", "Maestri"))
         assertThat(page.locator("main").linkNamed("Crea la convivenza")).hasCount(0)
         val row = page.locator("main li a").filter(Locator.FilterOptions().setHasText("Convivenza di settembre 2027"))
         assertThat(row).containsText("Bozza")
@@ -321,6 +321,8 @@ class GatheringE2eTest {
     fun `c10 a draft that is not complete says what is missing with a link to each, the link leads to the field with the focus on it, and the button stays active`(e2e: E2e) {
         val page = e2e.page
         e2e.onlyMe()
+        // A venue to choose from, so that the link leads to the select (TALITA-20).
+        e2e.gatherings().makeVenue("Casa per ritiri di esempio", "Casa del bosco")
         val id = e2e.gatherings().make(status = GatheringStatus.draft, place = null, full = null)
         e2e.open("/convivenza/$id")
         assertThat(page.locator("main").getByText("Da completare")).hasCount(3)
@@ -329,7 +331,7 @@ class GatheringE2eTest {
 
         val alert = page.locator("main [role=alert]")
         assertThat(alert).containsText("Prima di aprire le iscrizioni:")
-        assertThat(alert.locator("a")).hasText(arrayOf("Scrivi il luogo", "Scrivi la quota intera", "Scegli almeno un maestro affidatario"))
+        assertThat(alert.locator("a")).hasText(arrayOf("Scegli la struttura", "Scrivi la quota intera", "Scegli almeno un maestro affidatario"))
         page.focusIs("document.activeElement.getAttribute('role') === 'alert'")
         assertThat(page.locator("main").buttonNamed("Apri le iscrizioni")).isEnabled()
         assertEquals(GatheringStatus.draft, e2e.gatherings().statusOf(id))
@@ -337,9 +339,9 @@ class GatheringE2eTest {
         page.settled()
         assertAccessible(page, "detail with what is missing (${e2e.profile.label})")
 
-        e2e.press(alert.linkNamed("Scrivi il luogo"))
-        assertThat(page).hasURL(e2e.url("/convivenza/$id/date#luogo"))
-        page.focusIs("document.activeElement.id === 'luogo'")
+        e2e.press(alert.linkNamed("Scegli la struttura"))
+        assertThat(page).hasURL(e2e.url("/convivenza/$id/date#struttura"))
+        page.focusIs("document.activeElement.id === 'struttura'")
 
         e2e.open("/convivenza/$id")
         e2e.press(page.locator("main").buttonNamed("Apri le iscrizioni"))

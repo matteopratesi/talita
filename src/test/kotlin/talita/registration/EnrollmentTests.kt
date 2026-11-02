@@ -28,6 +28,7 @@ import talita.jooq.enums.RegistrationAttendance
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.VENUE
 import talita.jooq.tables.references.GATHERING_CUSTODIAN
 import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.REGISTRATION
@@ -685,7 +686,7 @@ class EnrollmentTests(
         val changes = listOf(
             "title" to { dsl.update(GATHERING).set(GATHERING.TITLE, "Un altro titolo").where(GATHERING.ID.eq(setup.id)).execute() },
             "end" to { dsl.update(GATHERING).set(GATHERING.END_DATE, setup.sunday.minusDays(1)).where(GATHERING.ID.eq(setup.id)).execute() },
-            "place" to { dsl.update(GATHERING).set(GATHERING.PLACE, "Un’altra casa").where(GATHERING.ID.eq(setup.id)).execute() },
+            "place" to { dsl.update(VENUE).set(VENUE.PLACE, "Un’altra casa").where(VENUE.ID.eq(kit.kit.gatherings.venueIdOf(setup.id))).execute() },
         )
         for ((name, change) in changes) {
             val other = kit.parent("altro-$name")

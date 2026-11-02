@@ -24,8 +24,11 @@ object PublicText {
     /** The help under «Titolo» («Nuova convivenza» and «Modifica titolo, date e luogo»): where the title appears, and the rule. */
     const val TITLE_HELP = "Per esempio «Convivenza di settembre 2027». Compare nella pagina per i genitori, nell’anteprima del link e nei promemoria. $RULE"
 
-    /** The help under «Luogo». «Serve per aprire le iscrizioni» is not here: the detail of the gathering says it. */
-    const val PLACE_HELP = "Il nome della casa o della struttura. Compare nella pagina per i genitori e nell’anteprima del link. $RULE"
+    /** The help under «Nome della struttura» (TALITA-20): where the name of the venue appears, and the rule. The name is public text like the place. */
+    const val NAME_HELP = "Il nome della casa, per esempio «Casa del bosco». Compare nella pagina per i genitori e nell’anteprima del link. $RULE"
+
+    /** The help under «Luogo» of a venue: where the place appears (the page for the parents, the preview of the link and the text of the custody), and the rule. */
+    const val PLACE_HELP = "Il nome della casa e dove si trova. Compare nella pagina per i genitori, nell’anteprima del link e nel testo dell’affidamento. $RULE"
 
     /** The help under «Informazioni per i genitori». */
     const val INFO_HELP = "Chi può partecipare, gli orari, come si arriva, l’aiuto per i trasporti. Compare nella pagina per i genitori. $RULE"

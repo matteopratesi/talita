@@ -219,7 +219,7 @@ class RoomsReviewQaE2eTest {
         val w = e2e.arrivalsGathering()
         val before = e2e.dsl().insertInto(GATHERING)
             .set(GATHERING.PUBLIC_CODE, GatheringSupport.nextCode()).set(GATHERING.TITLE, "Convivenza di settembre 2026")
-            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.PLACE, "Casa per ritiri di esempio").set(GATHERING.FULL_FEE_CENTS, 6000)
+            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.VENUE_ID, talita.gathering.GatheringSupport(e2e.dsl(), e2e.application.getBean(java.time.Clock::class.java)).venueOf("Casa per ritiri di esempio")).set(GATHERING.FULL_FEE_CENTS, 6000)
             .set(GATHERING.STATUS, GatheringStatus.closed).returningResult(GATHERING.ID).fetchSingle().value1()!!
         e2e.room(before, "Camera 1", 4)
         e2e.room(before, "Camera 2", 4)
@@ -351,7 +351,7 @@ class RoomsReviewQaE2eTest {
         val w = e2e.arrivalsGathering()
         val before = e2e.dsl().insertInto(GATHERING)
             .set(GATHERING.PUBLIC_CODE, GatheringSupport.nextCode()).set(GATHERING.TITLE, "Convivenza di settembre 2026")
-            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.PLACE, "Casa per ritiri di esempio").set(GATHERING.FULL_FEE_CENTS, 6000)
+            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.VENUE_ID, talita.gathering.GatheringSupport(e2e.dsl(), e2e.application.getBean(java.time.Clock::class.java)).venueOf("Casa per ritiri di esempio")).set(GATHERING.FULL_FEE_CENTS, 6000)
             .set(GATHERING.STATUS, GatheringStatus.closed).returningResult(GATHERING.ID).fetchSingle().value1()!!
         e2e.room(before, "Camera 1", 4)
         e2e.open("/convivenza/${w.id}/camere")
@@ -389,7 +389,7 @@ class RoomsReviewQaE2eTest {
         val w = e2e.arrivalsGathering()
         val before = e2e.dsl().insertInto(GATHERING)
             .set(GATHERING.PUBLIC_CODE, GatheringSupport.nextCode()).set(GATHERING.TITLE, "Convivenza di settembre 2026")
-            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.PLACE, "Casa per ritiri di esempio").set(GATHERING.FULL_FEE_CENTS, 6000)
+            .set(GATHERING.START_DATE, w.today.minusDays(400)).set(GATHERING.END_DATE, w.today.minusDays(398)).set(GATHERING.VENUE_ID, talita.gathering.GatheringSupport(e2e.dsl(), e2e.application.getBean(java.time.Clock::class.java)).venueOf("Casa per ritiri di esempio")).set(GATHERING.FULL_FEE_CENTS, 6000)
             .set(GATHERING.STATUS, GatheringStatus.closed).returningResult(GATHERING.ID).fetchSingle().value1()!!
         e2e.room(before, "Camera 1", 4)
         val plain = e2e.newPage(customize = { setJavaScriptEnabled(false) })

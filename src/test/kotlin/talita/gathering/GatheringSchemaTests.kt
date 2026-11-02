@@ -52,7 +52,7 @@ class GatheringSchemaTests(
         bring: String? = null,
     ) = dsl.insertInto(GATHERING)
         .set(GATHERING.PUBLIC_CODE, code).set(GATHERING.TITLE, title).set(GATHERING.START_DATE, start).set(GATHERING.END_DATE, end)
-        .set(GATHERING.PLACE, place).set(GATHERING.FULL_FEE_CENTS, fullFee).set(GATHERING.DAILY_FEE_CENTS, dailyFee)
+        .set(GATHERING.VENUE_ID, place?.let(support::venueOf)).set(GATHERING.FULL_FEE_CENTS, fullFee).set(GATHERING.DAILY_FEE_CENTS, dailyFee)
         .set(GATHERING.INFO_TEXT, info).set(GATHERING.WHAT_TO_BRING, bring).set(GATHERING.STATUS, status)
         .execute()
 
@@ -91,19 +91,17 @@ class GatheringSchemaTests(
     }
 
     @Test
-    fun `t4 c05 the database refuses a place, an information text and a list that are too long`() {
+    fun `t4 c05 the database refuses an information text and a list that are too long`() {
         support.reset()
 
-        assertEquals("gathering_place_length", refusedBy { insert(place = "a".repeat(201)) })
-        assertEquals("gathering_place_length", refusedBy { insert(place = "") })
         assertEquals("gathering_info_text_length", refusedBy { insert(info = "a".repeat(5001)) })
         assertEquals("gathering_what_to_bring_length", refusedBy { insert(bring = "a".repeat(2001)) })
-        insert(place = "a".repeat(200), info = "a".repeat(5000), bring = "a".repeat(2000))
+        insert(info = "a".repeat(5000), bring = "a".repeat(2000))
         support.reset()
     }
 
     @Test
-    fun `t4 c10 a gathering that is open or closed has a place and a full fee, a draft does not need them`() {
+    fun `t4 c10 a gathering that is open or closed has a venue and a full fee, a draft does not need them`() {
         support.reset()
 
         assertEquals("gathering_complete_when_not_draft", refusedBy { insert(status = GatheringStatus.`open`, place = null, fullFee = 6000) })

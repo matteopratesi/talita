@@ -46,11 +46,14 @@ class InfoPageTests(
 
     private val code = "q7Vd_3KmZ0xRb-Ew"
 
+    /** The venue of the gatherings of these tests (TALITA-20): the page reads its name and its place. */
+    private fun venue(): Long = gatherings.makeVenue("Casa per ritiri di esempio", "Casa del bosco")
+
     /** An open gathering that starts in a month, with every part filled in, and the two teachers as custodians. */
     private fun fullOpen(code: String = this.code, status: GatheringStatus = GatheringStatus.`open`): Long {
         val start = gatherings.today().plusDays(30)
         return gatherings.make(
-            title = "Convivenza di settembre 2027", start = start, end = start.plusDays(2), status = status, place = "Casa per ritiri di esempio",
+            title = "Convivenza di settembre 2027", start = start, end = start.plusDays(2), status = status, venue = venue(),
             full = 6000, daily = 2500, lunchOnly = 1000, code = code,
             info = "Possono partecipare i bambini dalla seconda elementare alla seconda media.\n\nCi si ritrova venerdì alle 18:00 davanti alla casa.\nSi finisce domenica dopo il pranzo.",
             whatToBring = "Sacco a pelo e cuscino\nTorcia\nBorraccia",
@@ -104,7 +107,7 @@ class InfoPageTests(
         assertEquals("Convivenza di settembre 2027", heading(html))
         assertEquals("Convivenza di settembre 2027 · Talità", title(html))
         val text = text(main(html))
-        assertTrue(text.contains("Quando e dove Quando ${GatheringFormat.days(days)} Dove Casa per ritiri di esempio"), text)
+        assertTrue(text.contains("Quando e dove Quando ${GatheringFormat.days(days)} Dove Casa del bosco Casa per ritiri di esempio"), text)
         assertTrue(text.contains("Quanto costa Tutti i giorni 60 € Alcuni giorni 25 € per ogni giorno Solo pranzo 10 € per ogni pranzo"), text)
         assertTrue(text.contains("Informazioni Possono partecipare i bambini dalla seconda elementare alla seconda media."))
         assertEquals(2, Regex("""<p class="whitespace-pre-line wrap-anywhere">""").findAll(html).count(), "two paragraphs")
@@ -173,7 +176,7 @@ class InfoPageTests(
         for (status in listOf(GatheringStatus.`open`, GatheringStatus.closed)) {
             gatherings.reset()
             gatherings.make(
-                title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = status, place = "Casa per ritiri di esempio", full = 6000, code = code,
+                title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = status, venue = venue(), full = 6000, code = code,
                 info = "Un testo che non deve comparire", whatToBring = "Una cosa che non deve comparire",
             )
 
@@ -183,7 +186,7 @@ class InfoPageTests(
             assertEquals("Convivenza di settembre 2026", heading(html), "$status")
             assertTrue(text.contains(GatheringFormat.range(end.minusDays(2), end)), "$status")
             assertTrue(text.contains("La convivenza è finita. Per la prossima arriverà un link nuovo."), "$status")
-            for (absent in listOf("Casa per ritiri di esempio", "Quando e dove", "Quanto costa", "60 €", "Un testo che non deve comparire", "Una cosa che non deve comparire", "Iscrivi i tuoi figli", "/iscrizione")) {
+            for (absent in listOf("Casa per ritiri di esempio", "Casa del bosco", "Quando e dove", "Quanto costa", "60 €", "Un testo che non deve comparire", "Una cosa che non deve comparire", "Iscrivi i tuoi figli", "/iscrizione")) {
                 assertFalse(html.contains(absent), "$status: «$absent» is on the page of a gathering that is over")
             }
         }
@@ -270,7 +273,7 @@ class InfoPageTests(
         // The information page is fed with PublicInfo, a class that has no custodians, no id of the account and no count.
         val fields = PublicInfo::class.java.declaredFields.map { it.name }.toSet()
 
-        assertEquals(setOf("variant", "title", "dates", "days", "place", "fees", "paragraphs", "whatToBring", "registerHref", "address"), fields)
+        assertEquals(setOf("variant", "title", "dates", "days", "venueName", "place", "fees", "paragraphs", "whatToBring", "registerHref", "address"), fields)
     }
 
     // ---- No cookie, no script, nothing from other addresses, light (criterion 29) ------------------------------------------------
@@ -337,14 +340,14 @@ class InfoPageTests(
     // ---- The preview of the link in a messaging app (criterion 31) -------------------------------------------------------------
 
     @Test
-    fun `t4 c31 an app that reads the page finds title, og title, og description with the dates and the place, og type website, and no image and no outside address`() {
+    fun `t4 c31 an app that reads the page finds title, og title, og description with the dates, the name of the venue and its place, og type website, and no image and no outside address`() {
         kit.start(marta, paolo)
         fullOpen()
         val start = gatherings.today().plusDays(30)
 
         val html = open("/info/$code").body()
         val head = Regex("""<head>[\s\S]*?</head>""").find(html)!!.value
-        val description = "${GatheringFormat.range(start, start.plusDays(2))} · Casa per ritiri di esempio"
+        val description = "${GatheringFormat.range(start, start.plusDays(2))} · Casa del bosco · Casa per ritiri di esempio"
 
         assertTrue(head.contains("<title>Convivenza di settembre 2027 · Talità</title>"))
         assertTrue(head.contains("""<meta property="og:title" content="Convivenza di settembre 2027">"""))
@@ -362,14 +365,14 @@ class InfoPageTests(
         kit.start(marta, paolo)
         val start = gatherings.today().plusDays(30)
         fullOpen(status = GatheringStatus.closed)
-        assertTrue(open("/info/$code").body().contains("""<meta property="og:description" content="${GatheringFormat.range(start, start.plusDays(2))} · Casa per ritiri di esempio · iscrizioni chiuse">"""))
+        assertTrue(open("/info/$code").body().contains("""<meta property="og:description" content="${GatheringFormat.range(start, start.plusDays(2))} · Casa del bosco · Casa per ritiri di esempio · iscrizioni chiuse">"""))
 
         val end = gatherings.today().minusDays(3)
         gatherings.reset()
-        gatherings.make(title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = GatheringStatus.closed, code = code, place = "Casa per ritiri di esempio")
+        gatherings.make(title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = GatheringStatus.closed, code = code, venue = venue())
         val over = Regex("""<head>[\s\S]*?</head>""").find(open("/info/$code").body())!!.value
         assertTrue(over.contains("""<meta property="og:description" content="${GatheringFormat.range(end.minusDays(2), end)} · Convivenza finita">"""))
-        assertFalse(over.contains("Casa per ritiri di esempio"))
+        assertFalse(over.contains("Casa per ritiri di esempio") || over.contains("Casa del bosco"))
     }
 
     // ---- Texts with markup (criterion 20) ----------------------------------------------------------------------------------------

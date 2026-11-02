@@ -24,6 +24,7 @@ class GatheringPresenter(
     private val texts: RetentionTexts,
     private val roomSummaries: RoomSummaries,
     private val menuPresenter: MenuPresenter,
+    private val venues: GatheringVenues,
 ) {
 
     /** The labels of state of a gathering: its state, and «Finita» when it is over (a gathering that is not a draft and whose last day has passed). */
@@ -65,6 +66,7 @@ class GatheringPresenter(
         val missing = gatherings.missing(gathering, custodians.size, today)
         val fees = gathering.fees
         val roomSummary = roomSummaries.summary(gathering.id)
+        val venue = gathering.venueId?.let(venues::find)
 
         return DetailPage(
             id = gathering.id,
@@ -75,8 +77,8 @@ class GatheringPresenter(
             state = stateCard(gathering, over, missing.isEmpty()),
             dialog = dialog(gathering, over, missing.isEmpty()),
             days = GatheringFormat.days(gathering.days),
-            place = gathering.place,
-            placeNeeded = draft && gathering.place == null,
+            venue = venue?.let { VenueLine(it.name, "/strutture/${it.id}", it.place) },
+            venueNeeded = draft && venue == null,
             fees = listOf(
                 FeeLine("Quota intera", fees.fullCents?.let(GatheringFormat::fee), draft && fees.fullCents == null),
                 FeeLine("Quota giornaliera", fees.dailyCents?.let(GatheringFormat::fee), false),

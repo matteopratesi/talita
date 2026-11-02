@@ -618,7 +618,7 @@ class RoomsQaE2eTest {
         // The year after: the rooms of the gathering that ended are offered, and copying them makes the same rooms, empty.
         val next = e2e.dsl().insertInto(GATHERING)
             .set(GATHERING.PUBLIC_CODE, GatheringSupport.nextCode()).set(GATHERING.TITLE, "Convivenza di settembre 2028")
-            .set(GATHERING.START_DATE, w.today.plusDays(300)).set(GATHERING.END_DATE, w.today.plusDays(302)).set(GATHERING.PLACE, "Casa per ritiri di esempio").set(GATHERING.FULL_FEE_CENTS, 6000)
+            .set(GATHERING.START_DATE, w.today.plusDays(300)).set(GATHERING.END_DATE, w.today.plusDays(302)).set(GATHERING.VENUE_ID, talita.gathering.GatheringSupport(e2e.dsl(), e2e.application.getBean(java.time.Clock::class.java)).venueOf("Casa per ritiri di esempio")).set(GATHERING.FULL_FEE_CENTS, 6000)
             .set(GATHERING.STATUS, GatheringStatus.draft).returningResult(GATHERING.ID).fetchSingle().value1()!!
         e2e.open("/convivenza/$next/camere")
         assertThat(page.locator("main")).containsText("Nella «Convivenza di settembre 2027» c’erano 3 camere e 10 posti. Le copiamo senza le persone: poi le sistemi come vuoi.")

@@ -7,7 +7,12 @@ import java.time.temporal.ChronoUnit
 /** The limits that the forms, the database and the help texts agree on. */
 object Limits {
     const val TITLE = 100
+
+    /** The place of a venue (TALITA-20): the same limit as the place of a gathering had. */
     const val PLACE = 200
+
+    /** The name of a venue (TALITA-20). */
+    const val VENUE_NAME = 60
     const val INFO = 5000
     const val WHAT_TO_BRING = 2000
 
@@ -77,7 +82,7 @@ object GatheringChecks {
     const val START_PAST = "Il primo giorno è già passato. Scegli una data da oggi in poi."
     const val END_PAST = "L’ultimo giorno è già passato. Scegli una data da oggi in poi."
     const val FEE_FORMAT = "Scrivi un importo in euro, per esempio 60 oppure 12,50. Il massimo è 1000 €."
-    const val PLACE_MISSING = "Scrivi il luogo: la pagina per i genitori lo mostra."
+    const val VENUE_MISSING = "Scegli la struttura."
     const val FULL_FEE_MISSING = "Scrivi la quota intera. Se è gratuita, scrivi 0."
     const val CUSTODIAN_MISSING = "Scegli almeno un maestro: il testo dell’affidamento ha bisogno di almeno un nome."
     const val DATES_CLOSED = "Le date non si cambiano più, perché la convivenza è finita."
@@ -112,18 +117,27 @@ object GatheringChecks {
         return checks.map { if (it.askForName) it.withName(answers.next()) else it }
     }
 
-    fun title(raw: String?): TextCheck {
-        val value = oneLine(raw)
-        if (value.isEmpty()) return TextCheck(value, TITLE_MISSING)
-        return publicText(value, Limits.TITLE) { "Il titolo può avere al massimo ${Limits.TITLE} caratteri: ne hai scritti $it." }
+    /**
+     * The texts of a form with the check of the names done: one question to [names] for all the texts that still have to be asked about (a text that is empty or too long is not asked about, and a form
+     * with no text to ask about does not ask), and the answers given to [withNames]. The venues (TALITA-20) check their name and their place like this.
+     */
+    fun withNames(names: PublicNames, vararg checks: TextCheck): List<TextCheck> {
+        val asked = checks.filter { it.askForName }
+        val found = if (asked.isEmpty()) emptyList() else names.contain(asked.map { it.value })
+        return withNames(checks.toList(), found)
     }
 
-    /** The place; empty is fine for a draft, and it is not for a gathering that is no longer one ([required]). */
-    fun place(raw: String?, required: Boolean): TextCheck {
+    /**
+     * A text of one line that goes on the public page (the title of a gathering, the name and the place of a venue, TALITA-20): [missing] is the error of an empty one (null: an empty one is
+     * fine), [tooLong] says how long it was. One place for the checks, so that every public line says the same words about an email, a phone number, an IBAN and a name.
+     */
+    fun publicLine(raw: String?, max: Int, missing: String?, tooLong: (Int) -> String): TextCheck {
         val value = oneLine(raw)
-        if (value.isEmpty()) return TextCheck(value, if (required) PLACE_MISSING else null)
-        return publicText(value, Limits.PLACE) { "Il luogo può avere al massimo ${Limits.PLACE} caratteri: ne hai scritti $it." }
+        if (value.isEmpty()) return TextCheck(value, missing)
+        return publicText(value, max, tooLong)
     }
+
+    fun title(raw: String?): TextCheck = publicLine(raw, Limits.TITLE, TITLE_MISSING) { "Il titolo può avere al massimo ${Limits.TITLE} caratteri: ne hai scritti $it." }
 
     fun info(raw: String?): TextCheck {
         val value = clean(raw)

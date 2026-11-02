@@ -12,7 +12,7 @@ enum class InfoVariant { OPEN, CLOSED, OVER }
 data class PublicFee(val label: String, val value: String)
 
 /**
- * Everything the public page shows of a gathering, and nothing else (criterion 28): title, dates, place, fees and the two texts. The
+ * Everything the public page shows of a gathering, and nothing else (criterion 28): title, dates, the name of the venue and its place (TALITA-20), fees and the two texts. The
  * template of the page gets this and never the gathering, so the custodians and the numbers of the registrations cannot get in by a
  * slip of the pen. A gathering that is over shows only the title and the dates (criterion 27).
  *
@@ -24,6 +24,8 @@ data class PublicInfo(
     val title: String,
     val dates: String,
     val days: String?,
+    /** The name of the house (TALITA-20): a public text like the place. Never its rooms or its forms. */
+    val venueName: String?,
     val place: String?,
     val fees: List<PublicFee>,
     val paragraphs: List<String>,
@@ -37,7 +39,12 @@ data class PublicInfo(
  * public page; the preview of the teachers uses it too, so what they see is what a parent sees.
  */
 @Component
-class PublicInfos(private val gatherings: Gatherings, private val presenter: GatheringPresenter, private val publicUrl: PublicUrl) {
+class PublicInfos(
+    private val gatherings: Gatherings,
+    private val presenter: GatheringPresenter,
+    private val publicUrl: PublicUrl,
+    private val venues: GatheringVenues,
+) {
 
     fun variantOf(gathering: Gathering, today: LocalDate): InfoVariant = when {
         gathering.isOver(today) -> InfoVariant.OVER
@@ -51,15 +58,17 @@ class PublicInfos(private val gatherings: Gatherings, private val presenter: Gat
         val variant = variantOf(gathering, today)
         val dates = GatheringFormat.range(gathering.startDate, gathering.endDate)
         if (variant == InfoVariant.OVER) {
-            return PublicInfo(variant, gathering.title, dates, null, null, emptyList(), emptyList(), emptyList(), null, null)
+            return PublicInfo(variant, gathering.title, dates, null, null, null, emptyList(), emptyList(), emptyList(), null, null)
         }
         val fees = gathering.fees
+        val venue = venueOf(gathering)
         return PublicInfo(
             variant = variant,
             title = gathering.title,
             dates = dates,
             days = GatheringFormat.days(gathering.days),
-            place = gathering.place,
+            venueName = venue?.name,
+            place = venue?.place,
             fees = listOfNotNull(
                 fees.fullCents?.let { PublicFee("Tutti i giorni", GatheringFormat.fee(it)) },
                 fees.dailyCents?.let { PublicFee("Alcuni giorni", if (it == 0) GatheringFormat.fee(it) else GatheringFormat.fee(it) + " per ogni giorno") },
@@ -72,14 +81,21 @@ class PublicInfos(private val gatherings: Gatherings, private val presenter: Gat
         )
     }
 
-    /** `{title}` and a line `17–19 settembre 2027 · Casa per ritiri di esempio`; closed adds «iscrizioni chiuse», over says it is over and not where. */
+    /** The name and the place of the venue of [gathering], or null for a draft that has none. They are read every time: the venue is where they are written. */
+    private fun venueOf(gathering: Gathering): VenueRef? = gathering.venueId?.let(venues::find)
+
+    /**
+     * `{title}` and a line `17–19 settembre 2027 · Casa del bosco · Casa per ritiri del bosco, Località Esempio` (TALITA-20: the name of the venue too); closed adds «iscrizioni chiuse», over
+     * says it is over and neither the name nor where.
+     */
     fun share(gathering: Gathering): Share {
         val today = gatherings.today()
         val dates = GatheringFormat.range(gathering.startDate, gathering.endDate)
+        val venue = venueOf(gathering)
         val description = when (variantOf(gathering, today)) {
             InfoVariant.OVER -> "$dates · Convivenza finita"
-            InfoVariant.CLOSED -> listOfNotNull(dates, gathering.place, "iscrizioni chiuse").joinToString(" · ")
-            InfoVariant.OPEN -> listOfNotNull(dates, gathering.place).joinToString(" · ")
+            InfoVariant.CLOSED -> listOfNotNull(dates, venue?.name, venue?.place, "iscrizioni chiuse").joinToString(" · ")
+            InfoVariant.OPEN -> listOfNotNull(dates, venue?.name, venue?.place).joinToString(" · ")
         }
         return Share(gathering.title, description)
     }

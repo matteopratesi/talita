@@ -243,7 +243,7 @@ class RolesTests(
         // The addresses of the teachers: one list, read by the security configuration.
         assertEquals(
             listOf(
-                "/convivenza/**", "/arrivi/**", "/maestri/**", "/profilo/nome",
+                "/convivenza/**", "/arrivi/**", "/maestri/**", "/strutture/**", "/profilo/nome",
                 "/iscrizioni/nuova", "/iscrizioni/nuova/quota", "/iscrizioni/{id:[0-9]+}", "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni", "/iscrizioni/{id:[0-9]+}/correggi",
                 "/iscrizioni/{id:[0-9]+}/correggi/quota", "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni", "/iscrizioni/{id:[0-9]+}/manleva",
             ),
@@ -260,6 +260,8 @@ class RolesTests(
             "/convivenza/**" to listOf("/convivenza", "/convivenza/x", "/convivenza/x/y"),
             "/arrivi/**" to listOf("/arrivi", "/arrivi/x"),
             "/maestri/**" to listOf("/maestri", "/maestri/x", "/maestri/x/y"),
+            // The venues (TALITA-20): the list, the forms and the page of a venue, and what is under them.
+            "/strutture/**" to listOf("/strutture", "/strutture/x", "/strutture/nuova", "/strutture/12/modifica", "/strutture/12/togli"),
             // The correction of the name that a teacher makes in the profile: one address, not a branch.
             "/profilo/nome" to listOf("/profilo/nome"),
             // The registrations of the teachers (TALITA-5): the paper form, the detail with its notes, the corrections and the manleva.
