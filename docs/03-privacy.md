@@ -174,6 +174,9 @@ Previste dal progetto, con il ticket in cui diventano vere:
     chiusa e stampe dice se un bambino ha segnalazioni: le stampe non le leggono, e quindi non possono scrivere una lettura;
   - **ogni presenza e ogni pagamento ha il maestro che l'ha scritto e il momento**; i pagamenti non si riscrivono: uno sbagliato si toglie, e togliendolo sparisce con i
     suoi dati;
+  - **il segno dell'arrivo vale anche per i giorni dopo** (TALITA-19): scrive anche le righe dei giorni dopo a cui il bambino è iscritto, di fila, con il maestro e il momento dell'arrivo; una riga di
+    un giorno dopo oggi diventa presenza quel giorno, se nessuno la toglie, e al ritiro e al cambio dei giorni le righe dopo oggi che non valgono più si cancellano (esattezza, art. 5.1.d); nessun dato
+    nuovo e lo scopo è lo stesso;
   - **le due informative lo dicono** (commento di CodeRabbit sulla PR di TALITA-6): quella completa elenca presenze e pagamenti fra i dati raccolti, fra gli scopi, fra
     le cose che vedono solo i maestri e fra i tempi di conservazione; quella breve, al passo 2, li nomina in «A cosa servono» e in «Per quanto tempo». Un test (`t6 c31`)
     lo verifica;

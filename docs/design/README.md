@@ -22,6 +22,8 @@ prima qui (con il ticket della schermata), poi nel template.
 
 `docs/design/TALITA-16/` sono i mockup degli aiuti e dell'errore del nome sotto i quattro testi pubblici della convivenza (TALITA-16, Grace Kerning): 7 pagine statiche più l'indice (`index.html`) e `talita-16.css`, con dati sintetici e senza risorse esterne né script; partono da quelle di TALITA-4 e cambiano solo aiuti ed errori.
 
+`docs/design/TALITA-19/` sono i mockup del segno dell'arrivo su più giorni (TALITA-19, Grace Kerning): 20 pagine statiche più l'indice (`index.html`) e `talita-19.css`, con dati sintetici e senza risorse esterne, senza `style` e senza script; partono da quelle di TALITA-6 e mostrano solo quello che cambia: la scheda con i giorni dopo oggi già segnati, la lista di Arrivi con le note e le frasi delle risposte, il registro con la legenda nuova e l'elenco di un giorno che non è ancora arrivato. «Oggi» è sabato 18 settembre. Dove il mockup e il testo di questa guida non vanno d'accordo, vale la guida.
+
 I rimandi «criterio N» e «KOINE-N» che restano nel testo sono ai criteri e ai ticket di Koinè: dicono da dove viene una regola, non sono criteri di Talità.
 
 ## Indice
@@ -1713,6 +1715,13 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **I link `tel:` e i download** hanno `hx-boost="false"`: il browser apre il telefono o scarica, non una pagina.
 - **Senza JavaScript** ogni tocco è un form normale che risponde con un redirect alla scheda, con l'avviso che il server si porta dietro e mostra una volta sola; «Togli» un pagamento è un link a una pagina con le parole del dialogo; il campo di ricerca e il bottone «Stampa» non ci sono.
 
+### Arrivi (TALITA-19)
+
+- **Nessun bersaglio nuovo.** Lista: un tocco sostituisce `closest li` e il riepilogo (fuori banda) e riempie `#esito` (fuori banda); il resto della pagina non si muove. Scheda: risponde sempre l'intero `#scheda` (`da=scheda`, `giorno` = il giorno toccato), con il fuoco sull'avviso. «Togli» di un giorno dopo oggi si tocca solo dalla scheda: nella lista di un giorno dopo oggi le righe restano di sola lettura. La pausa di 700 ms contro il doppio tocco (`animate-touch-pause`) vale anche per «Togli» che toglie più giorni. Una pagina aperta prima di mezzanotte resta com'era: niente aggiornamento a tempo.
+- **Quando la riga ha la nota.** «Togli» che toglie più giorni: sempre («Tolta anche per domenica.»). «Segna presente» che scrive più giorni: **solo se il bambino aveva già altre righe di presenza** («Segnata anche per domenica.»); al primo segno la riga non cresce, perché chi segna trenta bambini di fila con poco segnale non deve vedere le righe sotto il dito spostarsi quando arriva una risposta in ritardo (un tocco sul bambino sbagliato segna anche i giorni dopo). La nota dice i giorni **dopo** quello della riga, non quello della riga, ed è `RowNote(warning = false)`: informativa, non un avvertimento.
+- **La regola sta scritta una volta sola**, sotto «Attesi {giorno}» (`GroupView.note`, come quella di «Non previsti»), solo quando il giorno si può toccare e non è l'ultimo della convivenza: nell'ultimo giorno «Togli» e «Segna presente» valgono per quel giorno e basta.
+- **Senza JavaScript** dalla scheda il redirect porta l'avviso di cima (la stessa frase di prima); dalla lista il redirect va alla riga e, come in TALITA-6, in cima compare la frase di `#esito` solo quando la riga ha una nota. La nota di riga è solo htmx.
+
 ### Camere (TALITA-11)
 
 - **Un blocco che risponde intero a ogni azione** (`#camere-contenuto`, `hx-swap="outerHTML"`): «Metti», «Sposta», «Togli dalla camera», «Aggiungi un maestro», «Togli la camera» e «Copia le camere» sono `hx-post` verso il proprio indirizzo e rispondono con riepilogo, camere e senza camera sempre dal database di adesso: con due maestri che lavorano insieme la risposta di ognuno è vera, e non c'è un pezzo che può restare vecchio.
@@ -1859,6 +1868,15 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **Segnalazioni**: «Sono dati sulla salute. Ogni volta che le mostri, resta scritto chi le ha lette e quando.»; il bottone «Mostra le segnalazioni» e, dopo, «Lettura registrata: Marta Bianchi, 18 settembre 2027 alle 10:05.»; «Nessuna segnalazione.» se non c'è niente. Si dice «segnalazioni», mai «dati sanitari» sul bottone.
 - **Stampe**: «Registro arrivi», «Elenco per la struttura», «Foglio per i maestri», «Stampato il … alle …»; la frase del foglio dice di tenerlo fra i maestri e di distruggerlo alla fine della convivenza.
 - **Un nome solo per ogni azione**: «Inserisci un’iscrizione» dall'elenco di TALITA-5 e dal modulo di Arrivi, «Segna come ricevuta» per la manleva cartacea.
+
+### Arrivi (TALITA-19)
+
+- **«Sarà presente»** è la parola per un giorno dopo oggi che ha già la riga (blu, con l'icona `calendar-check`), con «Conta come presente da domenica.»: per quel giorno mai «Presente» (non è ancora arrivato), né «Previsto», né «Arrivato/a». Il giorno che è arrivato, con la riga, è «Presente».
+- **I giorni nelle frasi**: solo il nome del giorno, minuscolo, sempre di fila: un giorno «sabato», due «sabato e domenica», tre «venerdì, sabato e domenica», quattro o più «da giovedì a domenica» (una convivenza dura al massimo sette giorni, quindi i nomi sono tutti diversi). Una funzione sola, `CheckinFormat.daysInSentence`, per ogni frase.
+- **Gli avvisi dopo un tocco**: «Presenza segnata.» (un giorno) o «Presenza segnata per venerdì, sabato e domenica.»; «Presenza tolta.» o «Presenza tolta per sabato e domenica.»; «La presenza era già stata tolta.» (200, informativo, anche per un giorno dopo oggi). Con il non previsto e con «in forse» restano le frasi di TALITA-6, dopo quella dei giorni. Per il lettore di schermo, nella lista: «Presenza segnata per venerdì, sabato e domenica: Luca Rossi.».
+- **«Togli»**: il testo visibile resta «Togli» («Tolgo…» in attesa). Quando toglie più giorni lo dicono il nome accessibile («Togli la presenza di Luca Rossi, da sabato 18 settembre in poi»), la riga di aiuto «Togli vale anche per sabato e domenica.» (su un giorno dopo oggi in coda a «Conta come presente da sabato.») e, nella lista, le note «Tolta anche per domenica.» e «Segnata anche per domenica.». La regola sta in cima alla lista: «Segna presente e Togli valgono anche per i giorni dopo.».
+- **Chi ha segnato**: «Segnata da Marta Bianchi alle 18:47» nel giorno in cui la riga è stata scritta, «con l’arrivo, venerdì 17 alle 18:47» nei giorni dopo (il giorno è quello in cui la riga è stata scritta, non quello dell'arrivo vero), «il 20 settembre alle 10:07» quando la riga è stata scritta dopo il giorno (la trascrizione del registro di carta).
+- **Le stampe**: la legenda del registro (una costante, `PrintPresenter.LEGEND`) è «G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza segnata in Talità: un arrivo vale anche per i giorni dopo a cui il bambino è iscritto, ma la X compare solo dal loro giorno. Chi va via prima resta con la X finché non lo togli in Talità: controlla con la conta della mattina.»; l'elenco di un giorno che non è ancora arrivato ha il titolo «Nessun bambino presente domenica 19 settembre» e dice che i bambini si contano presenti da quel giorno («Domenica 19 settembre non è ancora arrivato: i bambini si contano presenti da quel giorno. Per scegliere un altro giorno apri l’elenco delle iscrizioni confermate.»).
 
 ### Camere (TALITA-11)
 

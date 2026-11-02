@@ -88,4 +88,72 @@ class CheckinDocsTests {
         assertTrue(Files.isRegularFile(Path.of("docs/design/TALITA-6/talita-6.css")))
         assertEquals(84, Files.list(Path.of("docs/design/TALITA-6")).use { it.count() }, "the 82 pages of the mockup, the index and the style")
     }
+
+    // ---- TALITA-19: the arrival is for every day (criterion 20) ---------------------------------------------------------------------
+
+    @Test
+    fun `t19 c20 the data model and the privacy document have the rule of the arrival for every day, in the row of the presence and in the measures of the check-in`() {
+        val data = doc("docs/02-modello-dati.md")
+        val row = data.substringAfter("| Presenza (`checkin`, `V6__checkin.sql`) |").substringBefore("| Presenza (`checkin`) |")
+        for (part in listOf(
+            "il segno dell'arrivo scrive anche le righe dei giorni dopo, di fila, con il maestro e il momento dell'arrivo",
+            "una riga di un giorno dopo oggi diventa presenza quel giorno, se nessuno la toglie",
+            "al ritiro e al cambio dei giorni le righe dopo oggi che non valgono più si cancellano", "Lo scopo non cambia", "non c'è nessun campo nuovo", "| TALITA-6, 19 |",
+        )) {
+            assertTrue(row.contains(part), "the row «Presenza» of docs/02 does not say: $part")
+        }
+
+        val privacy = doc("docs/03-privacy.md")
+        val measures = privacy.substringAfter("**il segno dell'arrivo vale anche per i giorni dopo** (TALITA-19)").substringBefore("- **le due informative lo dicono**")
+        for (part in listOf("righe dei giorni dopo a cui il bambino è iscritto, di fila", "diventa presenza quel giorno, se nessuno la toglie", "le righe dopo oggi che non valgono più si cancellano", "nessun dato nuovo")) {
+            assertTrue(measures.contains(part), "the measures of the check-in in docs/03 do not say: $part")
+        }
+    }
+
+    @Test
+    fun `t19 c20 the decision log has the entry of TALITA-19 with the three choices of Matteo, the definition of present and no new field`() {
+        val log = doc("docs/05-decisioni.md")
+
+        assertTrue(log.contains("## 2026-11-02: scelte di TALITA-19"))
+        assertTrue(log.indexOf("## 2026-10-31: scelte di TALITA-16") < log.indexOf("## 2026-11-02: scelte di TALITA-19"), "the entries are in order")
+        val entry = log.substringAfter("## 2026-11-02: scelte di TALITA-19")
+        for (part in listOf(
+            "**Nessuna migrazione e nessun campo nuovo**", "**L'arrivo vale per i giorni iscritti di fila.**", "**I giorni dopo oggi sono presenze solo dal loro giorno.**",
+            "**«Togli» toglie il giorno e i giorni dopo di fila che hanno una riga**", "**Cosa vuol dire «presente» (criterio 7)**", "`ArrivalsData.present(registration, day)`",
+            "l'iscrizione non è ritirata, c'è la riga di `checkin` di quell'iscrizione e di quel giorno, e il giorno non è dopo oggi", "**Nessun campo nuovo**", "`FuturePresences`", "`CorrectionListener`",
+            "**La nota di riga cambia il criterio 16**", "**I test di TALITA-6 che cambiano**",
+        )) {
+            assertTrue(entry.contains(part), "the entry of TALITA-19 misses: $part")
+        }
+    }
+
+    @Test
+    fun `t19 c20 the design guide has the rule and the words of the arrival for every day, with the legend of the register and the icon, and the mockups are in the repository`() {
+        val guide = doc("docs/design/README.md")
+
+        for (part in listOf(
+            "`docs/design/TALITA-19/` sono i mockup del segno dell'arrivo su più giorni", "| Giorno dopo oggi già segnato: «Sarà presente» (TALITA-19) | `calendar-check` |",
+            "«Sarà presente»", "«Conta come presente da domenica.»", "«Togli vale anche per sabato e domenica.»", "«Segna presente e Togli valgono anche per i giorni dopo.»", "`CheckinFormat.daysInSentence`",
+            "«con l’arrivo, venerdì 17 alle 18:47»", "«Presenza segnata per venerdì, sabato e domenica.»", "«Presenza tolta per sabato e domenica.»", "«Tolta anche per domenica.»", "«Segnata anche per domenica.»",
+            "**Quando la riga ha la nota.**", "**La regola sta scritta una volta sola**", "**Nessun bersaglio nuovo.**", PrintPresenter.LEGEND,
+        )) {
+            assertTrue(guide.contains(part), "the guide does not say: $part")
+        }
+        assertEquals(2, Regex("""### Arrivi \(TALITA-19\)""").findAll(guide).count(), "one section for htmx and one for the texts")
+        assertTrue(Files.isRegularFile(Path.of("docs/design/TALITA-19/index.html")))
+        assertTrue(Files.isRegularFile(Path.of("docs/design/TALITA-19/talita-19.css")))
+        assertEquals(22, Files.list(Path.of("docs/design/TALITA-19")).use { it.count() }, "the 20 pages of the mockup, the index and the style")
+    }
+
+    @Test
+    fun `t19 c20 the complete notice says that the mark of the arrival is for the days after it too, until a teacher takes it away`() {
+        val notice = doc("src/main/jte/registration/informativa.jte")
+
+        assertTrue(
+            notice.contains(
+                "le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è; il segno dell’arrivo vale anche per i giorni dopo a cui il bambino è iscritto, " +
+                    "finché un maestro non lo toglie)",
+            ),
+        )
+    }
 }
