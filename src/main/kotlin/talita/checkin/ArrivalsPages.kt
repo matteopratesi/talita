@@ -80,6 +80,35 @@ object CheckinFormat {
 
     /** An amount of money, with the non-breaking space before the euro sign; zero is «Niente» (the guide writes zero in words). */
     fun moneyOrNothing(cents: Int): String = if (cents == 0) "Niente" else RegistrationFormat.money(cents)
+
+    // ---- The days in a sentence (TALITA-19, design 2): one function for the list, the card, the announcements and the tests ----------------------
+
+    /**
+     * The days of a sentence, always in a row, with the name of the day and nothing else (a gathering lasts seven days at most, so the names are all different): one day
+     * `sabato`, two `sabato e domenica`, three `venerdì, sabato e domenica`, four or more `da giovedì a domenica`.
+     */
+    fun daysInSentence(days: List<LocalDate>): String {
+        val names = days.map { GatheringFormat.weekday(it) }
+        return when (names.size) {
+            0 -> ""
+            1 -> names[0]
+            2 -> "${names[0]} e ${names[1]}"
+            3 -> "${names[0]}, ${names[1]} e ${names[2]}"
+            else -> "da ${names.first()} a ${names.last()}"
+        }
+    }
+
+    /** What a touch on «Segna presente» says it did, without the full stop: `Presenza segnata`, or `Presenza segnata per venerdì, sabato e domenica` when it wrote several days. */
+    fun markedHead(days: List<LocalDate>): String = if (days.size > 1) "Presenza segnata per ${daysInSentence(days)}" else "Presenza segnata"
+
+    /** What a touch on «Togli» says it did, without the full stop: `Presenza tolta`, or `Presenza tolta per sabato e domenica`. */
+    fun unmarkedHead(days: List<LocalDate>): String = if (days.size > 1) "Presenza tolta per ${daysInSentence(days)}" else "Presenza tolta"
+
+    /** The line under «Attesi sabato 18» that says the rule of the touches, once for the whole list (design 2, C). */
+    const val GROUP_RULE = "Segna presente e Togli valgono anche per i giorni dopo."
+
+    /** The sentence of the notice of a day that has not come, after the one that says which day it is: who has arrived and stays will be there on [day] too. */
+    fun staysNote(day: LocalDate): String = "Chi è già arrivato e resta sarà presente anche ${GatheringFormat.weekday(day)}, se non lo togli dalla sua scheda."
 }
 
 /** What a label of a row says: the words, the tone of the colour, and an icon when the label has one (a check for «Presente»). */
@@ -192,7 +221,11 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
 
                 choice.selected.isAfter(choice.today) ->
                     DayNotice(
-                        Alert(AlertVariant.INFO, "${CheckinFormat.longDayCapital(choice.selected)} non è ancora arrivato: le presenze si segnano da quel giorno. Oggi è ${CheckinFormat.longDay(choice.today)}."),
+                        Alert(
+                            AlertVariant.INFO,
+                            "${CheckinFormat.longDayCapital(choice.selected)} non è ancora arrivato: le presenze si segnano da quel giorno. Oggi è ${CheckinFormat.longDay(choice.today)}. " +
+                                CheckinFormat.staysNote(choice.selected),
+                        ),
                         "Vai a oggi", toToday,
                     )
 
@@ -231,6 +264,8 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
         }
         val unexpected = !data.withdrawn(registration) && !registration.includes(day)
         val on = "${registration.name}, ${CheckinFormat.longDay(day)}"
+        // «Togli» takes the day and the days after it that have a row: when that is more than one day, the button says from which day it takes away (TALITA-19, criterion 9).
+        val unmarkOn = if (data.takenWith(registration, day).isEmpty()) on else "${registration.name}, da ${CheckinFormat.longDay(day)} in poi"
         return RowView(
             id = registration.id,
             href = hrefOf(registration.id, day),
@@ -239,7 +274,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
             kind = kind,
             day = day.toString(),
             markFor = " $on",
-            unmarkFor = " la presenza di $on",
+            unmarkFor = " la presenza di $unmarkOn",
             present = present && kind != RowKind.LINK,
             note = note,
             focus = focus,
@@ -303,8 +338,10 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
         val expected = data.registrations.filter { data.expected(it, day) }
         val unexpected = data.registrations.filter { !data.withdrawn(it) && !it.includes(day) }
         val withdrawn = data.registrations.filter { data.withdrawn(it) }
+        // The rule of the touches is written once, over the list, where a touch can be made and a day comes after the chosen one (design of TALITA-19, 2 C and norm 5).
+        val rule = if (choice.markable && day != gathering.days.last()) CheckinFormat.GROUP_RULE else null
         val groups = buildList {
-            if (expected.isNotEmpty()) add(GroupView("Attesi ${CheckinFormat.shortDay(day)}", expected.size, null, rows(expected, choice.markable)))
+            if (expected.isNotEmpty()) add(GroupView("Attesi ${CheckinFormat.shortDay(day)}", expected.size, rule, rows(expected, choice.markable)))
             if (unexpected.isNotEmpty()) {
                 add(
                     GroupView(

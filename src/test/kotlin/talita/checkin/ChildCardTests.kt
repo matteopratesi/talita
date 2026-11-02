@@ -248,7 +248,9 @@ class ChildCardTests(
 
         assertEquals(200, marked.status())
         assertEquals("confirmed", kit.statusOf(s.sara))
-        assertTrue(words(marked.body()).contains("Presenza segnata. L’iscrizione di Sara Neri era in forse: adesso è confermata."), words(marked.body()))
+        // Sara is there every day: today and tomorrow (TALITA-19).
+        val both = CheckinFormat.daysInSentence(listOf(s.setup.today, s.setup.tomorrow))
+        assertTrue(words(marked.body()).contains("Presenza segnata per $both. L’iscrizione di Sara Neri era in forse: adesso è confermata."), words(marked.body()))
         assertEquals(listOf("Confermata", "Accettata online"), badges(marked.body()))
         assertFalse(words(marked.body()).contains("L’iscrizione è in forse."), "the notice about the doubt is gone with it")
         assertTrue(words(marked.body()).contains("Iscrizione Stato Confermata"))

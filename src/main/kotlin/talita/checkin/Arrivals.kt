@@ -98,10 +98,18 @@ class ArrivalsData(
 
     /**
      * Whether [registration] is **present** on [day] (TALITA-19, criterion 7): the registration is not withdrawn, the row of that day is there, and the day is not after
-     * today. It is the only place that says who is there: the list, the summary, the card, the register, the list for the venue and the modules of the venue read it, and
-     * no one else counts the rows. A row of a day that has not come is not a presence yet: it becomes one on its day, if nobody takes it away.
+     * today. It is the only place that says who is there: the list, the summary, the register, the list for the venue and the modules of the venue read it, and no one
+     * else counts the rows (the card shows the rows as they are kept, and tells the ones of the days that have not come apart: «Sarà presente»). A row of a day that has not
+     * come is not a presence yet: it becomes one on its day, if nobody takes it away.
      */
     fun present(registration: RegistrationData, day: LocalDate): Boolean = !withdrawn(registration) && !day.isAfter(today) && presence(registration, day) != null
+
+    /**
+     * The days after [day], in a row, that have a row: what taking the presence of [day] away takes away with it (TALITA-19, criterion 9). Of the rows as they are kept, so it
+     * counts the days after today too.
+     */
+    fun takenWith(registration: RegistrationData, day: LocalDate): List<LocalDate> =
+        generateSequence(day.plusDays(1)) { it.plusDays(1) }.takeWhile { presence(registration, it) != null }.toList()
 
     /** All the presences of [registration], by day. */
     fun presencesOf(registration: RegistrationData): Map<LocalDate, Checkin> = presences[registration.id].orEmpty()

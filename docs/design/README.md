@@ -508,6 +508,7 @@ Icone assegnate (nomi di Lucide):
 | Un dispositivo collegato con «Ricordami su questo telefono» (TALITA-15) | `monitor-smartphone` |
 | Una passkey nell'elenco (TALITA-15) | `key-round` |
 | «Entra con una passkey», «Aggiungi una passkey», la conferma prima delle segnalazioni, l'invito ad aggiungerne una (TALITA-15) | `fingerprint-pattern` |
+| Giorno dopo oggi già segnato: «Sarà presente» (TALITA-19) | `calendar-check` |
 
 **Marchio**: un quadrato arrotondato `brand` con una T bianca, disegnato qui (non è un'icona di
 Lucide). Si usa nell'intestazione e come favicon (`favicon.svg`, servito dall'app):

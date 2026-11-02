@@ -60,7 +60,7 @@ class ArrivalsDayE2eTest {
         // One touch on the row: Anna is here, with the search still there and the summary changed.
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, $dayName"))
         assertThat(page.locator("#riga-$anna")).containsText("Presente")
-        assertThat(page.locator("#esito")).hasText("Presenza segnata: Anna Rossi.")
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}: Anna Rossi.")
         assertEquals(listOf("Anna Rossi", "Luca Rossi"), page.shownNames())
         assertEquals(2, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)), "today and tomorrow: the arrival goes on to the next day (TALITA-19)")
 
@@ -327,7 +327,8 @@ class ArrivalsDayE2eTest {
         val child = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), days = mapOf(w.today to "full", w.tomorrow to "full"))
         e2e.open("/arrivi/$child")
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, ${CheckinFormat.longDay(w.yesterday)}"))
-        assertThat(page.locator("#scheda [role=alert]").first()).containsText("Presenza segnata.")
+        // The child has today and tomorrow: the arrival of yesterday, which was not foreseen, goes on to both.
+        assertThat(page.locator("#scheda [role=alert]").first()).containsText("${CheckinFormat.markedHead(listOf(w.yesterday, w.today, w.tomorrow))}.")
         e2e.dsl().update(REGISTRATION).set(REGISTRATION.STATUS, RegistrationStatus.withdrawn).where(REGISTRATION.ID.eq(child)).execute()
 
         e2e.open("/convivenza/${w.id}/date")
@@ -339,8 +340,8 @@ class ArrivalsDayE2eTest {
 
         // The presence is taken away from the card of the withdrawn registration (it stays there, with its Togli), and now the day can go.
         e2e.open("/arrivi/$child")
-        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, ${CheckinFormat.longDay(w.yesterday)}"))
-        assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza tolta.")
+        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, da ${CheckinFormat.longDay(w.yesterday)} in poi"))
+        assertThat(page.locator("#scheda [role=status]").first()).hasText("${CheckinFormat.unmarkedHead(listOf(w.yesterday, w.today, w.tomorrow))}.")
         e2e.open("/convivenza/${w.id}/date")
         page.locator("#primo-giorno").fill(w.today.toString())
         e2e.press(page.buttonNamed("Salva le modifiche"))
@@ -467,7 +468,7 @@ class ArrivalsDayE2eTest {
         assertThat(plain).hasURL(Pattern.compile(".*/arrivi\\?giorno=${w.today}#riga-$anna"))
         assertThat(plain.locator("#riga-$anna")).containsText("Presente")
         assertEquals(2, e2e.dsl().fetchCount(CHECKIN), "today and tomorrow (TALITA-19)")
-        touch(plain.buttonNamed("Togli la presenza di Anna Rossi, $dayName"))
+        touch(plain.buttonNamed("Togli la presenza di Anna Rossi, da $dayName in poi"))
         assertThat(plain.locator("#riga-$anna")).not().containsText("Presente")
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
 
@@ -508,7 +509,7 @@ class ArrivalsDayE2eTest {
 
         e2e.open("/arrivi")
         e2e.press(page.locator("#riga-$id button").first())
-        assertThat(page.locator("#esito")).hasText("Presenza segnata: $name.")
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}: $name.")
         for (path in listOf("/arrivi", "/arrivi/$id", "/arrivi/registro", "/arrivi/elenco", "/arrivi/foglio")) {
             e2e.open(path)
             assertEquals(0, page.locator("main b").count(), "$path: the markup of a name became an element")

@@ -212,7 +212,8 @@ class ArrivalsE2eTest {
         val row = page.locator("#riga-${c.anna}")
         assertThat(row).containsText("Presente")
         assertThat(row.locator("button")).hasText(Pattern.compile("Togli"))
-        assertThat(page.locator("#esito")).hasText("Presenza segnata: Anna Rossi.")
+        // Anna is there every day: today and tomorrow, with one touch (TALITA-19), and the sentence for the screen reader says so.
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}: Anna Rossi.")
         assertEquals(url, page.url(), "the page does not change")
         assertEquals(listOf("Anna Rossi", "Luca Rossi"), page.shownNames(), "the search is as it was")
         assertThat(page.locator("#riepilogo")).isHidden()
@@ -225,8 +226,9 @@ class ArrivalsE2eTest {
         assertAccessible(page, "list after a touch (${e2e.profile.label})")
 
         // Taking it away has no question, and the button of the row goes back to what it was.
-        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, ${day(w.today)}"))
-        assertThat(page.locator("#esito")).hasText("Presenza tolta: Anna Rossi.")
+        // «Togli» takes today and tomorrow, and the name of the button says from which day.
+        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, da ${day(w.today)} in poi"))
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.unmarkedHead(listOf(w.today, w.tomorrow))}: Anna Rossi.")
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
         assertEquals(0, page.locator("dialog").count())
@@ -478,15 +480,16 @@ class ArrivalsE2eTest {
 
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}"))
         val notice = page.locator("#scheda [role=status]").first()
-        assertThat(notice).hasText("Presenza segnata.")
-        page.focusIs("document.activeElement.getAttribute('role') === 'status' && document.activeElement.textContent.includes('Presenza segnata.')")
+        assertThat(notice).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}.")
+        page.focusIs("document.activeElement.getAttribute('role') === 'status' && document.activeElement.textContent.includes('Presenza segnata per')")
         assertThat(page.locator("#scheda")).containsText("Presente")
         assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
+        assertThat(page.locator("#scheda")).containsText("Sarà presente")
         assertThat(page.locator("h1")).hasText("Anna Rossi")
         assertAccessible(page, "card after a presence (${e2e.profile.label})")
 
-        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, ${day(w.today)}"))
-        assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza tolta.")
+        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, da ${day(w.today)} in poi"))
+        assertThat(page.locator("#scheda [role=status]").first()).hasText("${CheckinFormat.unmarkedHead(listOf(w.today, w.tomorrow))}.")
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
     }
@@ -501,7 +504,8 @@ class ArrivalsE2eTest {
         e2e.press(page.buttonNamed("Segna presente Luca Rossi, ${day(w.yesterday)}"))
 
         val notice = page.locator("#scheda [role=alert]").first()
-        assertThat(notice).containsText("Presenza segnata.")
+        // Luca has today and tomorrow: the arrival of yesterday, which he did not foresee, goes on to both.
+        assertThat(notice).containsText("${CheckinFormat.markedHead(listOf(w.yesterday, w.today, w.tomorrow))}.")
         assertThat(notice).containsText("non era previsto per Luca Rossi: la quota dovuta non cambia finché non correggi l’iscrizione.")
         assertThat(notice.linkNamed("Correggi l’iscrizione")).hasAttribute("href", "/iscrizioni/${c.luca}/correggi")
         assertAccessible(page, "card with a day that was not foreseen (${e2e.profile.label})")

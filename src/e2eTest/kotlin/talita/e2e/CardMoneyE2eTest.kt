@@ -257,7 +257,7 @@ class CardMoneyE2eTest {
 
         // Another action of the card: the notes are closed again, and nothing was read.
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, ${CheckinFormat.longDay(w.today)}"))
-        assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza segnata.")
+        assertThat(page.locator("#scheda [role=status]").first()).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}.")
         assertFalse(page.content().contains("Arachidi"), "closed again")
         assertThat(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni")).isVisible()
         assertEquals(1, e2e.readings(kids.anna))

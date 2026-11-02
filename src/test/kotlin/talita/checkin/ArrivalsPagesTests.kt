@@ -190,7 +190,10 @@ class ArrivalsPagesTests(
         // Tomorrow: nothing to touch, the rows are links, and the notice says from when.
         val future = s.setup.marta.get("/arrivi?giorno=${s.setup.tomorrow}").body()
         assertTrue(
-            words(future).contains("${CheckinFormat.longDayCapital(s.setup.tomorrow)} non è ancora arrivato: le presenze si segnano da quel giorno. Oggi è ${CheckinFormat.longDay(s.setup.today)}. Vai a oggi"),
+            words(future).contains(
+                "${CheckinFormat.longDayCapital(s.setup.tomorrow)} non è ancora arrivato: le presenze si segnano da quel giorno. Oggi è ${CheckinFormat.longDay(s.setup.today)}. " +
+                    "Chi è già arrivato e resta sarà presente anche ${GatheringFormat.weekday(s.setup.tomorrow)}, se non lo togli dalla sua scheda. Vai a oggi",
+            ),
             words(future),
         )
         assertFalse(future.contains("Segna presente"))
@@ -279,13 +282,17 @@ class ArrivalsPagesTests(
         assertTrue(Regex("""^\s*<li id="riga-${s.anna}"[^>]*bg-success-soft""").containsMatchIn(html), html.take(300))
         assertTrue(html.contains("Presente"))
         // The name of the button is «Togli» and what follows for a screen reader (the label of the wait, «Tolgo…», is not shown, nor read).
-        assertTrue(Regex("""Togli</span><span class="hidden busy:inline">Tolgo…</span><span class="sr-only"> la presenza di Anna Rossi, ${CheckinFormat.longDay(s.setup.today)}</span>""").containsMatchIn(html))
+        // Taking it away takes today and tomorrow, which the arrival wrote too: the name of the button says from which day it takes away (TALITA-19, criterion 9).
+        assertTrue(Regex("""Togli</span><span class="hidden busy:inline">Tolgo…</span><span class="sr-only"> la presenza di Anna Rossi, da ${CheckinFormat.longDay(s.setup.today)} in poi</span>""").containsMatchIn(html))
         assertTrue(Regex("""<button type="submit" data-fuoco=""""").containsMatchIn(html), "the new button takes the focus")
         assertFalse(html.contains("Segna presente"))
         // The summary comes out of band and has the new number; the announcement goes in the region that is already in the page.
         assertTrue(html.contains("""<section id="riepilogo" aria-labelledby="riepilogo-titolo" hx-swap-oob="true""""))
         assertTrue(words(html).contains("Presenti 1 su 3 attesi"), words(html))
-        assertTrue(html.contains("""<p hx-swap-oob="innerHTML:#esito">Presenza segnata: Anna Rossi.</p>"""), html.takeLast(300))
+        val both = CheckinFormat.daysInSentence(listOf(s.setup.today, s.setup.tomorrow))
+        assertTrue(html.contains("""<p hx-swap-oob="innerHTML:#esito">Presenza segnata per $both: Anna Rossi.</p>"""), html.takeLast(300))
+        // The first touch on a child leaves the row as it is: no note, so that the rows under the finger do not move (design of TALITA-19, norm 4).
+        assertFalse(html.contains("Segnata anche per"), "no note on the first touch")
         // Nothing else of the page comes back: not the title, the days, the search, the other children.
         for (other in listOf("<h1", "Giorni della convivenza", "id=\"cerca\"", "Luca Rossi", "Nicolò Ferri", "<nav", "<html")) assertFalse(html.contains(other), "the answer has $other")
         // The page that is drawn afterwards has the row as it is, and no button has the mark of the focus.
@@ -304,7 +311,9 @@ class ArrivalsPagesTests(
         assertEquals(200, undone.status())
         assertEquals(emptyList(), kit.presenceDays(s.anna))
         assertTrue(undone.body().contains("Segna presente") && !undone.body().contains("bg-success-soft"))
-        assertTrue(undone.body().contains("""<p hx-swap-oob="innerHTML:#esito">Presenza tolta: Anna Rossi.</p>"""))
+        val both = CheckinFormat.daysInSentence(listOf(s.setup.today, s.setup.tomorrow))
+        assertTrue(undone.body().contains("""<p hx-swap-oob="innerHTML:#esito">Presenza tolta per $both: Anna Rossi.</p>"""))
+        assertTrue(words(undone.body()).contains("Tolta anche per ${GatheringFormat.weekday(s.setup.tomorrow)}."), "the note of the row says the days that went with it")
         assertTrue(words(undone.body()).contains("Presenti Nessuno su 3 attesi"))
 
         // Without JavaScript the same form is a post that answers 303 to the list, at the row, and the presence is there.

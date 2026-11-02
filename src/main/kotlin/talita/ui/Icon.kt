@@ -62,4 +62,5 @@ enum class Icon {
     MONITOR_SMARTPHONE,
     KEY_ROUND,
     FINGERPRINT_PATTERN,
+    CALENDAR_CHECK,
 }

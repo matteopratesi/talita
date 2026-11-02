@@ -155,7 +155,7 @@ class PrintPresenter {
     /** The register, or the page that says there is nothing to print when no registration is left that is not withdrawn. */
     fun register(data: ArrivalsData, now: OffsetDateTime): RegisterPage {
         val head = head("Registro arrivi", data, now)
-        val legend = "G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza già segnata in Talità."
+        val legend = LEGEND
         val footer = "Il registro si conserva fra i documenti della convivenza. Non ha recapiti né segnalazioni."
         val days = data.gathering.days.map { RegisterDay("${letter(it)} ${CheckinFormat.dayNumber(it)}", "${CheckinFormat.weekdayAbbreviation(it)} ${CheckinFormat.dayNumber(it)}") }
         val rows = active(data)
@@ -200,6 +200,13 @@ class PrintPresenter {
                     Icon.LIST, "Nessuna iscrizione confermata",
                     "L’elenco ha una riga per ogni iscrizione confermata. Quando i genitori iscrivono i bambini, lo trovi qui.", "/arrivi", "Torna agli arrivi", Icon.CHEVRON_LEFT,
                 )
+            } else if (day.isAfter(data.today)) {
+                // A day that has not come has no presents yet, whatever the arrival wrote in advance (TALITA-19, criterion 8).
+                PrintEmpty(
+                    Icon.LIST, "Nessun bambino presente ${CheckinFormat.longDay(day)}",
+                    "${CheckinFormat.longDayCapital(day)} non è ancora arrivato: i bambini si contano presenti da quel giorno. Per scegliere un altro giorno apri l’elenco delle iscrizioni confermate.",
+                    "/arrivi/elenco", "Vedi le iscrizioni confermate", Icon.LIST,
+                )
             } else {
                 PrintEmpty(
                     Icon.LIST, "Nessun bambino presente ${CheckinFormat.longDay(day)}",
@@ -233,8 +240,15 @@ class PrintPresenter {
     /** The day of a request of the venue list: a day of the gathering, or null for the one that is not (the page does not exist then). */
     fun dayOf(gathering: GatheringInfo, typed: String?): LocalDate? = parseDay(typed)?.takeIf { it in gathering.days }
 
-    private companion object {
-        const val BLANK_ROWS = 5
-        const val BLANK_TEACHERS = 3
+    companion object {
+        private const val BLANK_ROWS = 5
+        private const val BLANK_TEACHERS = 3
+
+        /**
+         * The legend of the register (design of TALITA-19, 2 D): the letters of the days, what the X is, and the rule of the arrival that carries on to the days after it, with the
+         * limit that the paper register has too (whoever goes away early keeps the X until somebody takes it away).
+         */
+        const val LEGEND = "G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza segnata in Talità: un arrivo vale anche per i giorni dopo a cui il " +
+            "bambino è iscritto, ma la X compare solo dal loro giorno. Chi va via prima resta con la X finché non lo togli in Talità: controlla con la conta della mattina."
     }
 }
