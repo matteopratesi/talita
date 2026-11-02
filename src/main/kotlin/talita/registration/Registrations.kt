@@ -154,6 +154,7 @@ class Registrations(
     private val healthNotes: HealthNotes,
     private val policy: RetentionPolicy,
     private val onWithdrawal: ObjectProvider<WithdrawalListener>,
+    private val onCorrection: ObjectProvider<CorrectionListener>,
 ) : RegistrationUsage {
 
     private fun now(): OffsetDateTime = OffsetDateTime.now(clock)
@@ -403,6 +404,8 @@ class Registrations(
         tx.update(REGISTRATION).set(REGISTRATION.PHONE, phone).set(REGISTRATION.UPDATED_AT, at).where(samePhone).execute()
         // The paper form that was received is only for a paper registration (the key of the table says so too).
         if (paperReceived != null && registration.onPaper) tx.update(REGISTRATION).set(REGISTRATION.PAPER_FORM_RECEIVED, paperReceived).where(REGISTRATION.ID.eq(id)).execute()
+        // What hangs from the days of the registration (the presences after today that the new days do not carry), in the transaction that holds it locked.
+        onCorrection.orderedStream().forEach { it.corrected(tx, id) }
         ChangeResult.Done
     }
 

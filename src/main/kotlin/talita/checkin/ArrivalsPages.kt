@@ -206,7 +206,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
     private fun labels(data: ArrivalsData, registration: RegistrationData, day: LocalDate, unexpected: Boolean): List<RowLabel> {
         if (data.withdrawn(registration)) return listOf(RowLabel("Ritirata", "neutral"))
         return buildList {
-            if (data.presence(registration, day) != null) add(RowLabel("Presente", "positive", Icon.CHECK))
+            if (data.present(registration, day)) add(RowLabel("Presente", "positive", Icon.CHECK))
             if (registration.status == Status.MAYBE) add(RowLabel("In forse", "warning"))
             if (data.receiptDue(registration)) add(RowLabel("Manleva da ricevere", "warning"))
             if (registration.id in data.duplicates) add(RowLabel("Possibile doppione", "warning"))
@@ -223,7 +223,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
      */
     fun row(data: ArrivalsData, registration: RegistrationData, day: LocalDate, markable: Boolean, note: RowNote? = null, focus: Boolean = false, asLink: Boolean = false): RowView {
         val expected = data.expected(registration, day)
-        val present = data.presence(registration, day) != null
+        val present = data.present(registration, day)
         val kind = when {
             asLink || !expected || !markable -> RowKind.LINK
             present -> RowKind.UNMARK
@@ -256,8 +256,8 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
         val day = choice.selected
         val expected = data.registrations.filter { data.expected(it, day) }
         val confirmed = expected.filter { it.status == Status.CONFIRMED }
-        val present = confirmed.count { data.presence(it, day) != null }
-        val unexpectedPresent = data.registrations.count { !data.withdrawn(it) && !it.includes(day) && data.presence(it, day) != null }
+        val present = confirmed.count { data.present(it, day) }
+        val unexpectedPresent = data.registrations.count { !it.includes(day) && data.present(it, day) }
         val receipts = expected.count { data.receiptDue(it) }
         val maybe = expected.count { it.status == Status.MAYBE }
         val outOf = when (confirmed.size) {

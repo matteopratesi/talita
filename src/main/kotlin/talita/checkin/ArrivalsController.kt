@@ -131,7 +131,7 @@ class ArrivalsController(
     private fun unmarkOutcome(registration: RegistrationData, result: UnmarkResult): Outcome {
         val name = registration.name
         return when (result) {
-            UnmarkResult.Unmarked -> Outcome(HttpStatus.OK, null, "Presenza tolta: $name.", CardAlert(AlertVariant.SUCCESS, null, "Presenza tolta."))
+            is UnmarkResult.Unmarked -> Outcome(HttpStatus.OK, null, "Presenza tolta: $name.", CardAlert(AlertVariant.SUCCESS, null, "Presenza tolta."))
 
             UnmarkResult.AlreadyUnmarked -> Outcome(
                 HttpStatus.OK, RowNote("La presenza era già stata tolta.", warning = false),
@@ -142,12 +142,6 @@ class ArrivalsController(
                 HttpStatus.CONFLICT, RowNote("Non tolta: nel frattempo le date della convivenza sono cambiate. Aggiorna la pagina.", warning = true),
                 "$name: la presenza non è stata tolta, le date della convivenza sono cambiate.",
                 CardAlert(AlertVariant.WARNING, null, "Non è stato possibile togliere la presenza: le date della convivenza sono cambiate. Ecco i giorni di adesso."), asLink = true,
-            )
-
-            UnmarkResult.NotYet -> Outcome(
-                HttpStatus.CONFLICT, RowNote("Non tolta: quel giorno non è ancora arrivato.", warning = true),
-                "$name: la presenza non è stata tolta, quel giorno non è ancora arrivato.",
-                CardAlert(AlertVariant.WARNING, null, "Non è stato possibile togliere la presenza: quel giorno non è ancora arrivato."), asLink = true,
             )
 
             UnmarkResult.NotFound -> notFound()

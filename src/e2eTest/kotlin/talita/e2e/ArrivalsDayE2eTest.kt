@@ -62,7 +62,7 @@ class ArrivalsDayE2eTest {
         assertThat(page.locator("#riga-$anna")).containsText("Presente")
         assertThat(page.locator("#esito")).hasText("Presenza segnata: Anna Rossi.")
         assertEquals(listOf("Anna Rossi", "Luca Rossi"), page.shownNames())
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)), "today and tomorrow: the arrival goes on to the next day (TALITA-19)")
 
         // The card of Anna: the money, then the notes, which are open only after their reading.
         e2e.touch(page.locator("#riga-$anna a").first())
@@ -466,7 +466,7 @@ class ArrivalsDayE2eTest {
         touch(plain.buttonNamed("Segna presente Anna Rossi, $dayName"))
         assertThat(plain).hasURL(Pattern.compile(".*/arrivi\\?giorno=${w.today}#riga-$anna"))
         assertThat(plain.locator("#riga-$anna")).containsText("Presente")
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN), "today and tomorrow (TALITA-19)")
         touch(plain.buttonNamed("Togli la presenza di Anna Rossi, $dayName"))
         assertThat(plain.locator("#riga-$anna")).not().containsText("Presente")
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))

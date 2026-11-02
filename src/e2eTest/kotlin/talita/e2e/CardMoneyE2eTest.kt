@@ -261,7 +261,7 @@ class CardMoneyE2eTest {
         assertFalse(page.content().contains("Arachidi"), "closed again")
         assertThat(page.locator("#segnalazioni").buttonNamed("Mostra le segnalazioni")).isVisible()
         assertEquals(1, e2e.readings(kids.anna))
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(kids.anna)))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(kids.anna)), "today and tomorrow: the arrival goes on to the next day (TALITA-19)")
 
         // A child with nothing written: «Nessuna segnalazione», and the reading is written all the same.
         e2e.open("/arrivi/${kids.luca}")

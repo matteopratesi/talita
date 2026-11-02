@@ -129,11 +129,11 @@ class PrintPresenter {
             if (registration.status == Status.MAYBE) add("In forse")
             if (registration.onPaper) add("Dal cartaceo")
             if (data.duplicates[registration.id].orEmpty().isNotEmpty()) add("Possibile doppione")
-            days.filter { data.presence(registration, it) != null && !registration.includes(it) }.forEach { add("${CheckinFormat.weekdayName(it)} non previsto") }
+            days.filter { data.present(registration, it) && !registration.includes(it) }.forEach { add("${CheckinFormat.weekdayName(it)} non previsto") }
         }
         return RegisterRow(
             name = registration.name,
-            cells = days.map { RegisterCell(dayLetter(registration, it), data.presence(registration, it) != null) },
+            cells = days.map { RegisterCell(dayLetter(registration, it), data.present(registration, it)) },
             due = when (due) {
                 null -> "Da definire"
                 0 -> "Gratis"
@@ -188,7 +188,7 @@ class PrintPresenter {
         val children = if (day == null) {
             data.registrations.filter { it.status == Status.CONFIRMED }
         } else {
-            data.registrations.filter { !data.withdrawn(it) && data.presence(it, day) != null }
+            data.registrations.filter { data.present(it, day) }
         }
         val title = if (day == null) "Bambini con l’iscrizione confermata" else "Bambini presenti ${CheckinFormat.longDay(day)}"
         val teachers = data.gathering.custodians.map { NameRow(it.last, it.first) }

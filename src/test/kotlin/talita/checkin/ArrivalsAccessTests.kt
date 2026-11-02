@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.post
 import talita.Addresses
 import talita.TestcontainersConfiguration
 import talita.account.TeacherPaths
+import talita.gathering.body
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.GATHERING
@@ -22,6 +23,7 @@ import talita.jooq.tables.references.REGISTRATION
 import java.time.Clock
 import java.time.LocalDate
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -95,6 +97,30 @@ class ArrivalsAccessTests(
             assertEquals(403, htmx.status, "POST (htmx) $path")
         }
         assertEquals(before, w.state(), "nothing was changed")
+    }
+
+    @Test
+    fun `t19 c19 a parent who sends by hand a mark or a take away of the arrival is told 403 and no row changes, and the pages of the parent show no presence`() {
+        val w = World()
+        // Luca arrived: today and tomorrow have their row, as the arrival leaves them.
+        kit.presence(w.child, w.setup.today, w.setup.martaId)
+        kit.presence(w.child, w.setup.tomorrow, w.setup.martaId)
+        val rows = listOf(w.setup.today, w.setup.tomorrow).map { kit.presenceOf(w.child, it) }
+
+        for (day in listOf(w.setup.yesterday, w.setup.today, w.setup.tomorrow)) {
+            for (path in listOf("/arrivi/${w.child}/presenze", "/arrivi/${w.child}/presenze/togli")) {
+                val answer = mockMvc.post(path) { session = w.parent.cookie; with(csrf()); param("giorno", day.toString()); param("da", "scheda") }.andReturn().response
+                assertEquals(403, answer.status, "POST $path $day")
+            }
+        }
+
+        assertEquals(listOf(w.setup.today, w.setup.tomorrow), kit.presenceDays(w.child))
+        assertEquals(rows, listOf(w.setup.today, w.setup.tomorrow).map { kit.presenceOf(w.child, it) }, "the rows are as they were, with their teacher and their moment")
+        // What the parent sees of the registration does not say who is present: not the list, not the correction, not the withdrawal.
+        for (path in listOf("/iscrizioni", "/iscrizioni/${w.child}/modifica", "/iscrizioni/${w.child}/ritira")) {
+            val text = words(w.parent.get(path).body()).lowercase()
+            for (word in listOf("presente", "presenza", "presenze", "arrivo", "arrivato")) assertFalse(text.contains(word), "$path has '$word'")
+        }
     }
 
     @Test

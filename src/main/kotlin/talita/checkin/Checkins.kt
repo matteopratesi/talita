@@ -25,10 +25,13 @@ data class Checkin(val registrationId: Long, val day: LocalDate, val at: OffsetD
 /** The registration comes on [day]: every day of the gathering, or the days that it chose. */
 fun RegistrationData.includes(day: LocalDate): Boolean = presence.allDays || day in presence.days
 
-/** What came of marking a presence (criteria 4, 6-8, 20). */
+/** What came of marking a presence (criteria 4, 6-8, 20; TALITA-19 criteria 1-6). */
 sealed interface MarkResult {
-    /** The presence is made. [confirmed]: the registration was «In forse» and is «Confermata» now. [notExpected]: the registration does not include the day. */
-    data class Marked(val confirmed: Boolean, val notExpected: Boolean) : MarkResult
+    /**
+     * The presence is made. [confirmed]: the registration was «In forse» and is «Confermata» now. [notExpected]: the registration does not include the day.
+     * [days] are the days written, in order: the one that was marked and then the ones after it that the arrival covers (TALITA-19), at least one.
+     */
+    data class Marked(val confirmed: Boolean, val notExpected: Boolean, val days: List<LocalDate>) : MarkResult
 
     /** It was marked already, by another teacher a moment before or by the same one twice: the same answer, never an error. */
     data class AlreadyMarked(val byAccountId: Long?, val at: OffsetDateTime) : MarkResult
@@ -46,9 +49,10 @@ sealed interface MarkResult {
     data object NotYet : MarkResult
 }
 
-/** What came of taking a presence away (criterion 6). */
+/** What came of taking a presence away (criterion 6; TALITA-19 criteria 9-11). */
 sealed interface UnmarkResult {
-    data object Unmarked : UnmarkResult
+    /** [days] are the days taken away, in order: the one that was asked and the ones after it, in a row, that had a presence. At least one. */
+    data class Unmarked(val days: List<LocalDate>) : UnmarkResult
 
     /** There was none, because another teacher took it away a moment before: the same answer, never an error. */
     data object AlreadyUnmarked : UnmarkResult
@@ -56,13 +60,17 @@ sealed interface UnmarkResult {
     data object NotFound : UnmarkResult
 
     data object OutsideTheDates : UnmarkResult
-
-    data object NotYet : UnmarkResult
 }
 
 /**
  * The presences of each day (criteria 4, 6-8, 19, 20, 29): one row for each registration and day, written by whichever teacher marks first and the same for
  * the second, who finds it. It is also what the gathering asks when the dates change ([ArrivalUsage], rule R3): a day with a presence is not taken away.
+ *
+ * **The arrival is for every day (TALITA-19).** Marking a day also writes the rows of the days after it that the registration includes, in a row, up to the first
+ * that it does not include or that has its row already, with the same teacher and the same moment: a child who is there from Friday to Sunday is marked once.
+ * The rows of the days after today are not presences yet (`ArrivalsData.present`): they become presences on their day, if nobody takes them away. Taking a presence
+ * away takes the day and the days after it that have a row, in a row; a withdrawal and a correction of the days take away the rows after today that are not worth
+ * anything any more ([FuturePresences]). No column says that a child went away: that is taking rows away.
  *
  * Marking and taking away start from `Registrations.lock`: the registration is locked for update and then the gathering for sharing, in the order of every other
  * change, so that
@@ -89,7 +97,7 @@ class Checkins(
 
     private enum class DayProblem { OUTSIDE_THE_DATES, NOT_YET }
 
-    /** Why the day cannot be marked or unmarked: not one of the gathering, or after today. Null when it can. */
+    /** Why the day cannot be marked: not one of the gathering, or after today. Null when it can. */
     private fun problem(gathering: GatheringInfo, day: LocalDate): DayProblem? = when {
         day !in gathering.days -> DayProblem.OUTSIDE_THE_DATES
         day.isAfter(gatherings.today()) -> DayProblem.NOT_YET
@@ -98,7 +106,9 @@ class Checkins(
 
     /**
      * Marks [registrationId] present on [day] for the teacher [byAccountId]: the moment is now. A day of the gathering and not after today, also after the end
-     * (the register of paper is copied then). A registration that does not include the day is marked all the same, and the answer says so (criterion 7).
+     * (the register of paper is copied then). A registration that does not include the day is marked all the same, and the answer says so (criterion 7 of
+     * TALITA-6). The days after it that the registration includes get their row too, in a row, with the same teacher and moment, up to the first day that it does
+     * not include, that is not one of the gathering or that has its row already (TALITA-19, criteria 1-4).
      */
     fun mark(registrationId: Long, day: LocalDate, byAccountId: Long): MarkResult = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
@@ -111,30 +121,50 @@ class Checkins(
             null -> Unit
         }
         find(tx, registrationId, day)?.let { return@transactionResult MarkResult.AlreadyMarked(it.byAccountId, it.at) }
-        // The row of the registration is locked: nobody else is writing this pair. The key of the table is the net under it.
-        tx.insertInto(CHECKIN)
-            .set(CHECKIN.REGISTRATION_ID, registrationId)
-            .set(CHECKIN.DAY, day)
-            .set(CHECKIN.RECORDED_AT, at())
-            .set(CHECKIN.RECORDED_BY_ACCOUNT_ID, byAccountId)
-            .onConflict(CHECKIN.REGISTRATION_ID, CHECKIN.DAY).doNothing()
-            .execute()
+        val written = daysCovered(tx, registration, gathering, day)
+        val at = at()
+        // The row of the registration is locked: nobody else is writing these pairs. The key of the table is the net under them.
+        for (covered in written) {
+            tx.insertInto(CHECKIN)
+                .set(CHECKIN.REGISTRATION_ID, registrationId)
+                .set(CHECKIN.DAY, covered)
+                .set(CHECKIN.RECORDED_AT, at)
+                .set(CHECKIN.RECORDED_BY_ACCOUNT_ID, byAccountId)
+                .onConflict(CHECKIN.REGISTRATION_ID, CHECKIN.DAY).doNothing()
+                .execute()
+        }
         val confirmed = registration.status == Status.MAYBE && registrations.confirmIn(tx, registrationId)
-        MarkResult.Marked(confirmed = confirmed, notExpected = !registration.includes(day))
+        MarkResult.Marked(confirmed = confirmed, notExpected = !registration.includes(day), days = written)
     }
 
-    /** Takes the presence of [registrationId] on [day] away. Possible also for a withdrawn registration: its presences are moved by hand to the other copy of a duplicate. */
+    /** [day] and the days after it that the same arrival covers: each included in the registration and of the gathering, with no row yet, up to the first that is not. */
+    private fun daysCovered(tx: DSLContext, registration: RegistrationData, gathering: GatheringInfo, day: LocalDate): List<LocalDate> {
+        val withRow = tx.select(CHECKIN.DAY).from(CHECKIN).where(CHECKIN.REGISTRATION_ID.eq(registration.id)).and(CHECKIN.DAY.gt(day)).fetch(CHECKIN.DAY).toSet()
+        return buildList {
+            add(day)
+            var next = day.plusDays(1)
+            while (next in gathering.days && registration.includes(next) && next !in withRow) {
+                add(next)
+                next = next.plusDays(1)
+            }
+        }
+    }
+
+    /**
+     * Takes the presence of [registrationId] on [day] away, and with it the days after [day] that have a row, in a row, up to the first that has none: «Togli» is
+     * «from here on the child is not there» (TALITA-19, criteria 9-11). A day after today can be taken away too: nothing was written for it in advance but the
+     * row that the arrival wrote. Possible also for a withdrawn registration: its presences are moved by hand to the other copy of a duplicate.
+     */
     fun unmark(registrationId: Long, day: LocalDate): UnmarkResult = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
         val (_, gathering) = registrations.lock(tx, registrationId) ?: return@transactionResult UnmarkResult.NotFound
         if (!Rules.teacherCanChange(gathering)) return@transactionResult UnmarkResult.NotFound
-        when (problem(gathering, day)) {
-            DayProblem.OUTSIDE_THE_DATES -> return@transactionResult UnmarkResult.OutsideTheDates
-            DayProblem.NOT_YET -> return@transactionResult UnmarkResult.NotYet
-            null -> Unit
-        }
-        val deleted = tx.deleteFrom(CHECKIN).where(CHECKIN.REGISTRATION_ID.eq(registrationId)).and(CHECKIN.DAY.eq(day)).execute()
-        if (deleted == 0) UnmarkResult.AlreadyUnmarked else UnmarkResult.Unmarked
+        if (day !in gathering.days) return@transactionResult UnmarkResult.OutsideTheDates
+        val withRow = tx.select(CHECKIN.DAY).from(CHECKIN).where(CHECKIN.REGISTRATION_ID.eq(registrationId)).and(CHECKIN.DAY.ge(day)).fetch(CHECKIN.DAY).toSet()
+        val taken = generateSequence(day) { it.plusDays(1) }.takeWhile { it in withRow }.toList()
+        if (taken.isEmpty()) return@transactionResult UnmarkResult.AlreadyUnmarked
+        tx.deleteFrom(CHECKIN).where(CHECKIN.REGISTRATION_ID.eq(registrationId)).and(CHECKIN.DAY.`in`(taken)).execute()
+        UnmarkResult.Unmarked(taken)
     }
 
     // ---- Reading ----------------------------------------------------------------------------------------------------------------------
