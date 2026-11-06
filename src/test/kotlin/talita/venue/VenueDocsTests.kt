@@ -84,6 +84,42 @@ class VenueDocsTests {
     }
 
     @Test
+    fun `t20 c28 part 2 the documents say that the rooms are the venue's, the migration, the change of venue with people in the rooms, and that nothing is copied`() {
+        val data = doc("docs/02-modello-dati.md")
+        for (part in listOf(
+            "**Resta con la struttura** (TALITA-20, `V14__venue_rooms.sql`)", "**Camere della struttura (TALITA-20, parte 2).**", "`room.venue_id`", "`(camera, struttura)` e `(convivenza, struttura)`",
+            "una convivenza non cambia struttura finché ci sono persone nelle camere di prima", "le camere della convivenza più recente di ogni struttura, fra quelle che ne hanno, diventano della struttura con gli stessi id",
+        )) {
+            assertTrue(data.contains(part), "docs/02 does not say: $part")
+        }
+        assertFalse(data.contains("per copiare le camere l'anno dopo"), "the rooms are not copied any more")
+
+        val privacy = doc("docs/03-privacy.md")
+        for (part in listOf("**Le camere sono della struttura** (TALITA-20)", "le camere (nome e posti) restano con la struttura, senza nomi, per la convivenza dell'anno dopo", "cambiare la struttura di una convivenza toglie le persone dalle camere di prima")) {
+            assertTrue(privacy.contains(part), "docs/03 does not say: $part")
+        }
+        assertFalse(privacy.contains("per copiarle l'anno dopo"), "the rooms are not copied any more")
+        assertTrue(doc("docs/01-contesto.md").contains("**Le camere sono della struttura**: si scrivono nella sua pagina, in ogni momento"))
+
+        val entry = doc("docs/05-decisioni.md").substringAfter("## 2026-11-02: scelte di TALITA-20")
+        for (part in listOf(
+            "**Parte 2: camere della struttura (criteri 12-19)**", "**`V14__venue_rooms.sql`**", "`room_name_in_venue`", "`room_child_gathering_venue`", "`VenueRoomsMigrationTests`", "`RoomAssignments`",
+            "**Il cambio di struttura con persone nelle camere**", "`DatesResult.PeopleInRooms`", "`PlaceResult.OtherVenue`", "`talita.venue.VenueRoomsController`", "`RemoveResult.Removed`", "`Rooms.copyPrevious`",
+            "**«La convivenza è finita: chi dorme dove non si cambia più.»**", "**Documenti (parte 2)**",
+        )) {
+            assertTrue(entry.contains(part), "the entry of TALITA-20 does not say: $part")
+        }
+
+        val guide = doc("docs/design/README.md")
+        for (part in listOf(
+            "- **Le camere della struttura** (parte 2) sono un blocco, `#camere-struttura`", "- **«Togliere {camera}?»** (TALITA-20, pagina della struttura)", "- **«Cambiare la struttura?»** (TALITA-20",
+            "- **Le camere** (parte 2): nella pagina della struttura la card «Camere»", "`/strutture/{id}/camere/…`",
+        )) {
+            assertTrue(guide.contains(part), "the design guide does not say: $part")
+        }
+    }
+
+    @Test
     fun `t20 c28 the mockups are in the repository, 73 pages with the index and the stylesheet, with no style, no script and nothing from outside`() {
         val folder = Path.of("docs/design/TALITA-20")
         val files = Files.list(folder).use { stream -> stream.map { it.fileName.toString() }.sorted().toList() }
