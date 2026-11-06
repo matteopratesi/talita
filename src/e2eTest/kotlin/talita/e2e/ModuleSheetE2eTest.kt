@@ -71,6 +71,7 @@ class ModuleSheetE2eTest {
         e2e.present(w, 10)
         val register = e2e.form(w.id, "Registro per la tassa di soggiorno", age = true, days = true, document = true, taxCode = true)
         e2e.form(w.id, "Solo nomi")
+        val onlyTaxCode = e2e.form(w.id, "Solo il codice fiscale", taxCode = true)
 
         e2e.open("/arrivi")
         val section = page.locator("#stampe")
@@ -93,7 +94,9 @@ class ModuleSheetE2eTest {
         // The tables scroll sideways inside their regions, which have a name and are reached with the keyboard.
         assertThat(page.locator("div[role=region][tabindex='0']").first()).hasAttribute("aria-label", Pattern.compile("Registro per la tassa di soggiorno, bambini.*"))
         // A phone is told so: the line that says to scroll the table.
-        if (e2e.profile.isPhone) assertThat(page.locator("main")).containsText("Scorri la tabella di lato per vedere tutte le colonne.")
+        val hint = page.locator("main p:has-text('Scorri la tabella di lato per vedere tutte le colonne.')")
+        assertEquals(1, hint.count(), "the sheet with days has the line that says to scroll")
+        if (e2e.profile.isPhone) assertThat(hint).isVisible() else assertThat(hint).isHidden()
 
         // The sheet with only the names: the narrow table, no field, no notice.
         e2e.open("/arrivi/modulo/${e2e.dsl().select(VENUE_FORM.ID).from(VENUE_FORM).where(VENUE_FORM.NAME.eq("Solo nomi")).fetchSingle(VENUE_FORM.ID)}")
@@ -101,6 +104,14 @@ class ModuleSheetE2eTest {
         assertThat(page.locator("main")).not().containsText("Quello che scrivi qui non si salva")
         page.sideways(e2e, "sheet with only the names")
         assertAccessible(page, "sheet of a form with only the names (${e2e.profile.label})")
+        // Nothing scrolls in a sheet with no days: no line that says to scroll (D4 of the QA), on the sheet with only the names and on the one with only the tax code of the teachers.
+        assertEquals(0, page.locator("main p:has-text('Scorri la tabella di lato')").count(), "no line to scroll on the sheet with only the names")
+        e2e.open("/arrivi/modulo/$onlyTaxCode")
+        assertThat(page.locator("h1")).hasText("Solo il codice fiscale")
+        assertEquals(0, page.locator("main p:has-text('Scorri la tabella di lato')").count(), "no line to scroll on the sheet with only the tax code")
+        assertEquals(8, page.locator("input[data-solo-carta]").count(), "the tax code of the five rows of the teachers, and the name of the three blank rows")
+        page.sideways(e2e, "sheet with only the tax code")
+        assertAccessible(page, "sheet of a form with only the tax code (${e2e.profile.label})")
     }
 
     @E2eTest

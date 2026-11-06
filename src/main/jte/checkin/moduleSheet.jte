@@ -33,7 +33,9 @@
       @endif
       <h2 class="mt-5 mb-2 text-lg font-semibold print:mt-[4mm] print:mb-[1.5mm] print:text-[11pt]">${page.getChildrenTitle()}</h2>
       <p class="mb-3 text-sm text-ink-muted print:text-[8.5pt] print:text-ink">${page.getLegend()}</p>
-      <p class="mb-2 text-sm text-ink-muted lg:hidden print:hidden">Scorri la tabella di lato per vedere tutte le colonne.</p>
+      @if(!page.getColumns().getDays().isEmpty())
+        <p class="mb-2 text-sm text-ink-muted lg:hidden print:hidden">Scorri la tabella di lato per vedere tutte le colonne.</p>
+      @endif
       <div tabindex="0" role="region" aria-label="${page.getHead().getTitle() + ", bambini, tabella che scorre di lato"}" class="relative overflow-x-auto rounded-2xl border border-line bg-surface print:overflow-visible print:rounded-none print:border-0">
         @for(ModuleChildBlock block : page.getChildren())
           <div class="blocco-stampa">

@@ -198,6 +198,31 @@ class ModuleSheetTests(
     }
 
     @Test
+    fun `t20 c22 the line that tells a phone to scroll the table is only on the sheets that have days, and the narrow table of a form with no days has none`() {
+        val w = Scenario()
+        val hint = "Scorri la tabella di lato per vedere tutte le colonne."
+        val withDays = listOf(form(w.setup.id, "Con i giorni", days = true), form(w.setup.id, "Con tutto", age = true, days = true, document = true, taxCode = true))
+        // No days: the table of the children has no width of its own, so nothing scrolls (the mockups of the form with only the name and of the one with only the tax code have no line).
+        val withNoDays = listOf(
+            form(w.setup.id, "Solo nomi"), form(w.setup.id, "Con l'età", age = true), form(w.setup.id, "Solo il codice fiscale", taxCode = true), form(w.setup.id, "Solo il documento", document = true),
+        )
+
+        // `min-w-0` as a class of its own: `print:min-w-0` is the one that every table has for the paper.
+        val narrow = Regex("""[\s"]min-w-0[\s"]""")
+        for (id in withDays) {
+            val html = sheet(w.setup.marta, id)
+            assertEquals(1, Regex(Regex.escape(hint)).findAll(html).count(), "the line is once on a sheet with days: $id")
+            assertTrue(html.contains("""<p class="mb-2 text-sm text-ink-muted lg:hidden print:hidden">$hint</p>"""), "the line is for the phone and not for the paper: $id")
+            assertFalse(narrow.containsMatchIn(tables(html)[0].substringBefore(">")), "the table of the children has a width of its own with days: $id")
+        }
+        for (id in withNoDays) {
+            val html = sheet(w.setup.marta, id)
+            assertFalse(html.contains(hint), "no line on a sheet with no days: $id")
+            assertTrue(narrow.containsMatchIn(tables(html)[0].substringBefore(">")), "the table of the children has no width of its own without days, so the line has nothing to say: $id")
+        }
+    }
+
+    @Test
     fun `t20 c22 the age is in whole years on the first day of the gathering, and the date of birth is never written`() {
         val w = Scenario()
         // A child who turns 8 the day after the first day is still 7 on it; one who turns 8 on the first day is 8.
