@@ -89,7 +89,7 @@ class VenueDocsTests {
         for (part in listOf(
             "**Resta con la struttura** (TALITA-20, `V14__venue_rooms.sql`)", "**Camere della struttura (TALITA-20, parte 2).**", "`room.venue_id`", "`(camera, struttura)` e `(convivenza, struttura)`",
             "una convivenza non cambia struttura finché ci sono persone nelle camere di prima", "una tiene le sue, che diventano della struttura con gli stessi id",
-            "prima la convivenza le cui camere hanno persone", "una convivenza chiusa ma in corso non perde le sue camere per una bozza dell'anno dopo che le ha già copiate", "fra quelle con persone, **la più vecchia** per primo giorno", "se nessuna ha persone, una convivenza che non è una bozza",
+            "prima la convivenza le cui camere hanno persone", "una convivenza chiusa ma in corso non perde le sue camere per una bozza dell'anno dopo che le ha già copiate", "fra quelle con persone, **prima quelle non finite**", "e poi **la più vecchia** per primo giorno", "se nessuna ha persone, una convivenza che non è una bozza",
             "la `(camera, convivenza)` non esiste più", "le camere restano con la struttura, vuote, per la convivenza dell'anno dopo",
         )) {
             assertTrue(data.contains(part), "docs/02 does not say: $part")

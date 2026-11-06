@@ -14,9 +14,10 @@
 --
 -- The data that is already there passes. Of the gatherings of each venue that have rooms, one keeps its rooms, and they become the rooms of the venue, with the same ids: who sleeps in them stays where they are.
 -- The one is chosen in this order. First a gathering whose rooms have people in them (`room_child` or `room_teacher`: they exist only for a gathering that is not over, `RoomsRule` deletes them at the end, so
--- a gathering that is going on or is coming is never lost for a draft of the year after that has copied rooms). Among those with people, the oldest by the first day, then the lowest id: it is the one that is
--- happening now, and a gathering that is later (an open one further on, with teachers already in its rooms) does not take its place. Among those with nobody in the rooms, a gathering that is not a draft, then
--- the most recent by the first day, then the highest id.
+-- a gathering that is going on or is coming is never lost for a draft of the year after that has copied rooms). Among those with people, first the ones that are not over (the last day is today or later, a day of
+-- Rome): if this migration runs before the job that deletes the people of a gathering that is over, the leftovers of that gathering must not win against a gathering that is still to come. Then the oldest by the first
+-- day, then the lowest id: it is the one that is happening now, and a gathering that is later (an open one further on, with teachers already in its rooms) does not take its place. Among those with nobody in the
+-- rooms, a gathering that is not a draft, then the most recent by the first day, then the highest id.
 -- The other rooms are deleted, with who sleeps in them (nobody, when the gathering is over): the rooms of the other gatherings were copies of the same house, and those of a draft with no venue have no house to belong to.
 -- Two gatherings of the same venue that both have people in their rooms cannot both keep them (a name is once per venue): the oldest does, and the people of the other have to be put in the rooms again.
 
@@ -29,14 +30,16 @@ from (
     select distinct on (candidate.venue_id) candidate.venue_id, candidate.id as gathering_id
     from (
         select gathering.venue_id, gathering.id, gathering.start_date, gathering.status <> 'draft' as published,
+            gathering.end_date >= (now() at time zone 'Europe/Rome')::date as not_over,
             exists (select 1 from room join room_child on room_child.room_id = room.id where room.gathering_id = gathering.id)
                 or exists (select 1 from room join room_teacher on room_teacher.room_id = room.id where room.gathering_id = gathering.id) as with_people
         from gathering
         where gathering.venue_id is not null and exists (select 1 from room where room.gathering_id = gathering.id)
     ) as candidate
     order by candidate.venue_id, candidate.with_people desc,
-        -- With people: the oldest. Without: these two keys are null and the ones after them decide.
-        case when candidate.with_people then candidate.start_date end asc nulls last, case when candidate.with_people then candidate.id end asc nulls last,
+        -- With people: the ones that are not over, then the oldest. Without: these three keys are null and the ones after them decide.
+        case when candidate.with_people then candidate.not_over end desc nulls last, case when candidate.with_people then candidate.start_date end asc nulls last,
+        case when candidate.with_people then candidate.id end asc nulls last,
         candidate.published desc, candidate.start_date desc, candidate.id desc
 ) as chosen
 where room.gathering_id = chosen.gathering_id;

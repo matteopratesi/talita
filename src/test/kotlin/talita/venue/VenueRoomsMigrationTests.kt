@@ -3,6 +3,7 @@ package talita.venue
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
 import talita.Addresses
+import java.time.LocalDate
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -202,10 +203,10 @@ class VenueRoomsMigrationTests {
         MigrationDatabase.use { database ->
             database.migrateTo("12")
             database.dsl { db ->
-                // The one that is happening now: registrations closed, in the house, with people in the rooms.
-                db.gathering("rooms00000000041", "Convivenza di settembre 2026", "2026-09-18", "2026-09-20", "Casa del bosco")
+                // The one that is happening now (it began yesterday and ends tomorrow, so it is not over on the day that the migration runs): registrations closed, in the house, with people in the rooms.
+                db.gathering("rooms00000000041", "Convivenza in corso", daysFromToday(-1), daysFromToday(1), "Casa del bosco")
                 // The one that is open further on, in the same house, with teachers already in its rooms (the same names, copied).
-                db.gathering("rooms00000000042", "Convivenza di settembre 2027", "2027-09-17", "2027-09-19", "Casa del bosco")
+                db.gathering("rooms00000000042", "Convivenza che viene", daysFromToday(30), daysFromToday(32), "Casa del bosco")
                 db.execute("update gathering set status = 'open' where public_code = 'rooms00000000042'")
             }
             database.migrateTo("13")
@@ -245,6 +246,53 @@ class VenueRoomsMigrationTests {
                 assertEquals(0, db.count("select count(*) from room_teacher where gathering_id = ${rows.open}"))
                 assertEquals(1, db.count("select count(*) from room_child"))
                 assertEquals(1, db.count("select count(*) from room_teacher"))
+                assertEquals(2, db.count("select count(*) from registration"))
+            }
+        }
+    }
+
+    /** A day counted from the day of the test: the migration tells a gathering that is over from one that is not with the date of the day that it runs. */
+    private fun daysFromToday(days: Long): String = LocalDate.now().plusDays(days).toString()
+
+    @Test
+    fun `t20 c19 people left in a gathering that is over do not win against a gathering that is still to come, when the migration runs before the cleaning`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                // Over since a week, and the job that deletes who sleeps where has not run yet: the older one, with people in its rooms.
+                db.gathering("rooms00000000051", "Convivenza finita", daysFromToday(-10), daysFromToday(-8), "Casa del bosco")
+                // Still to come, in the same house, with people in its rooms too.
+                db.gathering("rooms00000000052", "Convivenza che viene", daysFromToday(30), daysFromToday(32), "Casa del bosco")
+            }
+            database.migrateTo("13")
+
+            val over = database.dsl { db -> db.id("select id from gathering where public_code = 'rooms00000000051'") }
+            val coming = database.dsl { db -> db.id("select id from gathering where public_code = 'rooms00000000052'") }
+            val marta = database.dsl { db -> db.teacher(Addresses.unique("marta-over"), "Marta", "Bianchi") }
+            val paolo = database.dsl { db -> db.teacher(Addresses.unique("paolo-over"), "Paolo", "Verdi") }
+            val rows = database.dsl { db ->
+                val overOne = db.room(over, "Camera 1", 4)
+                val luca = db.registration(over, marta, "Luca", "Rossi")
+                db.childInRoom(luca, over, overOne)
+                val comingOne = db.room(coming, "Camera 1", 4)
+                val comingTwo = db.room(coming, "Stanza azzurra", 2)
+                val sara = db.registration(coming, marta, "Sara", "Neri")
+                db.childInRoom(sara, coming, comingOne)
+                db.teacherInRoom(coming, paolo, comingTwo)
+                listOf(overOne, comingOne, comingTwo, luca, sara)
+            }
+            val (overOne, comingOne, comingTwo, luca, sara) = rows
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                // The rooms of the gathering that is still to come are the rooms of the venue, with the same ids, and its people are where they were.
+                assertEquals(listOf(comingOne, comingTwo).sorted(), db.fetch("select id from room order by id").map { it.get(0, Long::class.java) })
+                assertEquals(0, db.count("select count(*) from room where id = $overOne"))
+                assertEquals(comingOne, db.id("select room_id from room_child where registration_id = $sara"))
+                assertEquals(comingTwo, db.id("select room_id from room_teacher where gathering_id = $coming and teacher_account_id = $paolo"))
+                // The leftovers of the gathering that is over go with its room, and the registration stays.
+                assertEquals(0, db.count("select count(*) from room_child where registration_id = $luca"))
                 assertEquals(2, db.count("select count(*) from registration"))
             }
         }
