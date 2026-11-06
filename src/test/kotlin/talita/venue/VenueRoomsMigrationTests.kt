@@ -7,9 +7,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The migration of the rooms to the venues on a database that has data (TALITA-20, part 2, criterion 19): the rooms of the most recent gathering of each venue, among those that have rooms, become the rooms of
- * the venue with the same ids, and who sleeps in them stays where they are; the other rooms are deleted, with who sleeps in them, and so are those of a draft with no venue. The database is a fresh Postgres, migrated up
- * to V13 with synthetic rows (the schema of the rooms of TALITA-11), and then V14 runs. Nothing here is a real name or a real date.
+ * The migration of the rooms to the venues on a database that has data (TALITA-20, part 2, criterion 19): the rooms of one gathering of each venue, among those that have rooms, become the rooms of the venue with
+ * the same ids, and who sleeps in them stays where they are; the other rooms are deleted, with who sleeps in them, and so are those of a draft with no venue. The gathering is chosen first by having people in its
+ * rooms (a gathering that is closed but not over is not lost for a draft that has copied rooms), then by not being a draft, then by the most recent first day, then by the id. The database is a fresh Postgres, migrated
+ * up to V13 with synthetic rows (the schema of the rooms of TALITA-11), and then V14 runs. Nothing here is a real name or a real date.
  */
 class VenueRoomsMigrationTests {
 
@@ -132,6 +133,93 @@ class VenueRoomsMigrationTests {
                 val moved = runCatching { db.execute("update gathering set venue_id = $venueOfLake where id = ${rows.recent}") }.exceptionOrNull()
                 assertTrue(moved != null, "the venue of a gathering that has people in its rooms")
                 assertEquals(venueOfWood, db.id("select venue_id from gathering where id = ${rows.recent}"))
+            }
+        }
+    }
+
+    /** The rows of the test of the rooms with people: the gatherings, the rooms that stay, the people, and the rooms that go. */
+    private data class Picked(
+        val running: Long, val draft: Long, val lakeEarlier: Long, val runningOne: Long, val runningTwo: Long, val lakeOne: Long, val luca: Long, val sara: Long, val paolo: Long, val goneRooms: List<Long>,
+    )
+
+    @Test
+    fun `t20 c19 the rooms with people in them are kept before those of a later gathering, even a draft with copied rooms, and the people stay where they are`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                // The wood: the gathering that is closed but not over, with people in its rooms, and a draft of the year after in the same house that has the rooms copied (and one more).
+                db.gathering("rooms00000000021", "Convivenza di settembre 2026", "2026-09-18", "2026-09-20", "Casa del bosco")
+                db.gathering("rooms00000000022", "Convivenza di settembre 2027", "2027-09-17", "2027-09-19", "Casa del bosco", draft = true)
+                // The lake: two gatherings that are not drafts; the earlier has a child in a room, the later has rooms with nobody in them.
+                db.gathering("rooms00000000023", "Convivenza di settembre 2025", "2025-09-12", "2025-09-14", "Casa sul lago")
+                db.gathering("rooms00000000024", "Convivenza di settembre 2026", "2026-09-11", "2026-09-13", "Casa sul lago")
+            }
+            database.migrateTo("13")
+
+            val rows = database.dsl { db ->
+                val running = db.id("select id from gathering where public_code = 'rooms00000000021'")
+                val draft = db.id("select id from gathering where public_code = 'rooms00000000022'")
+                val lakeEarlier = db.id("select id from gathering where public_code = 'rooms00000000023'")
+                val lakeLater = db.id("select id from gathering where public_code = 'rooms00000000024'")
+                val marta = db.teacher(Addresses.unique("marta-pick"), "Marta", "Bianchi")
+                val paolo = db.teacher(Addresses.unique("paolo-pick"), "Paolo", "Verdi")
+                val runningOne = db.room(running, "Camera 1", 4)
+                val runningTwo = db.room(running, "Stanza azzurra", 2)
+                val luca = db.registration(running, marta, "Luca", "Rossi")
+                db.childInRoom(luca, running, runningOne)
+                db.teacherInRoom(running, paolo, runningTwo)
+                val draftRooms = listOf(db.room(draft, "Camera 1", 4), db.room(draft, "Stanza azzurra", 2), db.room(draft, "Camera nuova", 3))
+                val lakeOne = db.room(lakeEarlier, "Camera lago 1", 4)
+                val sara = db.registration(lakeEarlier, marta, "Sara", "Neri")
+                db.childInRoom(sara, lakeEarlier, lakeOne)
+                val lakeLaterRooms = listOf(db.room(lakeLater, "Camera lago 1", 4), db.room(lakeLater, "Camera lago 2", 2))
+                Picked(running, draft, lakeEarlier, runningOne, runningTwo, lakeOne, luca, sara, paolo, draftRooms + lakeLaterRooms)
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                val woodVenue = db.id("select venue_id from gathering where id = ${rows.running}")
+                val lakeVenue = db.id("select venue_id from gathering where id = ${rows.lakeEarlier}")
+                assertEquals(woodVenue, db.id("select venue_id from gathering where id = ${rows.draft}"), "the draft is in the house of the gathering that is going on")
+                // The rooms with people are the rooms of the venue, with the same ids; those of the draft and of the later gathering are gone.
+                assertEquals(listOf(rows.runningOne, rows.runningTwo, rows.lakeOne).sorted(), db.fetch("select id from room order by id").map { it.get(0, Long::class.java) })
+                assertEquals(woodVenue, db.id("select venue_id from room where id = ${rows.runningOne}"))
+                assertEquals(lakeVenue, db.id("select venue_id from room where id = ${rows.lakeOne}"))
+                for (gone in rows.goneRooms) assertEquals(0, db.count("select count(*) from room where id = $gone"), "room $gone")
+                // Nobody was lost: the child, the teacher and the other child are where they were, with the venue.
+                assertEquals(rows.runningOne, db.id("select room_id from room_child where registration_id = ${rows.luca}"))
+                assertEquals(woodVenue, db.id("select venue_id from room_child where registration_id = ${rows.luca}"))
+                assertEquals(rows.runningTwo, db.id("select room_id from room_teacher where gathering_id = ${rows.running} and teacher_account_id = ${rows.paolo}"))
+                assertEquals(rows.lakeOne, db.id("select room_id from room_child where registration_id = ${rows.sara}"))
+                assertEquals(2, db.count("select count(*) from room_child"))
+                assertEquals(1, db.count("select count(*) from room_teacher"))
+                assertEquals(2, db.count("select count(*) from registration"))
+            }
+        }
+    }
+
+    @Test
+    fun `t20 c19 with nobody in the rooms a gathering that is not a draft is kept before a draft that is later, and the draft's rooms go`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                db.gathering("rooms00000000031", "Convivenza di settembre 2025", "2025-09-12", "2025-09-14", "Casa del bosco")
+                db.gathering("rooms00000000032", "Convivenza di settembre 2027", "2027-09-17", "2027-09-19", "Casa del bosco", draft = true)
+            }
+            database.migrateTo("13")
+            val rows = database.dsl { db ->
+                val closed = db.id("select id from gathering where public_code = 'rooms00000000031'")
+                val draft = db.id("select id from gathering where public_code = 'rooms00000000032'")
+                db.room(closed, "Camera 1", 4) to listOf(db.room(draft, "Camera 1", 4), db.room(draft, "Camera 2", 2))
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                assertEquals(listOf(rows.first), db.fetch("select id from room").map { it.get(0, Long::class.java) })
+                for (gone in rows.second) assertEquals(0, db.count("select count(*) from room where id = $gone"), "room $gone")
+                assertEquals(1, db.count("select count(*) from venue"))
             }
         }
     }

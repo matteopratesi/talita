@@ -12,20 +12,27 @@
 -- the venue: a gathering cannot change venue while people are in the rooms of the one before (the application takes them out in the same transaction, after the teacher has confirmed). The key to the room cascades
 -- on a delete, as before: a room that is taken away leaves its people without a room. Deleting the gathering still takes with it the people of its rooms (only the tests do it).
 --
--- The data that is already there passes. The rooms of the most recent gathering of each venue (by the first day, then by the id), among the gatherings of that venue that have rooms, become the rooms of the venue,
--- with the same ids: who sleeps in them stays where they are. The other rooms are deleted, with who sleeps in them (already deleted when the gathering is over): the rooms of the gatherings before the most recent one
--- were copies of the same house, and those of a draft with no venue have no house to belong to.
+-- The data that is already there passes. Of the gatherings of each venue that have rooms, one keeps its rooms, and they become the rooms of the venue, with the same ids: who sleeps in them stays where they are.
+-- The one is chosen in this order: first the gathering whose rooms have people in them (`room_child` or `room_teacher`: they exist only for a gathering that is not over, `RoomsRule` deletes them at the end, so
+-- a gathering that is going on or is coming is never lost for a draft of the year after that has copied rooms), then a gathering that is not a draft, then the most recent by the first day, then by the id.
+-- The other rooms are deleted, with who sleeps in them (nobody, when the gathering is over): the rooms of the other gatherings were copies of the same house, and those of a draft with no venue have no house to belong to.
+-- Two gatherings of the same venue that both have people in their rooms cannot both keep them (a name is once per venue): the first by the order above does.
 
--- The rooms to keep: the ones of the most recent gathering of each venue, among those that have rooms.
+-- The rooms to keep: the ones of one gathering of each venue, among those that have rooms (see above).
 alter table room add column venue_id bigint;
 
 update room
 set venue_id = chosen.venue_id
 from (
-    select distinct on (gathering.venue_id) gathering.venue_id, gathering.id as gathering_id
-    from gathering
-    where gathering.venue_id is not null and exists (select 1 from room where room.gathering_id = gathering.id)
-    order by gathering.venue_id, gathering.start_date desc, gathering.id desc
+    select distinct on (candidate.venue_id) candidate.venue_id, candidate.id as gathering_id
+    from (
+        select gathering.venue_id, gathering.id, gathering.start_date, gathering.status <> 'draft' as published,
+            exists (select 1 from room join room_child on room_child.room_id = room.id where room.gathering_id = gathering.id)
+                or exists (select 1 from room join room_teacher on room_teacher.room_id = room.id where room.gathering_id = gathering.id) as with_people
+        from gathering
+        where gathering.venue_id is not null and exists (select 1 from room where room.gathering_id = gathering.id)
+    ) as candidate
+    order by candidate.venue_id, candidate.with_people desc, candidate.published desc, candidate.start_date desc, candidate.id desc
 ) as chosen
 where room.gathering_id = chosen.gathering_id;
 

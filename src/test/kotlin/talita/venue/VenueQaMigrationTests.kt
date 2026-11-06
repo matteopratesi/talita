@@ -115,16 +115,15 @@ class VenueQaMigrationTests {
                 val woodOne = db.room(woodOld, "Camera 1", 4)
                 val woodTwo = db.room(woodOld, "Camera 2", 4)
                 val luca = db.childInRoom(woodOld, marta, "Luca", "Rossi", woodOne)
-                // The lake: two gatherings on the same day, both with a «Camera lago»; the one with the higher id wins, and the names do not collide.
+                // The lake: two gatherings on the same day, both with a «Camera lago» and nobody in them; the one with the higher id wins, and the names do not collide.
                 val lakeA = db.room(lakeFirst, "Camera lago", 2)
-                val sara = db.childInRoom(lakeFirst, marta, "Sara", "Neri", lakeA)
                 val lakeB = db.room(lakeSecond, "Camera lago", 3)
                 val lakeC = db.room(lakeSecond, "Camera 3", 5)
                 // A draft that has a place and rooms, with a teacher in one: the rooms are kept, and so is the row of who was there.
                 val northOne = db.room(north, "Camera nord", 6)
                 db.execute("insert into room_teacher (gathering_id, teacher_account_id, room_id) values ($north, $marta, $northOne)")
                 mapOf("woodOld" to woodOld, "woodNew" to woodNew, "lakeFirst" to lakeFirst, "lakeSecond" to lakeSecond, "north" to north, "woodOne" to woodOne, "woodTwo" to woodTwo, "luca" to luca,
-                    "lakeA" to lakeA, "sara" to sara, "lakeB" to lakeB, "lakeC" to lakeC, "northOne" to northOne)
+                    "lakeA" to lakeA, "lakeB" to lakeB, "lakeC" to lakeC, "northOne" to northOne)
             }
 
             database.migrateTo("14")
@@ -136,8 +135,8 @@ class VenueQaMigrationTests {
                 val woodVenue = db.id("select venue_id from gathering where id = ${rows.getValue("woodNew")}")
                 assertEquals(woodVenue, db.id("select venue_id from room where id = ${rows.getValue("woodOne")}"))
                 assertEquals(rows.getValue("woodOne"), db.id("select room_id from room_child where registration_id = ${rows.getValue("luca")}"))
-                // The lake: the rooms of the gathering with the higher id, and who slept in the other ones is gone.
-                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("sara")}"))
+                // The lake: the rooms of the gathering with the higher id (nobody is in the rooms of either, so the tie goes by the id).
+                assertEquals(0, db.count("select count(*) from room where id = ${rows.getValue("lakeA")}"))
                 assertEquals(db.id("select venue_id from gathering where id = ${rows.getValue("lakeSecond")}"), db.id("select venue_id from room where id = ${rows.getValue("lakeB")}"))
                 // The draft with a place: its room is the venue's, with the teacher in it.
                 assertEquals(rows.getValue("northOne"), db.id("select room_id from room_teacher where gathering_id = ${rows.getValue("north")}"))
