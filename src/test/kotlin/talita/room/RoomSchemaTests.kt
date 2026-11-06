@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.test.web.servlet.MockMvc
 import talita.TestcontainersConfiguration
+import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.REGISTRATION
 import talita.jooq.tables.references.RETENTION_LOG
 import talita.jooq.tables.references.ROOM
@@ -23,8 +24,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * The schema of the rooms (V9): what the database refuses by itself, whatever the application does (criteria 7, 8, 10, 19). The application checks the same things first and with
- * kinder words; this is the net under it. Names and rooms are synthetic.
+ * The schema of the rooms (V9, and V14 of TALITA-20: the rooms are the venue's): what the database refuses by itself, whatever the application does (criteria 7, 8, 10, 19 of TALITA-11, 12 and 16 of
+ * TALITA-20). The application checks the same things first and with kinder words; this is the net under it. Names and rooms are synthetic.
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
@@ -50,9 +51,10 @@ class RoomSchemaTests(
 
     @Test
     fun `t11 c19 the tables of the rooms have only the columns of the schema, so nothing says the sex, the reason of a choice, a note or a free text about a person`() {
-        assertEquals(listOf("id", "gathering_id", "name", "beds"), columns("room"))
-        assertEquals(listOf("registration_id", "gathering_id", "room_id"), columns("room_child"))
-        assertEquals(listOf("gathering_id", "teacher_account_id", "room_id"), columns("room_teacher"))
+        // The room is of a venue (not of a gathering any more: TALITA-20); who sleeps where is of a gathering, and says the venue too, for the keys.
+        assertEquals(listOf("id", "name", "beds", "venue_id"), columns("room"))
+        assertEquals(listOf("registration_id", "gathering_id", "room_id", "venue_id"), columns("room_child"))
+        assertEquals(listOf("gathering_id", "teacher_account_id", "room_id", "venue_id"), columns("room_teacher"))
         // The only text of the three tables is the name of the room: the house, and never a person (the rooms hold no personal data).
         val texts = dsl.resultQuery(
             "select table_name || '.' || column_name from information_schema.columns where table_schema = 'public' and table_name in ('room', 'room_child', 'room_teacher') " +
@@ -70,7 +72,7 @@ class RoomSchemaTests(
     }
 
     @Test
-    fun `t11 c02 the database refuses an empty name, beds outside 1 to 50, and the same name twice in a gathering whatever its capitals and spaces`() {
+    fun `t11 c02 the database refuses an empty name, beds outside 1 to 50, and the same name twice in a venue whatever its capitals and spaces`() {
         val setup = kit.start()
         val gathering = setup.id
 
@@ -79,9 +81,9 @@ class RoomSchemaTests(
         assertEquals("room_beds_range", refusedBy { kit.room(gathering, "Camera 1", 51) })
         kit.room(gathering, "Camera 1", 4)
         kit.room(gathering, "Camera 2", 50)
-        assertEquals("room_name_in_gathering", refusedBy { kit.room(gathering, "camera 1", 4) })
-        assertEquals("room_name_in_gathering", refusedBy { kit.room(gathering, "  CAMERA 1 ", 4) })
-        // Another gathering may have the same name: the rooms are copied from one to the next.
+        assertEquals("room_name_in_venue", refusedBy { kit.room(gathering, "camera 1", 4) })
+        assertEquals("room_name_in_venue", refusedBy { kit.room(gathering, "  CAMERA 1 ", 4) })
+        // Another venue may have the same name (a gathering in the same venue has the same rooms, so it has no room of its own).
         val other = kit.otherGathering()
         kit.room(other, "Camera 1", 4)
         assertEquals(1, kit.roomCount(other))
@@ -89,7 +91,7 @@ class RoomSchemaTests(
     }
 
     @Test
-    fun `t11 c07 a child is in one room only, and the room is of the gathering of its registration`() {
+    fun `t11 c07 a child is in one room only, and the room is of the venue of the gathering of its registration`() {
         val setup = kit.start()
         val first = kit.room(setup.id, "Camera 1", 4)
         val second = kit.room(setup.id, "Camera 2", 4)
@@ -99,17 +101,19 @@ class RoomSchemaTests(
         assertEquals("room_child_pkey", refusedBy { kit.put(luca, setup.id, second) })
         assertEquals(first, kit.roomOfChild(luca))
 
-        // A room of another gathering, or a gathering that is not the one of the registration, is refused by the composite keys.
+        // A room of another venue, or a gathering that is not the one of the registration, is refused by the composite keys (TALITA-20, criterion 12): the child said to be in the venue of the gathering
+        // but in a room of another venue has no such room, and the child in the room of another venue has no such gathering in that venue.
         val other = kit.otherGathering()
         val elsewhere = kit.room(other, "Camera 1", 4)
         val anna = kit.rows.register(setup.id, kit.checkin.account(), "Anna", "Rossi")
-        assertEquals("room_child_room", refusedBy { kit.put(anna, setup.id, elsewhere) })
+        assertEquals("room_child_room", refusedBy { kit.put(anna, setup.id, elsewhere, venue = kit.venueOf(setup.id)) })
+        assertEquals("room_child_gathering_venue", refusedBy { kit.put(anna, setup.id, elsewhere) })
         assertEquals("room_child_registration", refusedBy { kit.put(anna, other, elsewhere) })
         assertNull(kit.roomOfChild(anna))
     }
 
     @Test
-    fun `t11 c08 a teacher is in one room per gathering, the room is of that gathering and only a teacher can be in it`() {
+    fun `t11 c08 a teacher is in one room per gathering, the room is of the venue of that gathering and only a teacher can be in it`() {
         val setup = kit.start()
         val first = kit.room(setup.id, "Camera 1", 4)
         val second = kit.room(setup.id, "Camera 2", 4)
@@ -122,7 +126,9 @@ class RoomSchemaTests(
 
         val other = kit.otherGathering()
         val elsewhere = kit.room(other, "Camera 1", 4)
-        assertEquals("room_teacher_room", refusedBy { kit.putTeacher(setup.id, setup.martaId, elsewhere) })
+        assertEquals("room_teacher_room", refusedBy { kit.putTeacher(setup.id, setup.martaId, elsewhere, venue = kit.venueOf(setup.id)) })
+        assertEquals("room_teacher_gathering_venue", refusedBy { kit.putTeacher(setup.id, setup.martaId, elsewhere) })
+        assertNull(kit.roomOfTeacher(setup.id, setup.martaId))
         // The same teacher is in another room of another gathering: one per gathering, not one for ever.
         kit.putTeacher(other, setup.paoloId, elsewhere)
         assertEquals(elsewhere, kit.roomOfTeacher(other, setup.paoloId))
@@ -162,6 +168,27 @@ class RoomSchemaTests(
         assertNull(kit.roomOfTeacher(setup.id, setup.giuliaId))
         assertEquals(0, kit.peopleCount(setup.id))
         assertEquals(1, kit.roomCount(setup.id), "the other room stays, with its name and beds")
+    }
+
+    @Test
+    fun `t20 c12 a gathering cannot change venue while people are in the rooms of the one before, and can when nobody is, and a venue that is taken away takes its rooms`() {
+        val setup = kit.start()
+        val first = kit.room(setup.id, "Camera 1", 4)
+        val luca = kit.rows.register(setup.id, kit.checkin.account(), "Luca", "Rossi")
+        kit.put(luca, setup.id, first)
+        val elsewhere = kit.venueOf(kit.otherGathering())
+
+        // The keys carry the venue and do not cascade on an update: with people in the rooms the venue of the gathering stays.
+        assertEquals("room_child_gathering_venue", refusedBy { dsl.update(GATHERING).set(GATHERING.VENUE_ID, elsewhere).where(GATHERING.ID.eq(setup.id)).execute() })
+        assertEquals(kit.venueOf(setup.id), dsl.select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(setup.id)).fetchSingle(GATHERING.VENUE_ID))
+        // Without people in the rooms it changes, and the rooms of the new venue are the ones the gathering finds.
+        dsl.deleteFrom(ROOM_CHILD).where(ROOM_CHILD.GATHERING_ID.eq(setup.id)).execute()
+        kit.putTeacher(setup.id, setup.paoloId, first)
+        assertEquals("room_teacher_gathering_venue", refusedBy { dsl.update(GATHERING).set(GATHERING.VENUE_ID, elsewhere).where(GATHERING.ID.eq(setup.id)).execute() })
+        dsl.deleteFrom(ROOM_TEACHER).where(ROOM_TEACHER.GATHERING_ID.eq(setup.id)).execute()
+        dsl.update(GATHERING).set(GATHERING.VENUE_ID, elsewhere).where(GATHERING.ID.eq(setup.id)).execute()
+        assertEquals(elsewhere, kit.venueOf(setup.id))
+        assertEquals(1, dsl.fetchCount(ROOM, ROOM.VENUE_ID.eq(kit.venueOfRoom(first))), "the room of the first venue stays with it")
     }
 
     @Test
@@ -206,7 +233,7 @@ class RoomSchemaTests(
     }
 
     private fun upsert(tx: DSLContext, gathering: Long, registration: Long, room: Long) {
-        tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.ROOM_ID, room)
+        tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.VENUE_ID, kit.venueOfRoom(room)).set(ROOM_CHILD.ROOM_ID, room)
             .onConflict(ROOM_CHILD.REGISTRATION_ID).doUpdate().set(ROOM_CHILD.ROOM_ID, room).execute()
     }
 }

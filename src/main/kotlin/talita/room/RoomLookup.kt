@@ -37,7 +37,7 @@ class RoomLookup(private val dsl: DSLContext, private val texts: RetentionTexts)
         if (!RoomBoard.comesAtNight(registration)) return null
         // After the end, with rooms and nobody in any of them: what was there was deleted (the job does it the first run of the day after the last day). The same rule as
         // `RoomBoard.peopleDeleted`: with no rooms there was nothing to delete, and the child is «Senza camera» (criterion 13).
-        if (gathering.over && dsl.fetchExists(ROOM, ROOM.GATHERING_ID.eq(gathering.id))) {
+        if (gathering.over && gathering.venueId != null && dsl.fetchExists(ROOM, ROOM.VENUE_ID.eq(gathering.venueId))) {
             val nobody = !dsl.fetchExists(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering.id)) && !dsl.fetchExists(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering.id))
             if (nobody) return ChildRoomCard(null, base, texts.roomsDeletedOn(gathering.end))
         }

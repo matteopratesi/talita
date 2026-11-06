@@ -5,7 +5,7 @@
 @param Shell shell
 @param VenuePage page
 @param CsrfToken csrf
-<%-- The page of a venue (`/strutture/{id}`, only for the teachers; TALITA-20): the name as the title, the card «Nome e luogo» with its «Modifica» and, at the bottom, «Togli la struttura» for a venue that no
+<%-- The page of a venue (`/strutture/{id}`, only for the teachers; TALITA-20): the name as the title, the card «Nome e luogo» with its «Modifica», the card «Camere» (TALITA-20, part 2: `venue/roomsBlock.jte`) and, at the bottom, «Togli la struttura» for a venue that no
      gathering uses (a dialog: it removes nothing by itself) or the sentence that says why it is not taken away. The name and the place are public text (the parents read them): they wrap anywhere. --%>
 
 @template.layout.shell(shell = shell, content = @`
@@ -19,6 +19,8 @@
       @template.components.alert(variant = page.getAlert().getVariant(), live = true, lead = page.getAlert().getLead(), actionLabel = page.getAlert().getActionLabel(), actionHref = page.getAlert().getActionHref(), content = @`${page.getAlert().getText()}`)
     </div>
   @endif
+
+  <p id="esito" role="status" class="sr-only"></p>
 
   <div class="space-y-3">
     <section id="luogo" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="luogo-t">
@@ -39,6 +41,8 @@
       <p class="mt-3 text-sm text-ink-muted">Nome e luogo li leggono i genitori, nella pagina informativa e nell’anteprima del link.</p>
       <p class="mt-1 text-sm text-ink-muted">${page.getCard().getUsed()}</p>
     </section>
+
+    @template.venue.roomsBlock(block = page.getRooms(), csrf = csrf)
   </div>
 
   @if(page.getRemoval() != null)

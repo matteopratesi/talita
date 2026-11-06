@@ -8,6 +8,7 @@ import talita.gathering.VenueRef
 import talita.gathering.isForeignKeyViolation
 import talita.gathering.isUniqueViolation
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.ROOM
 import talita.jooq.tables.references.VENUE
 
 /**
@@ -16,8 +17,8 @@ import talita.jooq.tables.references.VENUE
  */
 data class Venue(val id: Long, val name: String, val place: String)
 
-/** A venue with what the list and its page say about it: how many gatherings use it, never which. */
-data class VenueSummary(val venue: Venue, val gatherings: Int)
+/** A venue with what the list says about it: how many gatherings use it (never which), and how many rooms and beds it has. */
+data class VenueSummary(val venue: Venue, val gatherings: Int, val rooms: Int = 0, val beds: Int = 0)
 
 /** What came of saving a venue. */
 sealed interface VenueSave {
@@ -56,11 +57,14 @@ class Venues(private val dsl: DSLContext) : GatheringVenues {
 
     // ---- Reading -------------------------------------------------------------------------------------------------------------
 
-    /** Every venue by name, with the number of gatherings that use it. */
-    fun list(): List<VenueSummary> =
-        dsl.select(VENUE.ID, VENUE.NAME, VENUE.PLACE, DSL.count(GATHERING.ID)).from(VENUE).leftJoin(GATHERING).on(GATHERING.VENUE_ID.eq(VENUE.ID))
-            .groupBy(VENUE.ID, VENUE.NAME, VENUE.PLACE).orderBy(DSL.lower(DSL.trim(VENUE.NAME)), VENUE.ID)
-            .fetch { VenueSummary(Venue(it[VENUE.ID]!!, it[VENUE.NAME]!!, it[VENUE.PLACE]!!), it.value4()) }
+    /** Every venue by name, with the number of gatherings that use it and its rooms and beds. */
+    fun list(): List<VenueSummary> {
+        val gatherings = DSL.field(DSL.selectCount().from(GATHERING).where(GATHERING.VENUE_ID.eq(VENUE.ID)))
+        val rooms = DSL.field(DSL.selectCount().from(ROOM).where(ROOM.VENUE_ID.eq(VENUE.ID)))
+        val beds = DSL.field(DSL.select(DSL.coalesce(DSL.sum(ROOM.BEDS), java.math.BigDecimal.ZERO)).from(ROOM).where(ROOM.VENUE_ID.eq(VENUE.ID)))
+        return dsl.select(VENUE.ID, VENUE.NAME, VENUE.PLACE, gatherings, rooms, beds).from(VENUE).orderBy(DSL.lower(DSL.trim(VENUE.NAME)), VENUE.ID)
+            .fetch { VenueSummary(Venue(it[VENUE.ID]!!, it[VENUE.NAME]!!, it[VENUE.PLACE]!!), it.value4()!!, it.value5()!!, it.value6()!!.toInt()) }
+    }
 
     /** The venue [id], or null. */
     fun byId(id: Long): Venue? =

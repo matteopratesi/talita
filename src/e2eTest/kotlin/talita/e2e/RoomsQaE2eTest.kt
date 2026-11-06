@@ -31,23 +31,30 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The rooms as QA checks them (TALITA-11), on a phone and on a desktop: what a teacher does with the choices of who sleeps where, what the forms of a room refuse and accept, what a parent
+ * The rooms as QA checks them (TALITA-11; TALITA-20: the rooms are written in the page of the venue, so the forms of a room and «Togli» are tried there), on a phone and on a desktop: what a teacher does with the choices of who sleeps where, what the forms of a room refuse and accept, what a parent
  * cannot reach, what happens to the people when the registrations change, a lost page after another teacher or the end, and what the job of the retention leaves at the end of the gathering.
  * They add to `RoomsE2eTest`, which has the day of work, the states, the print and axe. Names and numbers are synthetic.
  */
 @E2eApplication
 class RoomsQaE2eTest {
 
+    /** The venue of a gathering: the rooms are its. */
+    private fun E2e.venueOf(gathering: Long): Long = dsl().select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(gathering)).fetchSingle(GATHERING.VENUE_ID)!!
+
+    /** A room of the venue of the gathering. */
     private fun E2e.room(gathering: Long, name: String, beds: Int): Long =
-        dsl().insertInto(ROOM).set(ROOM.GATHERING_ID, gathering).set(ROOM.NAME, name).set(ROOM.BEDS, beds.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
+        dsl().insertInto(ROOM).set(ROOM.VENUE_ID, venueOf(gathering)).set(ROOM.NAME, name).set(ROOM.BEDS, beds.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
 
     private fun E2e.put(registration: Long, gathering: Long, room: Long) {
-        dsl().insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.ROOM_ID, room).execute()
+        dsl().insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.VENUE_ID, venueOf(gathering)).set(ROOM_CHILD.ROOM_ID, room).execute()
     }
 
     private fun E2e.putTeacher(gathering: Long, account: Long, room: Long) {
-        dsl().insertInto(ROOM_TEACHER).set(ROOM_TEACHER.GATHERING_ID, gathering).set(ROOM_TEACHER.TEACHER_ACCOUNT_ID, account).set(ROOM_TEACHER.ROOM_ID, room).execute()
+        dsl().insertInto(ROOM_TEACHER).set(ROOM_TEACHER.GATHERING_ID, gathering).set(ROOM_TEACHER.VENUE_ID, venueOf(gathering)).set(ROOM_TEACHER.TEACHER_ACCOUNT_ID, account).set(ROOM_TEACHER.ROOM_ID, room).execute()
     }
+
+    /** The row of a room in the list of the rooms of the page of the venue. */
+    private fun Page.row(name: String): Locator = locator("#camere-struttura li").filter(Locator.FilterOptions().setHasText(name))
 
     private fun E2e.roomOf(registration: Long): Long? = dsl().select(ROOM_CHILD.ROOM_ID).from(ROOM_CHILD).where(ROOM_CHILD.REGISTRATION_ID.eq(registration)).fetchOne(ROOM_CHILD.ROOM_ID)
 
@@ -205,11 +212,12 @@ class RoomsQaE2eTest {
     }
 
     @E2eTest
-    fun `t11 c02 c03 c05 the form of a room refuses what is not a name or not beds with one sentence, keeps what was written, and takes in the names of the house`(e2e: E2e) {
+    fun `t11 c02 c03 c05 t20 c13 the form of a room in the page of the house refuses what is not a name or not beds with one sentence, keeps what was written, and takes in the names of the house`(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering()
         val one = e2e.room(w.id, "Camera 1", 4)
-        val form = "/convivenza/${w.id}/camere/nuova"
+        val venue = e2e.venueOf(w.id)
+        val form = "/strutture/$venue/camere/nuova"
         e2e.open(form)
 
         // Nothing written: two errors, the notice on top, the focus on the first wrong field, the answer is a 422.
@@ -231,12 +239,12 @@ class RoomsQaE2eTest {
             assertThat(page.getByLabel("Posti letto")).hasValue(beds)
             assertThat(page.getByLabel("Nome della camera")).hasValue("Camera 9")
         }
-        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)), "nothing was written")
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(venue)), "nothing was written")
 
         // A name that is taken, whatever its capitals and the spaces at the sides.
         assertEquals(422, e2e.save(form, "  CAMERA 1 ", "3").status())
         assertThat(page.locator("#nome-errore")).hasText("C’è già una camera con questo nome.")
-        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)))
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(venue)))
 
         // A name that says who sleeps there is refused with the sentence of the house, which does not repeat the word.
         for (name in listOf("Maschi", "camera delle femmine", "Bambine", "FEMMINILE", "Stanza dei maschietti", "Camera Bambina 2")) {
@@ -244,39 +252,42 @@ class RoomsQaE2eTest {
             assertThat(page.locator("#nome-errore")).hasText("Scrivi il nome della camera nella casa, non chi ci dorme.")
             assertThat(page.getByLabel("Nome della camera")).hasValue(name)
         }
-        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)), "nothing was written")
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(venue)), "nothing was written")
 
         // The names of the house go in, with the spaces at the sides taken away.
         for ((typed, saved) in listOf("Camera 3" to "Camera 3", "Stanza azzurra" to "Stanza azzurra", "Primo piano, a destra" to "Primo piano, a destra", "  Mansarda  " to "Mansarda", "C".repeat(50) to "C".repeat(50))) {
             assertEquals(303, e2e.save(form, typed, " 4 ").status(), typed)
-            assertThat(page).hasURL(e2e.url("/convivenza/${w.id}/camere"))
-            assertThat(page.locator("main")).containsText("Camera salvata.")
-            assertThat(page.locator("section[id^=camera-] h3").last()).hasText(saved)
+            assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+            assertThat(page.locator("#camere-struttura")).containsText("Camera salvata.")
+            assertThat(page.locator("#camere-struttura li").last()).containsText(saved)
             e2e.open(form)
         }
-        assertEquals(listOf("Camera 1", "Camera 3", "Stanza azzurra", "Primo piano, a destra", "Mansarda", "C".repeat(50)), e2e.dsl().select(ROOM.NAME).from(ROOM).where(ROOM.GATHERING_ID.eq(w.id)).orderBy(ROOM.ID).fetch(ROOM.NAME))
-        assertEquals(setOf<Short>(4), e2e.dsl().select(ROOM.BEDS).from(ROOM).where(ROOM.GATHERING_ID.eq(w.id)).and(ROOM.ID.gt(one)).fetch(ROOM.BEDS).toSet(), "the spaces around the beds are taken away")
+        assertEquals(listOf("Camera 1", "Camera 3", "Stanza azzurra", "Primo piano, a destra", "Mansarda", "C".repeat(50)), e2e.dsl().select(ROOM.NAME).from(ROOM).where(ROOM.VENUE_ID.eq(venue)).orderBy(ROOM.ID).fetch(ROOM.NAME))
+        assertEquals(setOf<Short>(4), e2e.dsl().select(ROOM.BEDS).from(ROOM).where(ROOM.VENUE_ID.eq(venue)).and(ROOM.ID.gt(one)).fetch(ROOM.BEDS).toSet(), "the spaces around the beds are taken away")
 
         // The form of a change: it keeps its own name with other capitals, refuses the name of another room, and a name that says who sleeps there.
         val three = e2e.dsl().select(ROOM.ID).from(ROOM).where(ROOM.NAME.eq("Camera 3")).fetchSingle(ROOM.ID)!!
-        val change = "/convivenza/${w.id}/camere/$three/modifica"
+        val change = "/strutture/$venue/camere/$three/modifica"
         e2e.open(change)
         assertEquals(303, e2e.save(change, "CAMERA 3", "5").status())
-        assertThat(page.locator("#camera-$three")).containsText("CAMERA 3")
+        assertThat(page.row("CAMERA 3")).isVisible()
         e2e.open(change)
         assertEquals(422, e2e.save(change, "camera 1", "5").status())
         assertThat(page.locator("#nome-errore")).hasText("C’è già una camera con questo nome.")
         assertEquals(422, e2e.save(change, "Camera delle ragazze", "5").status())
         assertThat(page.locator("#nome-errore")).hasText("Scrivi il nome della camera nella casa, non chi ci dorme.")
         assertEquals("CAMERA 3", e2e.dsl().select(ROOM.NAME).from(ROOM).where(ROOM.ID.eq(three)).fetchSingle(ROOM.NAME))
-        // The rooms stay in the order they were written, also the one that was renamed.
+        // The rooms stay in the order they were written, also the one that was renamed, in the page of the house and in the one of the gathering.
+        e2e.open("/strutture/$venue")
+        assertThat(page.locator("#camere-struttura li").first()).containsText("Camera 1")
+        assertThat(page.locator("#camere-struttura li").nth(1)).containsText("CAMERA 3")
         e2e.open("/convivenza/${w.id}/camere")
         assertThat(page.locator("section[id^=camera-] h3").first()).hasText("Camera 1")
         assertThat(page.locator("section[id^=camera-] h3").nth(1)).hasText("CAMERA 3")
     }
 
     @E2eTest
-    fun `t11 c05 a room with nobody is taken away at once, one with people has the dialog that can be cancelled with Escape, and a room already taken away by another teacher answers as it is`(e2e: E2e) {
+    fun `t11 c05 t20 c13 a room with nobody is taken away at once, one with people has the dialog that can be cancelled with Escape, and a room already taken away by another teacher answers as it is`(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering()
         val c = e2e.children(w)
@@ -284,39 +295,44 @@ class RoomsQaE2eTest {
         val full = e2e.room(w.id, "Camera 1", 4)
         e2e.put(c.luca, w.id, full)
         e2e.put(c.anna, w.id, full)
-        e2e.open("/convivenza/${w.id}/camere")
+        val venue = e2e.venueOf(w.id)
+        e2e.open("/strutture/$venue")
         page.mark()
 
         // A room where nobody sleeps: no dialog, the request goes at once.
-        assertEquals(0, page.locator("#camera-$empty").linkNamed("Togli Camera vuota").count(), "no dialog for it")
-        e2e.press(page.locator("#camera-$empty").buttonNamed("Togli Camera vuota"))
-        assertThat(page.locator("main")).containsText("Camera tolta.")
-        assertEquals(0, page.locator("#camera-$empty").count())
+        assertEquals(0, page.row("Camera vuota").linkNamed("Togli Camera vuota").count(), "no dialog for it")
+        e2e.press(page.row("Camera vuota").buttonNamed("Togli Camera vuota"))
+        assertThat(page.locator("#camere-struttura")).containsText("Camera tolta.")
+        assertThat(page.locator("#esito")).hasText("Camera tolta.")
+        assertEquals(0, page.row("Camera vuota").count())
+        assertEquals(0, e2e.dsl().fetchCount(ROOM, ROOM.ID.eq(empty)))
 
         // A room with people: the dialog says how many go back; Escape and «Annulla» leave everything as it was.
-        e2e.press(page.locator("#camera-$full").linkNamed("Togli Camera 1"))
+        e2e.press(page.row("Camera 1").linkNamed("Togli Camera 1"))
         page.waitForSettledDialog()
         assertThat(page.openDialog()).containsText("Le 2 persone che ci dormono tornano fra quelle senza camera.")
         page.keyboard().press("Escape")
         assertEquals(0, page.locator("dialog[open]").count(), "Escape closes the dialog")
         assertEquals(full, e2e.roomOf(c.luca))
-        e2e.press(page.locator("#camera-$full").linkNamed("Togli Camera 1"))
+        e2e.press(page.row("Camera 1").linkNamed("Togli Camera 1"))
         page.waitForSettledDialog()
         e2e.touch(page.openDialog().buttonNamed("Annulla"))
         assertEquals(0, page.locator("dialog[open]").count())
         assertEquals(full, e2e.roomOf(c.anna))
 
-        // Another teacher takes the room away while this page is open: the touch on «Togli la camera» answers as it is, with the same words, and nobody gets an error.
-        e2e.press(page.locator("#camera-$full").linkNamed("Togli Camera 1"))
+        // Another teacher takes the room away while this page is open: the touch on «Togli la camera» answers as it is, with its own words, and nobody gets an error.
+        e2e.press(page.row("Camera 1").linkNamed("Togli Camera 1"))
         page.waitForSettledDialog()
         e2e.dsl().deleteFrom(ROOM).where(ROOM.ID.eq(full)).execute()
         e2e.touch(page.openDialog().buttonNamed("Togli la camera"))
-        assertThat(page.locator("main")).containsText("Camera tolta.")
+        assertThat(page.locator("#camere-struttura")).containsText("La camera era già stata tolta.")
         assertEquals(0, page.locator("#messaggi [role=alert]").count(), "no error")
         assertEquals(null, e2e.roomOf(c.luca))
         assertEquals(null, e2e.roomOf(c.anna))
         assertTrue(page.sameDocument())
-        assertThat(page.locator("main h2:visible").first()).hasText("Nessuna camera")
+        assertThat(page.locator("#camere-struttura")).containsText("Nessuna camera.")
+        // In the page of the gathering there is nothing to print without rooms, and the people are among those without a room.
+        e2e.open("/convivenza/${w.id}/camere")
         assertEquals(0, page.getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName("Stampa le camere")).count(), "nothing to print without rooms")
     }
 
@@ -444,10 +460,11 @@ class RoomsQaE2eTest {
         assertThat(page.locator("main")).not().containsText("La convivenza è finita")
         e2e.metti("b${c.sara}", "Sara Neri", one)
         assertThat(page.locator("#camera-$one")).containsText("2 persone · 4 posti")
-        e2e.open("/convivenza/${w.id}/camere/nuova")
+        e2e.open("/strutture/${e2e.venueOf(w.id)}/camere/nuova")
         assertEquals(200, page.evaluate("fetch(location.href).then(r => r.status)"))
 
-        // The day after: the page has no actions and says so; every write by hand is refused with 409 and nothing changes (the same with htmx), and so are the pages of the forms.
+        // The day after: the page has no actions and says so; every change of who sleeps where by hand is refused with 409 and nothing changes (the same with htmx). The rooms of the house
+        // are not of the gathering: their forms are still open (TALITA-20), and the old addresses of the forms in the page of the gathering are not there any more.
         e2e.dsl().update(GATHERING).set(GATHERING.START_DATE, w.today.minusDays(3)).set(GATHERING.END_DATE, w.today.minusDays(1)).where(GATHERING.ID.eq(w.id)).execute()
         e2e.open("/convivenza/${w.id}/camere")
         val state = listOf(
@@ -461,17 +478,14 @@ class RoomsQaE2eTest {
             "$base/sposta" to mapOf("persona" to "b${c.luca}", "azione" to "togli"),
             "$base/sposta" to mapOf("persona" to "b${c.luca}", "azione" to "sposta", "camera" to two.toString()),
             "$base/maestri" to mapOf("camera" to two.toString(), "persona" to "m${w.meId}"),
-            "$base/nuova" to mapOf("name" to "Camera 9", "beds" to "3"),
-            "$base/$one/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "3"),
-            "$base/$one/togli" to mapOf("camera" to one.toString()),
-            "$base/$two/togli" to mapOf("camera" to two.toString()),
-            "$base/copia" to emptyMap(),
         )
         for ((path, fields) in writes) {
             assertEquals(409, page.byHand(token, "POST", path, fields), "POST $path")
             assertEquals(409, page.byHand(token, "POST", path, fields, htmx = true), "POST (htmx) $path")
         }
-        for (path in listOf("$base/nuova", "$base/$one/modifica", "$base/$one/togli")) assertEquals(409, page.byHand(token, "GET", path), "GET $path")
+        val house = "/strutture/${e2e.venueOf(w.id)}"
+        for (path in listOf("$house/camere/nuova", "$house/camere/$one/modifica", "$house/camere/$one/togli")) assertEquals(200, page.byHand(token, "GET", path), "GET $path stays open")
+        for (path in listOf("$base/nuova", "$base/$one/modifica", "$base/$one/togli")) assertEquals(404, page.byHand(token, "GET", path), "GET $path is not an address any more")
         assertEquals(200, page.byHand(token, "GET", base))
         assertEquals(200, page.byHand(token, "GET", "$base/stampa"))
         assertEquals(state, listOf(
@@ -481,10 +495,10 @@ class RoomsQaE2eTest {
         ), "nothing was written")
 
         // What the page shows: the people are there until the job deletes them, with no action, and the print is still there.
-        assertThat(page.locator("main")).containsText("La convivenza è finita: le camere non si cambiano più.")
+        assertThat(page.locator("main")).containsText("La convivenza è finita: chi dorme dove non si cambia più.")
         assertThat(page.locator("#camera-$one")).containsText("Luca Rossi")
         assertEquals(0, page.locator("select, details, form").count(), "no choice, no «Cambia», no form")
-        assertEquals(0, page.getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName(Pattern.compile("Modifica|Togli|Aggiungi"))).count(), "no link of an action")
+        assertEquals(0, page.getByRole(AriaRole.LINK, Page.GetByRoleOptions().setName(Pattern.compile("Modifica|Togli|Aggiungi|Apri la struttura"))).count(), "no link of an action")
         assertThat(page.locator("#riepilogo").linkNamed("Stampa le camere")).isVisible()
     }
 
@@ -503,7 +517,11 @@ class RoomsQaE2eTest {
         e2e.put(sara, w.id, two)
         e2e.putTeacher(w.id, w.paoloId, one)
         val base = "/convivenza/${w.id}/camere"
-        val pages = listOf(base, "$base/stampa", "$base/nuova", "$base/$one/modifica", "$base/$one/togli", "$base/scegli", "$base/sposta", "$base/maestri", "$base/copia", "/arrivi/$luca", "/convivenza/${w.id}")
+        val house = "/strutture/${e2e.venueOf(w.id)}"
+        val pages = listOf(
+            base, "$base/stampa", "$base/scegli", "$base/sposta", "$base/maestri", "/strutture", house, "$house/camere/nuova", "$house/camere/$one/modifica", "$house/camere/$one/togli",
+            "/arrivi/$luca", "/convivenza/${w.id}",
+        )
         val secrets = listOf("Camera 1", "Stanza azzurra", "Luca", "Sara", "Paolo", "Verdi", "Neri")
 
         // Every address of the rooms (and the card of the child in Arrivi that says the room): the 403 of the access, with nothing of the rooms in it.
@@ -530,10 +548,9 @@ class RoomsQaE2eTest {
             "$base/scegli" to mapOf("persona" to "b${luca}", "camera" to two.toString()),
             "$base/sposta" to mapOf("persona" to "b$luca", "azione" to "togli"),
             "$base/maestri" to mapOf("camera" to two.toString(), "persona" to "m${w.paoloId}"),
-            "$base/nuova" to mapOf("name" to "Camera 9", "beds" to "3"),
-            "$base/$one/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "3"),
-            "$base/$one/togli" to mapOf("camera" to one.toString()),
-            "$base/copia" to emptyMap(),
+            "$house/camere/nuova" to mapOf("name" to "Camera 9", "beds" to "3"),
+            "$house/camere/$one/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "3"),
+            "$house/camere/$one/togli" to mapOf("camera" to one.toString()),
         )
         for ((path, fields) in writes) {
             assertEquals(403, page.byHand(token, "POST", path, fields), "POST $path")
@@ -557,7 +574,7 @@ class RoomsQaE2eTest {
     // ---- The job at the end of the gathering (criterion 20) ------------------------------------------------------------------------------
 
     @E2eTest
-    fun `t11 c20 the day after the end the job deletes who sleeps where and nothing of the rooms, the pages say it with the date, and the rooms are copied empty the year after`(e2e: E2e) {
+    fun `t11 c20 t20 c17 c18 the day after the end the job deletes who sleeps where and nothing of the rooms, the pages say it with the date, and the gathering of the year after finds the same rooms empty`(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering(first = -3, last = -1, status = GatheringStatus.closed)
         val c = e2e.children(w)
@@ -573,7 +590,7 @@ class RoomsQaE2eTest {
 
         // The gathering ended yesterday and the job has not run yet: the people are still there, with no action.
         e2e.open("/convivenza/${w.id}/camere")
-        assertThat(page.locator("main")).containsText("La convivenza è finita: le camere non si cambiano più.")
+        assertThat(page.locator("main")).containsText("La convivenza è finita: chi dorme dove non si cambia più.")
         assertThat(page.locator("#camera-$one")).containsText("Luca Rossi")
         assertThat(page.locator("main")).not().containsText("cancellato")
         val logged = e2e.dsl().fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("rooms"))
@@ -585,7 +602,7 @@ class RoomsQaE2eTest {
         assertEquals(logged + 1, e2e.dsl().fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("rooms")))
         assertEquals(5, e2e.dsl().select(RETENTION_LOG.ROW_COUNT).from(RETENTION_LOG).where(RETENTION_LOG.RULE.eq("rooms")).orderBy(RETENTION_LOG.ID.desc()).limit(1).fetchSingle(RETENTION_LOG.ROW_COUNT))
         assertEquals(0, e2e.dsl().fetchCount(ROOM_CHILD) + e2e.dsl().fetchCount(ROOM_TEACHER))
-        assertEquals(listOf("Camera 1" to 4, "Camera 2" to 4, "Stanza azzurra" to 2), e2e.dsl().select(ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.GATHERING_ID.eq(w.id)).orderBy(ROOM.ID).fetch { it[ROOM.NAME]!! to it[ROOM.BEDS]!!.toInt() })
+        assertEquals(listOf("Camera 1" to 4, "Camera 2" to 4, "Stanza azzurra" to 2), e2e.dsl().select(ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.VENUE_ID.eq(e2e.venueOf(w.id))).orderBy(ROOM.ID).fetch { it[ROOM.NAME]!! to it[ROOM.BEDS]!!.toInt() })
         assertEquals(5, e2e.dsl().fetchCount(REGISTRATION, REGISTRATION.GATHERING_ID.eq(w.id)), "the registrations are still there")
         val again = e2e.application.getBean(RetentionJob::class.java).run()
         assertTrue(again.deleted.none { it.rule == "rooms" }, "a second run has nothing to delete")
@@ -594,7 +611,7 @@ class RoomsQaE2eTest {
         // The page of the rooms: the sentence with the date, the rooms with their beds and nobody in them, no print.
         e2e.open("/convivenza/${w.id}/camere")
         assertThat(page.locator("main")).containsText("Chi dormiva dove è stato cancellato il $deletedOn, alla fine della convivenza.")
-        assertThat(page.locator("main")).containsText("Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.")
+        assertThat(page.locator("main")).containsText("Le camere restano con la struttura, senza nomi: le trovi anche nella convivenza dell’anno dopo.")
         assertEquals("Riepilogo Camere 3 Posti letto 10", page.summary())
         assertThat(page.locator("section[id^=camera-] h3")).hasText(arrayOf("Camera 1", "Camera 2", "Stanza azzurra"))
         assertThat(page.locator("section[id^=camera-]")).hasText(arrayOf(Pattern.compile("Camera 1\\s*4 posti"), Pattern.compile("Camera 2\\s*4 posti"), Pattern.compile("Stanza azzurra\\s*2 posti")))
@@ -615,19 +632,17 @@ class RoomsQaE2eTest {
         e2e.open("/informativa")
         assertThat(page.locator("main")).containsText(Pattern.compile("Chi dorme in quale camera\\s*Alla fine della convivenza\\."))
 
-        // The year after: the rooms of the gathering that ended are offered, and copying them makes the same rooms, empty.
+        // The year after, in the same house: the rooms are there, empty, and there is nothing to copy.
         val next = e2e.dsl().insertInto(GATHERING)
             .set(GATHERING.PUBLIC_CODE, GatheringSupport.nextCode()).set(GATHERING.TITLE, "Convivenza di settembre 2028")
-            .set(GATHERING.START_DATE, w.today.plusDays(300)).set(GATHERING.END_DATE, w.today.plusDays(302)).set(GATHERING.VENUE_ID, talita.gathering.GatheringSupport(e2e.dsl(), e2e.application.getBean(java.time.Clock::class.java)).venueOf("Casa per ritiri di esempio")).set(GATHERING.FULL_FEE_CENTS, 6000)
+            .set(GATHERING.START_DATE, w.today.plusDays(300)).set(GATHERING.END_DATE, w.today.plusDays(302)).set(GATHERING.VENUE_ID, e2e.venueOf(w.id)).set(GATHERING.FULL_FEE_CENTS, 6000)
             .set(GATHERING.STATUS, GatheringStatus.draft).returningResult(GATHERING.ID).fetchSingle().value1()!!
         e2e.open("/convivenza/$next/camere")
-        assertThat(page.locator("main")).containsText("Nella «Convivenza di settembre 2027» c’erano 3 camere e 10 posti. Le copiamo senza le persone: poi le sistemi come vuoi.")
-        e2e.press(page.locator("main").buttonNamed("Copia le camere di Convivenza di settembre 2027"))
-        assertThat(page.locator("main")).containsText("Camere copiate.")
         assertThat(page.locator("section[id^=camera-] h3")).hasText(arrayOf("Camera 1", "Camera 2", "Stanza azzurra"))
         assertThat(page.locator("section[id^=camera-]").locator("text=Vuota")).hasCount(3)
+        assertEquals(0, page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(Pattern.compile("Copia le camere"))).count(), "nothing to copy")
         assertEquals(0, e2e.dsl().fetchCount(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(next)) + e2e.dsl().fetchCount(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(next)))
-        assertEquals(3, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)), "the rooms of the first gathering are still there")
+        assertEquals(3, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(e2e.venueOf(w.id))), "the rooms are the house's: three in all")
     }
 
     // ---- A page that was left open (criteria 6, 11) -----------------------------------------------------------------------------------------
@@ -831,30 +846,33 @@ class RoomsQaE2eTest {
         assertThat(plain.locator("main")).containsText("Luca Rossi è senza camera.")
         assertEquals(null, e2e.roomOf(c.luca))
 
-        // A room with people goes through the page of confirmation (with the words of the dialog), a room where nobody sleeps goes at once.
-        touch(plain.locator("#camera-$one").linkNamed("Togli Camera 1"))
+        // The rooms of the house: a room with people goes through the page of confirmation (with the words of the dialog), a room where nobody sleeps goes at once.
+        plain.navigate(e2e.url("/strutture/${e2e.venueOf(w.id)}"))
+        plain.settled()
+        touch(plain.row("Camera 1").linkNamed("Togli Camera 1"))
         assertThat(plain.locator("h1")).hasText("Togliere Camera 1?")
         assertThat(plain.locator("main")).containsText("La persona che ci dorme torna fra quelle senza camera.")
         touch(plain.locator("main").buttonNamed("Togli la camera"))
         assertThat(plain.locator("main")).containsText("Camera tolta.")
-        assertEquals(0, plain.locator("#camera-$one").count())
+        assertEquals(0, plain.row("Camera 1").count())
         assertEquals(null, e2e.roomOf(c.anna))
-        touch(plain.locator("#camera-$empty").buttonNamed("Togli Camera vuota"))
+        touch(plain.row("Camera vuota").buttonNamed("Togli Camera vuota"))
         assertThat(plain.locator("main")).containsText("Camera tolta.")
-        assertEquals(0, plain.locator("#camera-$empty").count())
-        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)))
+        assertEquals(0, plain.row("Camera vuota").count())
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(e2e.venueOf(w.id))))
+        assertTrue(empty > 0)
     }
 
     @E2eTest
-    fun `t11 c06 c23 after a choice the way to a form and back with the button of the browser shows the rooms as they are now`(e2e: E2e) {
+    fun `t11 c06 c23 after a choice the way to the page of the house and back with the button of the browser shows the rooms as they are now`(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering()
         val c = e2e.children(w)
         val one = e2e.room(w.id, "Camera 1", 4)
         e2e.open("/convivenza/${w.id}/camere")
         e2e.metti("b${c.davide}", "Davide Costa", one)
-        e2e.press(page.locator("#camera-$one").linkNamed("Modifica Camera 1"))
-        assertThat(page.locator("h1")).hasText("Modifica la camera")
+        e2e.press(page.locator("main").linkNamed("Apri la struttura"))
+        assertThat(page).hasURL(e2e.url("/strutture/${e2e.venueOf(w.id)}#camere"))
         page.goBack()
         assertThat(page.locator("h1")).hasText("Camere")
         assertThat(page.locator("#camera-$one")).containsText("1 persona · 4 posti")
@@ -881,7 +899,8 @@ class RoomsQaE2eTest {
         val base = "/convivenza/${w.id}/camere"
 
         // The pages that say who sleeps where have no cache: the shared phone of the teachers keeps nothing.
-        for (path in listOf(base, "$base/stampa", "$base/nuova", "$base/$one/modifica", "$base/$one/togli", "/arrivi/${c.luca}")) {
+        val house = "/strutture/${e2e.venueOf(w.id)}"
+        for (path in listOf(base, "$base/stampa", house, "$house/camere/nuova", "$house/camere/$one/modifica", "$house/camere/$one/togli", "/arrivi/${c.luca}")) {
             val cache = page.evaluate("path => fetch(path).then(r => r.headers.get('cache-control'))", path) as String?
             assertTrue(cache != null && cache.contains("no-store"), "$path is kept: cache-control «$cache»")
         }

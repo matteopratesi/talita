@@ -13,7 +13,7 @@ import talita.jooq.tables.references.ROOM_TEACHER
 import java.time.Clock
 
 /**
- * What the tests of the rooms have in common (TALITA-11): the gathering and its teachers of the tests of the arrivals (Marta Bianchi and Paolo Verdi are the custodians, Giulia Serra
+ * What the tests of the rooms have in common (TALITA-11, and TALITA-20: the rooms are the venue's, so every function that takes a gathering works on the venue of that gathering): the gathering and its teachers of the tests of the arrivals (Marta Bianchi and Paolo Verdi are the custodians, Giulia Serra
  * is a teacher who is not), the registrations made straight in the tables, and the rooms and who is in them written as the database holds them. Names, rooms and numbers are synthetic.
  */
 internal class RoomTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService, private val dsl: DSLContext, clock: Clock) {
@@ -30,45 +30,63 @@ internal class RoomTestKit(mockMvc: MockMvc, tokens: OneTimeTokenService, privat
         dsl.update(GATHERING).set(GATHERING.START_DATE, today.minusDays(days + 2)).set(GATHERING.END_DATE, today.minusDays(days)).where(GATHERING.ID.eq(gathering)).execute()
     }
 
-    /** Another gathering, closed (there is at most one that is not): the next one or the one before, with the same custodians as nobody. Its id. */
-    fun otherGathering(title: String = "La convivenza dopo", daysFromToday: Long = 60): Long =
-        checkin.kit.gatherings.make(title = title, start = checkin.today().plusDays(daysFromToday), status = GatheringStatus.closed)
+    /**
+     * Another gathering, closed (there is at most one that is not): the next one or the one before, with the same custodians as nobody. Its id. It is held in **another venue** (a new one), so its rooms are not those of the
+     * first gathering; with [venue] it is held in the venue that is given, to try two gatherings in the same house.
+     */
+    fun otherGathering(title: String = "La convivenza dopo", daysFromToday: Long = 60, venue: Long? = null): Long =
+        checkin.kit.gatherings.make(
+            title = title, start = checkin.today().plusDays(daysFromToday), status = GatheringStatus.closed,
+            venue = venue ?: checkin.kit.gatherings.makeVenue("Casa per ritiri di un altro posto, Località Esempio"),
+        )
+
+    /** The venue of a gathering (the rooms are its). */
+    fun venueOf(gathering: Long): Long = checkNotNull(checkin.kit.gatherings.venueIdOf(gathering)) { "the gathering has no venue" }
 
     // ---- The tables -------------------------------------------------------------------------------------------------------------------
 
-    /** A room made straight in the table: its id. */
-    fun room(gathering: Long, name: String, beds: Int): Long =
-        dsl.insertInto(ROOM).set(ROOM.GATHERING_ID, gathering).set(ROOM.NAME, name).set(ROOM.BEDS, beds.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
+    /** A room of the venue of the gathering, made straight in the table: its id. */
+    fun room(gathering: Long, name: String, beds: Int): Long = roomOfVenue(venueOf(gathering), name, beds)
 
-    /** The rooms of a gathering as name and beds, in the order they were written. */
-    fun roomsOf(gathering: Long): List<Pair<String, Int>> =
-        dsl.select(ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.GATHERING_ID.eq(gathering)).orderBy(ROOM.ID).fetch { it[ROOM.NAME]!! to it[ROOM.BEDS]!!.toInt() }
+    /** A room of a venue, made straight in the table: its id. */
+    fun roomOfVenue(venue: Long, name: String, beds: Int): Long =
+        dsl.insertInto(ROOM).set(ROOM.VENUE_ID, venue).set(ROOM.NAME, name).set(ROOM.BEDS, beds.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
 
-    /** The id of the room with this name in the gathering. */
-    fun roomId(gathering: Long, name: String): Long = dsl.select(ROOM.ID).from(ROOM).where(ROOM.GATHERING_ID.eq(gathering)).and(ROOM.NAME.eq(name)).fetchSingle(ROOM.ID)!!
+    /** The rooms of the venue of a gathering as name and beds, in the order they were written. */
+    fun roomsOf(gathering: Long): List<Pair<String, Int>> = roomsOfVenue(venueOf(gathering))
 
-    /** A child in a room, as the table keeps it. */
-    fun put(registration: Long, gathering: Long, room: Long) {
-        dsl.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.ROOM_ID, room).execute()
+    fun roomsOfVenue(venue: Long): List<Pair<String, Int>> =
+        dsl.select(ROOM.NAME, ROOM.BEDS).from(ROOM).where(ROOM.VENUE_ID.eq(venue)).orderBy(ROOM.ID).fetch { it[ROOM.NAME]!! to it[ROOM.BEDS]!!.toInt() }
+
+    /** The id of the room with this name in the venue of the gathering. */
+    fun roomId(gathering: Long, name: String): Long = dsl.select(ROOM.ID).from(ROOM).where(ROOM.VENUE_ID.eq(venueOf(gathering))).and(ROOM.NAME.eq(name)).fetchSingle(ROOM.ID)!!
+
+    /** A child in a room, as the table keeps it: with the venue of the room, or with the [venue] that is given (to try what the database refuses). */
+    fun put(registration: Long, gathering: Long, room: Long, venue: Long = venueOfRoom(room)) {
+        dsl.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, registration).set(ROOM_CHILD.GATHERING_ID, gathering).set(ROOM_CHILD.VENUE_ID, venue).set(ROOM_CHILD.ROOM_ID, room).execute()
     }
 
-    /** A teacher in a room, as the table keeps it. */
-    fun putTeacher(gathering: Long, account: Long, room: Long) {
-        dsl.insertInto(ROOM_TEACHER).set(ROOM_TEACHER.GATHERING_ID, gathering).set(ROOM_TEACHER.TEACHER_ACCOUNT_ID, account).set(ROOM_TEACHER.ROOM_ID, room).execute()
+    /** A teacher in a room, as the table keeps it: with the venue of the room, or with the [venue] that is given. */
+    fun putTeacher(gathering: Long, account: Long, room: Long, venue: Long = venueOfRoom(room)) {
+        dsl.insertInto(ROOM_TEACHER).set(ROOM_TEACHER.GATHERING_ID, gathering).set(ROOM_TEACHER.VENUE_ID, venue).set(ROOM_TEACHER.TEACHER_ACCOUNT_ID, account).set(ROOM_TEACHER.ROOM_ID, room).execute()
     }
+
+    /** The venue that a room is in. */
+    fun venueOfRoom(room: Long): Long = dsl.select(ROOM.VENUE_ID).from(ROOM).where(ROOM.ID.eq(room)).fetchSingle(ROOM.VENUE_ID)!!
 
     fun roomOfChild(registration: Long): Long? = dsl.select(ROOM_CHILD.ROOM_ID).from(ROOM_CHILD).where(ROOM_CHILD.REGISTRATION_ID.eq(registration)).fetchOne(ROOM_CHILD.ROOM_ID)
 
     fun roomOfTeacher(gathering: Long, account: Long): Long? =
         dsl.select(ROOM_TEACHER.ROOM_ID).from(ROOM_TEACHER).where(ROOM_TEACHER.GATHERING_ID.eq(gathering)).and(ROOM_TEACHER.TEACHER_ACCOUNT_ID.eq(account)).fetchOne(ROOM_TEACHER.ROOM_ID)
 
-    fun roomCount(gathering: Long): Int = dsl.fetchCount(ROOM, ROOM.GATHERING_ID.eq(gathering))
+    /** How many rooms the venue of the gathering has. */
+    fun roomCount(gathering: Long): Int = dsl.fetchCount(ROOM, ROOM.VENUE_ID.eq(venueOf(gathering)))
 
     fun peopleCount(gathering: Long): Int = dsl.fetchCount(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering)) + dsl.fetchCount(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering))
 
     /** What the tables of the rooms hold, in one value: if nothing was changed it is the same after the attempts. */
     fun state(): List<Any?> = listOf(
-        dsl.select(ROOM.ID, ROOM.GATHERING_ID, ROOM.NAME, ROOM.BEDS).from(ROOM).orderBy(ROOM.ID).fetch().map { it.intoList() },
+        dsl.select(ROOM.ID, ROOM.VENUE_ID, ROOM.NAME, ROOM.BEDS).from(ROOM).orderBy(ROOM.ID).fetch().map { it.intoList() },
         dsl.select(ROOM_CHILD.REGISTRATION_ID, ROOM_CHILD.ROOM_ID).from(ROOM_CHILD).orderBy(ROOM_CHILD.REGISTRATION_ID).fetch().map { it.intoList() },
         dsl.select(ROOM_TEACHER.TEACHER_ACCOUNT_ID, ROOM_TEACHER.ROOM_ID).from(ROOM_TEACHER).orderBy(ROOM_TEACHER.TEACHER_ACCOUNT_ID).fetch().map { it.intoList() },
     )

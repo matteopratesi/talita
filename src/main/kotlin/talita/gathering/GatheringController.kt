@@ -37,6 +37,7 @@ class GatheringController(
     private val arrivals: ArrivalUsage,
     private val names: PublicNames,
     private val venues: GatheringVenues,
+    private val assignments: RoomAssignments,
 ) {
 
     // ---- The section ---------------------------------------------------------------------------------------------------------
@@ -100,6 +101,7 @@ class GatheringController(
         @RequestParam(name = "startDate", required = false) startDate: String?,
         @RequestParam(name = "endDate", required = false) endDate: String?,
         @RequestParam(name = "venue", defaultValue = "") venue: String,
+        @RequestParam(name = "cambio", defaultValue = "") change: String,
         request: HttpServletRequest,
     ): ModelAndView {
         val gathering = found(id)
@@ -107,6 +109,8 @@ class GatheringController(
         val over = gathering.isOver(today)
         val chosen = venue.trim().take(MAX_ID_TEXT)
         val chosenId = chosen.toLongOrNull()?.takeIf { it > 0 }
+        // How many people the teacher saw leave their rooms (the dialog, or the page that stands in for it), if the venue changes: nothing in the request says it any other way.
+        val confirmed = change.trim().take(MAX_ID_TEXT).toIntOrNull()?.takeIf { it >= 0 }
 
         // After the end the dates do not change: a request made by hand that carries other dates is refused whole, nothing is saved.
         val changesDates = over && ((startDate != null && startDate.trim() != gathering.startDate.toString()) || (endDate != null && endDate.trim() != gathering.endDate.toString()))
@@ -126,8 +130,22 @@ class GatheringController(
             )
             return datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, chosenId, usage, arrivals)) {
+        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, chosenId, usage, arrivals, assignments, confirmed)) {
             DatesResult.Saved -> savedAndBack(request, id, "Titolo, date e luogo salvati.")
+            is DatesResult.VenueChanged -> {
+                // The people who were in the rooms of the venue before are without a room: the notice says how many.
+                Flash.put(request, Alert(SUCCESS, VenueChangeTexts.left(result.people, result.from), lead = "Titolo, date e luogo salvati."))
+                seeOther("/convivenza/$id")
+            }
+            is DatesResult.PeopleInRooms -> {
+                // The venue changes and people are in the rooms of the one before: the page that stands in for the dialog (with JavaScript the dialog came first, and this is a page that was old).
+                val chosenVenue = chosenId?.let(venues::find)
+                val page = VenueChangePage(
+                    id, titleCheck.value.take(MAX_ECHO), dates?.start?.toString(), dates?.end?.toString(), chosen, result.people,
+                    VenueChangeTexts.leave(result.people, result.from), chosenVenue?.let { VenueChangeTexts.parents(it.name, it.place) },
+                )
+                page("gathering/changeVenue", "Cambiare la struttura?", page)
+            }
             DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
             DatesResult.VenueNotFound -> {
                 // A venue that is not there any more (the page was old) or never was: the field says so, and the choices are those of now.
@@ -304,9 +322,13 @@ class GatheringController(
     ): DatesForm {
         val choices = listOf(VenueChoice("", "Scegli la struttura", chosen.isEmpty(), null)) +
             venues.all().map { VenueChoice(it.id.toString(), it.name, it.id.toString() == chosen, it.place) }
+        val current = gathering.venueId?.let(venues::find)
+        // The dialog of the change of venue is in the page when somebody is in a room of this venue: with JavaScript it comes before the form is sent.
+        val people = if (current == null) 0 else assignments.peopleIn(gathering.id)
         return DatesForm(
             gathering.id, title, start, end, choices, titleError, startError, endError, venueError, lockedDates(gathering), alert, withRegistrations,
-            currentPlace = gathering.venueId?.let(venues::find)?.place, currentVenue = gathering.venueId?.toString().orEmpty(),
+            currentPlace = current?.place, currentVenue = gathering.venueId?.toString().orEmpty(),
+            change = if (people > 0) VenueChange(people, VenueChangeTexts.leave(people, current?.name)) else null,
         )
     }
 

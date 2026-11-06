@@ -105,14 +105,15 @@ class GatheringPresenter(
     }
 
     /**
-     * The card «Camere» (TALITA-11, criterion 16): a row that leads to the page, with how many rooms, how many beds and how many children have no room, and never a name. While there
-     * are no rooms it says to write them; a gathering of one day with none has no card (a day needs no rooms), and neither has one that is over: after the last day rooms are not
-     * written any more, so the card would offer what the page refuses. A draft has no children, and after the end the people of the rooms are deleted: those two say only the house.
+     * The card «Camere» (TALITA-11, criterion 16; TALITA-20, criterion 15): a row that leads to the page, with how many rooms, how many beds and how many children have no room, and never a name. The
+     * rooms are the venue's: without a venue the card says to choose it, with a venue that has no rooms it says to write them (in the page of the venue). A gathering of one day with no rooms has no
+     * card (a day needs no rooms), and neither has one that is over. A draft has no children, and after the end the people of the rooms are deleted: those two say only the house.
      */
     private fun roomsCard(gathering: Gathering, over: Boolean, summary: RoomSummary): RoomsCard? {
         if (summary.rooms == 0 && (gathering.days.size == 1 || over)) return null
         val href = "/convivenza/${gathering.id}/camere"
-        if (summary.rooms == 0) return RoomsCard("Scrivi le camere", href, "Nessuna camera per ora.")
+        if (summary.venueId == null) return RoomsCard("Scegli la struttura", "/convivenza/${gathering.id}/date#struttura", "Le camere sono quelle della struttura.")
+        if (summary.rooms == 0) return RoomsCard("Scrivi le camere", "/strutture/${summary.venueId}#camere", "${summary.venueName} non ha ancora camere.")
         val rooms = if (summary.rooms == 1) "1 camera" else "${summary.rooms} camere"
         val beds = if (summary.beds == 1) "1 posto" else "${summary.beds} posti"
         val free = summary.unassigned?.let { if (it == 0) "Tutti hanno una camera" else if (it == 1) "1 bambino senza camera" else "$it bambini senza camera" }
@@ -146,9 +147,9 @@ class GatheringPresenter(
                 "Chi dorme dove",
                 if (roomsGone) "È stato cancellato il $roomsDate" else "Si cancella il $roomsDate",
                 if (roomsGone) {
-                    "${texts.capital(texts.roomsWhen)}. Le camere restano, senza nomi, per copiarle l’anno dopo."
+                    "${texts.capital(texts.roomsWhen)}. Le camere restano con la struttura, senza nomi."
                 } else {
-                    "${texts.capital(texts.roomsWhen)}, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano, senza nomi, per copiarle l’anno dopo."
+                    "${texts.capital(texts.roomsWhen)}, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano con la struttura, senza nomi."
                 },
             ).takeUnless { over && rooms == 0 },
             RetentionLine(

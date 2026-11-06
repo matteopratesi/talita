@@ -10,6 +10,9 @@ import talita.gathering.GatheringSupport
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.CHILD
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.ROOM
+import talita.jooq.tables.references.ROOM_CHILD
+import talita.jooq.tables.references.ROOM_TEACHER
 import talita.jooq.tables.references.TEACHER
 import talita.jooq.tables.references.TEACHER_INVITATION
 import talita.jooq.tables.references.VENUE
@@ -302,4 +305,138 @@ class VenueE2eTest {
         }
         assertEquals(1, e2e.dsl().fetchCount(GATHERING))
     }
+
+    // ---- The change of venue with people in the rooms (part 2, criterion 12) --------------------------------------------------------------------
+
+    /** The venue of a gathering. */
+    private fun E2e.venueOf(gathering: Long): Long = dsl().select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(gathering)).fetchSingle(GATHERING.VENUE_ID)!!
+
+    /** A gathering with a room in its venue, a child and a teacher in it (two people), and another venue to change to. */
+    private data class WithPeople(val gathering: Long, val from: Long, val to: Long, val room: Long)
+
+    private fun E2e.withPeopleInTheRooms(): WithPeople {
+        val w = arrivalsGathering()
+        val from = venueOf(w.id)
+        val to = gatherings().makeVenue("Casa per ritiri sul lago, Località Esempio", "Casa sul lago")
+        val room = dsl().insertInto(ROOM).set(ROOM.VENUE_ID, from).set(ROOM.NAME, "Camera 1").set(ROOM.BEDS, 4.toShort()).returningResult(ROOM.ID).fetchSingle().value1()!!
+        val luca = rows().register(w.id, someParent(), "Luca", "Rossi", LocalDate.of(2016, 4, 4))
+        dsl().insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, luca).set(ROOM_CHILD.GATHERING_ID, w.id).set(ROOM_CHILD.VENUE_ID, from).set(ROOM_CHILD.ROOM_ID, room).execute()
+        dsl().insertInto(ROOM_TEACHER).set(ROOM_TEACHER.GATHERING_ID, w.id).set(ROOM_TEACHER.VENUE_ID, from).set(ROOM_TEACHER.TEACHER_ACCOUNT_ID, w.paoloId).set(ROOM_TEACHER.ROOM_ID, room).execute()
+        return WithPeople(w.id, from, to, room)
+    }
+
+    private fun E2e.people(gathering: Long): Int = dsl().fetchCount(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering)) + dsl().fetchCount(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering))
+
+    private fun E2e.venueName(venue: Long): String = dsl().select(VENUE.NAME).from(VENUE).where(VENUE.ID.eq(venue)).fetchSingle(VENUE.NAME)!!
+
+    @E2eTest
+    fun `t20 c12 c23 with people in the rooms another venue opens the dialog that says how many leave, Annulla changes nothing, the button changes the venue and takes them out, with the notice`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.withPeopleInTheRooms()
+        e2e.open("/convivenza/${w.gathering}/date")
+        assertEquals(0, page.locator("dialog[open]").count(), "the dialog is in the page and closed")
+
+        // The same venue, saved: nothing to ask.
+        page.locator("#struttura").selectOption(w.from.toString())
+        page.getByLabel("Titolo").fill("Convivenza di settembre 2027 bis")
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertEquals(2, e2e.people(w.gathering), "the people stay")
+        e2e.open("/convivenza/${w.gathering}/date")
+
+        // Another venue: the form is not sent, the dialog says how many and what the parents will read.
+        page.locator("#struttura").selectOption(w.to.toString())
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        val dialog = page.openDialog()
+        assertThat(dialog.locator("h2")).hasText("Cambiare la struttura?")
+        assertThat(dialog).containsText("Le 2 persone nelle camere di ${e2e.venueName(w.from)} restano senza camera: le camere sono quelle della struttura.")
+        assertThat(dialog).containsText("Per i genitori nome e luogo diventano «Casa sul lago» e «Casa per ritiri sul lago, Località Esempio».")
+        assertEquals(w.from, e2e.venueOf(w.gathering), "nothing was sent")
+        assertAccessible(page, "dialog of the change of venue (${e2e.profile.label})")
+        page.setViewportSize(320, 800)
+        assertTrue(page.noHorizontalScroll(), "no sideways scrolling at 320 px with the dialog open")
+        page.setViewportSize(if (e2e.profile.isPhone) 360 else 1280, 800)
+
+        // Annulla: the dialog closes and nothing changes; Escape too.
+        e2e.touch(dialog.buttonNamed("Annulla"))
+        assertEquals(0, page.locator("dialog[open]").count())
+        assertEquals(w.from, e2e.venueOf(w.gathering))
+        assertEquals(2, e2e.people(w.gathering))
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        page.keyboard().press("Escape")
+        assertEquals(0, page.locator("dialog[open]").count(), "Escape closes the dialog")
+        assertEquals(2, e2e.people(w.gathering))
+
+        // The button: the venue changes, the people are without a room, the rooms of the venue before stay, and the detail says it.
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertThat(page.locator("main")).containsText("Le 2 persone nelle camere di ${e2e.venueName(w.from)} sono senza camera.")
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.people(w.gathering))
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(w.from)), "the rooms of the venue before stay with it")
+        assertTrue(page.noHorizontalScroll())
+        assertAccessible(page, "detail after the change of venue (${e2e.profile.label})")
+    }
+
+    @E2eTest
+    fun `t20 c12 c23 more people than the dialog said in the rooms of the venue ask again, with the page that stands in for the dialog, and nothing changes until the teacher confirms that number`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.withPeopleInTheRooms()
+        e2e.open("/convivenza/${w.gathering}/date")
+        page.locator("#struttura").selectOption(w.to.toString())
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        // Another teacher puts a third person in the room while the dialog is open: the server counts again and the confirmation, which said 2, is not enough.
+        val anna = e2e.rows().register(w.gathering, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2018, 1, 9))
+        e2e.dsl().insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, anna).set(ROOM_CHILD.GATHERING_ID, w.gathering).set(ROOM_CHILD.VENUE_ID, w.from).set(ROOM_CHILD.ROOM_ID, w.room).execute()
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+
+        assertThat(page.locator("h1")).hasText("Cambiare la struttura?")
+        assertThat(page.locator("main")).containsText("Le 3 persone nelle camere di ${e2e.venueName(w.from)} restano senza camera")
+        assertEquals(w.from, e2e.venueOf(w.gathering))
+        assertEquals(3, e2e.people(w.gathering))
+        assertPageFits(e2e, "page that stands in for the dialog")
+        e2e.touch(page.locator("main").buttonNamed("Cambia la struttura"))
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertThat(page.locator("main")).containsText("Le 3 persone nelle camere di ${e2e.venueName(w.from)} sono senza camera.")
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.people(w.gathering))
+    }
+
+    @E2eTest(profiles = [Profile.PHONE])
+    fun `t20 c12 without JavaScript another venue with people in the rooms answers with the page of the dialog, Annulla goes back to the form, and its button changes the venue`(e2e: E2e) {
+        val w = e2e.withPeopleInTheRooms()
+        val plain = e2e.newPage(customize = { setJavaScriptEnabled(false) })
+        fun touch(target: Locator) {
+            plain.settled()
+            e2e.touch(target)
+            plain.waitForLoadState()
+            plain.settled()
+        }
+        plain.navigate(e2e.url("/convivenza/${w.gathering}/date"))
+        plain.settled()
+        plain.locator("#struttura").selectOption(w.to.toString())
+        touch(plain.buttonNamed("Salva le modifiche"))
+
+        assertThat(plain.locator("h1")).hasText("Cambiare la struttura?")
+        assertThat(plain.locator("main")).containsText("Le 2 persone nelle camere di ${e2e.venueName(w.from)} restano senza camera: le camere sono quelle della struttura.")
+        assertThat(plain.locator("main")).containsText("Per i genitori nome e luogo diventano «Casa sul lago» e «Casa per ritiri sul lago, Località Esempio».")
+        assertEquals(w.from, e2e.venueOf(w.gathering))
+        assertTrue(plain.noHorizontalScroll())
+        touch(plain.locator("main").linkNamed("Annulla"))
+        assertThat(plain).hasURL(e2e.url("/convivenza/${w.gathering}/date"))
+        assertEquals(2, e2e.people(w.gathering))
+
+        plain.locator("#struttura").selectOption(w.to.toString())
+        touch(plain.buttonNamed("Salva le modifiche"))
+        touch(plain.locator("main").buttonNamed("Cambia la struttura"))
+        assertThat(plain.locator("main")).containsText("Le 2 persone nelle camere di ${e2e.venueName(w.from)} sono senza camera.")
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.people(w.gathering))
+    }
 }
+

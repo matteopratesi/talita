@@ -64,12 +64,12 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     fun keptAs(reason: KeepReason): String = if (reason == KeepReason.REGISTER) "come registro della convivenza" else "come prova dell’affidamento"
 
     /**
-     * What «Camere» says once who slept where is deleted (TALITA-11, criterion 20): when and why, and that the rooms stay for the copy of the year after. The first sentence
+     * What «Camere» says once who slept where is deleted (TALITA-11, criterion 20; TALITA-20, criterion 17): when and why, and that the rooms stay with the venue, without names, for the gathering of the year after. The first sentence
      * is the notice, the second says what is left.
      */
     fun roomsDeleted(lastDay: LocalDate): RoomsDeleted = RoomsDeleted(
         "Chi dormiva dove è stato cancellato il ${GatheringFormat.date(policy.roomsDeletionDate(lastDay))}, $roomsWhen.",
-        "Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.",
+        "Le camere restano con la struttura, senza nomi: le trovi anche nella convivenza dell’anno dopo.",
     )
 
     /** The line of the card «Camera» of a child in Arrivi once who slept where is deleted. */
@@ -103,7 +103,7 @@ class RetentionTexts(private val policy: RetentionPolicy) {
         TimeRow("Segnalazioni su allergie, intolleranze e farmaci", "${capital(notes)} dopo la fine della convivenza. Le puoi togliere prima, quando vuoi."),
         TimeRow(
             "Chi dorme in quale camera",
-            "${capital(roomsWhen)}. Le camere restano, senza nomi, per la convivenza dell’anno dopo.",
+            "${capital(roomsWhen)}. Le camere restano con la struttura, senza nomi, per la convivenza dell’anno dopo.",
         ),
         TimeRow(
             "Iscrizione, accettazione dell’affidamento, presenze, pagamenti e registro delle letture",

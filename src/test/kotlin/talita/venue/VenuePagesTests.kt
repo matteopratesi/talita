@@ -26,6 +26,7 @@ import talita.gathering.title
 import talita.gathering.valueOf
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.CHILD
+import talita.jooq.tables.references.ROOM
 import talita.jooq.tables.references.VENUE
 import talita.teacher.Person
 import talita.ui.Alert
@@ -87,7 +88,7 @@ class VenuePagesTests(
         assertEquals("Strutture · Talità", title(html))
         assertTrue(words.contains("Le case dove si fa la convivenza. Le vedono solo i maestri."), words)
         assertTrue(words.contains("Nessuna struttura"), words)
-        assertTrue(words.contains("Scrivi la casa dove fai la convivenza. Poi la scegli nella convivenza."), words)
+        assertTrue(words.contains("Scrivi la casa dove fai la convivenza, con le sue camere. Poi la scegli nella convivenza."), words)
         assertTrue(Regex("""<a href="/strutture/nuova"[^>]*>[\s\S]*?Nuova struttura</a>""").containsMatchIn(html))
         assertTrue(Regex("""<a href="/convivenza"[^>]*>[\s\S]*?Torna alla convivenza</a>""").containsMatchIn(html))
         assertFalse(html.contains("""type="search""""), "no search")
@@ -104,13 +105,16 @@ class VenuePagesTests(
         val end = gatherings.today().minusDays(300)
         gatherings.make(status = GatheringStatus.draft, venue = wood)
         gatherings.make(title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = GatheringStatus.closed, venue = wood)
+        dsl.insertInto(ROOM).set(ROOM.VENUE_ID, wood).set(ROOM.NAME, "Camera azzurra").set(ROOM.BEDS, 4.toShort()).execute()
+        dsl.insertInto(ROOM).set(ROOM.VENUE_ID, wood).set(ROOM.NAME, "Camera 2").set(ROOM.BEDS, 2.toShort()).execute()
 
         val html = browser.get("/strutture").body()
         val words = text(html)
 
         assertTrue(words.indexOf("casa del bosco") < words.indexOf("Casa sul lago"), "by name, whatever the capitals: $words")
-        assertTrue(words.contains("casa del bosco Casa per ritiri del bosco, Località Esempio Usata da 2 convivenze"), words)
-        assertTrue(words.contains("Casa sul lago Casa per ritiri sul lago, Località Esempio Nessuna convivenza la usa"), words)
+        // The rooms and the beds of each venue, in words, and «Nessuna camera» for a venue that has none (TALITA-20, criterion 1).
+        assertTrue(words.contains("casa del bosco Casa per ritiri del bosco, Località Esempio 2 camere, 6 posti Usata da 2 convivenze"), words)
+        assertTrue(words.contains("Casa sul lago Casa per ritiri sul lago, Località Esempio Nessuna camera Nessuna convivenza la usa"), words)
         assertTrue(Regex("""<a href="/strutture/$wood"[^>]*>[\s\S]*?casa del bosco""").containsMatchIn(html), "the whole row is the link")
         assertTrue(Regex("""<a href="/strutture/$lake"[^>]*>[\s\S]*?Casa sul lago""").containsMatchIn(html))
         assertFalse(words.contains("Nessuna struttura"), "no empty state")
@@ -357,7 +361,9 @@ class VenuePagesTests(
         // Two gatherings say «2 convivenze».
         val end = gatherings.today().minusDays(300)
         gatherings.make(title = "Convivenza di settembre 2026", start = end.minusDays(2), end = end, status = GatheringStatus.closed, venue = wood)
-        assertTrue(text(browser.get("/strutture/$wood").body()).contains("Usata da 2 convivenze. Questa struttura è usata da 2 convivenze, quindi non si toglie."))
+        val twice = text(browser.get("/strutture/$wood").body())
+        assertTrue(twice.contains("Usata da 2 convivenze."), twice)
+        assertTrue(twice.contains("Questa struttura è usata da 2 convivenze, quindi non si toglie."), twice)
     }
 
     // ---- Who can open them (criterion 7) ---------------------------------------------------------------------------------------

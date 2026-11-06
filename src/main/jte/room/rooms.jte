@@ -14,7 +14,7 @@
   </div>
   @template.components.pageHead(title = "Camere", lead = page.getLead())
   @if(page.getIntro())
-    <p class="mb-4">Metti ogni bambino e ogni maestro nella sua camera. Le camere le vedono solo i maestri.</p>
+    <p class="mb-4">Metti ogni bambino e ogni maestro nella sua camera. Le camere sono quelle della struttura e le vedono solo i maestri.</p>
   @endif
   <p id="esito" role="status" class="sr-only"></p>
   @template.room.roomsBlock(block = page.getBlock(), csrf = csrf)

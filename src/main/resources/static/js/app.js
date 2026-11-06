@@ -22,6 +22,7 @@
 // - the form that sends a file (`data-carica`, the menu of the gathering) is not taken by htmx: the browser sends it and shows its own progress; while the file
 //   leaves, the form takes the class that htmx gives to a request on its way (so the button says «Caricamento…» and the page dims, as for every other request)
 //   and its button is disabled, so a second tap does not send the file twice;
+// - the form that changes the venue of a gathering with people in its rooms opens its dialog before it is sent (`data-valore-struttura`, `data-conferma-cambio`: a few lines, no value is read or kept);
 // - after a change of page the focus goes to the heading, so a screen reader announces it; if the address has a fragment
 //   (`/convivenza/12/date#luogo`, a link of «Prima di aprire le iscrizioni») it goes to the element with that id, the field to fix.
 // The loading indicator is CSS on the `htmx-request` class: it needs no code, except for one detail
@@ -313,6 +314,40 @@
     },
     true,
   );
+
+  // ---- Changing the venue of a gathering that has people in its rooms (TALITA-20) ----
+
+  // The form «Modifica titolo, date e luogo» (`data-valore-struttura`: the venue of now) has the dialog `cambia-struttura` when somebody is in a room: if another venue is chosen the form is not sent, the dialog says
+  // the name and the place of the new one (from the option) and its button puts the number of people in the field `cambio` and sends the form. The listener is on the capture phase, before the one of htmx.
+  // Without JavaScript the server answers with a page that has the same words.
+  document.addEventListener(
+    "submit",
+    (event) => {
+      const form = event.target;
+      const dialog = form && form.hasAttribute && form.hasAttribute("data-valore-struttura") ? document.getElementById("cambia-struttura") : null;
+      const choice = form && form.elements ? form.elements.venue : null;
+      if (!dialog || !choice || typeof dialog.showModal !== "function" || form.elements.cambio.value !== "" || choice.value === form.getAttribute("data-valore-struttura")) return;
+      const option = choice.selectedOptions[0];
+      const parents = dialog.querySelector("[data-nuova]");
+      parents.hidden = !option.value;
+      parents.querySelector("[data-nuovo-nome]").textContent = option.textContent.trim();
+      parents.querySelector("[data-nuovo-luogo]").textContent = option.getAttribute("data-luogo") || "";
+      event.preventDefault();
+      event.stopPropagation();
+      dialog.showModal();
+      dialog.scrollTop = 0;
+    },
+    true,
+  );
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-conferma-cambio]");
+    if (!button) return;
+    const form = document.getElementById("modifica-date");
+    form.elements.cambio.value = button.getAttribute("data-conferma-cambio");
+    button.closest("dialog").close();
+    form.requestSubmit();
+  });
 
   // ---- The search by name in the list of the arrivals ----
 

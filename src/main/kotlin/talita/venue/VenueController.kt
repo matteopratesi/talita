@@ -13,6 +13,7 @@ import talita.account.seeOther
 import talita.gathering.GatheringChecks
 import talita.gathering.GatheringReader
 import talita.gathering.PublicNames
+import talita.room.Rooms
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.SUCCESS
@@ -38,6 +39,7 @@ class VenueController(
     private val presenter: VenuePresenter,
     private val names: PublicNames,
     private val gatherings: GatheringReader,
+    private val rooms: Rooms,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
@@ -88,7 +90,7 @@ class VenueController(
     @GetMapping("/strutture/{id:[0-9]{1,18}}")
     fun detail(@PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val venue = found(id)
-        return page("venue/detail", venue.name, presenter.page(venue, venues.usage(id), Flash.take(request)))
+        return page("venue/detail", venue.name, presenter.page(venue, venues.usage(id), Flash.take(request), RoomFlash.take(request)))
     }
 
     @GetMapping("/strutture/{id:[0-9]{1,18}}/modifica")
@@ -132,7 +134,7 @@ class VenueController(
     fun removalPage(@PathVariable id: Long): ModelAndView {
         val venue = found(id)
         if (venues.usage(id) > 0) return seeOther("/strutture/$id")
-        val model = presenter.removalDialog(venue)
+        val model = presenter.removalDialog(venue, rooms.rooms(id).size)
         return ModelAndView("pages/confirmAction", mapOf("shell" to shells.shell(page = model.title, current = Section.CONVIVENZA), "page" to model))
     }
 

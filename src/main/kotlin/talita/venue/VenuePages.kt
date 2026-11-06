@@ -13,7 +13,7 @@ import talita.ui.ConfirmModel
 object VenueTexts {
     const val LIST_LEAD = "Le case dove si fa la convivenza. Le vedono solo i maestri."
     const val EMPTY_TITLE = "Nessuna struttura"
-    const val EMPTY_TEXT = "Scrivi la casa dove fai la convivenza. Poi la scegli nella convivenza."
+    const val EMPTY_TEXT = "Scrivi la casa dove fai la convivenza, con le sue camere. Poi la scegli nella convivenza."
     const val NEW_LEAD = "Per cominciare bastano il nome e il luogo. Il resto lo aggiungi dopo."
     const val READ_BY_PARENTS = "Nome e luogo li leggono i genitori, nella pagina informativa e nell’anteprima del link."
     const val NEW_TITLE = "Nuova struttura"
@@ -78,13 +78,15 @@ data class VenueForm(
 data class VenueCard(val name: String, val place: String, val used: String)
 
 /**
- * The page of a venue: its name as the title, the cards, and what is at the bottom: «Togli la struttura» (a dialog) for a venue that no gathering uses, or the sentence that says why it is not taken away.
+ * The page of a venue: its name as the title, the cards (the name and the place, the rooms) and what is at the bottom: «Togli la struttura» (a dialog) for a venue that no gathering uses, or the sentence that says
+ * why it is not taken away.
  */
 data class VenuePage(
     val id: Long,
     val name: String,
     val alert: Alert?,
     val card: VenueCard,
+    val rooms: VenueRoomsBlock,
     val removal: ConfirmModel?,
     val notRemovable: String?,
 )
@@ -93,9 +95,10 @@ data class VenuePage(
 
 /** Turns a venue into what its pages show: every sentence written here is the one of the design. The rules (what is in use, what is taken away) come from [Venues]. */
 @Component
-class VenuePresenter {
+class VenuePresenter(private val roomsPresenter: VenueRoomsPresenter) {
 
-    fun row(summary: VenueSummary): VenueRow = VenueRow("/strutture/${summary.venue.id}", summary.venue.name, summary.venue.place, listOf(VenueTexts.used(summary.gatherings)))
+    fun row(summary: VenueSummary): VenueRow =
+        VenueRow("/strutture/${summary.venue.id}", summary.venue.name, summary.venue.place, listOf(VenueRoomTexts.inTheList(summary.rooms, summary.beds), VenueTexts.used(summary.gatherings)))
 
     fun list(summaries: List<VenueSummary>, alert: Alert?): VenueListPage = VenueListPage(alert, summaries.map(::row))
 
@@ -115,11 +118,11 @@ class VenuePresenter {
         "/strutture/${venue.id}/modifica", "/strutture/${venue.id}", "Torna alla struttura",
     )
 
-    /** The dialog «Togliere {nome}?», or the page that stands in for it without JavaScript: the same words. A form that goes to the venue and back to the list. */
-    fun removalDialog(venue: Venue): ConfirmModel = ConfirmModel(
+    /** The dialog «Togliere {nome}?», or the page that stands in for it without JavaScript: the same words. A form that goes to the venue and back to the list. [rooms] are the rooms that go with it. */
+    fun removalDialog(venue: Venue, rooms: Int): ConfirmModel = ConfirmModel(
         id = "togli-struttura",
         title = "Togliere ${venue.name}?",
-        text = VenueTexts.removalText(venue.name, hangsFrom(venue)),
+        text = VenueTexts.removalText(venue.name, VenueRoomTexts.hangsFrom(rooms)),
         confirmLabel = "Togli la struttura",
         busyLabel = "Rimozione…",
         action = "/strutture/${venue.id}/togli",
@@ -130,12 +133,13 @@ class VenuePresenter {
         danger = true,
     )
 
-    /** What goes with the venue when it is taken away: nothing yet (the rooms and the forms of the venue are in the next steps of TALITA-20). */
-    private fun hangsFrom(venue: Venue): String? = null
-
-    fun page(venue: Venue, gatherings: Int, alert: Alert?): VenuePage = VenuePage(
-        venue.id, venue.name, alert, VenueCard(venue.name, venue.place, VenueTexts.used(gatherings) + "."),
-        removal = if (gatherings == 0) removalDialog(venue) else null,
-        notRemovable = if (gatherings > 0) VenueTexts.notRemovable(gatherings) else null,
-    )
+    /** The page of the venue: [alert] is the notice of the page, [roomsAlert] the one of the block of the rooms (an action on a room that was left for this page). */
+    fun page(venue: Venue, gatherings: Int, alert: Alert?, roomsAlert: Alert? = null): VenuePage {
+        val rooms = roomsPresenter.block(venue.id, roomsAlert)
+        return VenuePage(
+            venue.id, venue.name, alert, VenueCard(venue.name, venue.place, VenueTexts.used(gatherings) + "."), rooms,
+            removal = if (gatherings == 0) removalDialog(venue, rooms.rows.size) else null,
+            notRemovable = if (gatherings > 0) VenueTexts.notRemovable(gatherings) else null,
+        )
+    }
 }

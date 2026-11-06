@@ -23,6 +23,7 @@ import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.HEALTH_NOTE
 import talita.jooq.tables.references.REGISTRATION
+import talita.jooq.tables.references.ROOM
 import talita.jooq.tables.references.RETENTION_LOG
 import talita.registration.HealthNotes
 import talita.registration.Notes
@@ -45,7 +46,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Who sleeps where goes at the end of the gathering (criterion 20, decision of Matteo on question 4: the rooms are tied to the house, so they are emptied when the gathering ends): the rule
+ * Who sleeps where goes at the end of the gathering (criterion 20, decision of Matteo on question 4: the rooms are tied to the house, so they are emptied when the gathering ends; TALITA-20, criteria 17 and 18: the rooms
+ * stay with the venue, and the gathering of the year after in the same house finds them empty): the rule
  * of the job from the day after the last day, with the register and the log of numbers, the rooms that stay empty, what the pages say before and after, the words that follow the policy, and
  * the deletion of the data of a child that takes it out of every room. The database is real, the clock is fixed at a moment of Rome in the tests of the job. Names and dates are synthetic.
  */
@@ -72,7 +74,10 @@ class RoomRetentionTests(
         retention.removeAccountsWithoutRole()
     }
 
-    /** The «Convivenza di settembre 2027» with three rooms, three children and two teachers in them, and the same on the year after (not finished at the dates of the tests). */
+    /**
+     * The «Convivenza di settembre 2027» with two rooms (the house's), three children and two teachers in them, and the year after in the same house (not finished at the dates of the tests), with its own people in
+     * the same rooms: a room is of the venue, who sleeps in it is of the gathering.
+     */
     private inner class Old {
         val gathering = retention.september2027()
         val m = retention.teacher("maestro-m", first = "Marta", last = "Bianchi")
@@ -84,7 +89,7 @@ class RoomRetentionTests(
         val anna = retention.registration(gathering, parent, "Anna", "Rossi", birth = LocalDate.of(2018, 1, 9))
         val nicolo = retention.paper(gathering, m, "Nicolò", "Ferri")
         val next = retention.september2028()
-        val nextRoom = kit.room(next, "Camera 1", 4)
+        val nextRoom = one
         val sara = retention.registration(next, parent, "Sara", "Neri")
 
         init {
@@ -127,7 +132,8 @@ class RoomRetentionTests(
         assertTrue(report.succeeded, "${report.failed}")
         assertEquals(listOf(Deleted("rooms", 5)), report.deleted.filter { it.rule == "rooms" })
         assertEquals(0, kit.peopleCount(w.gathering))
-        assertEquals(listOf("Camera 1" to 4, "Stanza azzurra" to 2), kit.roomsOf(w.gathering), "the rooms stay, with their name and beds, for the copy of the year after")
+        assertEquals(listOf("Camera 1" to 4, "Stanza azzurra" to 2), kit.roomsOf(w.gathering), "the rooms stay with the venue, with their name and beds, for the year after")
+        assertEquals(kit.roomsOf(w.gathering), kit.roomsOf(w.next), "and the gathering of the year after has the same rooms")
         assertEquals(2, kit.peopleCount(w.next), "the gathering of the year after is not finished: its people stay")
         assertEquals(4, retention.registrations(), "the registrations stay: their date is another one")
         assertEquals(1, retention.notes(), "the notes go a month after the end")
@@ -152,6 +158,28 @@ class RoomRetentionTests(
         assertEquals(listOf("Retention: rule rooms deleted 5 rows."), lines)
         for (word in listOf("Luca", "Anna", "Nicolò", "Marta", "Paolo", "Camera 1", "Stanza azzurra", "example.org")) assertFalse(output.all.contains(word), "the log says $word")
         assertEquals(1, dsl.fetchCount(RETENTION_LOG, RETENTION_LOG.RULE.eq("rooms")))
+    }
+
+    @Test
+    fun `t20 c17 c18 the job leaves the rooms with the venue, and the gathering of the year after in the same house finds them empty, with nothing copied`() {
+        val w = Old()
+        val venue = kit.venueOf(w.gathering)
+        assertEquals(venue, kit.venueOf(w.next), "the two gatherings are held in the same house")
+
+        job.run(retention.clockAt("2027-09-20T04:15"))
+
+        // The rooms are the house's: the job did not touch them, whatever it deleted of who slept in them.
+        assertEquals(listOf("Camera 1" to 4, "Stanza azzurra" to 2), kit.roomsOfVenue(venue))
+        val ids = dsl.select(ROOM.ID).from(ROOM).where(ROOM.VENUE_ID.eq(venue)).orderBy(ROOM.ID).fetch(ROOM.ID)
+        assertEquals(listOf(w.one, w.two), ids, "the same rooms, with the same ids")
+        // The gathering of 2029, in the same house, finds them with nobody in them, and no room was written for it.
+        val year = retention.gatherings.make(title = "Convivenza di settembre 2029", start = LocalDate.of(2029, 9, 14), end = LocalDate.of(2029, 9, 16), status = GatheringStatus.closed, venue = venue)
+        assertEquals(kit.roomsOfVenue(venue), kit.roomsOf(year))
+        assertEquals(0, kit.peopleCount(year))
+        assertEquals(2, dsl.fetchCount(ROOM, ROOM.VENUE_ID.eq(venue)), "nothing was copied")
+        // The one of 2028, not finished, keeps its people in the same rooms: who sleeps where is of the gathering.
+        assertEquals(2, kit.peopleCount(w.next))
+        assertEquals(w.one, kit.roomOfChild(w.sara))
     }
 
     @Test
@@ -184,7 +212,7 @@ class RoomRetentionTests(
         val (setup, room, luca) = recent(1)
         val base = "/convivenza/${setup.id}/camere"
         val before = words(setup.marta.get(base).body())
-        assertTrue(before.contains("La convivenza è finita: le camere non si cambiano più.") && before.contains("Luca Rossi"), "before the job: the people, with no actions")
+        assertTrue(before.contains("La convivenza è finita: chi dorme dove non si cambia più.") && before.contains("Luca Rossi"), "before the job: the people, with no actions")
 
         job.run()
 
@@ -192,7 +220,7 @@ class RoomRetentionTests(
         val text = words(html)
         val date = GatheringFormat.date(policy.roomsDeletionDate(LocalDate.now(clock).minusDays(1)))
         assertTrue(text.contains("Chi dormiva dove è stato cancellato il $date, alla fine della convivenza."), text)
-        assertTrue(text.contains("Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo."), text)
+        assertTrue(text.contains("Le camere restano con la struttura, senza nomi: le trovi anche nella convivenza dell’anno dopo."), text)
         val summary = words(Regex("""<section id="riepilogo".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value)
         assertTrue(summary.contains("Camere 1 Posti letto 4") && !summary.contains("Persone in camera") && !summary.contains("Stampa"), summary)
         assertTrue(text.contains("Camera 1 4 posti") && !text.contains("Vuota"), text)
@@ -219,12 +247,12 @@ class RoomRetentionTests(
         val html = setup.marta.get("/convivenza/${setup.id}").body()
         val card = words(Regex("""<section[^>]*aria-labelledby="conservazione".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value)
 
-        assertTrue(card.contains("Chi dorme dove Si cancella il $date Alla fine della convivenza, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano, senza nomi, per copiarle l’anno dopo."), card)
+        assertTrue(card.contains("Chi dorme dove Si cancella il $date Alla fine della convivenza, quando le camere si svuotano: serve durante l’evento, anche se di notte succede qualcosa. Le camere restano con la struttura, senza nomi."), card)
         assertTrue(card.indexOf("Segnalazioni") < card.indexOf("Chi dorme dove") && card.indexOf("Chi dorme dove") < card.indexOf("Iscrizioni, manleve e registro arrivi"), "between the notes and the registrations")
         // The same day as the end of the gathering plus one: from the date it is said in the past, whatever the job did.
         kit.endedDaysAgo(setup.id, 1)
         val done = words(Regex("""<section[^>]*aria-labelledby="conservazione".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(setup.marta.get("/convivenza/${setup.id}").body())!!.value)
-        assertTrue(done.contains("Chi dorme dove È stato cancellato il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine della convivenza. Le camere restano, senza nomi, per copiarle l’anno dopo."), done)
+        assertTrue(done.contains("Chi dorme dove È stato cancellato il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine della convivenza. Le camere restano con la struttura, senza nomi."), done)
         assertFalse(done.contains("Si cancella il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine"), "in the past tense")
     }
 
@@ -235,7 +263,7 @@ class RoomRetentionTests(
 
         // Going on and with no rooms yet: the teachers can still write them, and the line says what will happen to who sleeps where.
         assertTrue(card().contains("Chi dorme dove Si cancella il"), card())
-        // Over and with no rooms: nothing was written, so nothing was deleted and no room stays for the copy. The other lines are as they were.
+        // Over and with no rooms: nothing was written, so nothing was deleted and no room stays with the venue. The other lines are as they were.
         kit.endedDaysAgo(setup.id, 1)
         val over = card()
         assertFalse(over.contains("Chi dorme dove") || over.contains("Le camere restano") || over.contains("cancellato il"), over)
@@ -243,7 +271,7 @@ class RoomRetentionTests(
         assertTrue(over.indexOf("Segnalazioni") < over.indexOf("Iscrizioni, manleve e registro arrivi") && over.indexOf("Iscrizioni, manleve e registro arrivi") < over.indexOf("Su carta"), "the order of the others")
         // With a room, even empty as the job leaves it, the line is there and says what happened.
         kit.room(setup.id, "Camera 1", 4)
-        assertTrue(card().contains("Chi dorme dove È stato cancellato il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine della convivenza. Le camere restano, senza nomi, per copiarle l’anno dopo."), card())
+        assertTrue(card().contains("Chi dorme dove È stato cancellato il ${GatheringFormat.date(LocalDate.now(clock))} Alla fine della convivenza. Le camere restano con la struttura, senza nomi."), card())
     }
 
     @Test
@@ -256,12 +284,12 @@ class RoomRetentionTests(
         assertEquals("un mese dopo la fine della convivenza", month.roomsWhen)
         assertEquals("Chi dormiva dove è stato cancellato il 20 settembre 2027, alla fine della convivenza.", standard.roomsDeleted(end).main)
         assertEquals("Chi dormiva dove è stato cancellato il 20 ottobre 2027, un mese dopo la fine della convivenza.", month.roomsDeleted(end).main)
-        assertEquals("Le camere restano, senza nomi: le puoi copiare nella convivenza dell’anno dopo.", standard.roomsDeleted(end).second)
+        assertEquals("Le camere restano con la struttura, senza nomi: le trovi anche nella convivenza dell’anno dopo.", standard.roomsDeleted(end).second)
         assertEquals("Chi dormiva dove è stato cancellato il 20 settembre 2027.", standard.roomsDeletedOn(end))
         assertEquals("Chi dormiva dove è stato cancellato il 20 ottobre 2027.", month.roomsDeletedOn(end))
         // The row of the complete notice has the words of the policy too.
         val row = standard.completeRows().single { it.what == "Chi dorme in quale camera" }
-        assertEquals("Alla fine della convivenza. Le camere restano, senza nomi, per la convivenza dell’anno dopo.", row.time)
+        assertEquals("Alla fine della convivenza. Le camere restano con la struttura, senza nomi, per la convivenza dell’anno dopo.", row.time)
         assertTrue(month.completeRows().single { it.what == "Chi dorme in quale camera" }.time.startsWith("Un mese dopo la fine della convivenza."))
         // Between the notes and the registrations, as in the card of the detail.
         assertEquals(listOf("Segnalazioni su allergie, intolleranze e farmaci", "Chi dorme in quale camera"), standard.completeRows().take(2).map { it.what })
@@ -272,7 +300,7 @@ class RoomRetentionTests(
         val html = mockMvc.get("/informativa").andReturn().response.contentAsString
         val times = words(Regex("""<section id="per-quanto-tempo".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value)
 
-        assertTrue(times.contains("Chi dorme in quale camera Alla fine della convivenza. Le camere restano, senza nomi, per la convivenza dell’anno dopo."), times)
+        assertTrue(times.contains("Chi dorme in quale camera Alla fine della convivenza. Le camere restano con la struttura, senza nomi, per la convivenza dell’anno dopo."), times)
         assertTrue(times.indexOf("Segnalazioni su allergie") < times.indexOf("Chi dorme in quale camera") && times.indexOf("Chi dorme in quale camera") < times.indexOf("Iscrizione, accettazione"), times)
         val text = words(html)
         assertTrue(text.contains("La camera in cui dorme ogni bambino la vedono solo i maestri."), "the notice says who sees the rooms")
@@ -292,8 +320,9 @@ class RoomRetentionTests(
         val june = retention.gatherings.make(title = "Convivenza di giugno 2027", start = LocalDate.of(2027, 6, 18), end = LocalDate.of(2027, 6, 20), status = GatheringStatus.closed)
         val parent = retention.account("genitore-a")
         val m = retention.teacher("maestro-m")
-        val oneJune = kit.room(june, "Camera 1", 4)
+        // The two gatherings are in the same house: the room is one, and who sleeps in it is of each gathering.
         val one = kit.room(gathering, "Camera 1", 4)
+        val oneJune = one
         val lucaJune = retention.registration(june, parent, "Luca", "Rossi", status = RegistrationStatus.withdrawn)
         val luca = retention.registerAgain(gathering, lucaJune)
         // The one of June was withdrawn and has no presence: it goes. The one of September stays until its date (the proof of the custody) and, before the job, is in a room.

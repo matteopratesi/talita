@@ -21,6 +21,9 @@
 
   <form id="modifica-date" method="post" action="${"/convivenza/" + page.getId() + "/date"}" novalidate hx-disabled-elt="find button[type=submit]" data-valore-struttura="${page.getCurrentVenue()}" class="rounded-2xl border border-line bg-surface p-4 lg:p-6">
     @template.components.csrf(csrf = csrf)
+    @if(page.getChange() != null)
+      <input type="hidden" name="cambio" value="">
+    @endif
     <div class="space-y-5">
       @template.components.field(id = "titolo", name = "title", label = "Titolo", value = page.getTitle(), hint = PublicText.TITLE_HELP, error = page.getTitleError(), autocomplete = "off", autocapitalize = "sentences")
       @if(page.getLockedDates() != null)
@@ -71,4 +74,23 @@
       @template.components.linkButton(href = "/convivenza/" + page.getId(), label = "Annulla", variant = "secondary", width = "phone")
     </div>
   </form>
+
+  @if(page.getChange() != null)
+    <%-- «Cambiare la struttura?» (TALITA-20, criterion 12): somebody is in a room of the venue of now, so another venue leaves them without a room. app.js opens this dialog when the form is sent with
+         another venue chosen (the attribute data-valore-struttura), fills the second paragraph with the name and the place of the venue that is chosen (the data-luogo of its option) and, at the button, puts the number of people in
+         the field cambio and sends the form. Without JavaScript, and for a page that was old, the server answers with a page that has the same words (gathering/changeVenue.jte). --%>
+    <dialog id="cambia-struttura" aria-labelledby="cambia-struttura-titolo" aria-describedby="cambia-struttura-testo" class="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl bg-surface px-gutter pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ink shadow-xl backdrop:bg-ink/50 motion-safe:animate-sheet-in sm:m-auto sm:max-w-md sm:rounded-2xl sm:p-6">
+      <h2 id="cambia-struttura-titolo" class="text-xl font-semibold tracking-tight wrap-anywhere">Cambiare la struttura?</h2>
+      <div id="cambia-struttura-testo" class="mt-2 space-y-2 text-ink-muted">
+        <p class="wrap-anywhere">${page.getChange().getSentence()}</p>
+        <p class="wrap-anywhere" data-nuova hidden>Per i genitori nome e luogo diventano «<span data-nuovo-nome></span>» e «<span data-nuovo-luogo></span>».</p>
+      </div>
+      <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+        <button type="button" data-conferma-cambio="${page.getChange().getPeople()}" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-danger px-5 text-base font-semibold text-white transition-colors duration-150 select-none hover:bg-danger-strong active:bg-danger-strong sm:w-auto">Cambia la struttura</button>
+        <form method="dialog" class="contents">
+          <button autofocus class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-5 text-base font-semibold text-ink transition-colors duration-150 select-none hover:bg-surface-muted active:bg-surface-muted sm:w-auto">Annulla</button>
+        </form>
+      </div>
+    </dialog>
+  @endif
 `)

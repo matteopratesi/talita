@@ -58,17 +58,5 @@
         </form>
       </details>
     @endif
-    <div class="-mb-2 -ml-3 flex flex-wrap gap-1 border-t border-line pt-1">
-      @template.components.linkButton(href = "/convivenza/" + gathering + "/camere/" + room.getId() + "/modifica", label = "Modifica", variant = "text", icon = Icon.PENCIL, ariaLabel = "Modifica " + room.getName())
-      @if(room.getRemoveDialog() != null)
-        @template.components.linkButton(href = "/convivenza/" + gathering + "/camere/" + room.getId() + "/togli", label = "Togli", variant = "text", icon = Icon.TRASH_2, opens = room.getRemoveDialog().getId(), ariaLabel = "Togli " + room.getName())
-      @else
-        <form method="post" action="${"/convivenza/" + gathering + "/camere/" + room.getId() + "/togli"}" hx-post="${"/convivenza/" + gathering + "/camere/" + room.getId() + "/togli"}" hx-target="#camere-contenuto" hx-swap="outerHTML" hx-disabled-elt="find button">
-          @template.components.csrf(csrf = csrf)
-          <input type="hidden" name="camera" value="${room.getId()}">
-          @template.components.button(label = "Togli", busyLabel = "Tolgo…", variant = "text", width = "auto", icon = Icon.TRASH_2, ariaLabel = "Togli " + room.getName())
-        </form>
-      @endif
-    </div>
   @endif
 </section>

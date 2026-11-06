@@ -149,7 +149,50 @@ data class DatesForm(
     val currentPlace: String? = null,
     /** The id of the venue that the gathering has now, or empty: the script compares it with the choice to know that the venue changes. */
     val currentVenue: String = "",
+    /** Somebody is in a room of the venue of now (TALITA-20): the page has the dialog «Cambiare la struttura?», which the script opens when another venue is chosen. Null: nobody is, and there is no dialog. */
+    val change: VenueChange? = null,
 )
+
+/** The people who are in the rooms of the venue of a gathering, and the sentence that says they will be without a room if the venue changes (the first paragraph of the dialog). */
+data class VenueChange(val people: Int, val sentence: String)
+
+/**
+ * The page that stands in for the dialog «Cambiare la struttura?» (without JavaScript, or when the page of the form was old): the same words and the form again, with its fields as hidden ones and the number of people
+ * that the teacher is told about. [startDate] and [endDate] are null when the gathering is over (the dates are not in the request). [second] is null when the choice is no venue (a draft).
+ */
+data class VenueChangePage(
+    val id: Long,
+    val title: String,
+    val startDate: String?,
+    val endDate: String?,
+    val venue: String,
+    val people: Int,
+    val first: String,
+    val second: String?,
+)
+
+/** The words of the change of venue (design TALITA-20): what the dialog and the page that stands in for it say, and what the notice says after. One place, so that they agree. */
+object VenueChangeTexts {
+
+    /** «Le 5 persone nelle camere di Casa del bosco restano senza camera: le camere sono quelle della struttura.» */
+    fun leave(people: Int, from: String?): String {
+        val house = from ?: "la struttura"
+        return if (people == 1) {
+            "La persona che dorme in una camera di $house resta senza camera: le camere sono quelle della struttura."
+        } else {
+            "Le $people persone nelle camere di $house restano senza camera: le camere sono quelle della struttura."
+        }
+    }
+
+    /** «Per i genitori nome e luogo diventano «Casa sul lago» e «Casa per ritiri sul lago, Località Esempio».» */
+    fun parents(name: String, place: String): String = "Per i genitori nome e luogo diventano «$name» e «$place»."
+
+    /** The notice after the change: «Le 5 persone nelle camere di Casa del bosco sono senza camera.» */
+    fun left(people: Int, from: String?): String {
+        val house = from ?: "la struttura"
+        return if (people == 1) "La persona che era in una camera di $house è senza camera." else "Le $people persone nelle camere di $house sono senza camera."
+    }
+}
 
 /** «Quote»: three fields of an amount. */
 data class FeesForm(
