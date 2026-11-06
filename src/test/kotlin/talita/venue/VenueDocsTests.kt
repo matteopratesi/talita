@@ -88,11 +88,15 @@ class VenueDocsTests {
         val data = doc("docs/02-modello-dati.md")
         for (part in listOf(
             "**Resta con la struttura** (TALITA-20, `V14__venue_rooms.sql`)", "**Camere della struttura (TALITA-20, parte 2).**", "`room.venue_id`", "`(camera, struttura)` e `(convivenza, struttura)`",
-            "una convivenza non cambia struttura finché ci sono persone nelle camere di prima", "le camere della convivenza più recente di ogni struttura, fra quelle che ne hanno, diventano della struttura con gli stessi id",
+            "una convivenza non cambia struttura finché ci sono persone nelle camere di prima", "una tiene le sue, che diventano della struttura con gli stessi id",
+            "prima la convivenza le cui camere hanno persone", "una convivenza chiusa ma in corso non perde le sue camere per una bozza dell'anno dopo che le ha già copiate", "poi una convivenza che non è una bozza",
+            "la `(camera, convivenza)` non esiste più", "le camere restano con la struttura, vuote, per la convivenza dell'anno dopo",
         )) {
             assertTrue(data.contains(part), "docs/02 does not say: $part")
         }
         assertFalse(data.contains("per copiare le camere l'anno dopo"), "the rooms are not copied any more")
+        assertFalse(data.contains("per la copia dell'anno dopo"), "the rooms stay with the venue, they are not copied")
+        assertFalse(data.contains("le camere della convivenza più recente di ogni struttura"), "the migration keeps the rooms with people first")
 
         val privacy = doc("docs/03-privacy.md")
         for (part in listOf("**Le camere sono della struttura** (TALITA-20)", "le camere (nome e posti) restano con la struttura, senza nomi, per la convivenza dell'anno dopo", "cambiare la struttura di una convivenza toglie le persone dalle camere di prima")) {
