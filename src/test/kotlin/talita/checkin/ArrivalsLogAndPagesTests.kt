@@ -200,7 +200,8 @@ class ArrivalsLogAndPagesTests(
         assertTrue(data.contains("giorni di presenza e stato dell’iscrizione"), data)
         assertTrue(
             data.contains(
-                "Segnati dai maestri durante la convivenza: le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è), e i pagamenti (l’importo e l’ora). " +
+                "Segnati dai maestri durante la convivenza: le presenze, giorno per giorno (il giorno e l’ora in cui un maestro segna che un bambino c’è; il segno dell’arrivo vale anche per i giorni dopo " +
+                    "a cui il bambino è iscritto, finché un maestro non lo toglie), e i pagamenti (l’importo e l’ora). " +
                     "Ogni presenza e ogni pagamento porta il nome del maestro che l’ha segnato.",
             ),
             data,

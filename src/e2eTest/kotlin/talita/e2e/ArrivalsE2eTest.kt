@@ -212,12 +212,13 @@ class ArrivalsE2eTest {
         val row = page.locator("#riga-${c.anna}")
         assertThat(row).containsText("Presente")
         assertThat(row.locator("button")).hasText(Pattern.compile("Togli"))
-        assertThat(page.locator("#esito")).hasText("Presenza segnata: Anna Rossi.")
+        // Anna is there every day: today and tomorrow, with one touch (TALITA-19), and the sentence for the screen reader says so.
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}: Anna Rossi.")
         assertEquals(url, page.url(), "the page does not change")
         assertEquals(listOf("Anna Rossi", "Luca Rossi"), page.shownNames(), "the search is as it was")
         assertThat(page.locator("#riepilogo")).isHidden()
         page.focusIs("document.activeElement.closest('li') && document.activeElement.closest('li').id === 'riga-${c.anna}' && document.activeElement.textContent.includes('Togli')")
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN), "Anna is there every day: the arrival of today goes on to tomorrow (TALITA-19)")
         // The summary, behind the search, has the new number when the search goes away; the green row keeps its place.
         page.locator("#cerca").fill("")
         assertThat(page.locator("#riepilogo")).containsText("su 4 attesi")
@@ -225,8 +226,9 @@ class ArrivalsE2eTest {
         assertAccessible(page, "list after a touch (${e2e.profile.label})")
 
         // Taking it away has no question, and the button of the row goes back to what it was.
-        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, ${day(w.today)}"))
-        assertThat(page.locator("#esito")).hasText("Presenza tolta: Anna Rossi.")
+        // «Togli» takes today and tomorrow, and the name of the button says from which day.
+        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, da ${day(w.today)} in poi"))
+        assertThat(page.locator("#esito")).hasText("${CheckinFormat.unmarkedHead(listOf(w.today, w.tomorrow))}: Anna Rossi.")
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
         assertEquals(0, page.locator("dialog").count())
@@ -265,8 +267,9 @@ class ArrivalsE2eTest {
 
     private val gaps = listOf(80.0, 150.0, 250.0, 400.0)
 
+    /** Four children of today only: the arrival writes the days after it too (TALITA-19), and these tests are about one touch and one row. */
     private fun E2e.fourChildren(w: ArrivalsWorld): List<Pair<Long, String>> =
-        listOf("Luca", "Anna", "Sara", "Marco").map { name -> rows().register(w.id, someParent(), name, "Rossi", LocalDate.of(2016, 4, 4)) to "$name Rossi" }
+        listOf("Luca", "Anna", "Sara", "Marco").map { name -> rows().register(w.id, someParent(), name, "Rossi", LocalDate.of(2016, 4, 4), days = mapOf(w.today to "full")) to "$name Rossi" }
 
     @E2eTest
     fun `t6 c04 a double tap on Segna presente leaves the child present, the second tap does not take the presence away`(e2e: E2e) {
@@ -321,8 +324,9 @@ class ArrivalsE2eTest {
     fun `t6 c05 c06 on the card a touch just after another does not undo it, whether it marks or takes away, and the next touch works`(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering()
-        val c = e2e.children(w)
-        e2e.open("/arrivi/${c.anna}")
+        // A child of today only: one touch is one row (the arrival writes the days after it too: TALITA-19).
+        val anna = e2e.rows().register(w.id, e2e.someParent(), "Anna", "Rossi", LocalDate.of(2019, 1, 9), days = mapOf(w.today to "full"))
+        e2e.open("/arrivi/$anna")
         val mark = "Segna presente Anna Rossi, ${day(w.today)}"
         val unmark = "Togli la presenza di Anna Rossi, ${day(w.today)}"
 
@@ -330,23 +334,23 @@ class ArrivalsE2eTest {
         assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
         e2e.touchNow(page.buttonNamed(unmark))
         page.waitUntilTouchable()
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)), "the touch that came right after «Segna presente» did not take the presence away")
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)), "the touch that came right after «Segna presente» did not take the presence away")
         assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
 
         e2e.press(page.buttonNamed(unmark))
         assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza tolta.")
         e2e.touchNow(page.buttonNamed(mark))
         page.waitUntilTouchable()
-        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)), "the touch that came right after «Togli» did not mark the child again")
+        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)), "the touch that came right after «Togli» did not mark the child again")
         assertThat(page.buttonNamed(mark)).isVisible()
 
         // The same point twice, as on the list, and after the pause one touch does what it did.
         e2e.touchTwice(page.buttonNamed(mark), 80.0)
         page.waitUntilTouchable()
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)))
+        assertEquals(1, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)))
         e2e.press(page.buttonNamed(unmark))
         assertThat(page.buttonNamed(mark)).isVisible()
-        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(c.anna)))
+        assertEquals(0, e2e.dsl().fetchCount(CHECKIN, CHECKIN.REGISTRATION_ID.eq(anna)))
         assertAccessible(page, "card after quick touches (${e2e.profile.label})")
     }
 
@@ -386,7 +390,7 @@ class ArrivalsE2eTest {
         assertThat(other.locator("#riga-${c.luca}")).containsText("Era già presente: l’ha segnata Giulia Serra alle ")
         assertThat(other.locator("#riga-${c.luca}")).containsText("Presente")
         assertThat(other.locator("#esito")).containsText("Luca Rossi era già presente")
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN), "Luca's two days, written by the one touch of the first page (TALITA-19): the second one found them and wrote nothing")
         // The page that was drawn after sees it too, with no refresh of its own: a new load shows who and the green row.
         other.navigate(e2e.url("/arrivi"))
         other.waitForSettledContent()
@@ -414,7 +418,7 @@ class ArrivalsE2eTest {
         e2e.browserContext.setOffline(false)
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}"))
         assertThat(page.locator("#riga-${c.anna}")).containsText("Presente")
-        assertEquals(1, e2e.dsl().fetchCount(CHECKIN))
+        assertEquals(2, e2e.dsl().fetchCount(CHECKIN), "Anna is there every day: today and tomorrow (TALITA-19), written once")
         assertEquals(0, page.messages().count(), "the message goes with the next request that works")
     }
 
@@ -476,15 +480,16 @@ class ArrivalsE2eTest {
 
         e2e.press(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}"))
         val notice = page.locator("#scheda [role=status]").first()
-        assertThat(notice).hasText("Presenza segnata.")
-        page.focusIs("document.activeElement.getAttribute('role') === 'status' && document.activeElement.textContent.includes('Presenza segnata.')")
+        assertThat(notice).hasText("${CheckinFormat.markedHead(listOf(w.today, w.tomorrow))}.")
+        page.focusIs("document.activeElement.getAttribute('role') === 'status' && document.activeElement.textContent.includes('Presenza segnata per')")
         assertThat(page.locator("#scheda")).containsText("Presente")
         assertThat(page.locator("#scheda")).containsText("Segnata da Giulia Serra alle ")
+        assertThat(page.locator("#scheda")).containsText("Sarà presente")
         assertThat(page.locator("h1")).hasText("Anna Rossi")
         assertAccessible(page, "card after a presence (${e2e.profile.label})")
 
-        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, ${day(w.today)}"))
-        assertThat(page.locator("#scheda [role=status]").first()).hasText("Presenza tolta.")
+        e2e.press(page.buttonNamed("Togli la presenza di Anna Rossi, da ${day(w.today)} in poi"))
+        assertThat(page.locator("#scheda [role=status]").first()).hasText("${CheckinFormat.unmarkedHead(listOf(w.today, w.tomorrow))}.")
         assertThat(page.buttonNamed("Segna presente Anna Rossi, ${day(w.today)}")).isVisible()
         assertEquals(0, e2e.dsl().fetchCount(CHECKIN))
     }
@@ -499,7 +504,8 @@ class ArrivalsE2eTest {
         e2e.press(page.buttonNamed("Segna presente Luca Rossi, ${day(w.yesterday)}"))
 
         val notice = page.locator("#scheda [role=alert]").first()
-        assertThat(notice).containsText("Presenza segnata.")
+        // Luca has today and tomorrow: the arrival of yesterday, which he did not foresee, goes on to both.
+        assertThat(notice).containsText("${CheckinFormat.markedHead(listOf(w.yesterday, w.today, w.tomorrow))}.")
         assertThat(notice).containsText("non era previsto per Luca Rossi: la quota dovuta non cambia finché non correggi l’iscrizione.")
         assertThat(notice.linkNamed("Correggi l’iscrizione")).hasAttribute("href", "/iscrizioni/${c.luca}/correggi")
         assertAccessible(page, "card with a day that was not foreseen (${e2e.profile.label})")

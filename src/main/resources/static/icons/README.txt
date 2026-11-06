@@ -21,6 +21,8 @@ Aggiunte da TALITA-11: bed-double (camere: la scheda nella Convivenza, la pagina
 
 Aggiunte da TALITA-15: monitor-smartphone (un dispositivo collegato), key-round (una passkey nell'elenco), fingerprint-pattern (Entra con una passkey, Aggiungi una passkey, la conferma prima delle segnalazioni).
 
+Aggiunte da TALITA-19: calendar-check (un giorno dopo oggi che il maestro ha già segnato con l'arrivo: «Sarà presente»).
+
 Usate nel guscio: house, users-round, clipboard-check, calendar-days, info, chevron-right,
 hourglass, compass, triangle-alert, rotate-cw, wifi-off, clock, x. Ogni icona ha una voce
 nell'enum talita.ui.Icon; un test controlla che il template le disegni tutte.

@@ -71,11 +71,12 @@ class CheckinServicesTests(
     @Test
     fun `t6 c04 c06 a presence is one row with the moment and the teacher, on a day of the gathering that is not after today`() {
         val setup = kit.start()
-        val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
+        // A registration of today only: the arrival writes the days after it (TALITA-19), and here there are none.
+        val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi", days = mapOf(setup.today to "full"))
 
         val marked = checkins.mark(id, setup.today, setup.martaId)
 
-        assertEquals(MarkResult.Marked(confirmed = false, notExpected = false), marked)
+        assertEquals(MarkResult.Marked(confirmed = false, notExpected = false, days = listOf(setup.today)), marked)
         val row = checkins.ofRegistration(id).single()
         assertEquals(setup.today, row.day)
         assertEquals(setup.martaId, row.byAccountId)
@@ -90,16 +91,18 @@ class CheckinServicesTests(
     }
 
     @Test
-    fun `t6 c06 taking a presence away changes only that day, and taking away one that is not there is the same answer, never an error`() {
+    fun `t6 c06 taking a presence away changes only that day when no day after it has one, and taking away one that is not there is the same answer, never an error`() {
         val setup = kit.start()
         val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
-        checkins.mark(id, setup.yesterday, setup.martaId)
-        checkins.mark(id, setup.today, setup.martaId)
+        // The rows as the register of two separate days leaves them (the arrival writes the following days too: TALITA-19).
+        kit.presence(id, setup.yesterday, setup.martaId)
+        kit.presence(id, setup.today, setup.martaId)
 
-        assertEquals(UnmarkResult.Unmarked, checkins.unmark(id, setup.today))
+        assertEquals(UnmarkResult.Unmarked(listOf(setup.today)), checkins.unmark(id, setup.today))
         assertEquals(listOf(setup.yesterday), kit.presenceDays(id))
         assertEquals(UnmarkResult.AlreadyUnmarked, checkins.unmark(id, setup.today))
-        assertEquals(UnmarkResult.NotYet, checkins.unmark(id, setup.tomorrow))
+        // A day after today with no row is the same answer, not a refusal (TALITA-19, criterion 10).
+        assertEquals(UnmarkResult.AlreadyUnmarked, checkins.unmark(id, setup.tomorrow))
         assertEquals(UnmarkResult.OutsideTheDates, checkins.unmark(id, setup.today.plusDays(9)))
         assertEquals(UnmarkResult.NotFound, checkins.unmark(id + 1000, setup.today))
         assertEquals(listOf(setup.yesterday), kit.presenceDays(id))
@@ -115,8 +118,9 @@ class CheckinServicesTests(
 
         val marked = checkins.mark(id, setup.yesterday, setup.martaId)
 
-        assertEquals(MarkResult.Marked(confirmed = false, notExpected = true), marked)
-        assertEquals(MarkResult.Marked(confirmed = false, notExpected = false), checkins.mark(id, setup.today, setup.martaId))
+        // The arrival of yesterday goes on to the days that the registration includes (TALITA-19): today and tomorrow have their row, so today is there already.
+        assertEquals(MarkResult.Marked(confirmed = false, notExpected = true, days = listOf(setup.yesterday, setup.today, setup.tomorrow)), marked)
+        assertIs<MarkResult.AlreadyMarked>(checkins.mark(id, setup.today, setup.martaId))
         assertEquals(3500, before)
         assertEquals(before, Quota.due(Offer(info.fees, info.days), registrations.find(id)!!.presence), "the presence does not touch what is due: only correcting the registration does")
     }
@@ -128,10 +132,10 @@ class CheckinServicesTests(
         val setup = kit.start()
         val maybe = kit.rows.register(setup.id, kit.account(), "Sara", "Neri", status = RegistrationStatus.maybe)
 
-        assertEquals(MarkResult.Marked(confirmed = true, notExpected = false), checkins.mark(maybe, setup.today, setup.martaId))
+        assertEquals(MarkResult.Marked(confirmed = true, notExpected = false, days = listOf(setup.today, setup.tomorrow)), checkins.mark(maybe, setup.today, setup.martaId))
         assertEquals("confirmed", kit.statusOf(maybe))
-        // A second day of the same child: it is confirmed already.
-        assertEquals(MarkResult.Marked(confirmed = false, notExpected = false), checkins.mark(maybe, setup.yesterday, setup.martaId))
+        // A second day of the same child: it is confirmed already, and today has its row, so the arrival stops there.
+        assertEquals(MarkResult.Marked(confirmed = false, notExpected = false, days = listOf(setup.yesterday)), checkins.mark(maybe, setup.yesterday, setup.martaId))
 
         // The confirmation fails (a constraint that only this test adds): the presence that was written before it goes back too.
         val other = kit.rows.register(setup.id, kit.account(), "Elena", "Marino", status = RegistrationStatus.maybe)
@@ -157,13 +161,13 @@ class CheckinServicesTests(
     fun `t6 c08 a withdrawn registration is not marked, its presences can be taken away, and Rimetti confermata puts it back`() {
         val setup = kit.start()
         val id = kit.rows.register(setup.id, kit.account(), "Anna", "Rossi")
-        checkins.mark(id, setup.yesterday, setup.martaId)
+        kit.presence(id, setup.yesterday, setup.martaId)
         assertEquals(ChangeResult.Done, registrations.withdraw(id, null))
 
         assertEquals(MarkResult.Withdrawn, checkins.mark(id, setup.today, setup.martaId))
         assertEquals(listOf(setup.yesterday), kit.presenceDays(id), "the presences that were there stay")
         // To move them by hand to the other copy of a duplicate they can be taken away.
-        assertEquals(UnmarkResult.Unmarked, checkins.unmark(id, setup.yesterday))
+        assertEquals(UnmarkResult.Unmarked(listOf(setup.yesterday)), checkins.unmark(id, setup.yesterday))
 
         assertEquals(RestoreResult.Done, registrations.restoreConfirmed(id))
         assertEquals("confirmed", kit.statusOf(id))
@@ -249,7 +253,7 @@ class CheckinServicesTests(
         val pool = Executors.newFixedThreadPool(2)
         try {
             repeat(10) { round ->
-                val id = kit.rows.register(setup.id, kit.account(), "Bambino$round", "Rossi")
+                val id = kit.rows.register(setup.id, kit.account(), "Bambino$round", "Rossi", days = mapOf(setup.today to "full"))
                 val barrier = CyclicBarrier(2)
                 val teachers = listOf(setup.martaId, setup.paoloId)
                 val results = teachers.map { teacher -> pool.submit<MarkResult> { barrier.await(10, TimeUnit.SECONDS); checkins.mark(id, setup.today, teacher) } }.map { it.get(30, TimeUnit.SECONDS) }
@@ -268,14 +272,14 @@ class CheckinServicesTests(
     @Test
     fun `t6 c20 the same teacher touching twice, and taking away twice, gets the same answer the second time`() {
         val setup = kit.start()
-        val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
+        val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi", days = mapOf(setup.today to "full"))
 
         assertIs<MarkResult.Marked>(checkins.mark(id, setup.today, setup.martaId))
         val again = checkins.mark(id, setup.today, setup.martaId)
         assertIs<MarkResult.AlreadyMarked>(again)
         assertEquals(setup.martaId, again.byAccountId)
         assertEquals(1, kit.presenceCount())
-        assertEquals(UnmarkResult.Unmarked, checkins.unmark(id, setup.today))
+        assertEquals(UnmarkResult.Unmarked(listOf(setup.today)), checkins.unmark(id, setup.today))
         assertEquals(UnmarkResult.AlreadyUnmarked, checkins.unmark(id, setup.today))
     }
 
@@ -400,7 +404,7 @@ class CheckinServicesTests(
     // ---- Before the start and after the end (criterion 15) ---------------------------------------------------------------------------------
 
     @Test
-    fun `t6 c15 payments are registered and taken away before the start of the gathering, and presences are not marked in advance`() {
+    fun `t6 c15 payments are registered and taken away before the start of the gathering, and presences are not marked in advance, and there is none to take away`() {
         val setup = kit.start(first = 3, last = 5)
         val id = kit.rows.register(setup.id, kit.account(), "Luca", "Rossi")
 
@@ -408,7 +412,8 @@ class CheckinServicesTests(
         assertIs<PaymentResult.Registered>(paid)
         assertEquals(RemoveResult.Removed(2000), payments.remove(id, paid.id))
         assertEquals(MarkResult.NotYet, checkins.mark(id, setup.today.plusDays(3), setup.martaId))
-        assertEquals(UnmarkResult.NotYet, checkins.unmark(id, setup.today.plusDays(3)))
+        // Nothing was written in advance, so there is nothing to take away: the same answer as for any day without a row (TALITA-19, criterion 10).
+        assertEquals(UnmarkResult.AlreadyUnmarked, checkins.unmark(id, setup.today.plusDays(3)))
         assertEquals(0, kit.presenceCount())
     }
 
@@ -419,7 +424,8 @@ class CheckinServicesTests(
         val firstDay = setup.today.minusDays(5)
 
         assertIs<MarkResult.Marked>(checkins.mark(id, firstDay, setup.martaId))
-        assertEquals(UnmarkResult.Unmarked, checkins.unmark(id, firstDay))
+        // The paper register is copied with one touch: the three days (TALITA-19), and one touch takes them away.
+        assertEquals(UnmarkResult.Unmarked(listOf(firstDay, firstDay.plusDays(1), firstDay.plusDays(2))), checkins.unmark(id, firstDay))
         assertIs<MarkResult.Marked>(checkins.mark(id, firstDay.plusDays(2), setup.paoloId))
         assertIs<PaymentResult.Registered>(payments.register(id, UUID.randomUUID(), 6000, setup.martaId))
         // Not the days that were never in the gathering.
