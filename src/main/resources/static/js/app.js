@@ -340,12 +340,24 @@
     true,
   );
 
+  // The dialog stays open while the answer is awaited, as every dialog of the app: its button says «Cambio…» (it takes the class of a request on its way, which the variant `busy:` of the CSS reads, and is disabled).
+  // If the request fails the message closes the dialogs, and the button and the field are as they were, for the next try.
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-conferma-cambio]");
-    if (!button) return;
+    if (!button || button.disabled) return;
     const form = document.getElementById("modifica-date");
     form.elements.cambio.value = button.getAttribute("data-conferma-cambio");
-    button.closest("dialog").close();
+    button.disabled = true;
+    button.classList.add("htmx-request");
+    form.addEventListener(
+      "htmx:afterRequest",
+      () => {
+        button.disabled = false;
+        button.classList.remove("htmx-request");
+        form.elements.cambio.value = "";
+      },
+      { once: true },
+    );
     form.requestSubmit();
   });
 

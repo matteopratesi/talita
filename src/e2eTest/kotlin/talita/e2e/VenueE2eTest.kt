@@ -407,6 +407,73 @@ class VenueE2eTest {
         assertEquals(0, e2e.people(w.gathering))
     }
 
+    /** Holds the POST requests that go to [pattern] (the server does not see them) until the test lets them go: the page is in its state of «waiting for the answer». */
+    private fun Page.holdPosts(pattern: String): java.util.concurrent.atomic.AtomicReference<com.microsoft.playwright.Route?> {
+        val held = java.util.concurrent.atomic.AtomicReference<com.microsoft.playwright.Route?>()
+        route(pattern) { route -> if (route.request().method() == "POST") held.set(route) else route.resume() }
+        return held
+    }
+
+    @E2eTest
+    fun `t20 c12 c23 while the answer is awaited the dialog of the change of venue stays open and its button says Cambio, disabled, and the dialog goes with the answer`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.withPeopleInTheRooms()
+        e2e.open("/convivenza/${w.gathering}/date")
+        page.locator("#struttura").selectOption(w.to.toString())
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+
+        val pattern = "**/convivenza/${w.gathering}/date"
+        val held = page.holdPosts(pattern)
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        page.waitUntil("Array.from(document.querySelectorAll('dialog[open] button')).some(b => b.innerText.includes('Cambio…'))")
+        assertEquals(1, page.openDialog().count(), "the dialog is open while the answer is awaited")
+        assertThat(page.openDialog().locator("button[data-conferma-cambio]")).isDisabled()
+        assertThat(page.openDialog().locator("button[data-conferma-cambio]")).containsText("Cambio…")
+        assertThat(page.openDialog().buttonNamed("Annulla")).isEnabled()
+        assertEquals(w.from, e2e.venueOf(w.gathering), "the server has not seen the request")
+        assertEquals(2, e2e.people(w.gathering))
+        // (No axe here: the page behind is dimmed by the request (`nav-busy:opacity-60` of the main), and axe, which counts the opacity of the ancestors in the DOM, would blend the text of a dialog
+        // that the browser paints in the top layer, above it. The dialog is checked by axe before the request, in the test above.)
+
+        checkNotNull(held.get()) { "the request was not held" }.resume()
+        page.unroute(pattern)
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertEquals(0, page.locator("dialog[open]").count(), "the dialog goes with the answer")
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.people(w.gathering))
+    }
+
+    @E2eTest
+    fun `t20 c12 c23 without the network the dialog of the change of venue closes with the message, nothing changes, and the next try asks again and works`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.withPeopleInTheRooms()
+        e2e.open("/convivenza/${w.gathering}/date")
+        page.locator("#struttura").selectOption(w.to.toString())
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+
+        val pattern = "**/convivenza/${w.gathering}/date"
+        page.route(pattern) { route -> if (route.request().method() == "POST") route.abort() else route.resume() }
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        assertThat(page.locator("#messaggi")).containsText("Nessuna connessione")
+        assertEquals(0, page.locator("dialog[open]").count(), "the message is not hidden under the dialog")
+        assertEquals(w.from, e2e.venueOf(w.gathering))
+        assertEquals(2, e2e.people(w.gathering))
+        assertThat(page.buttonNamed("Salva le modifiche")).isEnabled()
+
+        // The next try: the dialog asks again (the number of people said before is not kept), and with the network back the change is made.
+        page.unroute(pattern)
+        e2e.press(page.buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        assertEquals(1, page.openDialog().count(), "the dialog asks again")
+        assertThat(page.openDialog().locator("button[data-conferma-cambio]")).isEnabled()
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.people(w.gathering))
+    }
+
     @E2eTest(profiles = [Profile.PHONE])
     fun `t20 c12 without JavaScript another venue with people in the rooms answers with the page of the dialog, Annulla goes back to the form, and its button changes the venue`(e2e: E2e) {
         val w = e2e.withPeopleInTheRooms()
