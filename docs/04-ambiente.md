@@ -195,7 +195,7 @@ Il menù della convivenza è un file (PDF, JPEG o PNG) che i maestri caricano (T
 
 `./gradlew e2eTest` (parte di `./gradlew build`) apre un Chromium vero, headless, in due profili:
 telefono (360×800, touch) e desktop (1280×800). Le tracce e gli screenshot dei test falliti restano
-sotto `build/e2e-artifacts/<Classe>/<test>-<profilo>/`; in CI sono nell'artifact `e2e-failures`
+sotto `build/e2e-artifacts/<Classe>/<test>-<codice>-<profilo>/` (il nome del test è tagliato a 100 caratteri e seguito da un codice, perché il nome di una cartella può avere al massimo 255 byte); in CI sono nell'artifact `e2e-failures`
 della run (7 giorni). Per guardarne uno:
 `./gradlew playwrightShowTrace -Ptrace=build/e2e-artifacts/<…>/trace.zip`.
 
