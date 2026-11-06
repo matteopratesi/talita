@@ -94,7 +94,7 @@ class VenueE2eTest {
         assertThat(page.locator("h1")).hasText("Strutture")
         assertThat(page.locator("main")).containsText("Le case dove si fa la convivenza. Le vedono solo i maestri.")
         assertThat(page.locator("main h2")).hasText("Nessuna struttura")
-        assertThat(page.locator("main")).containsText("Scrivi la casa dove fai la convivenza, con le sue camere. Poi la scegli nella convivenza.")
+        assertThat(page.locator("main")).containsText("Scrivi la casa dove fai la convivenza, con le sue camere e i moduli che chiede. Poi la scegli nella convivenza.")
         assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Convivenza")
         assertPageFits(e2e, "Strutture, empty")
 

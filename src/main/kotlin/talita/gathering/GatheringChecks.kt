@@ -13,6 +13,9 @@ object Limits {
 
     /** The name of a venue (TALITA-20). */
     const val VENUE_NAME = 60
+
+    /** The name of a form of a venue (TALITA-20, part 3). */
+    const val FORM_NAME = 60
     const val INFO = 5000
     const val WHAT_TO_BRING = 2000
 
@@ -101,10 +104,10 @@ object GatheringChecks {
      * The text that goes on the public page: not longer than [max] (checked first) and with no email, phone number or IBAN. The check of the names is the one that needs the
      * database: the result carries what was found, and the controller finishes it with [TextCheck.withName].
      */
-    private fun publicText(value: String, max: Int, tooLong: (Int) -> String): TextCheck {
+    private fun publicText(value: String, max: Int, closing: String = PublicText.PUBLIC_CLOSING, tooLong: (Int) -> String): TextCheck {
         val size = length(value)
         if (size > max) return TextCheck(value, tooLong(size))
-        val findings = PublicText.check(value)
+        val findings = PublicText.check(value, closing)
         return TextCheck(value, findings.message(), findings)
     }
 
@@ -131,10 +134,10 @@ object GatheringChecks {
      * A text of one line that goes on the public page (the title of a gathering, the name and the place of a venue, TALITA-20): [missing] is the error of an empty one (null: an empty one is
      * fine), [tooLong] says how long it was. One place for the checks, so that every public line says the same words about an email, a phone number, an IBAN and a name.
      */
-    fun publicLine(raw: String?, max: Int, missing: String?, tooLong: (Int) -> String): TextCheck {
+    fun publicLine(raw: String?, max: Int, missing: String?, closing: String = PublicText.PUBLIC_CLOSING, tooLong: (Int) -> String): TextCheck {
         val value = oneLine(raw)
         if (value.isEmpty()) return TextCheck(value, missing)
-        return publicText(value, max, tooLong)
+        return publicText(value, max, closing, tooLong)
     }
 
     fun title(raw: String?): TextCheck = publicLine(raw, Limits.TITLE, TITLE_MISSING) { "Il titolo può avere al massimo ${Limits.TITLE} caratteri: ne hai scritti $it." }

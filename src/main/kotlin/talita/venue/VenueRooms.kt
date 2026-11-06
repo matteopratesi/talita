@@ -44,8 +44,9 @@ object VenueRoomTexts {
         else -> "Si cancellano anche le sue $rooms camere."
     }
 
-    /** `3 camere, 10 posti`, or `Nessuna camera`: the line of the list of the venues. */
-    fun inTheList(rooms: Int, beds: Int): String = if (rooms == 0) "Nessuna camera" else (if (rooms == 1) "1 camera" else "$rooms camere") + ", " + RoomFormat.beds(beds)
+    /** `3 camere, 10 posti · 2 moduli`, or `Nessuna camera · Nessun modulo`: the line of the list of the venues (TALITA-20, part 3: the forms are in it too). */
+    fun inTheList(rooms: Int, beds: Int, forms: Int): String =
+        (if (rooms == 0) "Nessuna camera" else (if (rooms == 1) "1 camera" else "$rooms camere") + ", " + RoomFormat.beds(beds)) + " · " + (if (forms == 0) "Nessun modulo" else VenueFormTexts.count(forms))
 }
 
 // ---- The view models ---------------------------------------------------------------------------------------------------------------

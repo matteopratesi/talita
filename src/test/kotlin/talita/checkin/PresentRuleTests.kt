@@ -56,6 +56,7 @@ class PresentRuleTests(
     @Autowired private val reader: GatheringReader,
     @Autowired private val usage: RegistrationUsage,
     @Autowired private val arrivalUsage: ArrivalUsage,
+    @Autowired private val assignments: talita.gathering.RoomAssignments,
     @Autowired private val arrivals: Arrivals,
     @Autowired private val presenter: ArrivalsPresenter,
     @Autowired private val prints: PrintPresenter,
@@ -248,7 +249,7 @@ class PresentRuleTests(
                 in 87..92 -> {
                     // A day is added at the end, or the last one is taken away (refused when something holds it).
                     val end = if (random.nextBoolean() && extensions < 2) info.end.plusDays(1).also { extensions++ } else info.end.minusDays(1)
-                    if (!end.isBefore(info.start)) gatherings.saveDates(setup.id, info.title, info.start, end, info.place, usage, arrivalUsage)
+                    if (!end.isBefore(info.start)) gatherings.saveDates(setup.id, info.title, info.start, end, info.venueId, usage, arrivalUsage, assignments)
                     "dates"
                 }
                 else -> { checkins.mark(id, markable.random(random), setup.paoloId); "mark by the other teacher" }

@@ -125,6 +125,55 @@ class VenueDocsTests {
     }
 
     @Test
+    fun `t20 c28 part 3 the documents say the forms of the venue, that the document and the tax code of the teachers stay in the browser, what the venue receives, and the confirmation of Matteo on the tax code`() {
+        val data = doc("docs/02-modello-dati.md")
+        for (part in listOf(
+            "| Modulo della struttura (`venue_form`, `V15__venue_forms.sql`) |", "**quattro scelte**", "**Nessun dato personale e nessun valore**", "Il database salva **quali colonne ci sono, mai cosa ci va dentro**",
+            "Le quattro scelte sono spente di partenza", "«scrivi solo il nome del documento»", "l'età al primo giorno accanto al nome nelle camere (TALITA-11) e **nel modulo della struttura, se lo chiede** (TALITA-20)",
+            "**mai la data di nascita**", "**i giorni di presenza nel modulo della struttura, se lo chiede** (TALITA-20)", "**il documento d'identità e il codice fiscale non si raccolgono e non si conservano**",
+        )) {
+            assertTrue(data.contains(part), "docs/02 does not say: $part")
+        }
+        assertFalse(data.contains("\n- dati dei maestri per la struttura oltre a nome e cognome;\n"), "the old line of «Mai» is rewritten")
+
+        val privacy = doc("docs/03-privacy.md")
+        for (part in listOf(
+            "**Dal TALITA-20 la struttura può avere un suo modulo**", "l'**età dei bambini il primo giorno** (non la data di nascita) e i **giorni in cui sono presenti**",
+            "**può ricevere su carta il documento d'identità e il codice fiscale** dei maestri affidatari", "**Talità non riceve e non conserva**", "| **Modulo della struttura** (TALITA-20) |",
+            "**Mai**, dall'app: data di nascita, sesso, luogo di nascita, cittadinanza, documento, codice fiscale, recapiti, segnalazioni, quote, pagamenti, camere né le indicazioni dell'app",
+            "**I campi dei maestri sul foglio del modulo** (TALITA-20, criteri 29-31)", "**fuori da ogni `<form>` e senza `name`**", "il controllo ortografico avanzato di Chrome manda il testo a Google",
+            "`hx-history=\"false\"`", "`data-solo-carta`", "**lo stampa il browser come testo della cella**", "**la tastiera del telefono può imparare quello che si scrive e un'estensione del browser può leggerlo**",
+            "**il PDF salvato dal telefono, e la carta, contengono i dati**", "**il modulo della struttura** (TALITA-20), da verificare con una persona competente", "la **base giuridica** dell'età e dei giorni di presenza",
+            "**il codice fiscale dei maestri** (contiene sesso, data e luogo di nascita", "la prova della **stampa con i campi dei maestri da Safari su iPhone**",
+        )) {
+            assertTrue(privacy.contains(part), "docs/03 does not say: $part")
+        }
+
+        val context = doc("docs/01-contesto.md")
+        assertTrue(context.contains("**I moduli che la struttura chiede** (parte 3 dello stesso ticket) sono stampe generate dall'app, da Arrivi"), "docs/01 does not say the forms")
+        assertTrue(context.contains("**L'app non raccoglie i dati dei maestri per la struttura**"), "docs/01 does not say the teachers' data")
+
+        val entry = doc("docs/05-decisioni.md").substringAfter("## 2026-11-02: scelte di TALITA-20")
+        for (part in listOf(
+            "**Parte 3: moduli e dati dei maestri (criteri 20-27 e 29-31)**", "`ArrivalsData.present`", "**`V15__venue_forms.sql`**", "`venue_form_name_in_venue`", "**Un modulo è un nome e quattro scelte, mai un valore**", "`ArrivalForms`", "`VenueFormRef`",
+            "`talita.venue.VenueFormsController`", "`PublicText.DOCUMENT_CLOSING`", "`ModulePresenter`", "**Le righe dei bambini non hanno campi.**", "`Pagination.module`", "`ModuleLayout.daysFit`", "«pagina N di M»",
+            "**I campi dei maestri sono nella pagina e basta**", "`data-solo-carta`", "`ModuleSheetE2eTest`", "**La conferma sul codice fiscale resta scritta in questa voce**", "**Documenti (parte 3)**",
+        )) {
+            assertTrue(entry.contains(part), "the entry of TALITA-20 does not say: $part")
+        }
+
+        val guide = doc("docs/design/README.md")
+        for (part in listOf(
+            "- **Le quattro caselle di un modulo** (`venue/formForm.jte`, TALITA-20, parte 3)", "- **I campi dei maestri sul foglio di un modulo** (`checkin/moduleSheet.jte`, TALITA-20, criteri 29-31)",
+            "**Riga con azioni e riquadro d'icona** (`venue/roomsBlock.jte` e `venue/formsBlock.jte`, TALITA-20)", "**Scheda con lista e bottone in fondo** (TALITA-20: «Camere» e «Moduli» nella pagina della struttura)",
+            "**Stampa del modulo di una struttura** (TALITA-20, parte 3", "**Nella tabella dei maestri i giorni restano finché al nome restano almeno 27 mm**", "- **I moduli della struttura** (parte 3) sono un blocco come le camere, `#moduli-struttura`",
+            "**La stampa del modulo non ha htmx e non manda niente**", "- **I moduli** (parte 3): «Moduli» nella pagina della struttura",
+        )) {
+            assertTrue(guide.contains(part), "the design guide does not say: $part")
+        }
+    }
+
+    @Test
     fun `t20 c28 the mockups are in the repository, 73 pages with the index and the stylesheet, with no style, no script and nothing from outside`() {
         val folder = Path.of("docs/design/TALITA-20")
         val files = Files.list(folder).use { stream -> stream.map { it.fileName.toString() }.sorted().toList() }

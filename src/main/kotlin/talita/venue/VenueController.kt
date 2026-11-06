@@ -40,6 +40,7 @@ class VenueController(
     private val names: PublicNames,
     private val gatherings: GatheringReader,
     private val rooms: Rooms,
+    private val forms: VenueForms,
 ) {
 
     private fun notFound(): Nothing = throw ResponseStatusException(HttpStatus.NOT_FOUND)
@@ -90,7 +91,7 @@ class VenueController(
     @GetMapping("/strutture/{id:[0-9]{1,18}}")
     fun detail(@PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         val venue = found(id)
-        return page("venue/detail", venue.name, presenter.page(venue, venues.usage(id), Flash.take(request), RoomFlash.take(request)))
+        return page("venue/detail", venue.name, presenter.page(venue, venues.usage(id), Flash.take(request), RoomFlash.take(request), FormFlash.take(request)))
     }
 
     @GetMapping("/strutture/{id:[0-9]{1,18}}/modifica")
@@ -134,7 +135,7 @@ class VenueController(
     fun removalPage(@PathVariable id: Long): ModelAndView {
         val venue = found(id)
         if (venues.usage(id) > 0) return seeOther("/strutture/$id")
-        val model = presenter.removalDialog(venue, rooms.rooms(id).size)
+        val model = presenter.removalDialog(venue, rooms.rooms(id).size, forms.ofVenue(id).size)
         return ModelAndView("pages/confirmAction", mapOf("shell" to shells.shell(page = model.title, current = Section.CONVIVENZA), "page" to model))
     }
 

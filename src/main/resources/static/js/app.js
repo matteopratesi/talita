@@ -15,6 +15,7 @@
 // - the address of the information page of a gathering can be copied and shared (`data-azione="copia"` and `"condividi"`, shown only if the
 //   browser can) and the preview, the register, the list for the venue and the sheet for the teachers can be printed (`"stampa"`, hidden in the page and shown here):
 //   the texts are in the template, the code only does;
+// - the fields of the teachers on the sheet of a form of the venue (`data-solo-carta`, TALITA-20) are emptied when the page comes back from the cache of the browser;
 // - the list of the arrivals can be searched by name (`data-filtro`, shown only here: without JavaScript the list is whole): the search runs in the
 //   browser on the names that are in the page, asks the server nothing and writes no name in an address or in a log;
 // - after a piece of a page is replaced the focus goes to the first wrong field or to its notice, without moving the page when the element is already in sight
@@ -507,6 +508,15 @@
   });
 
   // The page is boosted: after every change of page the new buttons are shown (or not) again.
+  // The fields of the teachers on the sheet of a form (`data-solo-carta`) are only for the paper: when the page comes back from the cache of the browser (the back button, a restore) they are emptied.
+  // The code does not read or keep what is written in them, and nothing else touches them.
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    document.querySelectorAll("[data-solo-carta]").forEach((field) => {
+      field.value = "";
+    });
+  });
+
   document.addEventListener("htmx:afterSettle", showCopyAndShare);
   document.addEventListener("DOMContentLoaded", showCopyAndShare);
   showCopyAndShare();

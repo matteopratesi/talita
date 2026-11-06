@@ -43,6 +43,8 @@
     </section>
 
     @template.venue.roomsBlock(block = page.getRooms(), csrf = csrf)
+
+    @template.venue.formsBlock(block = page.getForms(), csrf = csrf)
   </div>
 
   @if(page.getRemoval() != null)
