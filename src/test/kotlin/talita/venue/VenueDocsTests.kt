@@ -114,9 +114,14 @@ class VenueDocsTests {
         for (part in listOf(
             "- **Le camere della struttura** (parte 2) sono un blocco, `#camere-struttura`", "- **«Togliere {camera}?»** (TALITA-20, pagina della struttura)", "- **«Cambiare la struttura?»** (TALITA-20",
             "- **Le camere** (parte 2): nella pagina della struttura la card «Camere»", "`/strutture/{id}/camere/…`",
+            "**Il dialogo resta aperto finché non arriva la risposta** e il bottone dice «Cambio…»",
+            // The section of the rooms of TALITA-11 says what changed with TALITA-20, and not what is not there any more as if it was.
+            "Dal TALITA-20 «Copia le camere» non c'è più", "«Camere copiate.» non c'è più", "«La convivenza è finita: chi dorme dove non si cambia più.» (dal TALITA-20; prima «le camere non si cambiano più»",
+            "In questa convivenza non ci sono camere.",
         )) {
             assertTrue(guide.contains(part), "the design guide does not say: $part")
         }
+        assertFalse(guide.contains("«Togli la camera» e «Copia le camere» sono `hx-post`"), "«Copia le camere» is not an action of the page any more")
     }
 
     @Test
