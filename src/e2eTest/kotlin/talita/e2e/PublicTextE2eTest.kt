@@ -61,15 +61,24 @@ class PublicTextE2eTest {
         val draft = e2e.gatherings().make(status = GatheringStatus.draft, custodians = listOf(me))
         e2e.open("/convivenza/$draft/date")
         assertThat(page.locator("#titolo-aiuto")).hasText(PublicText.TITLE_HELP)
-        assertThat(page.locator("#luogo-aiuto")).hasText(PublicText.PLACE_HELP)
-        assertThat(page.locator("#luogo")).hasAttribute("aria-describedby", "luogo-aiuto")
         page.settled()
         assertPageFits(e2e, "Modifica titolo, date e luogo")
+
+        // The name and the place of a venue (TALITA-20): public texts, each with its help.
+        for (path in listOf("/strutture/nuova", "/strutture/${e2e.gatherings().venueIdOf(draft)}/modifica")) {
+            e2e.open(path)
+            assertThat(page.locator("#nome-aiuto")).hasText(PublicText.NAME_HELP)
+            assertThat(page.locator("#nome")).hasAttribute("aria-describedby", "nome-aiuto")
+            assertThat(page.locator("#luogo-aiuto")).hasText(PublicText.PLACE_HELP)
+            assertThat(page.locator("#luogo")).hasAttribute("aria-describedby", "luogo-aiuto")
+            page.settled()
+            assertPageFits(e2e, "Struttura, $path")
+        }
+        e2e.open("/convivenza/$draft/date")
 
         e2e.dsl().update(GATHERING).set(GATHERING.STATUS, GatheringStatus.closed).set(GATHERING.START_DATE, e2e.today().minusDays(5)).set(GATHERING.END_DATE, e2e.today().minusDays(3)).execute()
         e2e.open("/convivenza/$draft/date")
         assertThat(page.locator("#titolo-aiuto")).hasText(PublicText.TITLE_HELP)
-        assertThat(page.locator("#luogo-aiuto")).hasText(PublicText.PLACE_HELP)
         page.settled()
         assertPageFits(e2e, "Modifica titolo, date e luogo, convivenza finita")
 

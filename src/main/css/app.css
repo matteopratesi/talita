@@ -334,6 +334,62 @@
     background: var(--color-warning-soft);
     font-weight: 600;
   }
+
+  /* Il foglio di un modulo della struttura (TALITA-20, parte 3): cognome e nome, età, un giorno per colonna, e i campi dei maestri. */
+  .cognome {
+    font-weight: 600;
+  }
+
+  .tabella-stampa--modulo .col-nome {
+    width: auto;
+  }
+
+  .tabella-stampa--modulo .col-eta {
+    width: 3.5rem;
+    text-align: center;
+  }
+
+  .tabella-stampa--modulo .col-giorno {
+    width: 5.5rem;
+  }
+
+  .tabella-stampa--modulo.tabella-stampa--7 .col-giorno {
+    width: 4.75rem;
+  }
+
+  .tabella-stampa--modulo .col-campo {
+    width: 9rem;
+  }
+
+  .tabella-stampa--modulo td.cella-presenza {
+    text-align: center;
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    overflow-wrap: normal;
+  }
+
+  /* I campi dei maestri (criteri 29-31): sono nella pagina e basta, senza name e fuori da ogni form. A schermo hanno il bordo; stampati sono il testo della cella. */
+  .tabella-stampa td.cella-campo {
+    padding: 0.25rem;
+  }
+
+  .campo-stampa {
+    display: block;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.5rem;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .campo-stampa:focus {
+    border-color: var(--color-brand);
+  }
 }
 
 /*
@@ -532,5 +588,51 @@
     background: #fff;
     font-size: 9.5pt;
     break-inside: avoid;
+  }
+
+  /* Il foglio di un modulo della struttura: righe da 9 mm, età 12 mm, giorni 21 mm (16 oltre quattro giorni), campi 36 mm. Il campo si stampa come testo nella cella, senza bordo né sfondo. */
+  .tabella-stampa--modulo td {
+    height: 9mm;
+  }
+
+  .tabella-stampa--modulo .col-nome {
+    width: auto;
+  }
+
+  .tabella-stampa--modulo .col-eta {
+    width: 12mm;
+  }
+
+  .tabella-stampa--modulo .col-giorno {
+    width: 21mm;
+  }
+
+  .tabella-stampa--modulo.tabella-stampa--7 .col-giorno {
+    width: 16mm;
+  }
+
+  .tabella-stampa--modulo .col-campo {
+    width: 36mm;
+  }
+
+  .tabella-stampa--modulo td.cella-presenza {
+    font-size: 8pt;
+    line-height: 1.15;
+    padding-inline: 0.6mm;
+  }
+
+  .tabella-stampa td.cella-campo {
+    padding: 0.8mm 1.2mm;
+  }
+
+  .campo-stampa {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #000;
+    font-size: 8.5pt;
+    line-height: 1.2;
   }
 }

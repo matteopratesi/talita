@@ -55,6 +55,9 @@ class RoomAccessTests(
         val sara = kit.rows.register(setup.id, accountB, "Sara", "Neri", status = RegistrationStatus.maybe)
         val base = "/convivenza/${setup.id}/camere"
 
+        /** The page of the venue and its rooms (TALITA-20): the rooms are written there, by the teachers only. */
+        val house = "/strutture/${kit.venueOf(setup.id)}"
+
         init {
             kit.put(luca, setup.id, one)
             kit.put(sara, setup.id, two)
@@ -62,24 +65,28 @@ class RoomAccessTests(
         }
 
         /** The pages of the rooms as a link opens them. */
-        fun pages(): List<String> = listOf(base, "$base/stampa", "$base/nuova", "$base/$one/modifica", "$base/$one/togli", "$base/scegli", "$base/sposta", "$base/maestri", "$base/copia")
+        fun pages(): List<String> =
+            listOf(base, "$base/stampa", "$base/scegli", "$base/sposta", "$base/maestri", house, "$house/camere/nuova", "$house/camere/$one/modifica", "$house/camere/$one/togli")
 
         /** The forms of the rooms, as the pages send them, with the fields that make a good request. */
         fun forms(): List<Pair<String, Map<String, String>>> = listOf(
             "$base/scegli" to mapOf("persona" to "b$anna", "camera" to two.toString()),
             "$base/sposta" to mapOf("persona" to "b$luca", "azione" to "togli"),
             "$base/maestri" to mapOf("camera" to two.toString(), "persona" to "m${setup.giuliaId}"),
-            "$base/nuova" to mapOf("name" to "Camera 9", "beds" to "3"),
-            "$base/$one/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "3"),
-            "$base/$one/togli" to mapOf("camera" to one.toString()),
-            "$base/copia" to emptyMap(),
+            "$house/camere/nuova" to mapOf("name" to "Camera 9", "beds" to "3"),
+            "$house/camere/$one/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "3"),
+            "$house/camere/$one/togli" to mapOf("camera" to one.toString()),
         )
     }
 
     @Test
     fun `t11 c17 the rule of the teachers covers every address of the rooms, so a parent cannot reach any of them`() {
         assertTrue("/convivenza/**" in TeacherPaths.patterns)
-        for (path in listOf("/convivenza/1/camere", "/convivenza/1/camere/stampa", "/convivenza/1/camere/nuova", "/convivenza/1/camere/2/modifica", "/convivenza/1/camere/2/togli", "/convivenza/1/camere/copia", "/convivenza/1/camere/scegli")) {
+        assertTrue("/strutture/**" in TeacherPaths.patterns, "the rooms are written in the page of the venue (TALITA-20)")
+        for (path in listOf(
+            "/convivenza/1/camere", "/convivenza/1/camere/stampa", "/convivenza/1/camere/scegli", "/convivenza/1/camere/sposta", "/convivenza/1/camere/maestri",
+            "/strutture/1", "/strutture/1/camere/nuova", "/strutture/1/camere/2/modifica", "/strutture/1/camere/2/togli",
+        )) {
             assertTrue(TeacherPaths.matches(path), path)
         }
     }
@@ -123,7 +130,7 @@ class RoomAccessTests(
     }
 
     @Test
-    fun `t11 c17 a teacher is told 404 for a room, a registration or a teacher that does not exist or is of another gathering, and nothing changes`() {
+    fun `t11 c17 a teacher is told 404 for a room, a registration or a teacher that does not exist or is of another gathering, 409 for a room of another venue, and nothing changes`() {
         val w = World()
         val other = kit.otherGathering()
         val elsewhere = kit.room(other, "Camera 1", 4)
@@ -132,15 +139,25 @@ class RoomAccessTests(
         val state = kit.state()
         val marta = w.setup.marta
 
-        // A room that is not there, or of another gathering: the pages and the forms of that room are not found.
+        // A room that is not there, or of another venue: the pages and the forms of that room, in the page of the venue, are not found.
         for (room in listOf(missing, elsewhere)) {
-            assertEquals(404, marta.get("${w.base}/$room/modifica").response.status, "GET modifica $room")
-            assertEquals(404, marta.get("${w.base}/$room/togli").response.status, "GET togli $room")
-            assertEquals(404, marta.submit("/profilo", "${w.base}/$room/modifica", mapOf("name" to "Camera 7", "beds" to "2")).response.status, "POST modifica $room")
-            assertEquals(404, marta.submit("/profilo", "${w.base}/$room/togli", mapOf("camera" to room.toString())).response.status, "POST togli $room")
-            assertEquals(404, marta.submit("/profilo", "${w.base}/maestri", mapOf("camera" to room.toString(), "persona" to "m${w.setup.giuliaId}")).response.status, "POST maestri $room")
-            assertEquals(404, marta.submit("/profilo", "${w.base}/scegli", mapOf("persona" to "b${w.anna}", "camera" to room.toString())).response.status, "POST scegli $room")
-            assertEquals(404, marta.submit("/profilo", "${w.base}/sposta", mapOf("persona" to "b${w.luca}", "azione" to "sposta", "camera" to room.toString())).response.status, "POST sposta $room")
+            assertEquals(404, marta.get("${w.house}/camere/$room/modifica").response.status, "GET modifica $room")
+            assertEquals(404, marta.get("${w.house}/camere/$room/togli").response.status, "GET togli $room")
+            assertEquals(404, marta.submit("/profilo", "${w.house}/camere/$room/modifica", mapOf("name" to "Camera 7", "beds" to "2")).response.status, "POST modifica $room")
+        }
+        assertEquals(404, marta.submit("/profilo", "${w.house}/camere/$elsewhere/togli", mapOf("camera" to elsewhere.toString())).response.status, "POST togli of a room of another venue")
+        // The choices of who sleeps where: a room that is not there is not found; a room of another venue is the page that was old when the venue of the gathering changed, `409` and nothing is done.
+        assertEquals(404, marta.submit("/profilo", "${w.base}/maestri", mapOf("camera" to missing.toString(), "persona" to "m${w.setup.giuliaId}")).response.status, "POST maestri missing")
+        assertEquals(404, marta.submit("/profilo", "${w.base}/scegli", mapOf("persona" to "b${w.anna}", "camera" to missing.toString())).response.status, "POST scegli missing")
+        assertEquals(404, marta.submit("/profilo", "${w.base}/sposta", mapOf("persona" to "b${w.luca}", "azione" to "sposta", "camera" to missing.toString())).response.status, "POST sposta missing")
+        assertEquals(409, marta.submit("/profilo", "${w.base}/maestri", mapOf("camera" to elsewhere.toString(), "persona" to "m${w.setup.giuliaId}")).response.status, "POST maestri of another venue")
+        assertEquals(409, marta.submit("/profilo", "${w.base}/scegli", mapOf("persona" to "b${w.anna}", "camera" to elsewhere.toString())).response.status, "POST scegli of another venue")
+        assertEquals(409, marta.submit("/profilo", "${w.base}/sposta", mapOf("persona" to "b${w.luca}", "azione" to "sposta", "camera" to elsewhere.toString())).response.status, "POST sposta of another venue")
+        // A venue that is not there: nothing of it is found.
+        val noVenue = "/strutture/${kit.venueOf(w.setup.id) + 100_000}"
+        for (path in listOf(noVenue, "$noVenue/camere/nuova", "$noVenue/camere/${w.one}/modifica", "$noVenue/camere/${w.one}/togli")) assertEquals(404, marta.get(path).response.status, "GET $path")
+        for (path in listOf("$noVenue/camere/nuova", "$noVenue/camere/${w.one}/modifica", "$noVenue/camere/${w.one}/togli")) {
+            assertEquals(404, marta.submit("/profilo", path, mapOf("name" to "Camera 7", "beds" to "2", "camera" to w.one.toString())).response.status, "POST $path")
         }
         // A registration that is not there, or of another gathering, and a person that is not a teacher.
         for (person in listOf("b${w.anna + 100_000}", "b$stranger", "m${w.accountA}", "m${w.setup.giuliaId + 100_000}", "x12", "b", "")) {
@@ -151,8 +168,8 @@ class RoomAccessTests(
         assertEquals(404, marta.submit("/profilo", "${w.base}/maestri", mapOf("camera" to w.two.toString(), "persona" to "b${w.anna}")).response.status, "a child is no teacher")
         // A gathering that is not there: nothing of it is found.
         val none = "/convivenza/${w.setup.id + 100_000}/camere"
-        for (path in listOf(none, "$none/stampa", "$none/nuova", "$none/${w.one}/modifica", "$none/${w.one}/togli")) assertEquals(404, marta.get(path).response.status, "GET $path")
-        for (path in listOf("$none/scegli", "$none/sposta", "$none/maestri", "$none/nuova", "$none/${w.one}/modifica", "$none/${w.one}/togli", "$none/copia")) {
+        for (path in listOf(none, "$none/stampa")) assertEquals(404, marta.get(path).response.status, "GET $path")
+        for (path in listOf("$none/scegli", "$none/sposta", "$none/maestri")) {
             assertEquals(404, marta.submit("/profilo", path, mapOf("persona" to "b${w.anna}", "camera" to w.one.toString(), "name" to "x", "beds" to "1")).response.status, "POST $path")
         }
         assertEquals(state, kit.state(), "nothing was changed")
@@ -161,7 +178,9 @@ class RoomAccessTests(
     @Test
     fun `t11 c17 a teacher can open every address of the rooms`() {
         val w = World()
-        for (path in listOf(w.base, "${w.base}/stampa", "${w.base}/nuova", "${w.base}/${w.one}/modifica", "${w.base}/${w.one}/togli")) assertEquals(200, w.setup.marta.get(path).response.status, "GET $path")
+        for (path in listOf(w.base, "${w.base}/stampa", w.house, "${w.house}/camere/nuova", "${w.house}/camere/${w.one}/modifica", "${w.house}/camere/${w.one}/togli")) {
+            assertEquals(200, w.setup.marta.get(path).response.status, "GET $path")
+        }
         // Paolo Verdi is a teacher too (and a custodian): the rule is for the teachers.
         assertEquals(200, w.setup.paolo.get(w.base).response.status)
     }

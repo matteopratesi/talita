@@ -14,6 +14,10 @@ Come si lavora su Talità da un PC Linux. Il PC di Matteo è lo stesso su cui gi
   `docker` equivale ai permessi di root sul PC.
 - **La rete, alla prima build** (vedi le cache sotto). Niente Node né npm: non servono e un test
   controlla che non ci siano.
+- **`pdftotext`** (il pacchetto `poppler-utils`, `sudo apt install poppler-utils`): i test e2e che leggono
+  il PDF stampato da Chromium (i fogli dei moduli della struttura e le camere) lo lanciano per contare
+  i fogli e leggerne il testo. Senza, quei test si saltano e non provano niente. In CI lo installa il
+  workflow, prima della build.
 - `git`, e `gh` per le PR e per leggere l'identità dell'account GitHub.
 
 ## Docker e `sg docker`
@@ -195,7 +199,7 @@ Il menù della convivenza è un file (PDF, JPEG o PNG) che i maestri caricano (T
 
 `./gradlew e2eTest` (parte di `./gradlew build`) apre un Chromium vero, headless, in due profili:
 telefono (360×800, touch) e desktop (1280×800). Le tracce e gli screenshot dei test falliti restano
-sotto `build/e2e-artifacts/<Classe>/<test>-<profilo>/`; in CI sono nell'artifact `e2e-failures`
+sotto `build/e2e-artifacts/<Classe>/<test>-<codice>-<profilo>/` (il nome del test è tagliato a 100 caratteri e seguito da un codice, perché il nome di una cartella può avere al massimo 255 byte); in CI sono nell'artifact `e2e-failures`
 della run (7 giorni). Per guardarne uno:
 `./gradlew playwrightShowTrace -Ptrace=build/e2e-artifacts/<…>/trace.zip`.
 

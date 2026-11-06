@@ -178,7 +178,12 @@ data class ArrivalsPage(
     val deleted: DeletedState? = null,
     /** The row «Menù» that downloads the file of the menu of the gathering (TALITA-12, criterion 9): null when there is no menu, and the card is not there. */
     val menu: MenuLink? = null,
+    /** The forms of the venue of the gathering (TALITA-20, criterion 21): a row each under «Da stampare», after «Elenco per la struttura». None: no row and no sentence. */
+    val forms: List<FormLink> = emptyList(),
 )
+
+/** A row «Da stampare» for a form of the venue: its name, what the sheet has («Per Casa del bosco: nome e cognome, età al primo giorno e giorni di presenza. Maestri: documento e codice fiscale.») and the address of the sheet. */
+data class FormLink(val name: String, val meta: String, val href: String)
 
 /** The answer to a touch on a row: the new row, the new summary and the sentence that a screen reader says (criterion 4, design 5). */
 data class RowAnswer(val row: RowView, val summary: SummaryView, val announcement: String)
@@ -189,7 +194,21 @@ data class RowAnswer(val row: RowView, val summary: SummaryView, val announcemen
  * those of the registrations of TALITA-5.
  */
 @Component
-class ArrivalsPresenter(private val registrations: Registrations, private val teacher: TeacherPresenter, private val texts: RetentionTexts, private val menus: MenuPresenter) {
+class ArrivalsPresenter(
+    private val registrations: Registrations,
+    private val teacher: TeacherPresenter,
+    private val texts: RetentionTexts,
+    private val menus: MenuPresenter,
+    private val venueForms: ArrivalForms,
+) {
+
+    /** The forms of the venue of [gathering], as the rows of «Da stampare»: the sheet of each one is printed from here (TALITA-20, criterion 21). */
+    private fun forms(gathering: GatheringInfo): List<FormLink> {
+        val venue = gathering.venueId ?: return emptyList()
+        val house = gathering.venueName?.let { "Per $it: " }.orEmpty()
+        return venueForms.ofVenue(venue).map { FormLink(it.name, house + it.columns().replaceFirstChar { c -> c.lowercase() }, "/arrivi/modulo/${it.id}") }
+    }
+
 
     fun hrefOf(registration: Long, day: LocalDate): String = "/arrivi/$registration?giorno=$day"
 
@@ -332,7 +351,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
         val day = choice.selected
         val refresh = "/arrivi?giorno=$day"
         if (data.registrations.isEmpty()) {
-            return ArrivalsPage(ArrivalsState.EMPTY, lead(gathering), alert, days(choice), null, CheckinFormat.time(now), refresh, null, emptyList(), newHref, null, null, menu = menus.link(gathering.id))
+            return ArrivalsPage(ArrivalsState.EMPTY, lead(gathering), alert, days(choice), null, CheckinFormat.time(now), refresh, null, emptyList(), newHref, null, null, menu = menus.link(gathering.id), forms = forms(gathering))
         }
         fun rows(of: List<RegistrationData>, markable: Boolean) = of.map { row(data, it, day, markable) }
         val expected = data.registrations.filter { data.expected(it, day) }
@@ -366,6 +385,7 @@ class ArrivalsPresenter(private val registrations: Registrations, private val te
             draftTitle = null,
             draftHref = null,
             menu = menus.link(gathering.id),
+            forms = forms(gathering),
         )
     }
 

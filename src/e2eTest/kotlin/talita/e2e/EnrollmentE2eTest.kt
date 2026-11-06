@@ -419,7 +419,7 @@ class EnrollmentE2eTest {
         val code = e2e.openGathering().code
         page.toStepTwo(e2e, code)
         page.tickTheThreeBoxes()
-        e2e.dsl().update(GATHERING).set(GATHERING.PLACE, "Una casa nuova per ritiri").execute()
+        e2e.dsl().update(talita.jooq.tables.references.VENUE).set(talita.jooq.tables.references.VENUE.PLACE, "Una casa nuova per ritiri").execute()
 
         e2e.press(page.locator("main").buttonNamed("Accetta e iscrivi"))
 
@@ -448,6 +448,10 @@ class EnrollmentE2eTest {
             page.locator("#telefono").fill("333 123 4567")
             page.fillChild(0, "Luca", "Rossi", "4", "4", "2016")
             page.choose("children[0].presence", "all_days")
+            // Choosing the days asks for the quota (htmx, in the background). That request, if it reaches the server after the change that the test makes in the database, is answered
+            // with a redirect to the information page (the registrations are closed): the page leaves the form, and the tap that follows waits for a button that is not there any more.
+            // So the form is left alone until the answer has arrived and htmx has finished.
+            page.waitForHtmxIdle()
         }
 
         firstStep()

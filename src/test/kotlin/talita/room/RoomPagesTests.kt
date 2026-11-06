@@ -22,6 +22,8 @@ import talita.gathering.status
 import talita.gathering.title
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
+import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.VENUE
 import talita.registration.DayKind
 import talita.registration.Presence
 import talita.registration.RegistrationFormat
@@ -34,8 +36,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The page «Camere» for the teachers (criteria 1, 4-10, 13): what it says, the choices (with htmx and without), the notices, the answers that are always the whole block and the
- * states of the gathering. Names, rooms and numbers are synthetic; the dates come from the day of the test, and the ages from the dates with the same formatter that the pages use.
+ * The page «Camere» for the teachers (TALITA-11, criteria 1, 6-10, 13; TALITA-20, criteria 14 and 15: the rooms are the venue's, so the page has no form of a room and no copy, and leads to the page of the venue): what
+ * it says, the choices (with htmx and without), the notices, the answers that are always the whole block and the states of the gathering. Names, rooms and numbers are synthetic; the dates come from the day of
+ * the test, and the ages from the dates with the same formatter that the pages use.
  */
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
@@ -87,6 +90,10 @@ class RoomPagesTests(
 
     private fun freeSection(html: String): String = Regex("""<section id="senza-camera".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value
 
+    /** The name of the venue of the gathering: what the page says to open to write the rooms. */
+    private fun venueName(gathering: Long): String =
+        dsl.select(VENUE.NAME).from(VENUE).join(GATHERING).on(GATHERING.VENUE_ID.eq(VENUE.ID)).where(GATHERING.ID.eq(gathering)).fetchSingle(VENUE.NAME)!!
+
     // ---- The page (criterion 1) ---------------------------------------------------------------------------------------------------------------
 
     @Test
@@ -101,7 +108,12 @@ class RoomPagesTests(
         assertEquals("Camere · Talità", title(html))
         assertTrue(text.contains("Torna alla convivenza"), text)
         assertTrue(text.contains("Convivenza di settembre 2027 · ${GatheringFormat.range(w.setup.yesterday, w.setup.tomorrow)}"), text)
-        assertTrue(text.contains("Metti ogni bambino e ogni maestro nella sua camera. Le camere le vedono solo i maestri."), text)
+        assertTrue(text.contains("Metti ogni bambino e ogni maestro nella sua camera. Le camere sono quelle della struttura e le vedono solo i maestri."), text)
+        // The rooms are written in the page of the venue: the page says which one, and leads there (criterion 14).
+        assertTrue(text.contains("Per aggiungere, cambiare o togliere una camera apri ${venueName(w.setup.id)}."), text)
+        assertTrue(Regex("""<a href="/strutture/${kit.venueOf(w.setup.id)}#camere"[^>]*>.*?Apri la struttura""", RegexOption.DOT_MATCHES_ALL).containsMatchIn(html), "the link to the venue")
+        assertFalse(text.contains("Aggiungi una camera") || text.contains("Copia le camere"), "no form of a room here, and no copy")
+        assertFalse(Regex("""/camere/\d+/(modifica|togli)|Togli Camera|Modifica Camera""").containsMatchIn(html), "the rooms are not changed in this page")
         // The summary: the numbers, and «bambini e maestri» under the people in the rooms.
         val summary = words(Regex("""<section id="riepilogo".*?</section>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value)
         assertTrue(summary.contains("Camere 3 Posti letto 10 Persone in camera 3 bambini e maestri Bambini senza camera 2"), summary)
@@ -129,9 +141,12 @@ class RoomPagesTests(
         val setup = kit.start()
         val page = "/convivenza/${setup.id}/camere"
 
-        val empty = words(setup.marta.get(page).body())
-        assertTrue(empty.contains("Nessuna camera Scrivi le camere della casa, poi metti ogni bambino e ogni maestro nella sua. Le camere le vedono solo i maestri."), empty)
-        assertTrue(empty.contains("Aggiungi una camera") && !empty.contains("Copia le camere"), "with nothing to copy only «Aggiungi una camera»")
+        // A venue that has no rooms: the page says to write them in the page of the venue, with the way there (criterion 15), and offers neither a form nor a copy.
+        val emptyHtml = setup.marta.get(page).body()
+        val empty = words(emptyHtml)
+        assertTrue(empty.contains("Nessuna camera ${venueName(setup.id)} non ha ancora camere. Scrivile nella pagina della struttura: poi le trovi qui."), empty)
+        assertTrue(empty.contains("Scrivi le camere") && emptyHtml.contains("""href="/strutture/${kit.venueOf(setup.id)}#camere""""), empty)
+        assertFalse(empty.contains("Aggiungi una camera") || empty.contains("Copia le camere"), "no form of a room here, and no copy")
 
         kit.room(setup.id, "Camera 1", 4)
         val html = setup.marta.get(page).body()
@@ -154,51 +169,36 @@ class RoomPagesTests(
         assertTrue(html.contains("&lt;i&gt;Anna&lt;/i&gt;"))
     }
 
-    // ---- The copy (criterion 4) ----------------------------------------------------------------------------------------------------------------
+    // ---- The copy is gone (TALITA-20, criterion 14) ---------------------------------------------------------------------------------------------
 
     @Test
-    fun `t11 c04 with a gathering before that has rooms the empty state offers to copy them, with the name that says which, and copying makes the same rooms empty`() {
+    fun `t20 c14 the rooms are not copied any more, the gathering of the year after in the same venue finds the same rooms empty, and the addresses of the copy and of the forms are not there`() {
         val setup = kit.start()
-        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        kit.room(before, "Camera 1", 4)
-        kit.room(before, "Camera 2", 4)
-        kit.room(before, "Stanza azzurra", 2)
+        val venue = kit.venueOf(setup.id)
+        val one = kit.room(setup.id, "Camera 1", 4)
+        kit.room(setup.id, "Stanza azzurra", 2)
+        kit.put(kit.rows.register(setup.id, kit.checkin.account(), "Luca", "Rossi"), setup.id, one)
         val page = "/convivenza/${setup.id}/camere"
 
-        val html = setup.marta.get(page).body()
-        val empty = words(html)
-        assertTrue(empty.contains("Nella «Convivenza di settembre 2026» c’erano 3 camere e 10 posti. Le copiamo senza le persone: poi le sistemi come vuoi."), empty)
-        assertTrue(html.contains("""aria-label="Copia le camere di Convivenza di settembre 2026""""), "the name of the button says which gathering")
-        assertTrue(empty.contains("Copia le camere") && empty.contains("Aggiungi una camera"))
+        // The gathering of the year after: closed here only because there is at most one that is not (the other one is the one open), in the same house.
+        val next = kit.otherGathering("Convivenza di settembre 2028", daysFromToday = 400, venue = venue)
+        val nextHtml = setup.marta.get("/convivenza/$next/camere").body()
+        val nextText = words(nextHtml)
+        assertTrue(nextText.contains("Camera 1 Vuota · 4 posti Nessuno ci dorme, per ora."), nextText)
+        assertTrue(nextText.contains("Stanza azzurra Vuota · 2 posti"), nextText)
+        assertFalse(nextText.contains("Luca Rossi"), "who sleeps where is of the gathering, and nobody sleeps in the rooms of the next one yet")
+        assertEquals(listOf("Camera 1" to 4, "Stanza azzurra" to 2), kit.roomsOf(next), "the same rooms, not a copy of them")
+        assertEquals(2, kit.roomCount(setup.id), "nothing was copied: there are two rooms in all")
+        assertEquals(1, kit.peopleCount(setup.id))
+        assertEquals(0, kit.peopleCount(next))
 
-        val answer = setup.marta.submit("/profilo", "$page/copia", emptyMap(), htmx())
-        assertEquals(200, answer.status())
-        val block = words(answer.body())
-        assertTrue(block.contains("Camere copiate."), block)
-        assertTrue(block.contains("Camere 3 Posti letto 10"), block)
-        assertEquals(listOf("Camera 1" to 4, "Camera 2" to 4, "Stanza azzurra" to 2), kit.roomsOf(setup.id))
-        assertEquals(0, kit.peopleCount(setup.id), "copied without the people")
-        // With rooms there the button is not there, and a request by hand changes nothing.
-        val after = setup.marta.get(page).body()
-        assertFalse(words(after).contains("Copia le camere"), "the button is not there with rooms already written")
-        val state = kit.state()
-        val again = setup.marta.submit("/profilo", "$page/copia", emptyMap(), htmx())
-        assertEquals(200, again.status())
-        assertEquals(state, kit.state())
-    }
-
-    @Test
-    fun `t11 c04 without JavaScript the copy answers with a redirect to the page and the message there once`() {
-        val setup = kit.start()
-        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        kit.room(before, "Camera 1", 4)
-        val page = "/convivenza/${setup.id}/camere"
-
-        val answer = setup.marta.submit("/profilo", "$page/copia", emptyMap())
-        assertEquals(303, answer.status())
-        assertEquals(page, answer.location())
-        assertTrue(words(setup.marta.get(page).body()).contains("Camere copiate."))
-        assertFalse(words(setup.marta.get(page).body()).contains("Camere copiate."), "the message is read once")
+        // The copy and the forms of the rooms are not addresses of this page any more: they are in the page of the venue.
+        assertFalse(words(setup.marta.get(page).body()).contains("Copia le camere"))
+        for (tail in listOf("/copia", "/nuova", "/$one/modifica", "/$one/togli")) {
+            assertTrue(setup.marta.submit("/profilo", page + tail, emptyMap()).status() in setOf(404, 405), "POST $tail is not an address of this page")
+        }
+        for (tail in listOf("/nuova", "/$one/modifica", "/$one/togli")) assertEquals(404, setup.marta.get(page + tail).status(), "GET $tail")
+        assertEquals(2, kit.roomCount(setup.id))
     }
 
     // ---- The choices (criteria 6, 7, 8, 10) ----------------------------------------------------------------------------------------------------
@@ -411,7 +411,7 @@ class RoomPagesTests(
         val text = words(html)
         assertTrue(text.contains("La convivenza è ancora in bozza: le camere si scrivono già, i bambini compaiono quando i genitori li iscrivono."), text)
         assertTrue(text.contains("I bambini compaiono qui quando i genitori li iscrivono."), text)
-        assertTrue(text.contains("Maestri affidatari · 2") && text.contains("Aggiungi una camera") && text.contains("Aggiungi un maestro"), text)
+        assertTrue(text.contains("Maestri affidatari · 2") && text.contains("Apri la struttura") && text.contains("Aggiungi un maestro"), text)
         val answer = setup.marta.submit("/profilo", "$page/scegli", mapOf("persona" to "m${setup.martaId}", "camera" to room.toString()), htmx())
         assertEquals(200, answer.status())
         assertEquals(room, kit.roomOfTeacher(setup.id, setup.martaId))
@@ -419,6 +419,7 @@ class RoomPagesTests(
 
     @Test
     fun `t11 c13 the day after the end the page has no actions and says so, a request by hand is refused with 409 and nothing changes, and until the last day everything changes`() {
+        // (The rooms of the house are not of this page and are not refused after the end: they are written in the page of the venue, at any moment.)
         val w = World()
         // The last day is today: everything is still possible.
         kit.endedDaysAgo(w.setup.id, 0)
@@ -428,9 +429,9 @@ class RoomPagesTests(
         kit.endedDaysAgo(w.setup.id, 1)
         val html = w.get()
         val text = words(html)
-        assertTrue(text.contains("La convivenza è finita: le camere non si cambiano più."), text)
+        assertTrue(text.contains("La convivenza è finita: chi dorme dove non si cambia più."), text)
         assertFalse(text.contains("Metti ogni bambino e ogni maestro nella sua camera."), "no introduction")
-        for (action in listOf("<select", "Cambia", "Aggiungi un maestro", "Modifica", "Togli", "Aggiungi una camera", "Metti", "Sposta")) assertFalse(html.contains(action), "no «$action» after the end")
+        for (action in listOf("<select", "Cambia", "Aggiungi un maestro", "Modifica", "Togli", "Apri la struttura", "Metti", "Sposta")) assertFalse(html.contains(action), "no «$action» after the end")
         assertTrue(text.contains("Stampa"), "the print is still there")
         // The people are there until the job deletes them, with no choice; who has no room is listed.
         assertTrue(text.contains("Luca Rossi") && text.contains("Anna Rossi") && text.contains("Paolo Verdi"), text)
@@ -441,19 +442,13 @@ class RoomPagesTests(
             "/scegli" to mapOf("persona" to "b${w.sara}", "camera" to w.one.toString()),
             "/sposta" to mapOf("persona" to "b${w.luca}", "azione" to "togli"),
             "/maestri" to mapOf("camera" to w.one.toString(), "persona" to "m${w.setup.giuliaId}"),
-            "/nuova" to mapOf("name" to "Camera 9", "beds" to "2"),
-            "/${w.one}/modifica" to mapOf("name" to "Camera 1 bis", "beds" to "2"),
-            "/${w.one}/togli" to emptyMap(),
-            "/copia" to emptyMap(),
         )) {
             val answer = w.marta.touch(w, tail, fields)
             assertEquals(409, answer.status(), tail)
-            assertTrue(words(answer.body()).contains("La convivenza è finita: le camere non si cambiano più."), tail)
+            assertTrue(words(answer.body()).contains("La convivenza è finita: chi dorme dove non si cambia più."), tail)
             assertEquals(409, w.marta.touch(w, tail, fields, viaHtmx = false).status(), "$tail without JavaScript")
         }
         assertEquals(state, kit.state(), "nothing changed")
-        // The pages of the forms are refused too.
-        for (tail in listOf("/nuova", "/${w.one}/modifica", "/${w.one}/togli")) assertEquals(409, w.marta.get(w.page + tail).status(), tail)
     }
 
     @Test
@@ -465,7 +460,7 @@ class RoomPagesTests(
         assertEquals(409, answer.status())
         val block = answer.body()
         assertTrue(block.trimStart().startsWith("<div id=\"camere-contenuto\">"))
-        assertEquals(1, Regex("""La convivenza è finita: le camere non si cambiano più\.""").findAll(block.substringBefore("<p hx-swap-oob")).count(), "said once in the block")
+        assertEquals(1, Regex("""La convivenza è finita: chi dorme dove non si cambia più\.""").findAll(block.substringBefore("<p hx-swap-oob")).count(), "said once in the block")
         assertTrue(Regex("""role="status"[^>]*tabindex="-1"[^>]*data-fuoco|data-fuoco""").containsMatchIn(block.substringBefore("La convivenza è finita")), "the notice takes the focus")
     }
 
@@ -473,32 +468,32 @@ class RoomPagesTests(
     fun `t11 c13 a gathering that is over and has no rooms says that it is over, not that anything was deleted or that rooms can be written, and so does its print`() {
         val setup = kit.start()
         val page = "/convivenza/${setup.id}/camere"
-        // Before the end the empty state invites to write them.
-        assertTrue(words(setup.marta.get(page).body()).contains("Nessuna camera Scrivi le camere della casa"))
+        // Before the end the empty state invites to write them, in the page of the venue.
+        assertTrue(words(setup.marta.get(page).body()).contains("Nessuna camera ${venueName(setup.id)} non ha ancora camere."))
 
         kit.endedDaysAgo(setup.id, 1)
         val response = setup.marta.get(page)
         assertEquals(200, response.status())
         val html = response.body()
         val text = words(html)
-        assertTrue(text.contains("La convivenza è finita: le camere non si cambiano più."), text)
-        assertTrue(text.contains("Nessuna camera In questa convivenza non sono state scritte camere."), text)
-        // The sentences of the deletion (there was nothing to delete and nothing to copy) and the invitation to write are false after the end.
-        for (sentence in listOf("Chi dormiva dove è stato cancellato", "Le camere restano, senza nomi", "le puoi copiare", "Scrivi le camere", "Aggiungi una camera", "Copia le camere")) {
+        assertTrue(text.contains("La convivenza è finita: chi dorme dove non si cambia più."), text)
+        assertTrue(text.contains("Nessuna camera In questa convivenza non ci sono camere."), text)
+        // The sentences of the deletion (there was nothing to delete) and the invitation to write are false after the end.
+        for (sentence in listOf("Chi dormiva dove è stato cancellato", "Le camere restano con la struttura", "le trovi anche", "Scrivi le camere", "Apri la struttura", "non ha ancora camere", "Copia le camere")) {
             assertFalse(text.contains(sentence), "«$sentence» after the end with no rooms: $text")
         }
         assertEquals(0, Regex("""<(select|form|button)\b""").findAll(html.substringAfter("<main").substringBefore("</main>")).count(), "no choice, no form")
 
         // The same for the print: nothing to print, and the reason is the end.
         val print = words(setup.marta.get("$page/stampa").body())
-        assertTrue(print.contains("Nessuna camera da stampare In questa convivenza non sono state scritte camere."), print)
+        assertTrue(print.contains("Nessuna camera da stampare In questa convivenza non ci sono camere."), print)
         assertFalse(print.contains("Quando scrivi le camere") || print.contains("è stato cancellato"), print)
 
         // With rooms and nobody in them the sentence of the deletion stays: it is true there.
         kit.room(setup.id, "Camera 1", 4)
         val deleted = words(setup.marta.get(page).body())
-        assertTrue(deleted.contains("Chi dormiva dove è stato cancellato il") && deleted.contains("Le camere restano, senza nomi"), deleted)
-        assertFalse(deleted.contains("La convivenza è finita: le camere non si cambiano più."), "the deletion says it already")
+        assertTrue(deleted.contains("Chi dormiva dove è stato cancellato il") && deleted.contains("Le camere restano con la struttura, senza nomi: le trovi anche nella convivenza dell’anno dopo."), deleted)
+        assertFalse(deleted.contains("La convivenza è finita: chi dorme dove non si cambia più."), "the deletion says it already")
     }
 
     // ---- The card in the detail of the gathering (criterion 16) -----------------------------------------------------------------------------------
@@ -525,7 +520,10 @@ class RoomPagesTests(
     fun `t11 c16 the card says to write the rooms when there are none, only the house in a draft, and a gathering of one day without rooms has no card`() {
         val setup = kit.start()
         val detail = "/convivenza/${setup.id}"
-        assertTrue(words(setup.marta.get(detail).body()).contains("Camere Scrivi le camere Nessuna camera per ora."))
+        // A venue with no rooms: the card says to write them, in the page of the venue (criterion 15).
+        val noRooms = setup.marta.get(detail).body()
+        assertTrue(words(noRooms).contains("Camere Scrivi le camere ${venueName(setup.id)} non ha ancora camere."), words(noRooms))
+        assertTrue(noRooms.contains("""href="/strutture/${kit.venueOf(setup.id)}#camere""""), "the card leads to the page of the venue")
 
         val room = kit.room(setup.id, "Camera 1", 4)
         kit.rows.register(setup.id, kit.checkin.account(), "Luca", "Rossi")
@@ -564,7 +562,7 @@ class RoomPagesTests(
         val response = setup.marta.get("$detail/camere")
         val page = words(response.body())
         assertEquals(200, response.status())
-        assertTrue(page.contains("Nessuna camera") && !page.contains("Aggiungi una camera"), page)
+        assertTrue(page.contains("Nessuna camera") && !page.contains("Scrivi le camere"), page)
 
         // With rooms the card stays, with the house only.
         kit.room(setup.id, "Camera 1", 4)

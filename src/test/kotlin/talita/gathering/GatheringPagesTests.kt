@@ -168,7 +168,7 @@ class GatheringPagesTests(
         assertEquals(start, row.startDate)
         assertEquals(start.plusDays(2), row.endDate)
         assertTrue(Regex("^[A-Za-z0-9_-]{16}$").matches(row.publicCode!!))
-        assertNull(row.place)
+        assertNull(row.venueId)
         assertNull(row.fullFeeCents)
 
         val detail = browser.get(created.location()!!)
@@ -178,7 +178,8 @@ class GatheringPagesTests(
         assertEquals("Convivenza di settembre 2027 · Talità", title(html))
         assertTrue(text(html).contains("Convivenza salvata."), "the confirmation")
         assertTrue(Regex("""role="status" tabindex="-1" data-fuoco""").containsMatchIn(html), "a notice that follows an action takes the focus")
-        assertTrue(text(html).contains("Dove Non indicato"))
+        assertTrue(text(html).contains("Struttura Non indicata Da completare"))
+        assertFalse(text(html).contains("Dove"), "no venue, no place")
         assertEquals(3, Regex("""Non prevista""").findAll(html).count())
         assertTrue(text(html).contains("Nessun maestro scelto"))
         assertTrue(text(html).contains("Informazioni Non indicate"))
@@ -193,7 +194,7 @@ class GatheringPagesTests(
         val id = gatherings.make(status = GatheringStatus.draft)
         val before = kit.codeOf(id)
 
-        browser.send("/convivenza/$id/date", mapOf("title" to "Un altro titolo", "startDate" to gatherings.today().plusDays(50).toString(), "endDate" to gatherings.today().plusDays(52).toString(), "place" to "Un altro luogo"))
+        browser.send("/convivenza/$id/date", mapOf("title" to "Un altro titolo", "startDate" to gatherings.today().plusDays(50).toString(), "endDate" to gatherings.today().plusDays(52).toString(), "venue" to ""))
         browser.send("/convivenza/$id/quote", mapOf("fullFee" to "70"))
         browser.send("/convivenza/$id/informazioni", mapOf("infoText" to "Un testo"))
 
@@ -361,8 +362,6 @@ class GatheringPagesTests(
         assertTrue(text(tooLong.body()).contains("Controlla i 2 campi segnati in rosso."))
         assertEquals("a".repeat(5001), valueOf(tooLong.body(), "informazioni"), "what was written comes back whole")
 
-        val place = browser.send("/convivenza/$id/date", mapOf("title" to "Titolo", "startDate" to gatherings.today().plusDays(5).toString(), "endDate" to gatherings.today().plusDays(6).toString(), "place" to "p".repeat(201)))
-        assertEquals("Il luogo può avere al massimo 200 caratteri: ne hai scritti 201.", errorOf(place.body(), "luogo"))
     }
 
     @Test
@@ -380,10 +379,9 @@ class GatheringPagesTests(
         assertEquals("Qui ci sono un indirizzo email e un numero di telefono. Toglili: la pagina la legge chiunque abbia il link.", errorOf(both.body(), "informazioni"))
         assertNull(dsl.select(GATHERING.INFO_TEXT).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.INFO_TEXT), "nothing saved")
 
-        val title = browser.send("/convivenza/$id/date", mapOf("title" to "Convivenza di nome@example.org", "startDate" to start, "endDate" to end, "place" to "Casa, tel. 333 1234567"))
+        val title = browser.send("/convivenza/$id/date", mapOf("title" to "Convivenza di nome@example.org", "startDate" to start, "endDate" to end, "venue" to ""))
         assertEquals(422, title.status())
         assertEquals("Qui c’è un indirizzo email. Toglilo: la pagina la legge chiunque abbia il link.", errorOf(title.body(), "titolo"))
-        assertEquals("Qui c’è un numero di telefono. Toglilo: la pagina la legge chiunque abbia il link.", errorOf(title.body(), "luogo"))
         val creation = browser.send("/convivenza/nuova", mapOf("title" to "Chiama 333 1234567", "startDate" to start, "endDate" to end))
         assertTrue(creation.status() == 409 || creation.status() == 422)
 
@@ -474,19 +472,20 @@ class GatheringPagesTests(
         assertTrue(text(form).contains("Date ${GatheringFormat.range(end.minusDays(2), end)}"), text(form))
         assertTrue(form.contains("Le date non si cambiano più, perché la convivenza è finita."))
 
-        // Title and place can change, with no dates in the request.
-        assertEquals(303, browser.send("/convivenza/$id/date", mapOf("title" to "Convivenza di settembre 2026, finita", "place" to "Un altro luogo")).status())
+        // Title and venue can change, with no dates in the request.
+        val other = gatherings.makeVenue("Un altro luogo")
+        assertEquals(303, browser.send("/convivenza/$id/date", mapOf("title" to "Convivenza di settembre 2026, finita", "venue" to other.toString())).status())
         val row = dsl.selectFrom(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle()
         assertEquals("Convivenza di settembre 2026, finita", row.title)
-        assertEquals("Un altro luogo", row.place)
+        assertEquals(other, row.venueId)
         assertEquals(end, row.endDate)
 
         // A request by hand with other dates: refused whole, nothing changes.
-        val byHand = browser.send("/convivenza/$id/date", mapOf("title" to "Cambiato", "startDate" to end.plusDays(10).toString(), "endDate" to end.plusDays(12).toString(), "place" to "Cambiato"))
+        val byHand = browser.send("/convivenza/$id/date", mapOf("title" to "Cambiato", "startDate" to end.plusDays(10).toString(), "endDate" to end.plusDays(12).toString(), "venue" to ""))
         assertEquals(409, byHand.status())
         assertTrue(text(byHand.body()).contains("Le date non si cambiano più, perché la convivenza è finita."))
         val after = dsl.selectFrom(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle()
-        assertEquals(listOf("Convivenza di settembre 2026, finita", "Un altro luogo", end), listOf(after.title, after.place, after.endDate))
+        assertEquals(listOf("Convivenza di settembre 2026, finita", other, end), listOf(after.title, after.venueId, after.endDate))
 
         // Fees and texts are not about the dates.
         assertEquals(303, browser.send("/convivenza/$id/quote", mapOf("fullFee" to "55")).status())
@@ -500,26 +499,27 @@ class GatheringPagesTests(
         val start = gatherings.today().plusDays(30)
 
         assertTrue(browser.get("/convivenza/$id/date").body().contains("""type="date""""))
-        assertEquals(303, browser.send("/convivenza/$id/date", mapOf("title" to "Titolo", "startDate" to start.toString(), "endDate" to start.plusDays(1).toString(), "place" to "Luogo")).status())
+        val venue = gatherings.venueIdOf(id).toString()
+        assertEquals(303, browser.send("/convivenza/$id/date", mapOf("title" to "Titolo", "startDate" to start.toString(), "endDate" to start.plusDays(1).toString(), "venue" to venue)).status())
         assertEquals(start.plusDays(1), dsl.select(GATHERING.END_DATE).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.END_DATE))
 
         // A draft whose end has passed can still change its title with the dates as they are, and its dates.
         dsl.update(GATHERING).set(GATHERING.STATUS, GatheringStatus.draft).set(GATHERING.START_DATE, gatherings.today().minusDays(9)).set(GATHERING.END_DATE, gatherings.today().minusDays(7)).where(GATHERING.ID.eq(id)).execute()
         assertEquals(
             303,
-            browser.send("/convivenza/$id/date", mapOf("title" to "Solo il titolo", "startDate" to gatherings.today().minusDays(9).toString(), "endDate" to gatherings.today().minusDays(7).toString(), "place" to "Luogo")).status(),
+            browser.send("/convivenza/$id/date", mapOf("title" to "Solo il titolo", "startDate" to gatherings.today().minusDays(9).toString(), "endDate" to gatherings.today().minusDays(7).toString(), "venue" to venue)).status(),
         )
     }
 
     @Test
-    fun `t4 c10 once it is not a draft any more the place and the full fee cannot be emptied, and the form says so`() {
+    fun `t4 c10 once it is not a draft any more the venue and the full fee cannot be emptied, and the form says so`() {
         val (browser, _) = kit.start()
         val id = gatherings.make(status = GatheringStatus.`open`)
         val start = gatherings.today().plusDays(30).toString()
 
-        val place = browser.send("/convivenza/$id/date", mapOf("title" to "Titolo", "startDate" to start, "endDate" to start, "place" to " "))
-        assertEquals(422, place.status())
-        assertEquals(GatheringChecks.PLACE_MISSING, errorOf(place.body(), "luogo"))
+        val venue = browser.send("/convivenza/$id/date", mapOf("title" to "Titolo", "startDate" to start, "endDate" to start, "venue" to " "))
+        assertEquals(422, venue.status())
+        assertEquals(GatheringChecks.VENUE_MISSING, errorOf(venue.body(), "struttura"))
         val fee = browser.send("/convivenza/$id/quote", mapOf("fullFee" to "", "dailyFee" to "", "lunchOnlyFee" to ""))
         assertEquals(422, fee.status())
         assertEquals(GatheringChecks.FULL_FEE_MISSING, errorOf(fee.body(), "quota-intera"))

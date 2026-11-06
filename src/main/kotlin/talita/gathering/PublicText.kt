@@ -24,8 +24,11 @@ object PublicText {
     /** The help under «Titolo» («Nuova convivenza» and «Modifica titolo, date e luogo»): where the title appears, and the rule. */
     const val TITLE_HELP = "Per esempio «Convivenza di settembre 2027». Compare nella pagina per i genitori, nell’anteprima del link e nei promemoria. $RULE"
 
-    /** The help under «Luogo». «Serve per aprire le iscrizioni» is not here: the detail of the gathering says it. */
-    const val PLACE_HELP = "Il nome della casa o della struttura. Compare nella pagina per i genitori e nell’anteprima del link. $RULE"
+    /** The help under «Nome della struttura» (TALITA-20): where the name of the venue appears, and the rule. The name is public text like the place. */
+    const val NAME_HELP = "Il nome della casa, per esempio «Casa del bosco». Compare nella pagina per i genitori e nell’anteprima del link. $RULE"
+
+    /** The help under «Luogo» of a venue: where the place appears (the page for the parents, the preview of the link and the text of the custody), and the rule. */
+    const val PLACE_HELP = "Il nome della casa e dove si trova. Compare nella pagina per i genitori, nell’anteprima del link e nel testo dell’affidamento. $RULE"
 
     /** The help under «Informazioni per i genitori». */
     const val INFO_HELP = "Chi può partecipare, gli orari, come si arriva, l’aiuto per i trasporti. Compare nella pagina per i genitori. $RULE"
@@ -37,7 +40,7 @@ object PublicText {
      * What was found in a text. [name] is the first and the last name of a person that the application knows: [check] leaves it `false`, because only the database can say it
      * ([PublicNames]), and the controller sets it with `copy(name = true)`.
      */
-    data class Findings(val email: Boolean, val phone: Boolean, val iban: Boolean, val name: Boolean = false) {
+    data class Findings(val email: Boolean, val phone: Boolean, val iban: Boolean, val name: Boolean = false, val closing: String = PUBLIC_CLOSING) {
         val any: Boolean get() = email || phone || iban || name
 
         /**
@@ -58,9 +61,9 @@ object PublicText {
                 else -> found.dropLast(1).joinToString(", ") + " e " + found.last()
             }
             return if (found.size == 1 && !name) {
-                "Qui c’è $list. Toglilo: la pagina la legge chiunque abbia il link."
+                "Qui c’è $list. Toglilo: $closing"
             } else {
-                "Qui ci sono $list. Toglili: la pagina la legge chiunque abbia il link."
+                "Qui ci sono $list. Toglili: $closing"
             }
         }
     }
@@ -74,9 +77,16 @@ object PublicText {
 
     private const val PHONE_DIGITS = 9
 
-    fun check(text: String): Findings {
+    /** The end of the error of a text that the parents read: why the data must go. */
+    const val PUBLIC_CLOSING = "la pagina la legge chiunque abbia il link."
+
+    /** The end of the error of the name of a form of a venue (TALITA-20), which is not public: the parents never read it, it is on the sheet that a teacher prints. */
+    const val DOCUMENT_CLOSING = "scrivi solo il nome del documento."
+
+    /** What is in [text]. [closing] is the end of the error that [Findings.message] writes: the one of a public text, or [DOCUMENT_CLOSING]. */
+    fun check(text: String, closing: String = PUBLIC_CLOSING): Findings {
         val withoutIban = iban.replace(text, " ")
         val hasPhone = digits.findAll(withoutIban).any { run -> run.value.count { it.isDigit() } >= PHONE_DIGITS }
-        return Findings(email = email.containsMatchIn(text), phone = hasPhone, iban = iban.containsMatchIn(text))
+        return Findings(email = email.containsMatchIn(text), phone = hasPhone, iban = iban.containsMatchIn(text), closing = closing)
     }
 }

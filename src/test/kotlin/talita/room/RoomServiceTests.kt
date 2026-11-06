@@ -49,30 +49,32 @@ class RoomServiceTests(
     private fun child(gathering: Long, first: String, last: String, days: Map<java.time.LocalDate, String>? = null, status: RegistrationStatus = RegistrationStatus.confirmed): Long =
         kit.rows.register(gathering, kit.checkin.account(), first, last, days = days, status = status)
 
-    // ---- A room: written, changed, taken away, copied (criteria 2, 4, 5) ------------------------------------------------------------------
+    // ---- A room: written, changed, taken away (criteria 2, 5; TALITA-20: by venue) ------------------------------------------------------------------
 
     @Test
     fun `t11 c02 a room is written with its name and beds, and a name already used, whatever its capitals and spaces, is refused and nothing is written`() {
         val setup = kit.start()
 
-        val saved = assertIs<SaveResult.Saved>(rooms.create(setup.id, "Camera 1", 4))
-        assertEquals(Room(saved.room.id, "Camera 1", 4), rooms.find(setup.id, saved.room.id))
-        assertEquals(SaveResult.NameTaken, rooms.create(setup.id, "camera 1", 2))
-        assertEquals(SaveResult.NameTaken, rooms.create(setup.id, "  CAMERA 1  ", 2))
+        val saved = assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Camera 1", 4))
+        assertEquals(Room(saved.room.id, "Camera 1", 4), rooms.find(kit.venueOf(setup.id), saved.room.id))
+        assertEquals(SaveResult.NameTaken, rooms.create(kit.venueOf(setup.id), "camera 1", 2))
+        assertEquals(SaveResult.NameTaken, rooms.create(kit.venueOf(setup.id), "  CAMERA 1  ", 2))
         assertEquals(1, kit.roomCount(setup.id))
 
-        val second = assertIs<SaveResult.Saved>(rooms.create(setup.id, "Stanza azzurra", 2))
+        val second = assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Stanza azzurra", 2))
         // A change keeps its own name (also with other capitals) and takes none of another room.
-        assertIs<SaveResult.Saved>(rooms.update(setup.id, saved.room.id, "CAMERA 1", 6))
-        assertEquals(Room(saved.room.id, "CAMERA 1", 6), rooms.find(setup.id, saved.room.id))
-        assertEquals(SaveResult.NameTaken, rooms.update(setup.id, second.room.id, "camera 1", 2))
-        assertEquals(Room(second.room.id, "Stanza azzurra", 2), rooms.find(setup.id, second.room.id))
-        // A room of another gathering, or one that is not there, or a gathering that is not there: not found.
-        val other = kit.otherGathering()
+        assertIs<SaveResult.Saved>(rooms.update(kit.venueOf(setup.id), saved.room.id, "CAMERA 1", 6))
+        assertEquals(Room(saved.room.id, "CAMERA 1", 6), rooms.find(kit.venueOf(setup.id), saved.room.id))
+        assertEquals(SaveResult.NameTaken, rooms.update(kit.venueOf(setup.id), second.room.id, "camera 1", 2))
+        assertEquals(Room(second.room.id, "Stanza azzurra", 2), rooms.find(kit.venueOf(setup.id), second.room.id))
+        // A room of another venue, or one that is not there, or a venue that is not there: not found.
+        val other = kit.venueOf(kit.otherGathering())
         assertEquals(SaveResult.NotFound, rooms.update(other, saved.room.id, "Camera 9", 2))
-        assertEquals(SaveResult.NotFound, rooms.update(setup.id, saved.room.id + 100_000, "Camera 9", 2))
-        assertEquals(SaveResult.NotFound, rooms.create(setup.id + 100_000, "Camera 9", 2))
-        assertNull(rooms.find(other, saved.room.id), "a room is of one gathering")
+        assertEquals(SaveResult.NotFound, rooms.update(kit.venueOf(setup.id), saved.room.id + 100_000, "Camera 9", 2))
+        assertEquals(SaveResult.NotFound, rooms.create(other + 100_000, "Camera 9", 2))
+        assertNull(rooms.find(other, saved.room.id), "a room is of one venue")
+        // The same name in another venue is another room: the name is unique in the venue.
+        assertIs<SaveResult.Saved>(rooms.create(other, "Camera 1", 4))
     }
 
     @Test
@@ -81,7 +83,7 @@ class RoomServiceTests(
         val pool = Executors.newFixedThreadPool(2)
         try {
             val start = CountDownLatch(1)
-            val results = (1..2).map { pool.submit<SaveResult> { start.await(10, TimeUnit.SECONDS); rooms.create(setup.id, "Camera 7", 3) } }
+            val results = (1..2).map { pool.submit<SaveResult> { start.await(10, TimeUnit.SECONDS); rooms.create(kit.venueOf(setup.id), "Camera 7", 3) } }
             start.countDown()
             val answers = results.map { it.get(30, TimeUnit.SECONDS) }
             assertEquals(1, answers.count { it is SaveResult.Saved }, "$answers")
@@ -90,85 +92,6 @@ class RoomServiceTests(
             pool.shutdownNow()
         }
         assertEquals(1, kit.roomCount(setup.id))
-    }
-
-    @Test
-    fun `t11 c04 the rooms of the gathering before are copied empty into one that has none, and a second copy changes nothing`() {
-        val setup = kit.start()
-        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        val one = kit.room(before, "Camera 1", 4)
-        kit.room(before, "Camera 2", 4)
-        kit.room(before, "Stanza azzurra", 2)
-        kit.putTeacher(before, setup.paoloId, one)
-
-        val previous = rooms.previous(setup.id)
-        assertEquals(PreviousRooms(before, "Convivenza di settembre 2026", 3, 10), previous)
-
-        assertEquals(CopyResult.Copied(3), rooms.copyPrevious(setup.id))
-        assertEquals(listOf(Room(0, "Camera 1", 4), Room(0, "Camera 2", 4), Room(0, "Stanza azzurra", 2)), rooms.rooms(setup.id).map { it.copy(id = 0) })
-        assertEquals(0, kit.peopleCount(setup.id), "copied without the people")
-        assertEquals(1, kit.peopleCount(before), "the rooms of before are as they were")
-        // With rooms already there nothing is copied, and a request by hand changes nothing.
-        val state = kit.state()
-        assertEquals(CopyResult.NotEmpty, rooms.copyPrevious(setup.id))
-        assertEquals(state, kit.state())
-        assertNull(rooms.previous(before), "the gathering before has nothing before it")
-        assertEquals(CopyResult.NotFound, rooms.copyPrevious(setup.id + 100_000))
-    }
-
-    @Test
-    fun `t11 c04 without a gathering before that has rooms there is nothing to copy, and two copies at the same moment leave one set of rooms`() {
-        val setup = kit.start()
-        assertNull(rooms.previous(setup.id))
-        assertEquals(CopyResult.NothingToCopy, rooms.copyPrevious(setup.id))
-        assertEquals(0, kit.roomCount(setup.id))
-
-        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        kit.room(before, "Camera 1", 4)
-        kit.room(before, "Camera 2", 4)
-        val pool = Executors.newFixedThreadPool(2)
-        try {
-            val start = CountDownLatch(1)
-            val results = (1..2).map { pool.submit<CopyResult> { start.await(10, TimeUnit.SECONDS); rooms.copyPrevious(setup.id) } }
-            start.countDown()
-            val answers = results.map { it.get(30, TimeUnit.SECONDS) }
-            assertEquals(listOf(CopyResult.Copied(2)), answers.filterIsInstance<CopyResult.Copied>(), "$answers")
-            assertEquals(1, answers.count { it == CopyResult.NotEmpty }, "$answers")
-        } finally {
-            pool.shutdownNow()
-        }
-        assertEquals(2, kit.roomCount(setup.id), "the names are unique: the second copy has nothing to add")
-    }
-
-    @Test
-    fun `t11 c04 a copy that finds the rooms written by another copy at the same moment is told that there are rooms already, not that it copied none`() {
-        val setup = kit.start()
-        val before = kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        kit.room(before, "Camera 1", 4)
-        kit.room(before, "Camera 2", 4)
-        val pool = Executors.newFixedThreadPool(2)
-        try {
-            // The first copy has written the rooms and has not committed yet: the second passes the check, and its insert waits for the first to end and then skips every row.
-            val written = CountDownLatch(1)
-            val commit = CountDownLatch(1)
-            val first = pool.submit {
-                dsl.transaction { configuration ->
-                    val tx = DSL.using(configuration)
-                    tx.insertInto(ROOM, ROOM.GATHERING_ID, ROOM.NAME, ROOM.BEDS).values(setup.id, "Camera 1", 4.toShort()).values(setup.id, "Camera 2", 4.toShort()).execute()
-                    written.countDown()
-                    commit.await(30, TimeUnit.SECONDS)
-                }
-            }
-            assertTrue(written.await(30, TimeUnit.SECONDS))
-            // Committing before the second copy is really blocked on the lock of the first would let it find the rooms at its check, and the case that this test is about would not happen.
-            val second = LockWait.awaitBlocked(dsl, "the second copy should wait for the first") { pool.submit<CopyResult> { rooms.copyPrevious(setup.id) } }
-            commit.countDown()
-            first.get(30, TimeUnit.SECONDS)
-            assertEquals(CopyResult.NotEmpty, second.get(30, TimeUnit.SECONDS))
-        } finally {
-            pool.shutdownNow()
-        }
-        assertEquals(2, kit.roomCount(setup.id), "the rooms of the first copy, and nothing more")
     }
 
     @Test
@@ -182,7 +105,7 @@ class RoomServiceTests(
         kit.put(anna, setup.id, two)
         kit.putTeacher(setup.id, setup.paoloId, one)
 
-        assertEquals(RemoveResult.Removed("Camera 1", 2), rooms.remove(setup.id, one))
+        assertEquals(RemoveResult.Removed("Camera 1", 2, 1), rooms.remove(kit.venueOf(setup.id), one))
         assertNull(kit.roomOfChild(luca))
         assertNull(kit.roomOfTeacher(setup.id, setup.paoloId))
         assertEquals(two, kit.roomOfChild(anna), "the other room is as it was")
@@ -191,13 +114,14 @@ class RoomServiceTests(
         assertTrue(board.freeCustodians.any { it.accountId == setup.paoloId })
         // Taken away by another teacher a moment ago: the same answer, and nothing changes.
         val elsewhere = kit.room(kit.otherGathering(), "Camera 1", 4)
+        val elsewhereVenue = kit.venueOfRoom(elsewhere)
         val state = kit.state()
-        assertEquals(RemoveResult.AlreadyGone, rooms.remove(setup.id, one))
+        assertEquals(RemoveResult.AlreadyGone, rooms.remove(kit.venueOf(setup.id), one))
         assertEquals(state, kit.state())
-        // A room that was never there, or that is of another gathering, is not found.
-        assertEquals(RemoveResult.NotFound, rooms.remove(setup.id, one + 100_000))
-        assertEquals(RemoveResult.NotFound, rooms.remove(setup.id, elsewhere))
-        assertEquals(RemoveResult.NotFound, rooms.remove(setup.id + 100_000, two))
+        // A room that was never there, or that is of another venue, is not found.
+        assertEquals(RemoveResult.NotFound, rooms.remove(kit.venueOf(setup.id), one + 100_000))
+        assertEquals(RemoveResult.NotFound, rooms.remove(kit.venueOf(setup.id), elsewhere))
+        assertEquals(RemoveResult.NotFound, rooms.remove(elsewhereVenue + 100_000, two))
         assertEquals(state, kit.state())
     }
 
@@ -255,7 +179,7 @@ class RoomServiceTests(
     }
 
     @Test
-    fun `t11 c07 a registration or a room of another gathering, or one that is not there, is not found and nothing changes`() {
+    fun `t11 c07 a registration of another gathering, or a room that is not there, is not found, a room of another venue is refused, and nothing changes`() {
         val setup = kit.start()
         val one = kit.room(setup.id, "Camera 1", 4)
         val luca = child(setup.id, "Luca", "Rossi")
@@ -264,7 +188,7 @@ class RoomServiceTests(
         val stranger = child(other, "Elena", "Marino")
         val state = kit.state()
 
-        assertEquals(PlaceResult.NotFound, rooms.place(setup.id, PersonRef.Child(luca), elsewhere), "a room of another gathering")
+        assertEquals(PlaceResult.OtherVenue, rooms.place(setup.id, PersonRef.Child(luca), elsewhere), "a room of another venue: the venue of the gathering is not the one of the page that asked")
         assertEquals(PlaceResult.NotFound, rooms.place(setup.id, PersonRef.Child(luca), one + 100_000))
         assertEquals(PlaceResult.NotFound, rooms.place(setup.id, PersonRef.Child(stranger), one), "a registration of another gathering")
         assertEquals(PlaceResult.NotFound, rooms.place(setup.id, PersonRef.Child(luca + 100_000), one))
@@ -317,7 +241,7 @@ class RoomServiceTests(
         val full = kit.room(setup.id, "Camera 2", 5)
         kit.put(child(setup.id, "Elena", "Marino"), setup.id, full)
         kit.put(child(setup.id, "Matilde", "Gallo"), setup.id, full)
-        assertIs<SaveResult.Saved>(rooms.update(setup.id, full, "Camera 2", 1))
+        assertIs<SaveResult.Saved>(rooms.update(kit.venueOf(setup.id), full, "Camera 2", 1))
         val after = rooms.board(setup.id)!!
         assertTrue(after.overfull(after.rooms.first { it.id == full }))
     }
@@ -336,7 +260,7 @@ class RoomServiceTests(
             val first = pool.submit {
                 dsl.transaction { configuration ->
                     val tx = DSL.using(configuration)
-                    tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, luca).set(ROOM_CHILD.GATHERING_ID, setup.id).set(ROOM_CHILD.ROOM_ID, one).execute()
+                    tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, luca).set(ROOM_CHILD.GATHERING_ID, setup.id).set(ROOM_CHILD.VENUE_ID, kit.venueOf(setup.id)).set(ROOM_CHILD.ROOM_ID, one).execute()
                     held.countDown()
                     release.await(20, TimeUnit.SECONDS)
                 }
@@ -418,7 +342,7 @@ class RoomServiceTests(
                 dsl.transaction { configuration ->
                     val tx = DSL.using(configuration)
                     tx.select(REGISTRATION.ID).from(REGISTRATION).where(REGISTRATION.ID.eq(sara)).forShare().fetch()
-                    tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, sara).set(ROOM_CHILD.GATHERING_ID, setup.id).set(ROOM_CHILD.ROOM_ID, one).execute()
+                    tx.insertInto(ROOM_CHILD).set(ROOM_CHILD.REGISTRATION_ID, sara).set(ROOM_CHILD.GATHERING_ID, setup.id).set(ROOM_CHILD.VENUE_ID, kit.venueOf(setup.id)).set(ROOM_CHILD.ROOM_ID, one).execute()
                     held.countDown()
                     release.await(20, TimeUnit.SECONDS)
                 }
@@ -495,19 +419,17 @@ class RoomServiceTests(
     // ---- The states (criterion 13) -----------------------------------------------------------------------------------------------------------
 
     @Test
-    fun `t11 c13 in a draft the rooms are written and copied and the teachers are put in them, but there are no children`() {
+    fun `t11 c13 in a draft the rooms are written and the teachers are put in them, but there are no children`() {
         val setup = kit.start(first = 30, last = 32, status = GatheringStatus.draft)
-        assertEquals(CopyResult.NothingToCopy, rooms.copyPrevious(setup.id))
-        val saved = assertIs<SaveResult.Saved>(rooms.create(setup.id, "Camera 1", 4))
-        assertIs<SaveResult.Saved>(rooms.update(setup.id, saved.room.id, "Camera 1", 5))
+        val saved = assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Camera 1", 4))
+        assertIs<SaveResult.Saved>(rooms.update(kit.venueOf(setup.id), saved.room.id, "Camera 1", 5))
         assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Teacher(setup.paoloId), saved.room.id))
         assertEquals(PlaceResult.NotFound, rooms.place(setup.id, PersonRef.Child(1), saved.room.id), "a draft has no registration")
         val board = rooms.board(setup.id)!!
         assertTrue(board.draft && !board.over)
         assertTrue(board.registrations.isEmpty() && board.freeChildren.isEmpty())
         assertNull(rooms.summary(setup.id).unassigned, "a draft has no children to count")
-        assertEquals(CopyResult.NotEmpty, rooms.copyPrevious(setup.id))
-        assertEquals(RemoveResult.Removed("Camera 1", 1), rooms.remove(setup.id, saved.room.id))
+        assertEquals(RemoveResult.Removed("Camera 1", 1, 1), rooms.remove(kit.venueOf(setup.id), saved.room.id))
     }
 
     @Test
@@ -515,16 +437,16 @@ class RoomServiceTests(
         val setup = kit.start(status = GatheringStatus.closed)
         val luca = child(setup.id, "Luca", "Rossi")
 
-        val saved = assertIs<SaveResult.Saved>(rooms.create(setup.id, "Camera 1", 4))
+        val saved = assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Camera 1", 4))
         assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Child(luca), saved.room.id))
         assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Teacher(setup.giuliaId), saved.room.id))
-        assertIs<SaveResult.Saved>(rooms.update(setup.id, saved.room.id, "Camera 1 bis", 3))
+        assertIs<SaveResult.Saved>(rooms.update(kit.venueOf(setup.id), saved.room.id, "Camera 1 bis", 3))
         assertIs<PlaceResult.Cleared>(rooms.clear(setup.id, PersonRef.Child(luca)))
-        assertEquals(RemoveResult.Removed("Camera 1 bis", 1), rooms.remove(setup.id, saved.room.id))
+        assertEquals(RemoveResult.Removed("Camera 1 bis", 1, 1), rooms.remove(kit.venueOf(setup.id), saved.room.id))
     }
 
     @Test
-    fun `t11 c13 until the last day everything changes, and from the day after the end nothing does and every write is refused with nothing changed`() {
+    fun `t11 c13 until the last day everything changes, and from the day after the end who sleeps where does not, while the rooms of the house still do`() {
         val setup = kit.start()
         val one = kit.room(setup.id, "Camera 1", 4)
         val luca = child(setup.id, "Luca", "Rossi")
@@ -532,17 +454,15 @@ class RoomServiceTests(
         dsl.update(talita.jooq.tables.references.GATHERING).set(talita.jooq.tables.references.GATHERING.END_DATE, setup.today).where(talita.jooq.tables.references.GATHERING.ID.eq(setup.id)).execute()
         assertEquals(false, rooms.board(setup.id)!!.over)
         assertIs<PlaceResult.Placed>(rooms.place(setup.id, PersonRef.Child(luca), one))
-        assertIs<SaveResult.Saved>(rooms.create(setup.id, "Camera 2", 2))
+        assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Camera 2", 2))
 
-        // The day after the last day: the board says it is over and every write says so, whoever asks.
+        // The day after the last day: the board says it is over and every change of who sleeps where says so, whoever asks. The rooms are the house's, and the house still changes (TALITA-20).
         kit.endedDaysAgo(setup.id, 1)
         val board = rooms.board(setup.id)!!
         assertTrue(board.over, "the day after the end")
+        assertIs<SaveResult.Saved>(rooms.create(kit.venueOf(setup.id), "Camera 3", 2))
+        assertIs<SaveResult.Saved>(rooms.update(kit.venueOf(setup.id), one, "Camera 1 bis", 4))
         val state = kit.state()
-        assertEquals(SaveResult.Over, rooms.create(setup.id, "Camera 3", 2))
-        assertEquals(SaveResult.Over, rooms.update(setup.id, one, "Camera 1 bis", 2))
-        assertEquals(RemoveResult.Over, rooms.remove(setup.id, one))
-        assertEquals(CopyResult.Over, rooms.copyPrevious(setup.id))
         assertEquals(PlaceResult.Over, rooms.place(setup.id, PersonRef.Child(luca), one))
         assertEquals(PlaceResult.Over, rooms.place(setup.id, PersonRef.Teacher(setup.paoloId), one))
         assertEquals(PlaceResult.Over, rooms.clear(setup.id, PersonRef.Child(luca)))
@@ -554,20 +474,23 @@ class RoomServiceTests(
     @Test
     fun `t11 c16 the counts of the gathering are rooms, beds and children without a room, and none of them is a name`() {
         val setup = kit.start()
-        assertEquals(talita.gathering.RoomSummary(0, 0, null), rooms.summary(setup.id), "no rooms and no children")
+        assertEquals(Triple(0, 0, null), counts(setup.id), "no rooms and no children")
         val one = kit.room(setup.id, "Camera 1", 4)
         kit.room(setup.id, "Camera 2", 4)
         kit.room(setup.id, "Stanza azzurra", 2)
-        assertEquals(talita.gathering.RoomSummary(3, 10, null), rooms.summary(setup.id), "no children registered yet: nothing is said of them")
+        assertEquals(Triple(3, 10, null), counts(setup.id), "no children registered yet: nothing is said of them")
         val luca = child(setup.id, "Luca", "Rossi")
         child(setup.id, "Anna", "Rossi")
         child(setup.id, "Nicolò", "Ferri", days = mapOf(setup.today to "lunch"))
         child(setup.id, "Chiara", "Fontana", status = RegistrationStatus.withdrawn)
-        assertEquals(talita.gathering.RoomSummary(3, 10, 2), rooms.summary(setup.id))
+        assertEquals(Triple(3, 10, 2), counts(setup.id))
+        assertEquals(kit.venueOf(setup.id), rooms.summary(setup.id).venueId, "the counts are of the venue of the gathering")
         kit.put(luca, setup.id, one)
         assertEquals(1, rooms.summary(setup.id).unassigned)
         // After the end only the house is counted.
         kit.endedDaysAgo(setup.id, 1)
-        assertEquals(talita.gathering.RoomSummary(3, 10, null), rooms.summary(setup.id))
+        assertEquals(Triple(3, 10, null), counts(setup.id))
     }
+
+    private fun counts(gathering: Long) = rooms.summary(gathering).let { Triple(it.rooms, it.beds, it.unassigned) }
 }

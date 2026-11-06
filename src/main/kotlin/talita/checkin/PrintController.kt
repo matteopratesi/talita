@@ -3,6 +3,7 @@ package talita.checkin
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
@@ -13,8 +14,9 @@ import java.time.Clock
 import java.time.OffsetDateTime
 
 /**
- * The three prints of the gathering of Arrivi (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio`, only for the teachers: `TeacherPaths` answers 403 to anyone
- * else before a request gets here): the register to fill in by hand, the list of names for the venue and the sheet with the parents' contacts for the teachers.
+ * The prints of the gathering of Arrivi (`/arrivi/registro`, `/arrivi/elenco`, `/arrivi/foglio` and `/arrivi/modulo/{id}`, only for the teachers: `TeacherPaths` answers 403 to anyone
+ * else before a request gets here): the register to fill in by hand, the list of names for the venue, the sheet with the parents' contacts for the teachers and (TALITA-20, part 3) the sheet of
+ * a form of the venue, with the fields of the teachers that stay in the browser.
  * They are whole pages with a button that prints them, not pieces that htmx updates: what is on the screen is what is on the paper, and the paper is the reserve when
  * there is no network where the gathering is.
  *
@@ -23,6 +25,8 @@ import java.time.OffsetDateTime
  * - **Nothing personal in an address or in the log**: the list for the venue takes a day of the gathering and nothing else; a day that is not one is a page that
  *   does not exist. Without a gathering that is not a draft there is nothing to print: 404.
  * - The time of the print is the one of the server at the request, and the page is never kept (`no-store`, as every page behind the access).
+ * - **The sheet of a form has only the id of the form in the address**, and no htmx: the fields of the teachers (document, tax code) are in the page, outside every `<form>` and with no `name`, so
+ *   nothing sends them; the server never sees what is written there. A form that does not exist, or is not of the venue of the gathering of Arrivi, is a page that does not exist (404).
  */
 @Controller
 class PrintController(
@@ -30,6 +34,8 @@ class PrintController(
     private val scope: ArrivalsScope,
     private val arrivals: Arrivals,
     private val presenter: PrintPresenter,
+    private val modules: ModulePresenter,
+    private val forms: ArrivalForms,
     private val arrivalsPresenter: ArrivalsPresenter,
     private val clock: Clock,
 ) {
@@ -56,6 +62,14 @@ class PrintController(
         deleted(gathering)?.let { return it }
         val chosen = if (day.isNullOrBlank()) null else presenter.dayOf(gathering, day) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
         return page("venueList", "Elenco per la struttura", presenter.venue(arrivals.load(gathering), chosen, OffsetDateTime.now(clock)))
+    }
+
+    @GetMapping("/arrivi/modulo/{id:[0-9]{1,18}}")
+    fun module(@PathVariable id: Long): ModelAndView {
+        val gathering = gathering()
+        deleted(gathering)?.let { return it }
+        val form = gathering.venueId?.let { forms.find(it, id) } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+        return page("moduleSheet", form.name, modules.page(arrivals.load(gathering), form, OffsetDateTime.now(clock)))
     }
 
     @GetMapping("/arrivi/foglio")

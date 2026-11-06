@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ParameterResolver
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider
 import org.junit.jupiter.api.TestTemplate
+import org.opentest4j.TestAbortedException
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import java.nio.file.Files
 import java.nio.file.Path
@@ -73,13 +74,17 @@ private class PageLifecycle(private val profile: Profile, private val signedIn: 
         val e2e = context.getStore(namespace).remove("e2e", E2e::class.java) ?: return
         // A violation of the Content-Security-Policy is a failure of the test, whatever the test was about.
         val violations = e2e.cspViolations.toList()
-        val failed = context.executionException.isPresent || violations.isNotEmpty()
+        // A test that is skipped by an assumption (`assumeTrue`: for example, `pdftotext` is not installed) has not failed: no trace for it.
+        val failed = context.executionException.filter { it !is TestAbortedException }.isPresent || violations.isNotEmpty()
         try {
             if (failed) {
-                val dir = artifactsDir(context)
-                Files.createDirectories(dir)
-                runCatching { e2e.page.screenshot(Page.ScreenshotOptions().setPath(dir.resolve("screenshot.png")).setFullPage(true)) }
-                e2e.browserContext.tracing().stop(Tracing.StopOptions().setPath(dir.resolve("trace.zip")))
+                // Saving the trace never hides why the test failed: if it cannot be saved, it is said in the log and the test keeps its own failure.
+                runCatching {
+                    val dir = artifactsDir(context)
+                    Files.createDirectories(dir)
+                    runCatching { e2e.page.screenshot(Page.ScreenshotOptions().setPath(dir.resolve("screenshot.png")).setFullPage(true)) }
+                    e2e.browserContext.tracing().stop(Tracing.StopOptions().setPath(dir.resolve("trace.zip")))
+                }.onFailure { System.err.println("e2e: the trace and the screenshot of a failed test could not be saved: $it") }
             } else {
                 e2e.browserContext.tracing().stop()
             }
@@ -97,8 +102,14 @@ private class PageLifecycle(private val profile: Profile, private val signedIn: 
 
     private fun artifactsDir(context: ExtensionContext): Path {
         val root = Path.of(System.getProperty("e2e.artifacts", "build/e2e-artifacts"))
-        val test = (context.requiredTestClass.simpleName + "/" + context.requiredTestMethod.name + "-" + profile.label)
-            .replace(Regex("[^A-Za-z0-9._/-]"), "_")
-        return root.resolve(test)
+        return root.resolve(artifactFolder(context.requiredTestClass.simpleName, context.requiredTestMethod.name, profile.label))
     }
 }
+
+/**
+ * The folder of the trace and of the screenshot of a failed test, under the folder of the artifacts: `<class>/<start of the name>-<code>-<profile>`. The names of the tests are sentences, and the name of a
+ * folder has at most 255 bytes: the start of the name, then a code that comes from all of it (two long names that start in the same way do not share a folder).
+ */
+internal fun artifactFolder(className: String, method: String, profile: String): String =
+    className + "/" + method.replace(Regex("[^A-Za-z0-9._-]"), "_").take(100) + "-" + "%08x".format(method.hashCode()) + "-" + profile
+

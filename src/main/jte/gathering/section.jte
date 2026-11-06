@@ -4,7 +4,7 @@
 @import talita.ui.Shell
 @param Shell shell
 @param SectionPage page
-<%-- The section «Convivenza» (criteria 1, 15, 16, 41): nothing yet, or the current gathering (a draft or open) above the closed ones, and always the way to «Maestri». --%>
+<%-- The section «Convivenza» (criteria 1, 15, 16, 41): nothing yet, or the current gathering (a draft or open) above the closed ones, and always the way to «Strutture» (TALITA-20, the houses where it is held) and to «Maestri», which stays last. --%>
 
 @template.layout.shell(shell = shell, content = @`
   @template.components.pageHead(title = "Convivenza")
@@ -43,6 +43,13 @@
       </ul>
     </section>
   @endif
+
+  <section class="mt-8" aria-labelledby="strutture">
+    <h2 id="strutture" class="mb-3 text-xl font-semibold tracking-tight">Strutture</h2>
+    <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+      <li>@template.components.listLink(href = "/strutture", icon = Icon.BUILDING_2, title = "Strutture", meta = "Le case dove si fa la convivenza, con luogo, camere e moduli.")</li>
+    </ul>
+  </section>
 
   <section class="mt-8" aria-labelledby="maestri">
     <h2 id="maestri" class="mb-3 text-xl font-semibold tracking-tight">Maestri</h2>

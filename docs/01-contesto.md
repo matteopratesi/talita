@@ -35,7 +35,7 @@ telefono**, con le stampe per il registro e per la struttura (al posto del regis
   (magic link, senza password), iscrive i suoi figli e accetta l'affidamento. Può correggere
   l'iscrizione finché le iscrizioni sono aperte. Vede solo i suoi figli. Quasi sempre dal telefono,
   poco pratico con l'informatica.
-- **Il maestro** crea e configura la convivenza (date, luogo, giorni, quote, maestri affidatari,
+- **Il maestro** crea e configura la convivenza (date, struttura e luogo, giorni, quote, maestri affidatari,
   testo informativo), invita gli altri maestri via email, inserisce le iscrizioni arrivate sul
   modulo cartaceo (per chi non usa l'app), e nei giorni dell'evento fa il check-in dal telefono: cerca
   il bambino, segna l'arrivo e la quota pagata, legge le segnalazioni e chiama il genitore. Vede
@@ -73,6 +73,8 @@ per conto suo: è una questione di Koinè, non di Talità.
 
 **Camere, cucina e menù, solleciti via email sono nel primo rilascio.** Dall'esito di KOINE-29 ne erano fuori; il 24/10/2026 Matteo li ha messi dentro (`docs/05-decisioni.md`): camere (TALITA-11), cucina e menù (TALITA-12), solleciti via email (TALITA-13), tutti sotto l'epica TALITA-1 (M1 · Primo rilascio). Le analisi sono nei ticket, e i vincoli che vi sono già scritti restano.
 
+**Le strutture sono nel primo rilascio** (TALITA-20, richiesta di Matteo del 2/11/2026): una convivenza si fa in una casa per ritiri, e la stessa casa torna negli anni, quindi il luogo non si riscrive più ogni anno. Un'anagrafe delle strutture, solo per i maestri, con il nome («Casa del bosco») e il luogo; la convivenza ne sceglie una e ne prende il luogo, e la pagina per i genitori e l'anteprima del link dicono il nome e il luogo. Scala minima: due o tre strutture in tutto, niente ricerca, mappe o foto, e **nessun referente**: né il nome né il telefono di persone. **Le camere sono della struttura**: si scrivono nella sua pagina, in ogni momento, e ogni convivenza che la usa le trova, vuote (niente copia da un anno all'altro; chi dorme dove resta della convivenza e si cancella alla fine, come prima). **I moduli che la struttura chiede** (parte 3 dello stesso ticket) sono stampe generate dall'app, da Arrivi: il registro dei bambini presenti per la tassa di soggiorno o per adempimenti simili. Ogni modulo ha un nome e quattro colonne da un elenco chiuso (l'età al primo giorno e i giorni di presenza dei bambini; il documento d'identità e il codice fiscale dei maestri affidatari), e li vedono solo i maestri. **L'app non raccoglie i dati dei maestri per la struttura**: documento e codice fiscale si scrivono in campi della pagina di stampa, che restano nel browser del maestro e vanno solo sul foglio o sul PDF che salva lui.
+
 **Cucina e menù entra solo come file** (TALITA-12, decisione di Matteo del 24/10/2026: «Keep it simple per ora mettiamolo solo come caricamento di un file per averlo sempre disponibile»). Un maestro carica il file del menù della convivenza (un PDF, o la foto del foglio), lo sostituisce o lo toglie, e i maestri lo scaricano, anche dal telefono durante la convivenza: la scheda «Menù» nel dettaglio e un collegamento in Arrivi. Lo vedono solo i maestri, non i genitori né la pagina informativa. Restano fuori, per un ticket futuro: pasti e menù per pasto, coperti calcolati dalle presenze, una vista per la cucina sulle segnalazioni (mostrando il minimo, mai nomi accanto ai dati sanitari) e le stampe per la cucina e per i tavoli.
 
 Dall'esito di KOINE-29, gli altri punti non sono nel primo rilascio:
@@ -81,7 +83,7 @@ Dall'esito di KOINE-29, gli altri punti non sono nel primo rilascio:
 - funzionamento senza rete (la stampa del registro è la riserva);
 - firma con valore legale;
 - sesso e luogo di nascita (mai: vedi `docs/02-modello-dati.md`);
-- dati dei maestri per la struttura, oltre a nome e cognome;
+- dati dei maestri per la struttura, oltre a nome e cognome, **nell'app**: il documento e il codice fiscale che una struttura può chiedere si scrivono sul foglio, nel browser, e non arrivano al server (TALITA-20);
 - caricamento di documenti, tranne il file del menù (sopra): manleve, elenchi e registri si tengono fuori dall'app.
 
 Fuori anche tutto ciò che è di Koinè: anagrafe delle comunità, appartenenze, fusioni, permessi per

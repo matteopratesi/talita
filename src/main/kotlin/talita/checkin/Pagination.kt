@@ -35,6 +35,9 @@ object Pagination {
     /** The heading, the header of the table, the teachers, the three blank rows and the sentence under them: with two teachers, eight rows. */
     fun venueReserve(teachers: Int): Int = maxOf(8, teachers + 6)
 
+    /** The sheet of a form of the venue (TALITA-20): 9 mm a row; with more than four days the cells «solo pranzo» go on two lines and one row less fits on each sheet. */
+    fun module(days: Int): Capacity = if (days > 4) Capacity(19, 25) else Capacity(20, 26)
+
     /** The sheet for the teachers: 9 mm a row. */
     val TEACHER_SHEET = Capacity(18, 24)
 

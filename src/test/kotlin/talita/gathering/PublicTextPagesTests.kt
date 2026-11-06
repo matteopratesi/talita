@@ -61,14 +61,18 @@ class PublicTextPagesTests(
 
     private fun MockBrowser.send(formPath: String, action: String, fields: Map<String, String>): MvcResult = submit(formPath, action, fields)
 
-    private fun datesFields(id: Long, title: String, place: String): Map<String, String> {
-        val gathering = checkNotNull(dsl.select(GATHERING.START_DATE, GATHERING.END_DATE).from(GATHERING).where(GATHERING.ID.eq(id)).fetchOne())
-        return mapOf("title" to title, "startDate" to gathering[GATHERING.START_DATE].toString(), "endDate" to gathering[GATHERING.END_DATE].toString(), "place" to place)
+    /** The fields of «Modifica titolo, date e luogo» with a title and the dates and the venue that the gathering has (the place is the venue's: the forms of the venues check it, `VenuePublicTextTests`). */
+    private fun datesFields(id: Long, title: String): Map<String, String> {
+        val gathering = checkNotNull(dsl.select(GATHERING.START_DATE, GATHERING.END_DATE, GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(id)).fetchOne())
+        return mapOf(
+            "title" to title, "startDate" to gathering[GATHERING.START_DATE].toString(), "endDate" to gathering[GATHERING.END_DATE].toString(),
+            "venue" to gathering[GATHERING.VENUE_ID]?.toString().orEmpty(),
+        )
     }
 
     private fun titleOf(id: Long): String = dsl.select(GATHERING.TITLE).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.TITLE)!!
 
-    private fun placeOf(id: Long): String? = dsl.select(GATHERING.PLACE).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle(GATHERING.PLACE)
+    private fun venueOf(id: Long): Long? = gatherings.venueIdOf(id)
 
     private fun infoOf(id: Long): Pair<String?, String?> =
         dsl.select(GATHERING.INFO_TEXT, GATHERING.WHAT_TO_BRING).from(GATHERING).where(GATHERING.ID.eq(id)).fetchSingle().let { it[GATHERING.INFO_TEXT] to it[GATHERING.WHAT_TO_BRING] }
@@ -86,7 +90,7 @@ class PublicTextPagesTests(
     }
 
     @Test
-    fun `t16 c10 the help under title, place, information and what to bring says where the text appears and what not to write, in every page where the field is`() {
+    fun `t16 c10 the help under title, information and what to bring says where the text appears and what not to write, in every page where the field is, and so does the help under name and place of a venue`() {
         val browser = start()
         val rule = "Non scrivere nome e cognome di bambini o maestri, numeri di telefono né email."
 
@@ -103,13 +107,22 @@ class PublicTextPagesTests(
             val id = if (past) gatherings.make(status = status, start = gatherings.today().minusDays(5), end = gatherings.today().minusDays(3)) else gatherings.make(status = status)
             val html = browser.get("/convivenza/$id/date").body()
             assertEquals(PublicText.TITLE_HELP, helpOf(html, "titolo"), "title, $label")
-            assertEquals(
-                "Il nome della casa o della struttura. Compare nella pagina per i genitori e nell’anteprima del link. $rule",
-                helpOf(html, "luogo"),
-                "place, $label",
-            )
             assertFalse(text(html).contains("Serve per aprire le iscrizioni"), "$label: the help of the place does not say what the detail says")
         }
+        // The name and the place of a venue (TALITA-20): both are public, and each help says where its text appears.
+        val venue = gatherings.makeVenue()
+        for (path in listOf("/strutture/nuova", "/strutture/$venue/modifica")) {
+            val html = browser.get(path).body()
+            assertEquals(
+                "Il nome della casa, per esempio «Casa del bosco». Compare nella pagina per i genitori e nell’anteprima del link. $rule",
+                helpOf(html, "nome"), path,
+            )
+            assertEquals(
+                "Il nome della casa e dove si trova. Compare nella pagina per i genitori, nell’anteprima del link e nel testo dell’affidamento. $rule",
+                helpOf(html, "luogo"), path,
+            )
+        }
+        assertEquals(listOf(PublicText.NAME_HELP, PublicText.PLACE_HELP), listOf(helpOf(browser.get("/strutture/nuova").body(), "nome"), helpOf(browser.get("/strutture/nuova").body(), "luogo")))
 
         gatherings.reset()
         val id = gatherings.make(status = GatheringStatus.draft)
@@ -120,7 +133,6 @@ class PublicTextPagesTests(
         )
         assertEquals("Scrivi una cosa per riga: nella pagina per i genitori diventa un elenco. $rule", helpOf(info, "cosa-portare"))
         assertEquals(listOf(PublicText.INFO_HELP, PublicText.BRING_HELP), listOf(helpOf(info, "informazioni"), helpOf(info, "cosa-portare")))
-        assertEquals(PublicText.PLACE_HELP, helpOf(browser.get("/convivenza/$id/date").body(), "luogo"))
         assertFalse(text(info).contains("Non scrivere nomi,"), "the old sentence is gone")
     }
 
@@ -150,7 +162,7 @@ class PublicTextPagesTests(
     }
 
     @Test
-    fun `t16 c12 the four texts of the gathering refuse the name of a child or of a teacher, in a draft and also after the end, with nothing saved`() {
+    fun `t16 c12 the three texts of the gathering refuse the name of a child or of a teacher, in a draft and also after the end, with nothing saved`() {
         val browser = start()
         for (over in listOf(false, true)) {
             // `reset` clears the children too: the two of the test are made again for each turn.
@@ -158,26 +170,17 @@ class PublicTextPagesTests(
             child("Luca", "Rossi")
             child("Nicolò", "Bianchi")
             val id = if (over) gatherings.make(status = GatheringStatus.closed, start = gatherings.today().minusDays(5), end = gatherings.today().minusDays(3)) else gatherings.make(status = GatheringStatus.draft)
-            val before = Triple(titleOf(id), placeOf(id), infoOf(id))
+            val before = Triple(titleOf(id), venueOf(id), infoOf(id))
 
-            // Title and place, from «Modifica titolo, date e luogo».
-            val dates = browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "Convivenza di Luca Rossi", "Casa di Nicolo Bianchi"))
+            // The title, from «Modifica titolo, date e luogo»: one error, and no notice above.
+            val dates = browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "Convivenza di Luca Rossi"))
             assertEquals(422, dates.status(), "dates, over = $over")
             assertEquals(nameError, errorOf(dates.body(), "titolo"))
-            assertEquals(nameError, errorOf(dates.body(), "luogo"))
             assertEquals("Convivenza di Luca Rossi", valueOf(dates.body(), "titolo"))
-            assertEquals("Casa di Nicolo Bianchi", valueOf(dates.body(), "luogo"))
-            assertTrue(text(dates.body()).contains("Controlla i 2 campi segnati in rosso."), "two errors: the notice above")
-
-            // The title alone, then the place alone: one error each.
-            val onlyTitle = browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "rossi luca", "Casa per ritiri di esempio"))
+            assertFalse(text(dates.body()).contains("Controlla i"), "one error: no notice above")
+            val onlyTitle = browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "rossi luca"))
             assertEquals(422, onlyTitle.status())
             assertEquals(nameError, errorOf(onlyTitle.body(), "titolo"))
-            assertNull(errorOf(onlyTitle.body(), "luogo"))
-            val onlyPlace = browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "Convivenza di settembre 2027", "Casa di Marta Bianchi"))
-            assertEquals(422, onlyPlace.status())
-            assertNull(errorOf(onlyPlace.body(), "titolo"))
-            assertEquals(nameError, errorOf(onlyPlace.body(), "luogo"))
 
             // Information and what to bring.
             val info = browser.send("/convivenza/$id/informazioni", "/convivenza/$id/informazioni", mapOf("infoText" to "Per informazioni chiedete a Marta Bianchi.", "whatToBring" to "Un telo\nIl cappello di LUCA ROSSÌ"))
@@ -187,19 +190,18 @@ class PublicTextPagesTests(
             assertEquals("Per informazioni chiedete a Marta Bianchi.", valueOf(info.body(), "informazioni"))
             assertEquals("Un telo\nIl cappello di LUCA ROSSÌ", valueOf(info.body(), "cosa-portare"))
 
-            assertEquals(before, Triple(titleOf(id), placeOf(id), infoOf(id)), "nothing was saved, over = $over")
+            assertEquals(before, Triple(titleOf(id), venueOf(id), infoOf(id)), "nothing was saved, over = $over")
         }
     }
 
     @Test
-    fun `t16 c13 the name alone, the two parts apart and the parts glued are saved in the four texts`() {
+    fun `t16 c13 the name alone, the two parts apart and the parts glued are saved in the three texts`() {
         val browser = start()
         val id = gatherings.make(status = GatheringStatus.draft)
 
-        assertEquals(303, browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "Il torneo di Luca", "Casa Rossi")).status())
+        assertEquals(303, browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, "Il torneo di Luca")).status())
         assertEquals(303, browser.send("/convivenza/$id/informazioni", "/convivenza/$id/informazioni", mapOf("infoText" to "Luca, Rossi e Lucarossi.", "whatToBring" to "Luca e Rossi")).status())
         assertEquals("Il torneo di Luca", titleOf(id))
-        assertEquals("Casa Rossi", placeOf(id))
         assertEquals("Luca, Rossi e Lucarossi." to "Luca e Rossi", infoOf(id))
     }
 
@@ -253,7 +255,7 @@ class PublicTextPagesTests(
     }
 
     private fun errorOfTitle(browser: MockBrowser, id: Long, title: String): String? =
-        errorOf(browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, title, "Casa per ritiri di esempio")).body(), "titolo")
+        errorOf(browser.send("/convivenza/$id/date", "/convivenza/$id/date", datesFields(id, title)).body(), "titolo")
 
     @Test
     @CapturesOutput
@@ -275,11 +277,12 @@ class PublicTextPagesTests(
     fun `t16 c16 the forms stay for the teachers, a parent who sends them by hand gets 403 and nothing is saved`() {
         start()
         val id = gatherings.make(status = GatheringStatus.draft)
-        val before = Triple(titleOf(id), placeOf(id), infoOf(id))
+        val before = Triple(titleOf(id), venueOf(id), infoOf(id))
         val parent = kit.parent()
 
         for ((path, fields) in listOf(
-            "/convivenza/$id/date" to mapOf("title" to "Luca Rossi", "place" to "Casa"),
+            "/convivenza/$id/date" to mapOf("title" to "Luca Rossi", "venue" to ""),
+            "/strutture/nuova" to mapOf("name" to "Casa di Luca Rossi", "place" to "Casa"),
             "/convivenza/$id/informazioni" to mapOf("infoText" to "Luca Rossi", "whatToBring" to "Un telo"),
             "/convivenza/nuova" to mapOf("title" to "Luca Rossi"),
         )) {
@@ -291,7 +294,8 @@ class PublicTextPagesTests(
             assertEquals(403, posted.status(), "POST $path")
             assertFalse(posted.body().contains("nome e cognome"), "no error with a name for a parent: $path")
         }
-        assertEquals(before, Triple(titleOf(id), placeOf(id), infoOf(id)))
+        assertEquals(before, Triple(titleOf(id), venueOf(id), infoOf(id)))
         assertEquals(1, kit.count())
+        assertEquals(1, dsl.fetchCount(talita.jooq.tables.references.VENUE), "the venue of the gathering, and no other")
     }
 }

@@ -108,7 +108,7 @@ class GatheringStatesTests(
         assertTrue(Regex("""role="alert" tabindex="-1" data-fuoco[^>]*>[\s\S]*?Prima di aprire le iscrizioni:""").containsMatchIn(html))
         assertEquals(
             listOf(
-                "/convivenza/$id/date#luogo" to "Scrivi il luogo",
+                "/convivenza/$id/date#struttura" to "Scegli la struttura",
                 "/convivenza/$id/quote#quota-intera" to "Scrivi la quota intera",
                 "/convivenza/$id/affidatari" to "Scegli almeno un maestro affidatario",
             ),

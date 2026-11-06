@@ -179,14 +179,14 @@ class ArrivalsLogAndPagesTests(
     fun `t6 c31 the complete notice says that the venue receives names on paper, and so does the short one of the second step`() {
         val full = words(mockMvc.get("/informativa").andReturn().response.contentAsString)
         assertTrue(
-            full.contains("La struttura che ospita la convivenza riceve su carta un elenco con il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro."), full,
+            full.contains("La struttura che ospita la convivenza riceve su carta da Talità un elenco con il nome e il cognome dei bambini e dei maestri affidatari. Se il suo modulo lo chiede, nell’elenco ci sono anche l’età dei bambini il primo giorno della convivenza (non la data di nascita) e i giorni in cui sono presenti. Nient’altro."), full,
         )
         val registrations = RegistrationTestKit(mockMvc, tokens, dsl, clock)
         val setup = registrations.start()
         val parent = registrations.parent()
         val second = parent.submit(setup.form, setup.form, registrations.form(registrations.child())).body()
         assertTrue(
-            words(second).contains("Chi li riceve I maestri della convivenza. La struttura che ospita la convivenza riceve su carta il nome e il cognome dei bambini e dei maestri affidatari, e nient’altro."),
+            words(second).contains("Chi li riceve I maestri della convivenza. La struttura che ospita la convivenza riceve su carta da Talità il nome e il cognome dei bambini e dei maestri affidatari. Se il suo modulo lo chiede, riceve anche l’età dei bambini il primo giorno della convivenza (non la data di nascita) e i giorni in cui sono presenti. Nient’altro."),
             words(second),
         )
     }

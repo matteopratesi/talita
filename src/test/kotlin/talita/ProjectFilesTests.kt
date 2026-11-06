@@ -357,7 +357,8 @@ class ProjectFilesTests {
         assertTrue(Files.isDirectory(root.resolve("docs/design/KOINE-11")))
         // Icons of the navigation and the mark.
         assertTrue(guide.contains("| Arrivi | `clipboard-check` |"))
-        for (gone in listOf("contact-round", "building-2", "`merge`")) assertFalse(guide.contains(gone), gone)
+        // (`building-2` is not in the list any more: the structures of TALITA-20 use it.)
+        for (gone in listOf("contact-round", "`merge`")) assertFalse(guide.contains(gone), gone)
         assertTrue(guide.contains("""<path d="M10.5 9h11M16 9v14""""))
         assertTrue(guide.contains("con una T bianca"))
 

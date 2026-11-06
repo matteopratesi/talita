@@ -40,7 +40,7 @@ class RoomDocsTests {
             "chi dorme in quale camera lo vedono e lo stampano **solo i maestri**", "**Niente sesso, niente motivo della scelta, niente note**",
             "**Nessun dato dei bambini verso un'IA esterna o un altro servizio, nemmeno con le sigle**", "art. 4.5, cons. 26", "art. 28", "artt. 44-46", "Niente esportazione in file.",
             "| **Camere** (TALITA-11) |", "**Niente età, presenze, recapiti né segnalazioni**", "si distrugge alla fine della convivenza, come il foglio per i maestri",
-            "| Chi dorme dove (`room_child`, `room_teacher`, TALITA-11) | **alla fine della convivenza**", "le camere (nome e posti) restano, senza nomi, per copiarle l'anno dopo",
+            "| Chi dorme dove (`room_child`, `room_teacher`, TALITA-11) | **alla fine della convivenza**", "le camere (nome e posti) restano con la struttura, senza nomi, per la convivenza dell'anno dopo",
             "chi dorme dove va via il 20 settembre 2027", "**Comprende le camere** (TALITA-11)", "WP248", "467/2018", "«larga scala»",
         )) {
             assertTrue(privacy.contains(part), "docs/03 does not say: $part")

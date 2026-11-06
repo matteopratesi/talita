@@ -172,6 +172,8 @@ class RepositoryRulesTests {
         "src/e2eTest/kotlin/talita/e2e/LoginE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
         "src/e2eTest/kotlin/talita/e2e/RememberE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
         "src/e2eTest/kotlin/talita/e2e/RoomsQaE2eTest.kt" to waits(2, Why.NOTHING_HAPPENS),
+        // The fields of the teachers: after the Enter in every field, the proof that no request leaves the page (TALITA-20, criterion 31).
+        "src/e2eTest/kotlin/talita/e2e/ModuleSheetE2eTest.kt" to waits(1, Why.NOTHING_HAPPENS),
     )
 
     private val timedWait = Regex("""Thread\.sleep\(|TimeUnit\.[A-Z]+\.sleep\(|waitForTimeout\(""")

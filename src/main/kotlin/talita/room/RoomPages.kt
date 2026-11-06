@@ -77,7 +77,6 @@ data class RoomView(
     val teacherOptions: List<RoomOption>,
     val teacherError: String?,
     val alert: Alert?,
-    val removeDialog: ConfirmModel?,
     val canAct: Boolean,
 )
 
@@ -108,11 +107,11 @@ data class FreeView(
     val canAct: Boolean,
 )
 
-/** The offer of the empty state: copy the rooms of the gathering of before. */
-data class CopyOffer(val title: String, val text: String, val label: String)
-
-/** What the block shows: the list of the rooms, the empty state, or the rooms whose people were deleted at the end of the gathering. */
-enum class BlockKind { LIST, EMPTY, DELETED }
+/**
+ * What the block shows: the list of the rooms, the empty state of a venue with no rooms, the empty state of a gathering with no venue (TALITA-20: the rooms are the venue's, so both say where to go), or the rooms whose
+ * people were deleted at the end of the gathering.
+ */
+enum class BlockKind { LIST, EMPTY, NO_VENUE, DELETED }
 
 /** The block `#camere-contenuto` that every action of the page answers with, whole: the summary, the rooms and who has none, always from the database of the moment. */
 data class RoomsBlock(
@@ -125,40 +124,28 @@ data class RoomsBlock(
     val summary: SummaryView?,
     val rooms: List<RoomView>,
     val free: FreeView?,
-    val copy: CopyOffer?,
     val canAct: Boolean,
-    val newHref: String,
+    /** The page of the venue (`/strutture/{id}#camere`) where the rooms are written, changed and taken away; null while the gathering has no venue. */
+    val venueHref: String?,
+    /** The name of the venue: «Per aggiungere, cambiare o togliere una camera apri Casa del bosco.». */
+    val venueName: String?,
+    /** Where to choose the venue (`/convivenza/{id}/date#struttura`): the way out of the empty state of a gathering that has none. */
+    val chooseHref: String,
     /** What a screen reader says after an action (the same words as its message), in the region `#esito` of the page. */
     val announcement: String? = null,
     /** What the empty state says under «Nessuna camera»: to write them, or, once the gathering is over, that none was written. */
-    val emptyText: String = RoomsPresenter.EMPTY_TEXT,
+    val emptyText: String = RoomsPresenter.EMPTY_OVER_TEXT,
 )
 
 /** The page «Camere»: the head, the introduction and the block. */
 data class RoomsPage(val gatheringId: Long, val lead: String, val backHref: String, val intro: Boolean, val block: RoomsBlock)
-
-/** The page of the form of a room, new or to change, with the fields as they were written and the error under each wrong one. */
-data class RoomForm(
-    val gatheringId: Long,
-    val roomId: Long?,
-    val title: String,
-    val lead: String,
-    val name: String,
-    val beds: String,
-    val nameError: String?,
-    val bedsError: String?,
-    val alert: Alert?,
-    /** The help under the beds; in a change, with how many people sleep in the room now. */
-    val hint: String,
-    val action: String,
-)
 
 /**
  * Turns the board of a gathering into what the pages show (design TALITA-11): every sentence written here is the one of the design. The rules (what is over, who is free,
  * which room has more people than beds) come from [RoomBoard]: nothing is decided twice.
  */
 @Component
-class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts) {
+class RoomsPresenter(private val texts: RetentionTexts) {
 
     private fun href(gatheringId: Long, tail: String = ""): String = "/convivenza/$gatheringId/camere$tail"
 
@@ -223,7 +210,6 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
             PersonView(ref, it.name.full, false, "Maestro", if (canAct) options(board, room) else emptyList(), if (feedback.spot == Spot.Person(ref)) feedback.error else null)
         }
         val count = board.people(room)
-        val dialog = if (count > 0 && canAct) removalDialog(gathering.id, room, count) else null
         return RoomView(
             id = room.id,
             name = room.name,
@@ -234,33 +220,9 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
             teacherOptions = if (canAct) board.teachersWithoutRoom.map { RoomOption("m" + it.accountId, it.name.full) } else emptyList(),
             teacherError = if (feedback.spot == Spot.TeacherChoice(room.id)) feedback.error else null,
             alert = if (feedback.spot == Spot.Room(room.id)) feedback.alert else null,
-            removeDialog = dialog,
             canAct = canAct,
         )
     }
-
-    /**
-     * The dialog that «Togli» opens for a room with people (a room that is empty has none: the request goes at once). The same words are the page without JavaScript, which an empty room
-     * can also have: another teacher may empty it between the page of the rooms and the page of the confirmation.
-     */
-    fun removalDialog(gatheringId: Long, room: Room, people: Int): ConfirmModel = ConfirmModel(
-        id = "togli-${room.id}",
-        title = "Togliere ${room.name}?",
-        text = "${room.name} sparisce dall’elenco. " + when (people) {
-            // Nobody: another teacher emptied the room before this page (without JavaScript) was opened. The zero is in words.
-            0 -> "Nessuno ci dorme."
-            1 -> "La persona che ci dorme torna fra quelle senza camera."
-            else -> "Le $people persone che ci dormono tornano fra quelle senza camera."
-        },
-        confirmLabel = "Togli la camera",
-        busyLabel = "Tolgo…",
-        action = href(gatheringId, "/${room.id}/togli"),
-        field = "camera",
-        value = room.id.toString(),
-        target = "#camere-contenuto",
-        cancelHref = href(gatheringId),
-        danger = false,
-    )
 
     private fun standing(board: RoomBoard, deleted: Boolean): Alert? = when {
         deleted -> {
@@ -279,26 +241,25 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
         // nothing to delete: the gathering is over, and that is all the page says (criterion 13).
         val deleted = board.peopleDeleted
         val canAct = !board.over
-        val previous = if (board.rooms.isEmpty() && canAct) rooms.previous(gathering.id) else null
         val top = (if (feedback.spot == Spot.Top) feedback.alert else null) ?: flash
         // The refusal of a request that the end of the gathering makes impossible says what the standing notice says: once, and the one that takes the focus.
         val standing = standing(board, deleted)?.takeUnless { it.text == top?.text }
-        val newHref = href(gathering.id, "/nuova")
         val announcement = feedback.alert?.text
+        val venueHref = gathering.venueId?.let { "/strutture/$it#camere" }
+        val chooseHref = "/convivenza/${gathering.id}/date#struttura"
+        // The rooms are the venue's: with no venue there is nothing to show, and the page says to choose it; with a venue that has no rooms, to write them there.
+        if (gathering.venueId == null) {
+            return RoomsBlock(gathering.id, BlockKind.NO_VENUE, null, top, null, emptyList(), null, canAct, null, null, chooseHref, announcement, NO_VENUE_TEXT)
+        }
         if (board.rooms.isEmpty()) {
-            val copy = previous?.let {
-                CopyOffer(
-                    it.title, "Nella «${it.title}» c’erano ${if (it.rooms == 1) "1 camera" else "${it.rooms} camere"} e ${RoomFormat.beds(it.beds)}. Le copiamo senza le persone: poi le sistemi come vuoi.",
-                    "Copia le camere",
-                )
-            }
-            return RoomsBlock(gathering.id, BlockKind.EMPTY, standing, top, null, emptyList(), null, copy, canAct, newHref, announcement, if (canAct) EMPTY_TEXT else EMPTY_OVER_TEXT)
+            val text = if (canAct) emptyText(gathering.venueName.orEmpty()) else EMPTY_OVER_TEXT
+            return RoomsBlock(gathering.id, BlockKind.EMPTY, standing, top, null, emptyList(), null, canAct, venueHref, gathering.venueName, chooseHref, announcement, text)
         }
         val rooms = board.rooms.map { roomView(board, it, feedback, canAct, deleted) }
         val free = if (deleted) null else free(board, feedback, canAct)
         return RoomsBlock(
-            gathering.id, if (deleted) BlockKind.DELETED else BlockKind.LIST, standing, top, summary(board, free != null && free.total > 0, deleted), rooms, free, null, canAct, newHref,
-            announcement,
+            gathering.id, if (deleted) BlockKind.DELETED else BlockKind.LIST, standing, top, summary(board, free != null && free.total > 0, deleted), rooms, free, canAct, venueHref,
+            gathering.venueName, chooseHref, announcement,
         )
     }
 
@@ -342,34 +303,31 @@ class RoomsPresenter(private val rooms: Rooms, private val texts: RetentionTexts
 
     fun page(board: RoomBoard, feedback: Feedback = Feedback.NONE, flash: Alert? = null): RoomsPage {
         val gathering = board.gathering
-        return RoomsPage(gathering.id, lead(gathering), "/convivenza/${gathering.id}", intro = !board.over, block = block(board, feedback, flash))
-    }
-
-    // ---- The form of a room -------------------------------------------------------------------------------------------------------
-
-    fun newForm(gathering: GatheringInfo, name: String = "", beds: String = "", nameError: String? = null, bedsError: String? = null, alert: Alert? = null): RoomForm =
-        RoomForm(gathering.id, null, "Nuova camera", lead(gathering), name, beds, nameError, bedsError, alert, BEDS_HINT, href(gathering.id, "/nuova"))
-
-    fun changeForm(gathering: GatheringInfo, room: Room, people: Int, name: String? = null, beds: String? = null, nameError: String? = null, bedsError: String? = null, alert: Alert? = null): RoomForm =
-        RoomForm(
-            gathering.id, room.id, "Modifica la camera", lead(gathering), name ?: room.name, beds ?: room.beds.toString(), nameError, bedsError, alert,
-            listOfNotNull(BEDS_HINT, nowSleeping(people)).joinToString(" "), href(gathering.id, "/${room.id}/modifica"),
-        )
-
-    /** The help under the beds of a room that has people: «Ora ci dormono 5 persone.» */
-    fun nowSleeping(people: Int): String? = when (people) {
-        0 -> null
-        1 -> "Ora ci dorme 1 persona."
-        else -> "Ora ci dormono $people persone."
+        return RoomsPage(gathering.id, lead(gathering), "/convivenza/${gathering.id}", intro = !board.over && board.rooms.isNotEmpty(), block = block(board, feedback, flash))
     }
 
     companion object {
+        /** The help under the beds of a room that has people: «Ora ci dormono 5 persone.» */
+        fun nowSleeping(people: Int): String? = when (people) {
+            0 -> null
+            1 -> "Ora ci dorme 1 persona."
+            else -> "Ora ci dormono $people persone."
+        }
+
         const val BEDS_HINT = "Quanti letti ci sono nella camera."
-        const val FINISHED = "La convivenza è finita: le camere non si cambiano più."
-        const val EMPTY_TEXT = "Scrivi le camere della casa, poi metti ogni bambino e ogni maestro nella sua. Le camere le vedono solo i maestri."
+        const val FINISHED = "La convivenza è finita: chi dorme dove non si cambia più."
+
+        /** The sentence of the `409` for a room of another venue: the page was open when the venue of the gathering changed (TALITA-20, criterion 16). */
+        const val STALE = "Non è stato fatto niente: nel frattempo la struttura della convivenza è cambiata. Le camere qui sotto sono quelle di adesso."
+
+        /** The empty state of a gathering whose venue has no rooms (TALITA-20, criterion 15): where to write them. */
+        fun emptyText(venueName: String): String = "$venueName non ha ancora camere. Scrivile nella pagina della struttura: poi le trovi qui."
+
+        /** The empty state of a gathering with no venue: the rooms are the venue's. */
+        const val NO_VENUE_TEXT = "Le camere sono quelle della struttura: scegli prima dove si fa la convivenza."
 
         /** The empty state of a gathering that is over: it does not invite to write rooms (nobody can any more) and does not offer a copy (the page has no action). */
-        const val EMPTY_OVER_TEXT = "In questa convivenza non sono state scritte camere."
+        const val EMPTY_OVER_TEXT = "In questa convivenza non ci sono camere."
         const val DRAFT = "La convivenza è ancora in bozza: le camere si scrivono già, i bambini compaiono quando i genitori li iscrivono."
     }
 }

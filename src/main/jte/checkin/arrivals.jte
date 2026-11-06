@@ -2,6 +2,7 @@
 @import talita.checkin.ArrivalsPage
 @import talita.checkin.ArrivalsState
 @import talita.checkin.DayLink
+@import talita.checkin.FormLink
 @import talita.checkin.GroupView
 @import talita.checkin.RowView
 @import talita.ui.AlertVariant
@@ -117,9 +118,15 @@
           <ul class="mt-3 divide-y divide-line border-t border-line">
             <li>@template.components.listLink(href = "/arrivi/registro", icon = Icon.CLIPBOARD_LIST, title = "Registro arrivi", meta = "Una riga per bambino, con giorni, quota e manleva. Per segnare a mano.")</li>
             <li>@template.components.listLink(href = "/arrivi/elenco", icon = Icon.LIST, title = "Elenco per la struttura", meta = "Solo nome e cognome, per chi ospita la convivenza.")</li>
+            @for(FormLink form : page.getForms())
+              <li>@template.components.listLink(href = form.getHref(), icon = Icon.LIST, title = form.getName(), meta = form.getMeta())</li>
+            @endfor
             <li>@template.components.listLink(href = "/arrivi/foglio", icon = Icon.PHONE, title = "Foglio per i maestri", meta = "Bambini e recapiti dei genitori. Resta fra i maestri.")</li>
           </ul>
           <p class="border-t border-line px-4 py-3 text-sm text-ink-muted lg:px-6">Stampa il registro e il foglio prima di partire: se manca la rete, segni a mano e trascrivi dopo.</p>
+          @if(!page.getForms().isEmpty())
+            <p class="border-t border-line px-4 py-3 text-sm text-ink-muted lg:px-6">I moduli della struttura hanno i bambini già segnati presenti: stampali dopo gli arrivi.</p>
+          @endif
         </section>
         @if(page.getMenu() != null)
           @template.checkin.menuCard(menu = page.getMenu())

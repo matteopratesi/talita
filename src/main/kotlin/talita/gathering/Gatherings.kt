@@ -81,6 +81,21 @@ sealed interface DatesResult {
     data object Saved : DatesResult
     data object NotFound : DatesResult
 
+    /** The venue that was chosen is not there (it was never, or the choice on the page is old): nothing was saved. */
+    data object VenueNotFound : DatesResult
+
+    /**
+     * Saved, and the venue changed with people in the rooms of the one before (TALITA-20, criterion 12): [people] are now without a room, taken out in the same transaction that changed the venue, after the
+     * teacher confirmed. [from] is the name of the venue they left.
+     */
+    data class VenueChanged(val people: Int, val from: String?) : DatesResult
+
+    /**
+     * Not saved: the venue changes, [people] people are in the rooms of the one before ([from] is its name) and the teacher has not confirmed that many (the dialog, or the page that stands in for it, says
+     * how many leave their rooms). The answer carries the number of now: a page that said fewer asks again.
+     */
+    data class PeopleInRooms(val people: Int, val from: String?) : DatesResult
+
     /** Each day that would go, with what holds it. */
     data class DaysInUse(val days: List<DayInUse>) : DatesResult
 }
@@ -105,7 +120,7 @@ data class GatheringRef(val id: Long, val title: String)
  * decided inside a transaction that first locks the row of the gathering: two teachers who tap at the same moment are in a queue.
  */
 @Component
-class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
+class Gatherings(private val dsl: DSLContext, private val clock: Clock, private val venues: GatheringVenues) {
 
     /** The day of Rome. */
     fun today(): LocalDate = LocalDate.now(clock)
@@ -139,7 +154,7 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
 
     /** What a draft still lacks to open (criterion 10), in the order of the forms. [today] is the day of Rome. */
     fun missing(gathering: Gathering, custodianCount: Int, today: LocalDate): List<Missing> = buildList {
-        if (gathering.place == null) add(Missing.PLACE)
+        if (gathering.venueId == null) add(Missing.VENUE)
         if (gathering.fees.fullCents == null) add(Missing.FULL_FEE)
         if (custodianCount == 0) add(Missing.CUSTODIAN)
         if (gathering.endDate.isBefore(today)) add(Missing.DATES)
@@ -192,14 +207,31 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
     // ---- Saving the parts -----------------------------------------------------------------------------------------------------
 
     /**
-     * Title, dates and place (criteria 17, 31). A day that a registration that is not withdrawn has, or that has a presence marked on it (of any
+     * Title, dates and venue (criteria 17, 31; TALITA-20, criterion 8). A day that a registration that is not withdrawn has, or that has a presence marked on it (of any
      * registration, withdrawn ones too), cannot be taken away by changing the dates (rule R3): the answer says which days and what holds them. Adding
      * days is always possible. Dates of a gathering that is over are not passed (see the controller). The counts are made in the same transaction,
-     * under the lock of the gathering.
+     * under the lock of the gathering. The venue is the house: the place that the parents read, and the one of the text of the custody that is still to be accepted, are the venue's, so
+     * another venue makes a text that a parent has open an old one (`Registrations` refuses it). [venueId] is null for a draft that has none; a venue that does not exist is [DatesResult.VenueNotFound].
+     *
+     * **The rooms are the venue's** (TALITA-20, criterion 12): another venue, with people in the rooms of the one before, is not saved until the teacher has confirmed ([confirmedPeople] is how many the dialog said:
+     * [DatesResult.PeopleInRooms] says how many there are now, and asks again if there are more); then the people leave their rooms in the same transaction, under the lock of the gathering, so a choice of a room
+     * and the change of the venue never leave a person in a room of another venue (the database refuses it too).
      */
-    fun saveDates(id: Long, title: String, start: LocalDate?, end: LocalDate?, place: String?, usage: RegistrationUsage, arrivals: ArrivalUsage): DatesResult = dsl.transactionResult { configuration ->
+    fun saveDates(
+        id: Long,
+        title: String,
+        start: LocalDate?,
+        end: LocalDate?,
+        venueId: Long?,
+        usage: RegistrationUsage,
+        arrivals: ArrivalUsage,
+        assignments: RoomAssignments,
+        confirmedPeople: Int? = null,
+    ): DatesResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
         val row = lock(transaction, id) ?: return@transactionResult DatesResult.NotFound
+        // The venue is locked for sharing: nobody takes it away (it has no gathering yet) while it is being chosen.
+        if (venueId != null && venues.findIn(transaction, venueId, lock = true) == null) return@transactionResult DatesResult.VenueNotFound
         if (start != null && end != null) {
             val old = gathering(row)
             val kept = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toSet()
@@ -211,10 +243,22 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
                 if (inUse.isNotEmpty()) return@transactionResult DatesResult.DaysInUse(inUse)
             }
         }
-        val update = transaction.update(GATHERING).set(GATHERING.TITLE, title).set(GATHERING.PLACE, place)
+        // Another venue: whoever is in a room of the one before leaves it, if the teacher confirmed that many.
+        val before = row[GATHERING.VENUE_ID]
+        var left = 0
+        var from: String? = null
+        if (before != null && before != venueId) {
+            val people = assignments.peopleIn(transaction, id)
+            if (people > 0) {
+                from = venues.findIn(transaction, before)?.name
+                if (confirmedPeople == null || people > confirmedPeople) return@transactionResult DatesResult.PeopleInRooms(people, from)
+                left = assignments.clearAll(transaction, id)
+            }
+        }
+        val update = transaction.update(GATHERING).set(GATHERING.TITLE, title).set(GATHERING.VENUE_ID, venueId)
         if (start != null && end != null) update.set(GATHERING.START_DATE, start).set(GATHERING.END_DATE, end)
         update.where(GATHERING.ID.eq(id)).execute()
-        DatesResult.Saved
+        if (left > 0) DatesResult.VenueChanged(left, from) else DatesResult.Saved
     }
 
     /**
@@ -331,7 +375,7 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
         title = row[GATHERING.TITLE]!!,
         startDate = row[GATHERING.START_DATE]!!,
         endDate = row[GATHERING.END_DATE]!!,
-        place = row[GATHERING.PLACE],
+        venueId = row[GATHERING.VENUE_ID],
         fees = Fees(row[GATHERING.FULL_FEE_CENTS], row[GATHERING.DAILY_FEE_CENTS], row[GATHERING.LUNCH_ONLY_FEE_CENTS]),
         infoText = row[GATHERING.INFO_TEXT],
         whatToBring = row[GATHERING.WHAT_TO_BRING],
@@ -346,3 +390,7 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock) {
 /** A violation of a unique index or key (SQLSTATE 23505), wherever it is in the chain of the causes. */
 internal fun Throwable.isUniqueViolation(): Boolean =
     generateSequence(this) { it.cause?.takeIf { cause -> cause !== it } }.any { it is SQLException && it.sqlState == "23505" }
+
+/** A violation of a foreign key (SQLSTATE 23503), wherever it is in the chain of the causes: a row that something still points to is deleted, or a row points to one that is not there. */
+internal fun Throwable.isForeignKeyViolation(): Boolean =
+    generateSequence(this) { it.cause?.takeIf { cause -> cause !== it } }.any { it is SQLException && it.sqlState == "23503" }

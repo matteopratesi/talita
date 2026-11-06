@@ -10,6 +10,7 @@ import talita.gathering.MenuSamples
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.ACCOUNT
+import talita.jooq.tables.references.GATHERING
 import talita.jooq.tables.references.GATHERING_MENU
 import talita.jooq.tables.references.REMINDER_BATCH
 import talita.jooq.tables.references.ROOM
@@ -115,7 +116,7 @@ class ReminderBesideRoomsAndMenuQaE2eTest {
         assertThat(page.reminders().locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*2 persone.*Ultimo invio\\s*Mai.*", Pattern.DOTALL))
         assertThat(page.reminders().locator("#promemoria-notice")).hasText(Pattern.compile(".*Lo riceverebbero\\s*1 persona.*Ultimo invio\\s*Mai.*", Pattern.DOTALL))
         assertThat(page.menuCard()).containsText("Nessun menù caricato.")
-        assertThat(page.roomsCard()).containsText("Nessuna camera")
+        assertThat(page.roomsCard()).containsText("non ha ancora camere.")
         page.healthy("detail at the start")
         assertAccessible(page, "detail with the three cards, at the start (${e2e.profile.label})")
 
@@ -131,15 +132,16 @@ class ReminderBesideRoomsAndMenuQaE2eTest {
         assertThat(page.reminders().locator("#promemoria-maybe")).containsText("2 persone")
         page.healthy("detail after the menu")
 
-        // A room, through its own pages (the card of the rooms leads to the page, the page has the form).
+        // A room, through its own pages (TALITA-20: the card of the rooms, with no rooms, leads to the page of the venue, which has the form).
+        val venue = e2e.dsl().select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(w.id)).fetchSingle(GATHERING.VENUE_ID)!!
         e2e.touch(page.roomsCard().locator("a").first())
-        assertThat(page).hasURL(e2e.url("$detail/camere"))
+        assertThat(page).hasURL(java.util.regex.Pattern.compile(".*/strutture/$venue(#camere)?$"))
         e2e.touch(page.locator("main").linkNamed("Aggiungi una camera"))
         page.getByLabel("Nome della camera").fill("Camera 1")
         page.getByLabel("Posti letto").fill("4")
         e2e.press(page.locator("main").buttonNamed("Salva la camera"))
         assertThat(page.locator("main")).containsText("Camera salvata.")
-        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.GATHERING_ID.eq(w.id)))
+        assertEquals(1, e2e.dsl().fetchCount(ROOM, ROOM.VENUE_ID.eq(venue)))
         e2e.open(detail)
         assertEquals(order, page.cards(), "after the room")
         assertThat(page.roomsCard()).containsText("1 camera · 4 posti")
@@ -226,7 +228,7 @@ class ReminderBesideRoomsAndMenuQaE2eTest {
             e2e.dsl().insertInto(GATHERING_MENU)
                 .set(GATHERING_MENU.GATHERING_ID, w.id).set(GATHERING_MENU.FILE_NAME, "menu-settembre-2027.pdf").set(GATHERING_MENU.MEDIA_TYPE, "application/pdf")
                 .set(GATHERING_MENU.CONTENT, MenuSamples.pdf()).set(GATHERING_MENU.UPLOADED_AT, OffsetDateTime.now(e2e.clock())).execute()
-            e2e.dsl().insertInto(ROOM).set(ROOM.GATHERING_ID, w.id).set(ROOM.NAME, "Camera 1").set(ROOM.BEDS, 4.toShort()).execute()
+            e2e.dsl().insertInto(ROOM).set(ROOM.VENUE_ID, e2e.dsl().select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(w.id)).fetchSingle(GATHERING.VENUE_ID)!!).set(ROOM.NAME, "Camera 1").set(ROOM.BEDS, 4.toShort()).execute()
 
             e2e.open("/convivenza/${w.id}")
 

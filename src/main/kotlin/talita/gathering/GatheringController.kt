@@ -21,7 +21,7 @@ import talita.ui.ShellFactory
 
 /**
  * The gathering for the teachers (`/convivenza` and what is under it: only for them, `TeacherPaths` answers 403 to anyone else before a request gets here):
- * the section, «Nuova convivenza», the detail and one form for each of its parts (title, dates and place · fees · custodians · information).
+ * the section, «Nuova convivenza», the detail and one form for each of its parts (title, dates and venue · fees · custodians · information).
  *
  * Every form is its own page with its own address, so the back button of the phone and the links of «Prima di aprire le iscrizioni» reach the
  * right field, also without JavaScript. A form that goes well answers 303 to the detail with a notice that the detail shows once; one that
@@ -36,6 +36,8 @@ class GatheringController(
     private val usage: RegistrationUsage,
     private val arrivals: ArrivalUsage,
     private val names: PublicNames,
+    private val venues: GatheringVenues,
+    private val assignments: RoomAssignments,
 ) {
 
     // ---- The section ---------------------------------------------------------------------------------------------------------
@@ -88,7 +90,8 @@ class GatheringController(
     @GetMapping("/convivenza/{id:[0-9]{1,18}}/date")
     fun datesForm(@PathVariable id: Long): ModelAndView {
         val gathering = found(id)
-        return datesPage(DatesForm(id, gathering.title, gathering.startDate.toString(), gathering.endDate.toString(), gathering.place.orEmpty(), null, null, null, null, lockedDates(gathering), null, hasRegistrations(id)), HttpStatus.OK)
+        val form = datesForm(gathering, gathering.title, gathering.startDate.toString(), gathering.endDate.toString(), gathering.venueId?.toString().orEmpty())
+        return datesPage(form, HttpStatus.OK)
     }
 
     @PostMapping("/convivenza/{id:[0-9]{1,18}}/date")
@@ -97,40 +100,69 @@ class GatheringController(
         @RequestParam(name = "title", defaultValue = "") title: String,
         @RequestParam(name = "startDate", required = false) startDate: String?,
         @RequestParam(name = "endDate", required = false) endDate: String?,
-        @RequestParam(name = "place", defaultValue = "") place: String,
+        @RequestParam(name = "venue", defaultValue = "") venue: String,
+        @RequestParam(name = "cambio", defaultValue = "") change: String,
         request: HttpServletRequest,
     ): ModelAndView {
         val gathering = found(id)
         val today = gatherings.today()
         val over = gathering.isOver(today)
+        val chosen = venue.trim().take(MAX_ID_TEXT)
+        val chosenId = chosen.toLongOrNull()?.takeIf { it > 0 }
+        // How many people the teacher saw leave their rooms (the dialog, or the page that stands in for it), if the venue changes: nothing in the request says it any other way.
+        val confirmed = change.trim().take(MAX_ID_TEXT).toIntOrNull()?.takeIf { it >= 0 }
 
         // After the end the dates do not change: a request made by hand that carries other dates is refused whole, nothing is saved.
         val changesDates = over && ((startDate != null && startDate.trim() != gathering.startDate.toString()) || (endDate != null && endDate.trim() != gathering.endDate.toString()))
-        val (titleCheck, placeCheck) = withNames(GatheringChecks.title(title), GatheringChecks.place(place, required = gathering.state != GatheringState.DRAFT))
+        val (titleCheck) = withNames(GatheringChecks.title(title))
+        // The venue: a draft may have none, a gathering that is not a draft needs one, and an id that is not a number is never a choice (TALITA-20, criteria 8 and 9).
+        val venueError = if (chosenId == null && (chosen.isNotEmpty() || gathering.state != GatheringState.DRAFT)) GatheringChecks.VENUE_MISSING else null
         if (changesDates) {
-            val form = DatesForm(id, titleCheck.value.take(MAX_ECHO), "", "", placeCheck.value.take(MAX_ECHO), titleCheck.error, null, null, placeCheck.error, lockedDates(gathering), Alert(WARNING, GatheringChecks.DATES_CLOSED), hasRegistrations(id))
+            val form = datesForm(gathering, titleCheck.value.take(MAX_ECHO), "", "", chosen, titleError = titleCheck.error, alert = Alert(WARNING, GatheringChecks.DATES_CLOSED))
             return datesPage(form, HttpStatus.CONFLICT)
         }
         val dates = if (over) null else GatheringChecks.dates(startDate, endDate, today, gathering.startDate to gathering.endDate)
-        val errors = listOfNotNull(titleCheck.error, dates?.startError, dates?.endError, placeCheck.error).size
+        val errors = listOfNotNull(titleCheck.error, dates?.startError, dates?.endError, venueError).size
         if (errors > 0) {
-            val form = DatesForm(
-                id, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), placeCheck.value.take(MAX_ECHO),
-                titleCheck.error, dates?.startError, dates?.endError, placeCheck.error, lockedDates(gathering), errorsAlert(errors), hasRegistrations(id),
+            val form = datesForm(
+                gathering, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), chosen,
+                titleError = titleCheck.error, startError = dates?.startError, endError = dates?.endError, venueError = venueError, alert = errorsAlert(errors),
             )
             return datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, placeCheck.value.ifEmpty { null }, usage, arrivals)) {
+        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, chosenId, usage, arrivals, assignments, confirmed)) {
             DatesResult.Saved -> savedAndBack(request, id, "Titolo, date e luogo salvati.")
+            is DatesResult.VenueChanged -> {
+                // The people who were in the rooms of the venue before are without a room: the notice says how many.
+                Flash.put(request, Alert(SUCCESS, VenueChangeTexts.left(result.people, result.from), lead = "Titolo, date e luogo salvati."))
+                seeOther("/convivenza/$id")
+            }
+            is DatesResult.PeopleInRooms -> {
+                // The venue changes and people are in the rooms of the one before: the page that stands in for the dialog (with JavaScript the dialog came first, and this is a page that was old).
+                val chosenVenue = chosenId?.let(venues::find)
+                val page = VenueChangePage(
+                    id, titleCheck.value.take(MAX_ECHO), dates?.start?.toString(), dates?.end?.toString(), chosen, result.people,
+                    VenueChangeTexts.leave(result.people, result.from), chosenVenue?.let { VenueChangeTexts.parents(it.name, it.place) },
+                )
+                page("gathering/changeVenue", "Cambiare la struttura?", page)
+            }
             DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            DatesResult.VenueNotFound -> {
+                // A venue that is not there any more (the page was old) or never was: the field says so, and the choices are those of now.
+                val form = datesForm(
+                    gathering, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), chosen,
+                    venueError = GatheringChecks.VENUE_MISSING,
+                )
+                datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
             is DatesResult.DaysInUse -> {
                 // One sentence for each day that would go (rule R3), under the field that would lose it: the first day or the last.
                 val sentences = result.days.map { use -> use.day to "Non puoi togliere ${GatheringFormat.weekday(use.day)} ${GatheringFormat.date(use.day)}: " + holdsTheDay(use) }
                 val startError = sentences.filter { it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
                 val endError = sentences.filter { !it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
-                val form = DatesForm(
-                    id, titleCheck.value.take(MAX_ECHO), dates!!.startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO), placeCheck.value.take(MAX_ECHO),
-                    null, startError, endError, null, lockedDates(gathering), errorsAlert(listOfNotNull(startError, endError).size), true,
+                val form = datesForm(
+                    gathering, titleCheck.value.take(MAX_ECHO), dates!!.startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO), chosen,
+                    startError = startError, endError = endError, alert = errorsAlert(listOfNotNull(startError, endError).size), withRegistrations = true,
                 )
                 datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
             }
@@ -271,6 +303,35 @@ class GatheringController(
 
     private fun hasRegistrations(id: Long): Boolean = usage.counts(id).active > 0
 
+    /**
+     * The form «Modifica titolo, date e luogo» (TALITA-20, criterion 8): the fields as they are, the choices of the venue (the first one has no value and says «Scegli la struttura»; [chosen] is the id
+     * that is selected), «Luogo di adesso» and what the page needs to know about the registrations. The venue is the house: its place is not written here.
+     */
+    private fun datesForm(
+        gathering: Gathering,
+        title: String,
+        start: String,
+        end: String,
+        chosen: String,
+        titleError: String? = null,
+        startError: String? = null,
+        endError: String? = null,
+        venueError: String? = null,
+        alert: Alert? = null,
+        withRegistrations: Boolean = hasRegistrations(gathering.id),
+    ): DatesForm {
+        val choices = listOf(VenueChoice("", "Scegli la struttura", chosen.isEmpty(), null)) +
+            venues.all().map { VenueChoice(it.id.toString(), it.name, it.id.toString() == chosen, it.place) }
+        val current = gathering.venueId?.let(venues::find)
+        // The dialog of the change of venue is in the page when somebody is in a room of this venue: with JavaScript it comes before the form is sent.
+        val people = if (current == null) 0 else assignments.peopleIn(gathering.id)
+        return DatesForm(
+            gathering.id, title, start, end, choices, titleError, startError, endError, venueError, lockedDates(gathering), alert, withRegistrations,
+            currentPlace = current?.place, currentVenue = gathering.venueId?.toString().orEmpty(),
+            change = if (people > 0) VenueChange(people, VenueChangeTexts.leave(people, current?.name)) else null,
+        )
+    }
+
     /** Rule R2: with registrations that are not withdrawn the form of the fees says how many are recalculated. */
     private fun feesNotice(id: Long): String? {
         val active = usage.counts(id).active
@@ -326,5 +387,8 @@ class GatheringController(
     private companion object {
         const val MAX_ECHO = 1000
         const val MAX_ECHO_LONG = 10000
+
+        /** More than this is not an id: a choice of the venue that is longer is cut (and is not one). */
+        const val MAX_ID_TEXT = 40
     }
 }

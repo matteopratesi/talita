@@ -68,8 +68,10 @@ data class DetailPage(
     val state: StateCard,
     val dialog: ConfirmModel?,
     val days: String,
-    val place: String?,
-    val placeNeeded: Boolean,
+    /** The venue (TALITA-20): its name as a link to its page, and its place; null when the gathering has none. */
+    val venue: VenueLine?,
+    /** A draft with no venue: «Non indicata» and «Da completare». */
+    val venueNeeded: Boolean,
     val fees: List<FeeLine>,
     val custodians: List<CustodianLine>,
     val custodiansNeeded: Boolean,
@@ -86,6 +88,9 @@ data class DetailPage(
     /** The card «Menù» (TALITA-12): in every state of the gathering, with the file or without it. */
     val menu: MenuCard,
 )
+
+/** The venue of a gathering in the card «Quando e dove» (TALITA-20): the name, that leads to the page of the venue, and the place, which is the venue's. */
+data class VenueLine(val name: String, val href: String, val place: String)
 
 /** A row of the card «Conservazione dei dati»: the data, when they go (in the tense of the date), and why. */
 data class RetentionLine(val label: String, val value: String, val why: String)
@@ -118,22 +123,76 @@ data class LinkCard(
     val copyPrimary: Boolean,
 )
 
-/** «Titolo, date e luogo»: the dates are shown as text, with no fields, when the gathering is over (criterion 17). */
+/**
+ * A venue among the choices of «Modifica titolo, date e luogo» (TALITA-20): what it sends ([value], its id), what it says ([label], its name) and the place that the parents will read.
+ * The first choice, «Scegli la struttura», has no value and no place.
+ */
+data class VenueChoice(val value: String, val label: String, val selected: Boolean, val place: String?)
+
+/** «Titolo, date e luogo»: the dates are shown as text, with no fields, when the gathering is over (criterion 17). The place is the venue's: the form chooses the venue (TALITA-20). */
 data class DatesForm(
     val id: Long,
     val title: String,
     val startDate: String,
     val endDate: String,
-    val place: String,
+    /** The choices of the venue, the first one without a value; the one that was chosen is selected. */
+    val venues: List<VenueChoice>,
     val titleError: String?,
     val startError: String?,
     val endError: String?,
-    val placeError: String?,
+    val venueError: String?,
     val lockedDates: String?,
     val alert: Alert?,
     /** There are registrations that are not withdrawn: the help under «Ultimo giorno» says that a day that has been chosen cannot be taken away, and what adding one does. */
     val withRegistrations: Boolean = false,
+    /** «Luogo di adesso»: the place of the venue that the gathering has now (what the parents read until this form is saved); null when it has none. */
+    val currentPlace: String? = null,
+    /** The id of the venue that the gathering has now, or empty: the script compares it with the choice to know that the venue changes. */
+    val currentVenue: String = "",
+    /** Somebody is in a room of the venue of now (TALITA-20): the page has the dialog «Cambiare la struttura?», which the script opens when another venue is chosen. Null: nobody is, and there is no dialog. */
+    val change: VenueChange? = null,
 )
+
+/** The people who are in the rooms of the venue of a gathering, and the sentence that says they will be without a room if the venue changes (the first paragraph of the dialog). */
+data class VenueChange(val people: Int, val sentence: String)
+
+/**
+ * The page that stands in for the dialog «Cambiare la struttura?» (without JavaScript, or when the page of the form was old): the same words and the form again, with its fields as hidden ones and the number of people
+ * that the teacher is told about. [startDate] and [endDate] are null when the gathering is over (the dates are not in the request). [second] is null when the choice is no venue (a draft).
+ */
+data class VenueChangePage(
+    val id: Long,
+    val title: String,
+    val startDate: String?,
+    val endDate: String?,
+    val venue: String,
+    val people: Int,
+    val first: String,
+    val second: String?,
+)
+
+/** The words of the change of venue (design TALITA-20): what the dialog and the page that stands in for it say, and what the notice says after. One place, so that they agree. */
+object VenueChangeTexts {
+
+    /** «Le 5 persone nelle camere di Casa del bosco restano senza camera: le camere sono quelle della struttura.» */
+    fun leave(people: Int, from: String?): String {
+        val house = from ?: "la struttura"
+        return if (people == 1) {
+            "La persona che dorme in una camera di $house resta senza camera: le camere sono quelle della struttura."
+        } else {
+            "Le $people persone nelle camere di $house restano senza camera: le camere sono quelle della struttura."
+        }
+    }
+
+    /** «Per i genitori nome e luogo diventano «Casa sul lago» e «Casa per ritiri sul lago, Località Esempio».» */
+    fun parents(name: String, place: String): String = "Per i genitori nome e luogo diventano «$name» e «$place»."
+
+    /** The notice after the change: «Le 5 persone nelle camere di Casa del bosco sono senza camera.» */
+    fun left(people: Int, from: String?): String {
+        val house = from ?: "la struttura"
+        return if (people == 1) "La persona che era in una camera di $house è senza camera." else "Le $people persone nelle camere di $house sono senza camera."
+    }
+}
 
 /** «Quote»: three fields of an amount. */
 data class FeesForm(

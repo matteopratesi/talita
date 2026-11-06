@@ -25,6 +25,7 @@ import talita.gathering.status
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.GATHERING
+import talita.jooq.tables.references.VENUE
 import java.time.Clock
 import java.time.LocalDate
 import java.util.concurrent.CountDownLatch
@@ -51,6 +52,7 @@ class GatheringRegistrationRulesTests(
     @Autowired private val gatherings: Gatherings,
     @Autowired private val usage: RegistrationUsage,
     @Autowired private val arrivals: talita.gathering.ArrivalUsage,
+    @Autowired private val assignments: talita.gathering.RoomAssignments,
 ) {
 
     private val kit = RegistrationTestKit(mockMvc, tokens, dsl, clock)
@@ -68,14 +70,15 @@ class GatheringRegistrationRulesTests(
         setup.marta.submit("/convivenza/${setup.id}/quote", "/convivenza/${setup.id}/quote", mapOf("fullFee" to full, "dailyFee" to daily, "lunchOnlyFee" to lunch))
 
     private fun saveDates(setup: Setup, start: LocalDate, end: LocalDate) =
-        setup.marta.submit("/convivenza/${setup.id}/date", "/convivenza/${setup.id}/date", mapOf("title" to "Convivenza di settembre 2027", "startDate" to start.toString(), "endDate" to end.toString(), "place" to "Casa per ritiri di esempio"))
+        setup.marta.submit("/convivenza/${setup.id}/date", "/convivenza/${setup.id}/date", mapOf("title" to "Convivenza di settembre 2027", "startDate" to start.toString(), "endDate" to end.toString(), "venue" to kit.kit.gatherings.venueIdOf(setup.id).toString()))
 
     // ---- R1: the states (criterion 29) ------------------------------------------------------------------------------------------------
 
     private fun info(state: GatheringState, start: LocalDate, end: LocalDate, today: LocalDate): GatheringInfo {
-        val gathering = Gathering(1, "codice", "Convivenza di settembre 2027", start, end, "Casa per ritiri di esempio", Fees(6000, 2500, 1000), null, null, state)
+        val gathering = Gathering(1, "codice", "Convivenza di settembre 2027", start, end, 7L, Fees(6000, 2500, 1000), null, null, state)
         return GatheringInfo(
-            1, "codice", gathering.title, start, end, gathering.days, gathering.place, gathering.fees, emptyList(), state, gathering.isOver(today), gathering.registrationsPossible(today),
+            1, "codice", gathering.title, start, end, gathering.days, gathering.venueId, "Casa del bosco", "Casa per ritiri di esempio", gathering.fees, emptyList(), state, gathering.isOver(today),
+            gathering.registrationsPossible(today),
         )
     }
 
@@ -282,7 +285,7 @@ class GatheringRegistrationRulesTests(
             }
             assertTrue(sharing.await(10, TimeUnit.SECONDS))
             val changing = LockWait.awaitBlocked(dsl, "the change of the dates should wait for the registration that is being made") {
-                pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, "Casa per ritiri di esempio", usage, arrivals) }
+                pool.submit<DatesResult> { gatherings.saveDates(setup.id, "Convivenza di settembre 2027", setup.saturday, setup.sunday, kit.kit.gatherings.venueIdOf(setup.id), usage, arrivals, assignments) }
             }
             finish.countDown()
             registering.get(20, TimeUnit.SECONDS)
@@ -310,7 +313,8 @@ class GatheringRegistrationRulesTests(
 
         // Paolo leaves the custodians, and then the title, the dates and the place change: the detail still shows what was accepted.
         assertEquals(303, setup.marta.submit("/convivenza/${setup.id}/affidatari", "/convivenza/${setup.id}/affidatari", mapOf("custodians" to setup.martaId.toString())).status())
-        dsl.update(GATHERING).set(GATHERING.TITLE, "Un altro titolo").set(GATHERING.PLACE, "Un’altra casa").execute()
+        dsl.update(GATHERING).set(GATHERING.TITLE, "Un altro titolo").execute()
+        dsl.update(VENUE).set(VENUE.PLACE, "Un’altra casa").execute()
         assertEquals(accepted, kit.registrations(setup.id).single().custodyText)
         val detail = text(setup.marta.get("/iscrizioni/$id").body())
         assertTrue(detail.contains("alla responsabilità di Marta Bianchi e Paolo Verdi per la durata della convivenza «Convivenza di settembre 2027»"), detail)

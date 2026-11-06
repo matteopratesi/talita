@@ -63,4 +63,7 @@ enum class Icon {
     KEY_ROUND,
     FINGERPRINT_PATTERN,
     CALENDAR_CHECK,
+
+    /** The venues (TALITA-20): a house. */
+    BUILDING_2,
 }

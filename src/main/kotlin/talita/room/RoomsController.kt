@@ -12,7 +12,6 @@ import org.springframework.web.servlet.ModelAndView
 import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.ui.Alert
-import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.INFO
 import talita.ui.AlertVariant.SUCCESS
 import talita.ui.AlertVariant.WARNING
@@ -21,7 +20,8 @@ import talita.ui.Section
 import talita.ui.ShellFactory
 
 /**
- * «Camere» (`/convivenza/{id}/camere` and what is under it): the rooms of the house and who sleeps where, written and read only by the teachers. The addresses are under
+ * «Camere» (`/convivenza/{id}/camere` and what is under it): who sleeps where, in the rooms of the venue of the gathering, written and read only by the teachers (TALITA-20: the rooms themselves are written
+ * in the page of the venue, `/strutture/{id}/camere/…`, and this page leads there). The addresses are under
  * `/convivenza` (`TeacherPaths` answers 403 to anyone else, a parent, on every address and every method, before a request gets here).
  *
  * - **Every action answers with the block `#camere-contenuto` as a whole** (htmx replaces it): the summary, the rooms and who has none, always from the database of the
@@ -29,7 +29,8 @@ import talita.ui.ShellFactory
  *   ordinary POST that answers 303 to the page, with the message left for it.
  * - **No name and no number of a person is in an address**: a person and a room travel in the body of the POST (`b12`, `m7`); only the number of the gathering is in the
  *   address, as in the pages of the gathering, and the number of a room in the pages of its form and of its removal (a room is the house, not a person).
- * - **What is not there, or is of another gathering, is `404`** and nothing changes; what the end of the gathering refuses is `409` with the page as it is, and nothing changes;
+ * - **What is not there, or is of another gathering, is `404`** and nothing changes; what the end of the gathering refuses is `409` with the page as it is, and nothing changes; so is a room of another
+ *   venue than the one that the gathering has now (the page was open when the venue changed): `409` with the rooms of now;
  *   a choice that was already made, or a person who was out already, is `200` with the state as it is, never an error (criteria 7, 10).
  */
 @Controller
@@ -44,8 +45,6 @@ class RoomsController(
     private fun board(id: Long): RoomBoard = rooms.board(id) ?: notFound()
 
     private fun pageHref(id: Long, anchor: String? = null): String = "/convivenza/$id/camere" + (anchor?.let { "#$it" } ?: "")
-
-    private fun errorsAlert(errors: Int): Alert? = if (errors > 1) Alert(DANGER, "Controlla i $errors campi segnati in rosso.") else null
 
     private fun shell(title: String) = shells.shell(page = title, current = Section.CONVIVENZA)
 
@@ -78,11 +77,14 @@ class RoomsController(
     private fun over(request: HttpServletRequest, id: Long): ModelAndView =
         answer(request, id, Feedback(Spot.Top, Alert(INFO, RoomsPresenter.FINISHED)), HttpStatus.CONFLICT)
 
+    /**
+     * The room of another venue than the one of the gathering: the page was open when the venue changed. Nothing was done, and the answer is the block as it is now, with the sentence that says why (`409`).
+     */
+    private fun staleVenue(request: HttpServletRequest, id: Long): ModelAndView =
+        answer(request, id, Feedback(Spot.Top, Alert(WARNING, RoomsPresenter.STALE)), HttpStatus.CONFLICT)
+
     /** A form that has no page of its own, asked with a GET (a page without JavaScript that came back with an error and was reloaded): the page of the rooms. */
-    @GetMapping(
-        "/convivenza/{id:[0-9]{1,18}}/camere/scegli", "/convivenza/{id:[0-9]{1,18}}/camere/sposta", "/convivenza/{id:[0-9]{1,18}}/camere/maestri",
-        "/convivenza/{id:[0-9]{1,18}}/camere/copia",
-    )
+    @GetMapping("/convivenza/{id:[0-9]{1,18}}/camere/scegli", "/convivenza/{id:[0-9]{1,18}}/camere/sposta", "/convivenza/{id:[0-9]{1,18}}/camere/maestri")
     fun reloaded(@PathVariable id: Long): ModelAndView {
         board(id)
         return seeOther(pageHref(id))
@@ -138,6 +140,8 @@ class RoomsController(
 
         PlaceResult.Over -> over(request, id)
 
+        PlaceResult.OtherVenue -> staleVenue(request, id)
+
         PlaceResult.NotFound -> notFound()
     }
 
@@ -180,7 +184,8 @@ class RoomsController(
         request: HttpServletRequest,
     ): ModelAndView {
         val roomId = roomOf(room) ?: notFound()
-        if (rooms.find(id, roomId) == null) notFound()
+        // A room of the venue of the gathering, or (the venue changed meanwhile) of another one, or none.
+        if (board(id).rooms.none { it.id == roomId }) return if (rooms.exists(roomId)) staleVenue(request, id) else notFound()
         val ref = PersonRef.parse(person)
         if (ref == null && person.isBlank()) {
             return answer(request, id, Feedback(Spot.TeacherChoice(roomId), null, CHOOSE_TEACHER), HttpStatus.UNPROCESSABLE_ENTITY)
@@ -195,127 +200,7 @@ class RoomsController(
         }
     }
 
-    // ---- A room: new and to change ---------------------------------------------------------------------------------------------------
-
-    private fun formPage(form: RoomForm, status: HttpStatus = HttpStatus.OK): ModelAndView =
-        ModelAndView("room/roomForm", mapOf("shell" to shell(form.title), "page" to form)).also { it.status = status }
-
-    @GetMapping("/convivenza/{id:[0-9]{1,18}}/camere/nuova")
-    fun newForm(@PathVariable id: Long, request: HttpServletRequest): ModelAndView {
-        val board = board(id)
-        if (board.over) return over(request, id)
-        return formPage(presenter.newForm(board.gathering))
-    }
-
-    @PostMapping("/convivenza/{id:[0-9]{1,18}}/camere/nuova")
-    fun create(
-        @PathVariable id: Long,
-        @RequestParam(name = "name", defaultValue = "") name: String,
-        @RequestParam(name = "beds", defaultValue = "") beds: String,
-        request: HttpServletRequest,
-    ): ModelAndView {
-        val board = board(id)
-        val nameCheck = RoomChecks.name(name)
-        val bedsCheck = RoomChecks.beds(beds)
-        val errors = listOfNotNull(nameCheck.error, bedsCheck.error).size
-        if (board.over) return over(request, id)
-        if (errors > 0) {
-            val form = presenter.newForm(board.gathering, nameCheck.value.take(MAX_ECHO), bedsCheck.typed.take(MAX_ECHO), nameCheck.error, bedsCheck.error, errorsAlert(errors))
-            return formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (rooms.create(id, nameCheck.value, bedsCheck.beds!!)) {
-            is SaveResult.Saved -> saved(request, id)
-            SaveResult.NameTaken -> {
-                val form = presenter.newForm(board.gathering, nameCheck.value, bedsCheck.typed.take(MAX_ECHO), RoomChecks.NAME_TAKEN, null, null)
-                formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-            }
-            SaveResult.Over -> over(request, id)
-            SaveResult.NotFound -> notFound()
-        }
-    }
-
-    private fun saved(request: HttpServletRequest, id: Long): ModelAndView {
-        Flash.put(request, Alert(SUCCESS, "Camera salvata."))
-        return seeOther(pageHref(id))
-    }
-
-    @GetMapping("/convivenza/{id:[0-9]{1,18}}/camere/{room:[0-9]{1,18}}/modifica")
-    fun changeForm(@PathVariable id: Long, @PathVariable room: Long, request: HttpServletRequest): ModelAndView {
-        val board = board(id)
-        val found = board.rooms.firstOrNull { it.id == room } ?: notFound()
-        if (board.over) return over(request, id)
-        return formPage(presenter.changeForm(board.gathering, found, board.people(found)))
-    }
-
-    @PostMapping("/convivenza/{id:[0-9]{1,18}}/camere/{room:[0-9]{1,18}}/modifica")
-    fun change(
-        @PathVariable id: Long,
-        @PathVariable room: Long,
-        @RequestParam(name = "name", defaultValue = "") name: String,
-        @RequestParam(name = "beds", defaultValue = "") beds: String,
-        request: HttpServletRequest,
-    ): ModelAndView {
-        val board = board(id)
-        val found = board.rooms.firstOrNull { it.id == room } ?: notFound()
-        if (board.over) return over(request, id)
-        val nameCheck = RoomChecks.name(name)
-        val bedsCheck = RoomChecks.beds(beds)
-        val errors = listOfNotNull(nameCheck.error, bedsCheck.error).size
-        val people = board.people(found)
-        if (errors > 0) {
-            val form = presenter.changeForm(board.gathering, found, people, nameCheck.value.take(MAX_ECHO), bedsCheck.typed.take(MAX_ECHO), nameCheck.error, bedsCheck.error, errorsAlert(errors))
-            return formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (rooms.update(id, room, nameCheck.value, bedsCheck.beds!!)) {
-            is SaveResult.Saved -> saved(request, id)
-            SaveResult.NameTaken -> {
-                val form = presenter.changeForm(board.gathering, found, people, nameCheck.value, bedsCheck.typed.take(MAX_ECHO), RoomChecks.NAME_TAKEN, null, null)
-                formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-            }
-            SaveResult.Over -> over(request, id)
-            SaveResult.NotFound -> notFound()
-        }
-    }
-
-    // ---- Taking a room away ---------------------------------------------------------------------------------------------------------
-
-    /** Without JavaScript: the page of confirmation, with the words of the dialog (a room where nobody sleeps is taken away at once, with no page: the form is the button). */
-    @GetMapping("/convivenza/{id:[0-9]{1,18}}/camere/{room:[0-9]{1,18}}/togli")
-    fun removalPage(@PathVariable id: Long, @PathVariable room: Long, request: HttpServletRequest): ModelAndView {
-        val board = board(id)
-        val found = board.rooms.firstOrNull { it.id == room } ?: notFound()
-        if (board.over) return over(request, id)
-        val model = presenter.removalDialog(id, found, board.people(found)).copy(target = null)
-        return ModelAndView("pages/confirmAction", mapOf("shell" to shell(model.title), "page" to model))
-    }
-
-    @PostMapping("/convivenza/{id:[0-9]{1,18}}/camere/{room:[0-9]{1,18}}/togli")
-    fun remove(@PathVariable id: Long, @PathVariable room: Long, request: HttpServletRequest): ModelAndView {
-        board(id)
-        return when (rooms.remove(id, room)) {
-            // Taken away by another teacher already: the state as it is, with the same words.
-            is RemoveResult.Removed, RemoveResult.AlreadyGone -> answer(request, id, Feedback(Spot.Top, Alert(SUCCESS, "Camera tolta.")))
-            RemoveResult.Over -> over(request, id)
-            RemoveResult.NotFound -> notFound()
-        }
-    }
-
-    // ---- Copying the rooms of the year before -------------------------------------------------------------------------------------------
-
-    @PostMapping("/convivenza/{id:[0-9]{1,18}}/camere/copia")
-    fun copy(@PathVariable id: Long, request: HttpServletRequest): ModelAndView {
-        board(id)
-        return when (rooms.copyPrevious(id)) {
-            is CopyResult.Copied -> answer(request, id, Feedback(Spot.Top, Alert(SUCCESS, "Camere copiate.")))
-            CopyResult.NotEmpty -> answer(request, id, Feedback(Spot.Top, Alert(INFO, "Ci sono già delle camere: non ho copiato niente.")))
-            CopyResult.NothingToCopy -> answer(request, id, Feedback(Spot.Top, Alert(INFO, "Non c’è una convivenza precedente con delle camere.")))
-            CopyResult.Over -> over(request, id)
-            CopyResult.NotFound -> notFound()
-        }
-    }
-
     private companion object {
-        const val MAX_ECHO = 1000
         const val CHOOSE_ROOM = "Scegli la camera."
         const val CHOOSE_TEACHER = "Scegli il maestro."
     }
