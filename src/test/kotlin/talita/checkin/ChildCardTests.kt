@@ -145,27 +145,29 @@ class ChildCardTests(
     @Test
     fun `t6 c06 marking a day in the card changes only that day, with the confirmation, and taking it away asks no question`() {
         val s = Scenario()
+        // A child of today only: the arrival writes the days after it too (TALITA-19), and here there are none, so one row is one day.
+        val giada = kit.rows.register(s.setup.id, kit.account(), "Giada", "Conte", days = mapOf(s.setup.today to "full"))
 
-        val marked = fromCard(s.setup.marta, s.setup, s.anna, "presenze")
+        val marked = fromCard(s.setup.marta, s.setup, giada, "presenze")
 
         assertEquals(200, marked.status())
         val html = marked.body()
         assertTrue(html.startsWith("<div id=\"scheda\">") || html.trim().startsWith("<div id=\"scheda\">"), html.take(200))
-        assertEquals(listOf(s.setup.today), kit.presenceDays(s.anna))
+        assertEquals(listOf(s.setup.today), kit.presenceDays(giada))
         assertTrue(Regex("""role="status" tabindex="-1" data-fuoco=""""").containsMatchIn(html), "the confirmation is announced and takes the focus")
         assertTrue(words(html).contains("Presenza segnata."), words(html))
         // Today is marked, with who and when; yesterday and tomorrow are as they were: yesterday can still be marked, tomorrow cannot be yet.
-        val at = kit.presenceOf(s.anna, s.setup.today)
+        val at = kit.presenceOf(giada, s.setup.today)
         assertTrue(words(html).contains("Presente Segnata da Marta Bianchi alle ${CheckinFormat.time(at.at)}"), words(html))
         assertTrue(words(html).contains("Si potrà segnare da quel giorno."))
-        assertTrue(html.contains("""aria-label="Segna presente Anna Rossi, ${CheckinFormat.longDay(s.setup.yesterday)}""""), "the name of the button says whose and which day")
-        assertFalse(html.contains("""aria-label="Segna presente Anna Rossi, ${CheckinFormat.longDay(s.setup.today)}""""))
+        assertTrue(html.contains("""aria-label="Segna presente Giada Conte, ${CheckinFormat.longDay(s.setup.yesterday)}""""), "the name of the button says whose and which day")
+        assertFalse(html.contains("""aria-label="Segna presente Giada Conte, ${CheckinFormat.longDay(s.setup.today)}""""))
         // Taking it away: no dialog, no question; the day goes back to what it was.
-        val undone = fromCard(s.setup.marta, s.setup, s.anna, "presenze/togli")
+        val undone = fromCard(s.setup.marta, s.setup, giada, "presenze/togli")
         assertEquals(200, undone.status())
         assertTrue(words(undone.body()).contains("Presenza tolta."))
-        assertEquals(emptyList(), kit.presenceDays(s.anna))
-        assertTrue(undone.body().contains("""aria-label="Segna presente Anna Rossi, ${CheckinFormat.longDay(s.setup.today)}""""))
+        assertEquals(emptyList(), kit.presenceDays(giada))
+        assertTrue(undone.body().contains("""aria-label="Segna presente Giada Conte, ${CheckinFormat.longDay(s.setup.today)}""""))
         assertFalse(undone.body().contains("<dialog"), "taking a presence away asks for no confirmation")
     }
 
@@ -198,12 +200,13 @@ class ChildCardTests(
     @Test
     fun `t6 c06 the card without JavaScript is a post that leads back to the card, with the confirmation kept for it`() {
         val s = Scenario()
+        val giada = kit.rows.register(s.setup.id, kit.account(), "Giada", "Conte", days = mapOf(s.setup.today to "full"))
 
-        val plain = fromCard(s.setup.marta, s.setup, s.anna, "presenze", viaHtmx = false)
+        val plain = fromCard(s.setup.marta, s.setup, giada, "presenze", viaHtmx = false)
 
         assertEquals(303, plain.status())
-        assertEquals("/arrivi/${s.anna}?giorno=${s.setup.today}", plain.location())
-        assertEquals(listOf(s.setup.today), kit.presenceDays(s.anna))
+        assertEquals("/arrivi/$giada?giorno=${s.setup.today}", plain.location())
+        assertEquals(listOf(s.setup.today), kit.presenceDays(giada))
         val page = s.setup.marta.get(plain.location()!!).body()
         assertTrue(words(page).contains("Presenza segnata."), "the confirmation is on the page the redirect leads to")
         assertFalse(words(s.setup.marta.get(plain.location()!!).body()).contains("Presenza segnata."), "and only once")
@@ -212,22 +215,24 @@ class ChildCardTests(
     @Test
     fun `t6 c07 a day that was not foreseen is marked with a notice that the fee does not change and a link to correct the registration, and the child is among the ones who were not expected`() {
         val s = Scenario()
+        // A child of tomorrow only, 25 euros: yesterday is not hers, and the arrival of yesterday stops there, because today is not hers either (TALITA-19).
+        val giada = kit.rows.register(s.setup.id, kit.account(), "Giada", "Conte", days = mapOf(s.setup.tomorrow to "full"))
 
-        val marked = fromCard(s.setup.marta, s.setup, s.luca, "presenze", day = s.setup.yesterday)
+        val marked = fromCard(s.setup.marta, s.setup, giada, "presenze", day = s.setup.yesterday)
 
         assertEquals(200, marked.status())
         val html = marked.body()
-        assertEquals(listOf(s.setup.yesterday), kit.presenceDays(s.luca))
+        assertEquals(listOf(s.setup.yesterday), kit.presenceDays(giada))
         assertTrue(
-            words(html).contains("Presenza segnata. ${CheckinFormat.longDayCapital(s.setup.yesterday)} non era previsto per Luca Rossi: la quota dovuta non cambia finché non correggi l’iscrizione. Correggi l’iscrizione"),
+            words(html).contains("Presenza segnata. ${CheckinFormat.longDayCapital(s.setup.yesterday)} non era previsto per Giada Conte: la quota dovuta non cambia finché non correggi l’iscrizione. Correggi l’iscrizione"),
             words(html),
         )
-        assertTrue(html.contains("""href="/iscrizioni/${s.luca}/correggi""""), "the link goes to the correction of TALITA-5")
+        assertTrue(html.contains("""href="/iscrizioni/$giada/correggi""""), "the link goes to the correction of TALITA-5")
         assertTrue(Regex("""<div class="[^"]*bg-warning-soft[^"]*" role="alert"""").containsMatchIn(html), "it is a notice of attention")
-        // On the list of that day he is among the ones who were not expected, present, and the summary counts him apart. What is due did not change: still 25 + 10.
+        // On the list of that day she is among the ones who were not expected, present, and the summary counts her apart. What is due did not change: still 25.
         val list = words(s.setup.marta.get("/arrivi?giorno=${s.setup.yesterday}").body())
         assertTrue(list.contains("Presenti non previsti 1"), list)
-        assertTrue(list.contains("Luca Rossi Presente Da pagare ${euro(3500)} Non previsto"), list)
+        assertTrue(list.contains("Giada Conte Presente Da pagare ${euro(2500)} Non previsto"), list)
     }
 
     // ---- In forse, withdrawn (criterion 8) ---------------------------------------------------------------------------------------
@@ -243,7 +248,9 @@ class ChildCardTests(
 
         assertEquals(200, marked.status())
         assertEquals("confirmed", kit.statusOf(s.sara))
-        assertTrue(words(marked.body()).contains("Presenza segnata. L’iscrizione di Sara Neri era in forse: adesso è confermata."), words(marked.body()))
+        // Sara is there every day: today and tomorrow (TALITA-19).
+        val both = CheckinFormat.daysInSentence(listOf(s.setup.today, s.setup.tomorrow))
+        assertTrue(words(marked.body()).contains("Presenza segnata per $both. L’iscrizione di Sara Neri era in forse: adesso è confermata."), words(marked.body()))
         assertEquals(listOf("Confermata", "Accettata online"), badges(marked.body()))
         assertFalse(words(marked.body()).contains("L’iscrizione è in forse."), "the notice about the doubt is gone with it")
         assertTrue(words(marked.body()).contains("Iscrizione Stato Confermata"))

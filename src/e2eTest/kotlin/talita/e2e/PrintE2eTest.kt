@@ -160,7 +160,10 @@ class PrintE2eTest {
         e2e.open("/arrivi/registro")
         assertThat(page.locator("h1")).hasText("Registro arrivi")
         assertThat(page.locator("main")).containsText(Pattern.compile("Stampato il \\d+ \\w+ \\d{4} alle \\d+:\\d{2}\\."))
-        assertThat(page.locator("main")).containsText("G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza già segnata in Talità.")
+        assertThat(page.locator("main")).containsText(
+            "G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza segnata in Talità: un arrivo vale anche per i giorni dopo a cui il bambino è iscritto, " +
+                "ma la X compare solo dal loro giorno. Chi va via prima resta con la X finché non lo togli in Talità: controlla con la conta della mattina.",
+        )
         val table = page.locator("main table.tabella-stampa").first()
         val headers = table.locator("thead th").allInnerTexts().map { it.plain() }
         assertEquals(8, headers.size, "the child, three days, due, paid, manleva and notes: $headers")

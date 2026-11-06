@@ -73,10 +73,18 @@
                   </form>
                 @elseif(day.getAction() == DayAction.UNMARK)
                   <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <p class="flex items-start gap-2 font-semibold text-success">
-                      @template.components.icon(icon = Icon.CIRCLE_CHECK, classes = "mt-1 size-5 shrink-0")
-                      <span>Presente<small class="block text-sm font-normal text-ink-muted wrap-anywhere">${day.getPresentBy()}</small></span>
-                    </p>
+                    @if(day.getSoon())
+                      <%-- A day that has not come, with the row that the arrival wrote in advance (TALITA-19): not «Presente» (it is not a presence until its day), «Sarà presente», in blue. --%>
+                      <p class="flex items-start gap-2 font-semibold text-brand">
+                        @template.components.icon(icon = Icon.CALENDAR_CHECK, classes = "mt-1 size-5 shrink-0")
+                        <span>Sarà presente<small class="block text-sm font-normal text-ink-muted wrap-anywhere">${day.getPresentBy()}</small></span>
+                      </p>
+                    @else
+                      <p class="flex items-start gap-2 font-semibold text-success">
+                        @template.components.icon(icon = Icon.CIRCLE_CHECK, classes = "mt-1 size-5 shrink-0")
+                        <span>Presente<small class="block text-sm font-normal text-ink-muted wrap-anywhere">${day.getPresentBy()}</small></span>
+                      </p>
+                    @endif
                     <form method="post" action="${"/arrivi/" + page.getId() + "/presenze/togli"}" hx-post="${"/arrivi/" + page.getId() + "/presenze/togli"}" hx-target="#scheda" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
                       @template.components.csrf(csrf = csrf)
                       <input type="hidden" name="giorno" value="${day.getDay()}">
@@ -86,6 +94,9 @@
                       </button>
                     </form>
                   </div>
+                  @if(day.getHint() != null)
+                    <p class="mt-2 text-sm text-ink-muted">${day.getHint()}</p>
+                  @endif
                 @else
                   <p class="text-sm text-ink-muted">${day.getLater()}</p>
                 @endif

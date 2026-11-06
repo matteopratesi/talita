@@ -79,22 +79,29 @@ class ArrivalsController(
         val asLink: Boolean = false,
     )
 
-    private fun markOutcome(registration: RegistrationData, day: LocalDate, result: MarkResult): Outcome {
+    /**
+     * [hadOtherRows]: the child had other presences before this touch (the touch wrote more than one day, and some day of the registration was marked already): the note of the
+     * row says the days after the one of the row then, and only then; the first touch on a child leaves the row as it is, so that the rows under the finger do not move (design
+     * of TALITA-19, norm 4).
+     */
+    private fun markOutcome(registration: RegistrationData, day: LocalDate, result: MarkResult, hadOtherRows: Boolean): Outcome {
         val name = registration.name
         return when (result) {
             is MarkResult.Marked -> {
+                val head = CheckinFormat.markedHead(result.days)
                 val confirmed = if (result.confirmed) " L’iscrizione di $name era in forse: adesso è confermata." else ""
-                val announcement = "Presenza segnata: $name." + if (result.confirmed) " L’iscrizione era in forse: adesso è confermata." else ""
+                val announcement = "$head: $name." + if (result.confirmed) " L’iscrizione era in forse: adesso è confermata." else ""
                 val card = if (result.notExpected) {
                     CardAlert(
-                        AlertVariant.WARNING, "Presenza segnata.",
+                        AlertVariant.WARNING, "$head.",
                         "${CheckinFormat.longDayCapital(day)} non era previsto per $name: la quota dovuta non cambia finché non correggi l’iscrizione.$confirmed",
                         "Correggi l’iscrizione", "/iscrizioni/${registration.id}/correggi",
                     )
                 } else {
-                    CardAlert(AlertVariant.SUCCESS, null, "Presenza segnata.$confirmed")
+                    CardAlert(AlertVariant.SUCCESS, null, "$head.$confirmed")
                 }
-                Outcome(HttpStatus.OK, null, announcement, card)
+                val note = if (result.days.size > 1 && hadOtherRows) RowNote("Segnata anche per ${CheckinFormat.daysInSentence(result.days.drop(1))}.", warning = false) else null
+                Outcome(HttpStatus.OK, note, announcement, card)
             }
 
             is MarkResult.AlreadyMarked -> {
@@ -131,7 +138,11 @@ class ArrivalsController(
     private fun unmarkOutcome(registration: RegistrationData, result: UnmarkResult): Outcome {
         val name = registration.name
         return when (result) {
-            UnmarkResult.Unmarked -> Outcome(HttpStatus.OK, null, "Presenza tolta: $name.", CardAlert(AlertVariant.SUCCESS, null, "Presenza tolta."))
+            is UnmarkResult.Unmarked -> {
+                val head = CheckinFormat.unmarkedHead(result.days)
+                val note = if (result.days.size > 1) RowNote("Tolta anche per ${CheckinFormat.daysInSentence(result.days.drop(1))}.", warning = false) else null
+                Outcome(HttpStatus.OK, note, "$head: $name.", CardAlert(AlertVariant.SUCCESS, null, "$head."))
+            }
 
             UnmarkResult.AlreadyUnmarked -> Outcome(
                 HttpStatus.OK, RowNote("La presenza era già stata tolta.", warning = false),
@@ -142,12 +153,6 @@ class ArrivalsController(
                 HttpStatus.CONFLICT, RowNote("Non tolta: nel frattempo le date della convivenza sono cambiate. Aggiorna la pagina.", warning = true),
                 "$name: la presenza non è stata tolta, le date della convivenza sono cambiate.",
                 CardAlert(AlertVariant.WARNING, null, "Non è stato possibile togliere la presenza: le date della convivenza sono cambiate. Ecco i giorni di adesso."), asLink = true,
-            )
-
-            UnmarkResult.NotYet -> Outcome(
-                HttpStatus.CONFLICT, RowNote("Non tolta: quel giorno non è ancora arrivato.", warning = true),
-                "$name: la presenza non è stata tolta, quel giorno non è ancora arrivato.",
-                CardAlert(AlertVariant.WARNING, null, "Non è stato possibile togliere la presenza: quel giorno non è ancora arrivato."), asLink = true,
             )
 
             UnmarkResult.NotFound -> notFound()
@@ -162,7 +167,10 @@ class ArrivalsController(
         val (registration, gathering) = scope.registration(id) ?: notFound()
         val day = parseDay(typedDay)
         val outcome = if (marking) {
-            markOutcome(registration, day ?: gathering.days.first(), if (day == null) MarkResult.OutsideTheDates else checkins.mark(id, day, account.id))
+            val result = if (day == null) MarkResult.OutsideTheDates else checkins.mark(id, day, account.id)
+            // The rows that are not the ones this touch wrote were there before it: the child had other presences.
+            val hadOtherRows = result is MarkResult.Marked && checkins.ofRegistration(id).any { it.day !in result.days }
+            markOutcome(registration, day ?: gathering.days.first(), result, hadOtherRows)
         } else {
             unmarkOutcome(registration, if (day == null) UnmarkResult.OutsideTheDates else checkins.unmark(id, day))
         }

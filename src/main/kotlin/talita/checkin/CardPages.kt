@@ -80,6 +80,10 @@ data class CardDay(
     val presentBy: String?,
     /** What a day that cannot be marked yet says. */
     val later: String?,
+    /** The row is of a day that has not come: the arrival wrote it in advance, and the card says «Sarà presente» (TALITA-19). */
+    val soon: Boolean = false,
+    /** The line under the button: from when the day counts, for a row that has not come, and which days «Togli» takes away with it, when there is more than one. */
+    val hint: String? = null,
 )
 
 /** The card «Manleva»: the label, the sentence, and whether the signed form can be marked as arrived. */
@@ -171,6 +175,10 @@ class CardPresenter(
             }
             val presence = data.presence(registration, day)
             val after = day.isAfter(choice.today)
+            // The rows of the days that have not come are the arrival written in advance (TALITA-19): they are not presences yet, and the card says so.
+            val soon = presence != null && after
+            // «Togli» takes the day and the days after it that have a row: when that is more than one day the button says from which day (criterion 9).
+            val taken = if (presence != null) data.takenWith(registration, day) else emptyList()
             val action = when {
                 presence != null -> DayAction.UNMARK
                 withdrawn -> DayAction.NONE
@@ -187,21 +195,35 @@ class CardPresenter(
                 primary = day == choice.selected,
                 day = day.toString(),
                 markLabel = "Segna presente $on",
-                unmarkLabel = "Togli la presenza di $on",
+                unmarkLabel = if (taken.isEmpty()) "Togli la presenza di $on" else "Togli la presenza di ${registration.name}, da ${CheckinFormat.longDay(day)} in poi",
                 presentBy = presence?.let { "Segnata da ${arrivals.teacherName(it.byAccountId)} ${whenMarked(it, day)}" },
                 later = if (action == DayAction.LATER) {
                     if (choice.phase == Phase.BEFORE) "Si potrà segnare da ${CheckinFormat.longDay(data.gathering.days.first())}." else "Si potrà segnare da quel giorno."
                 } else {
                     null
                 },
+                soon = soon,
+                hint = listOfNotNull(
+                    if (soon) "Conta come presente da ${GatheringFormat.weekday(day)}." else null,
+                    if (taken.isEmpty()) null else "Togli vale anche per ${CheckinFormat.daysInSentence(taken)}.",
+                ).joinToString(" ").ifEmpty { null },
             )
         }
     }
 
-    /** `alle 9:12`, and with the day when the presence was marked on another day than the one it is for (the register of paper copied after the end). */
+    /**
+     * When the row of [day] was written: `alle 9:12` on the day itself; `con l’arrivo, venerdì 17 alle 18:47` when it was written on an earlier day, by the arrival that
+     * carried on to this one (TALITA-19: the day is the one on which the row was written, not the one of the arrival that was really made); `il 20 settembre alle 10:07` when
+     * it was written after the day (the register of paper copied after the end).
+     */
     fun whenMarked(presence: Checkin, day: LocalDate): String {
         val marked = CheckinFormat.dayOf(presence.at)
-        return if (marked == day) "alle ${CheckinFormat.time(presence.at)}" else "il ${CheckinFormat.dayAndMonth(marked)} alle ${CheckinFormat.time(presence.at)}"
+        val at = CheckinFormat.time(presence.at)
+        return when {
+            marked == day -> "alle $at"
+            marked.isBefore(day) -> "con l’arrivo, ${CheckinFormat.shortDay(marked)} alle $at"
+            else -> "il ${CheckinFormat.dayAndMonth(marked)} alle $at"
+        }
     }
 
     private fun custody(registration: RegistrationData): CustodyView = when {

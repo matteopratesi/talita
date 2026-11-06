@@ -62,6 +62,7 @@ enum class Icon {
     MONITOR_SMARTPHONE,
     KEY_ROUND,
     FINGERPRINT_PATTERN,
+    CALENDAR_CHECK,
 
     /** The venues (TALITA-20): a house. */
     BUILDING_2,

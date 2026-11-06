@@ -105,7 +105,13 @@ class PrintPagesTests(
         val text = words(html)
         assertTrue(text.contains("Convivenza di settembre 2027 · ${GatheringFormat.range(s.setup.yesterday, s.setup.tomorrow)}"), text)
         assertTrue(Regex("""Stampato il \d{1,2} [a-zà-ù]+ \d{4} alle \d{1,2}:\d{2}\.""").containsMatchIn(text), text)
-        assertTrue(text.contains("G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza già segnata in Talità."), text)
+        assertTrue(
+            text.contains(
+                "G giornata · P solo pranzo · – giorno non previsto. La X nella casella è una presenza segnata in Talità: un arrivo vale anche per i giorni dopo a cui il bambino è iscritto, " +
+                    "ma la X compare solo dal loro giorno. Chi va via prima resta con la X finché non lo togli in Talità: controlla con la conta della mattina.",
+            ),
+            text,
+        )
         assertEquals(listOf("Registro arrivi · pagina 1 di 1"), captions(html))
         val names = rows(tables(html).single()).filterNot { it.isEmpty() }.map { Regex("""^(\S+ \S+)""").find(it)?.groupValues?.get(1) }.take(7)
         assertEquals(listOf("Giulia Ferri", "Giulia Ferri", "Nicolò Ferri", "Elena Marino", "Sara Neri", "Anna Rossi", "Luca Rossi"), names, "by surname and name, and Chiara, who is withdrawn, is not there")
@@ -355,13 +361,28 @@ class PrintPagesTests(
 
     @Test
     fun `t6 c25 a day without presences says so and leads back to the confirmed ones, and a day that is not one of the gathering is a page that does not exist`() {
+        // Today, with nobody marked yet (a gathering of its own, where nobody is): the list fills up as the presences are marked.
+        val quiet = kit.start()
+        kit.rows.register(quiet.id, kit.account(), "Anna", "Rossi")
+        val quietPage = quiet.marta.get("/arrivi/elenco?giorno=${quiet.today}")
+        assertEquals(200, quietPage.status())
+        assertTrue(
+            words(quietPage.body()).contains("Nessun bambino presente ${CheckinFormat.longDay(quiet.today)} L’elenco dei presenti si riempie man mano che segni le presenze. Puoi scegliere un altro giorno o tutte le iscrizioni confermate. Vedi le iscrizioni confermate"),
+            words(quietPage.body()),
+        )
+        // A day that has not come: nobody is present yet, and the page says it (TALITA-19, criterion 8).
         val s = Scenario()
-
         val none = s.setup.marta.get("/arrivi/elenco?giorno=${s.setup.tomorrow}")
 
         assertEquals(200, none.status())
         val text = words(none.body())
-        assertTrue(text.contains("Nessun bambino presente ${CheckinFormat.longDay(s.setup.tomorrow)} L’elenco dei presenti si riempie man mano che segni le presenze. Puoi scegliere un altro giorno o tutte le iscrizioni confermate. Vedi le iscrizioni confermate"), text)
+        assertTrue(
+            text.contains(
+                "Nessun bambino presente ${CheckinFormat.longDay(s.setup.tomorrow)} ${CheckinFormat.longDayCapital(s.setup.tomorrow)} non è ancora arrivato: i bambini si contano presenti da quel giorno. " +
+                    "Per scegliere un altro giorno apri l’elenco delle iscrizioni confermate. Vedi le iscrizioni confermate",
+            ),
+            text,
+        )
         assertTrue(none.body().contains("""href="/arrivi/elenco""""))
         assertFalse(none.body().contains("data-azione=\"stampa\""), "nothing to print")
         for (day in listOf(s.setup.today.plusDays(9).toString(), "ieri", "2027-13-45", s.setup.today.minusDays(5).toString())) {

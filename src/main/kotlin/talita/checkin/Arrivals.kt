@@ -74,10 +74,12 @@ data class DayChoice(val days: List<LocalDate>, val selected: LocalDate, val tod
 
 /**
  * What the lists and the prints of one gathering read, taken together: the registrations by surname and name, who is present on which day, what each has paid,
- * the possible duplicates and what each teacher has collected. Only reads: the pages decide what to show of it, and none of it is saved here.
+ * the possible duplicates and what each teacher has collected. Only reads: the pages decide what to show of it, and none of it is saved here. [today] is the day of
+ * Rome at the moment of reading, the one that «present» is worked out against.
  */
 class ArrivalsData(
     val gathering: GatheringInfo,
+    val today: LocalDate,
     val registrations: List<RegistrationData>,
     private val presences: Map<Long, Map<LocalDate, Checkin>>,
     private val paid: Map<Long, Int>,
@@ -88,8 +90,26 @@ class ArrivalsData(
 
     fun withdrawn(registration: RegistrationData): Boolean = registration.status == Status.WITHDRAWN
 
-    /** The presence of [registration] on [day], if it was marked. */
+    /**
+     * The row of [registration] on [day], as it is kept, if there is one (for the card of the child, which also shows the rows of the days that have not come: they are
+     * the arrival that was written in advance). It does not say who is present: that is [present].
+     */
     fun presence(registration: RegistrationData, day: LocalDate): Checkin? = presences[registration.id]?.get(day)
+
+    /**
+     * Whether [registration] is **present** on [day] (TALITA-19, criterion 7): the registration is not withdrawn, the row of that day is there, and the day is not after
+     * today. It is the only place that says who is there: the list, the summary, the register, the list for the venue and the modules of the venue read it, and no one
+     * else counts the rows (the card shows the rows as they are kept, and tells the ones of the days that have not come apart: «Sarà presente»). A row of a day that has not
+     * come is not a presence yet: it becomes one on its day, if nobody takes it away.
+     */
+    fun present(registration: RegistrationData, day: LocalDate): Boolean = !withdrawn(registration) && !day.isAfter(today) && presence(registration, day) != null
+
+    /**
+     * The days after [day], in a row, that have a row: what taking the presence of [day] away takes away with it (TALITA-19, criterion 9). Of the rows as they are kept, so it
+     * counts the days after today too.
+     */
+    fun takenWith(registration: RegistrationData, day: LocalDate): List<LocalDate> =
+        generateSequence(day.plusDays(1)) { it.plusDays(1) }.takeWhile { presence(registration, it) != null }.toList()
 
     /** All the presences of [registration], by day. */
     fun presencesOf(registration: RegistrationData): Map<LocalDate, Checkin> = presences[registration.id].orEmpty()
@@ -117,12 +137,13 @@ class ArrivalsData(
 
 /** Reads what the pages of Arrivi need, in one place. */
 @Component
-class Arrivals(private val registrations: Registrations, private val checkins: Checkins, private val payments: Payments) {
+class Arrivals(private val registrations: Registrations, private val checkins: Checkins, private val payments: Payments, private val gatherings: GatheringReader) {
 
     fun load(gathering: GatheringInfo): ArrivalsData {
         val presences = checkins.ofGathering(gathering.id).groupBy({ it.registrationId }) { it }.mapValues { (_, rows) -> rows.associateBy { it.day } }
         return ArrivalsData(
             gathering = gathering,
+            today = gatherings.today(),
             registrations = registrations.ofGathering(gathering.id),
             presences = presences,
             paid = payments.totals(gathering.id),
