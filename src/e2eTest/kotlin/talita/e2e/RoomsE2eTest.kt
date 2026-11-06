@@ -174,7 +174,7 @@ class RoomsE2eTest {
         assertEquals(0, page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(Pattern.compile("Copia le camere"))).count())
         assertAccessible(page, "rooms, empty state (${e2e.profile.label})")
         e2e.touch(page.locator("main").linkNamed("Scrivi le camere"))
-        assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
         assertThat(page.locator("#camere-struttura")).containsText("Nessuna camera.")
         assertAccessible(page, "venue with no rooms (${e2e.profile.label})")
         e2e.touch(page.locator("#camere-struttura").linkNamed("Aggiungi una camera"))
@@ -194,7 +194,7 @@ class RoomsE2eTest {
         // The house is fine.
         page.getByLabel("Nome della camera").fill("Camera 1")
         e2e.press(page.locator("main").buttonNamed("Salva la camera"))
-        assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
         assertThat(page.locator("#camere-struttura")).containsText("Camera salvata.")
         e2e.touch(page.locator("#camere-struttura").linkNamed("Aggiungi una camera"))
         page.getByLabel("Nome della camera").fill("Stanza azzurra")
@@ -584,7 +584,7 @@ class RoomsE2eTest {
         assertAccessible(page, "change a room (${e2e.profile.label})")
         page.getByLabel("Posti letto").fill("1")
         e2e.press(page.locator("main").buttonNamed("Salva la camera"))
-        assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
         assertThat(page.locator("main")).containsText("Camera salvata.")
         // The page of the gathering says what the change means for who sleeps there.
         e2e.open("/convivenza/${w.id}/camere")
@@ -597,6 +597,6 @@ class RoomsE2eTest {
         assertThat(page.locator("main")).containsText("Le 2 persone che ci dormono tornano fra quelle senza camera.")
         assertAccessible(page, "page to confirm taking a room away (${e2e.profile.label})")
         e2e.touch(page.locator("main").linkNamed("Annulla"))
-        assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
     }
 }

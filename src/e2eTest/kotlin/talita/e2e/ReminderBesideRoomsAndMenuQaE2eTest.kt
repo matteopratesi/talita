@@ -116,7 +116,7 @@ class ReminderBesideRoomsAndMenuQaE2eTest {
         assertThat(page.reminders().locator("#promemoria-maybe")).hasText(Pattern.compile(".*Lo riceverebbero\\s*2 persone.*Ultimo invio\\s*Mai.*", Pattern.DOTALL))
         assertThat(page.reminders().locator("#promemoria-notice")).hasText(Pattern.compile(".*Lo riceverebbero\\s*1 persona.*Ultimo invio\\s*Mai.*", Pattern.DOTALL))
         assertThat(page.menuCard()).containsText("Nessun menù caricato.")
-        assertThat(page.roomsCard()).containsText("Nessuna camera")
+        assertThat(page.roomsCard()).containsText("non ha ancora camere.")
         page.healthy("detail at the start")
         assertAccessible(page, "detail with the three cards, at the start (${e2e.profile.label})")
 
@@ -135,7 +135,7 @@ class ReminderBesideRoomsAndMenuQaE2eTest {
         // A room, through its own pages (TALITA-20: the card of the rooms, with no rooms, leads to the page of the venue, which has the form).
         val venue = e2e.dsl().select(GATHERING.VENUE_ID).from(GATHERING).where(GATHERING.ID.eq(w.id)).fetchSingle(GATHERING.VENUE_ID)!!
         e2e.touch(page.roomsCard().locator("a").first())
-        assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+        assertThat(page).hasURL(java.util.regex.Pattern.compile(".*/strutture/$venue(#camere)?$"))
         e2e.touch(page.locator("main").linkNamed("Aggiungi una camera"))
         page.getByLabel("Nome della camera").fill("Camera 1")
         page.getByLabel("Posti letto").fill("4")

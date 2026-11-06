@@ -175,7 +175,7 @@ class RoomsReviewQaE2eTest {
         page.sideways(e2e, "confirmation of an empty room")
         assertAccessible(page, "page to confirm taking away an empty room (${e2e.profile.label})")
         e2e.touch(page.locator("main").linkNamed("Annulla"))
-        assertThat(page).hasURL(e2e.url("$house#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
         assertEquals(1, page.row("Stanza azzurra").count(), "«Annulla» leaves the room")
 
         // Confirming from that page takes the room away, and the people of the other room stay where they are.

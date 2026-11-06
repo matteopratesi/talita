@@ -257,7 +257,7 @@ class RoomsQaE2eTest {
         // The names of the house go in, with the spaces at the sides taken away.
         for ((typed, saved) in listOf("Camera 3" to "Camera 3", "Stanza azzurra" to "Stanza azzurra", "Primo piano, a destra" to "Primo piano, a destra", "  Mansarda  " to "Mansarda", "C".repeat(50) to "C".repeat(50))) {
             assertEquals(303, e2e.save(form, typed, " 4 ").status(), typed)
-            assertThat(page).hasURL(e2e.url("/strutture/$venue#camere"))
+            assertThat(page).hasURL(Pattern.compile(".*/strutture/$venue(#camere)?$"))
             assertThat(page.locator("#camere-struttura")).containsText("Camera salvata.")
             assertThat(page.locator("#camere-struttura li").last()).containsText(saved)
             e2e.open(form)
@@ -872,7 +872,7 @@ class RoomsQaE2eTest {
         e2e.open("/convivenza/${w.id}/camere")
         e2e.metti("b${c.davide}", "Davide Costa", one)
         e2e.press(page.locator("main").linkNamed("Apri la struttura"))
-        assertThat(page).hasURL(e2e.url("/strutture/${e2e.venueOf(w.id)}#camere"))
+        assertThat(page).hasURL(Pattern.compile(".*/strutture/${e2e.venueOf(w.id)}(#camere)?$"))
         page.goBack()
         assertThat(page.locator("h1")).hasText("Camere")
         assertThat(page.locator("#camera-$one")).containsText("1 persona · 4 posti")

@@ -94,7 +94,7 @@ class VenueE2eTest {
         assertThat(page.locator("h1")).hasText("Strutture")
         assertThat(page.locator("main")).containsText("Le case dove si fa la convivenza. Le vedono solo i maestri.")
         assertThat(page.locator("main h2")).hasText("Nessuna struttura")
-        assertThat(page.locator("main")).containsText("Scrivi la casa dove fai la convivenza. Poi la scegli nella convivenza.")
+        assertThat(page.locator("main")).containsText("Scrivi la casa dove fai la convivenza, con le sue camere. Poi la scegli nella convivenza.")
         assertThat(page.mainNavigation().locator("a[aria-current=page]")).hasText("Convivenza")
         assertPageFits(e2e, "Strutture, empty")
 
@@ -433,6 +433,9 @@ class VenueE2eTest {
 
         plain.locator("#struttura").selectOption(w.to.toString())
         touch(plain.buttonNamed("Salva le modifiche"))
+        // With JavaScript off the page that comes back is waited for before it is touched: the answer of a form is a new document, and a touch on the old one finds nothing stable.
+        assertThat(plain.locator("h1")).hasText("Cambiare la struttura?")
+        plain.settled()
         touch(plain.locator("main").buttonNamed("Cambia la struttura"))
         assertThat(plain.locator("main")).containsText("Le 2 persone nelle camere di ${e2e.venueName(w.from)} sono senza camera.")
         assertEquals(w.to, e2e.venueOf(w.gathering))
