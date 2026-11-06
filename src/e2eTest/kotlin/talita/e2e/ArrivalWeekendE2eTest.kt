@@ -24,6 +24,19 @@ class ArrivalWeekendE2eTest {
     private fun E2e.clock(): MutableClock = application.getBean(MutableClock::class.java)
 
     /**
+     * The clock of the application is shared by every class of the JVM, and it only goes forward: a test that moves it by days gives it back when it ends, also when it fails, so that the
+     * classes that come after find it as it was and no test depends on the order.
+     */
+    private fun E2e.keepingTheClock(test: () -> Unit) {
+        val before = clock().offset()
+        try {
+            test()
+        } finally {
+            clock().restore(before)
+        }
+    }
+
+    /**
      * Midnight: the clock of the application moves a day. The access of the teacher closes after twelve hours, by that clock, so the person enters again with a new link, as at the
      * door in the morning. Nothing is written by the passing of the day.
      */
@@ -47,7 +60,10 @@ class ArrivalWeekendE2eTest {
     }
 
     @E2eTest
-    fun `t19 c18 a whole gathering with the clock moving, Friday is marked once, Saturday has who arrived with no touch, Sunday is taken away on the card, and on Sunday who comes back is marked`(e2e: E2e) {
+    fun `t19 c18 a whole gathering with the clock moving, Friday is marked once, Saturday has who arrived with no touch, Sunday is taken away on the card, and on Sunday who comes back is marked`(e2e: E2e) =
+        e2e.keepingTheClock { wholeGathering(e2e) }
+
+    private fun wholeGathering(e2e: E2e) {
         val page = e2e.page
         val w = e2e.arrivalsGathering(first = 0, last = 2)
         val friday = w.today

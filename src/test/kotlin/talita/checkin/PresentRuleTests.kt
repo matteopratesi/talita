@@ -1,6 +1,8 @@
 package talita.checkin
 
 import org.jooq.DSLContext
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -32,7 +34,7 @@ import kotlin.test.assertTrue
 
 /**
  * Who is present on a day, and what stays true however the rows are written (TALITA-19, criteria 7, 8 and 14). These tests move the clock by whole days, so they have a context of
- * their own (the property below makes it a different one): the clock of the tests only goes forward, and it is shared by every test that has the same context.
+ * their own (the property below makes it a different one), and each one gives the clock back when it ends (`MutableClock.restore`, in `@AfterEach`, also when the test fails).
  *
  * - criterion 7: one function says who is present, and the list, the summary, the register and the list for the venue say the same of every day;
  * - criterion 8: the rows of a day after today are not presences, and at midnight, with nothing written, they are;
@@ -60,6 +62,19 @@ class PresentRuleTests(
 ) {
 
     private val kit = CheckinTestKit(mockMvc, tokens, dsl, clock)
+
+    /** Where the clock was before the test: every test that moves it by days gives it back, also when it fails, so that no test depends on the order. */
+    private var clockBefore: Duration = Duration.ZERO
+
+    @BeforeEach
+    fun rememberTheClock() {
+        clockBefore = clock.offset()
+    }
+
+    @AfterEach
+    fun giveTheClockBack() {
+        clock.restore(clockBefore)
+    }
 
     private fun load(gathering: Long): ArrivalsData = arrivals.load(reader.byId(gathering)!!)
 
