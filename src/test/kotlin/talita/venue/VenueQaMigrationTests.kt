@@ -193,4 +193,78 @@ class VenueQaMigrationTests {
             }
         }
     }
+
+    @Test
+    fun `t20 c19 the rooms with a teacher in them are kept before those of a later gathering that is not a draft, and a finished gathering that still has people in its rooms is kept before a draft with copied rooms`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                // The wood: an earlier gathering with a teacher in a room, and a later one, not a draft, with other rooms and nobody in them.
+                db.gathering("qav1400000000001", "2025-09-12", "Casa del bosco")
+                db.gathering("qav1400000000002", "2026-09-18", "Casa del bosco")
+                // The lake: a gathering that is over but whose people were not deleted yet (between midnight and the job), and the draft of the year after, with the same rooms copied.
+                db.gathering("qav1400000000003", "2026-06-12", "Casa sul lago")
+                db.gathering("qav1400000000004", "2027-09-17", "Casa sul lago", status = "draft")
+            }
+            database.migrateTo("13")
+            val marta = database.dsl { db -> db.teacher(Addresses.unique("qa-marta"), "Marta", "Bianchi") }
+            val rows = database.dsl { db ->
+                val woodOld = db.id("select id from gathering where public_code = 'qav1400000000001'")
+                val woodNew = db.id("select id from gathering where public_code = 'qav1400000000002'")
+                val lakeOver = db.id("select id from gathering where public_code = 'qav1400000000003'")
+                val lakeDraft = db.id("select id from gathering where public_code = 'qav1400000000004'")
+                val woodRoomOld = db.room(woodOld, "Camera 1", 4)
+                db.execute("insert into room_teacher (gathering_id, teacher_account_id, room_id) values ($woodOld, $marta, $woodRoomOld)")
+                val woodRoomNew = db.room(woodNew, "Camera 1", 5)
+                val lakeRoomOver = db.room(lakeOver, "Camera lago", 3)
+                val sara = db.childInRoom(lakeOver, marta, "Sara", "Neri", lakeRoomOver)
+                val lakeRoomDraft = db.room(lakeDraft, "Camera lago", 3)
+                mapOf("woodOld" to woodOld, "woodNew" to woodNew, "woodRoomOld" to woodRoomOld, "woodRoomNew" to woodRoomNew, "lakeOver" to lakeOver, "lakeRoomOver" to lakeRoomOver, "lakeRoomDraft" to lakeRoomDraft, "sara" to sara)
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                assertEquals(listOf(rows.getValue("woodRoomOld"), rows.getValue("lakeRoomOver")).sorted(), db.fetch("select id from room order by id").map { it.get(0, Long::class.java) })
+                assertEquals(rows.getValue("woodRoomOld"), db.id("select room_id from room_teacher where gathering_id = ${rows.getValue("woodOld")}"), "the teacher is where he was")
+                assertEquals(rows.getValue("lakeRoomOver"), db.id("select room_id from room_child where registration_id = ${rows.getValue("sara")}"), "the child of the gathering that is over is where she was")
+                // Every person is in a room of the venue of their gathering.
+                assertEquals(0, db.count("select count(*) from room_child rc join gathering g on g.id = rc.gathering_id where g.venue_id is distinct from rc.venue_id"))
+                assertEquals(0, db.count("select count(*) from room_teacher rt join gathering g on g.id = rt.gathering_id where g.venue_id is distinct from rt.venue_id"))
+                assertEquals(0, db.count("select count(*) from room where id in (${rows.getValue("woodRoomNew")}, ${rows.getValue("lakeRoomDraft")})"))
+            }
+        }
+    }
+
+    @Test
+    fun `t20 c19 when two gatherings of a venue both have people in their rooms the later one keeps its rooms, the other loses them with its people, and nobody is left in a room of a venue that is not the one of their gathering`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                db.gathering("qav1400000000011", "2026-09-11", "Casa del bosco")
+                db.gathering("qav1400000000012", "2026-09-18", "Casa del bosco")
+            }
+            database.migrateTo("13")
+            val marta = database.dsl { db -> db.teacher(Addresses.unique("qa-marta"), "Marta", "Bianchi") }
+            val rows = database.dsl { db ->
+                val before = db.id("select id from gathering where public_code = 'qav1400000000011'")
+                val later = db.id("select id from gathering where public_code = 'qav1400000000012'")
+                val roomBefore = db.room(before, "Camera 1", 4)
+                val roomLater = db.room(later, "Camera 1", 4)
+                val luca = db.childInRoom(before, marta, "Luca", "Rossi", roomBefore)
+                val sara = db.childInRoom(later, marta, "Sara", "Neri", roomLater)
+                mapOf("roomBefore" to roomBefore, "roomLater" to roomLater, "luca" to luca, "sara" to sara)
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                assertEquals(listOf(rows.getValue("roomLater")), db.fetch("select id from room").map { it.get(0, Long::class.java) })
+                assertEquals(rows.getValue("roomLater"), db.id("select room_id from room_child where registration_id = ${rows.getValue("sara")}"))
+                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("luca")}"), "the people of the gathering that lost its rooms are gone")
+                assertEquals(2, db.count("select count(*) from registration"), "only who slept in a room is gone from the rooms, never a registration")
+                assertEquals(0, db.count("select count(*) from room_child rc join gathering g on g.id = rc.gathering_id where g.venue_id is distinct from rc.venue_id"))
+            }
+        }
+    }
 }
