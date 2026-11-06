@@ -13,10 +13,12 @@
 -- on a delete, as before: a room that is taken away leaves its people without a room. Deleting the gathering still takes with it the people of its rooms (only the tests do it).
 --
 -- The data that is already there passes. Of the gatherings of each venue that have rooms, one keeps its rooms, and they become the rooms of the venue, with the same ids: who sleeps in them stays where they are.
--- The one is chosen in this order: first the gathering whose rooms have people in them (`room_child` or `room_teacher`: they exist only for a gathering that is not over, `RoomsRule` deletes them at the end, so
--- a gathering that is going on or is coming is never lost for a draft of the year after that has copied rooms), then a gathering that is not a draft, then the most recent by the first day, then by the id.
+-- The one is chosen in this order. First a gathering whose rooms have people in them (`room_child` or `room_teacher`: they exist only for a gathering that is not over, `RoomsRule` deletes them at the end, so
+-- a gathering that is going on or is coming is never lost for a draft of the year after that has copied rooms). Among those with people, the oldest by the first day, then the lowest id: it is the one that is
+-- happening now, and a gathering that is later (an open one further on, with teachers already in its rooms) does not take its place. Among those with nobody in the rooms, a gathering that is not a draft, then
+-- the most recent by the first day, then the highest id.
 -- The other rooms are deleted, with who sleeps in them (nobody, when the gathering is over): the rooms of the other gatherings were copies of the same house, and those of a draft with no venue have no house to belong to.
--- Two gatherings of the same venue that both have people in their rooms cannot both keep them (a name is once per venue): the first by the order above does.
+-- Two gatherings of the same venue that both have people in their rooms cannot both keep them (a name is once per venue): the oldest does, and the people of the other have to be put in the rooms again.
 
 -- The rooms to keep: the ones of one gathering of each venue, among those that have rooms (see above).
 alter table room add column venue_id bigint;
@@ -32,7 +34,10 @@ from (
         from gathering
         where gathering.venue_id is not null and exists (select 1 from room where room.gathering_id = gathering.id)
     ) as candidate
-    order by candidate.venue_id, candidate.with_people desc, candidate.published desc, candidate.start_date desc, candidate.id desc
+    order by candidate.venue_id, candidate.with_people desc,
+        -- With people: the oldest. Without: these two keys are null and the ones after them decide.
+        case when candidate.with_people then candidate.start_date end asc nulls last, case when candidate.with_people then candidate.id end asc nulls last,
+        candidate.published desc, candidate.start_date desc, candidate.id desc
 ) as chosen
 where room.gathering_id = chosen.gathering_id;
 

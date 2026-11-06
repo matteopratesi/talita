@@ -89,7 +89,7 @@ class VenueDocsTests {
         for (part in listOf(
             "**Resta con la struttura** (TALITA-20, `V14__venue_rooms.sql`)", "**Camere della struttura (TALITA-20, parte 2).**", "`room.venue_id`", "`(camera, struttura)` e `(convivenza, struttura)`",
             "una convivenza non cambia struttura finché ci sono persone nelle camere di prima", "una tiene le sue, che diventano della struttura con gli stessi id",
-            "prima la convivenza le cui camere hanno persone", "una convivenza chiusa ma in corso non perde le sue camere per una bozza dell'anno dopo che le ha già copiate", "poi una convivenza che non è una bozza",
+            "prima la convivenza le cui camere hanno persone", "una convivenza chiusa ma in corso non perde le sue camere per una bozza dell'anno dopo che le ha già copiate", "fra quelle con persone, **la più vecchia** per primo giorno", "se nessuna ha persone, una convivenza che non è una bozza",
             "la `(camera, convivenza)` non esiste più", "le camere restano con la struttura, vuote, per la convivenza dell'anno dopo",
         )) {
             assertTrue(data.contains(part), "docs/02 does not say: $part")
@@ -138,7 +138,8 @@ class VenueDocsTests {
         )) {
             assertTrue(data.contains(part), "docs/02 does not say: $part")
         }
-        assertFalse(data.contains("\n- dati dei maestri per la struttura oltre a nome e cognome;\n"), "the old line of «Mai» is rewritten")
+        // The text of doc() has no line breaks (every space is one space): the old line is looked for as it is there.
+        assertFalse(data.contains("- dati dei maestri per la struttura oltre a nome e cognome;"), "the old line of «Mai» is rewritten")
 
         val privacy = doc("docs/03-privacy.md")
         for (part in listOf(

@@ -82,12 +82,10 @@ class VenueRoomsMigrationTests {
                 // The lake: one gathering, two rooms, kept.
                 val lakeOne = db.room(lake, "Camera lago 1", 4)
                 val lakeTwo = db.room(lake, "Camera lago 2", 2)
-                // The wood: the gathering before has its rooms, with people in them; the most recent has other rooms, with people in them too.
+                // The wood: the gathering before has its rooms, with nobody in them (a registration with no room); the most recent has other rooms, with people in them.
                 val oldOne = db.room(before, "Camera 1", 4)
                 val oldTwo = db.room(before, "Camera vecchia", 4)
                 val luca = db.registration(before, marta, "Luca", "Rossi")
-                db.childInRoom(luca, before, oldOne)
-                db.teacherInRoom(before, paolo, oldTwo)
                 val newOne = db.room(recent, "Camera 1", 5)
                 val newTwo = db.room(recent, "Stanza azzurra", 2)
                 val sara = db.registration(recent, marta, "Sara", "Neri")
@@ -115,7 +113,7 @@ class VenueRoomsMigrationTests {
                 assertEquals(venueOfWood, db.id("select venue_id from room where id = ${rows.newTwo}"))
                 // The rooms of the gathering before and those of the draft are gone, and the people that slept in them too.
                 for (gone in listOf(rows.oldOne, rows.oldTwo, rows.draftRoom)) assertEquals(0, db.count("select count(*) from room where id = $gone"), "room $gone")
-                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.luca}"))
+                assertEquals(1, db.count("select count(*) from registration where id = ${rows.luca}"), "the registration of the gathering that lost its rooms is still there")
                 assertEquals(0, db.count("select count(*) from room_teacher where gathering_id in (${rows.before}, ${rows.draft})"))
                 // Who sleeps in the rooms that were kept stays where they are, with the venue.
                 assertEquals(rows.newOne, db.id("select room_id from room_child where registration_id = ${rows.sara}"))
@@ -198,6 +196,64 @@ class VenueRoomsMigrationTests {
             }
         }
     }
+
+    @Test
+    fun `t20 c19 when two gatherings that are not over both have people in their rooms the oldest one keeps its rooms and its people, and the open one further on loses them`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                // The one that is happening now: registrations closed, in the house, with people in the rooms.
+                db.gathering("rooms00000000041", "Convivenza di settembre 2026", "2026-09-18", "2026-09-20", "Casa del bosco")
+                // The one that is open further on, in the same house, with teachers already in its rooms (the same names, copied).
+                db.gathering("rooms00000000042", "Convivenza di settembre 2027", "2027-09-17", "2027-09-19", "Casa del bosco")
+                db.execute("update gathering set status = 'open' where public_code = 'rooms00000000042'")
+            }
+            database.migrateTo("13")
+
+            val rows = database.dsl { db ->
+                val running = db.id("select id from gathering where public_code = 'rooms00000000041'")
+                val open = db.id("select id from gathering where public_code = 'rooms00000000042'")
+                val marta = db.teacher(Addresses.unique("marta-two"), "Marta", "Bianchi")
+                val paolo = db.teacher(Addresses.unique("paolo-two"), "Paolo", "Verdi")
+                val runningOne = db.room(running, "Camera 1", 4)
+                val runningTwo = db.room(running, "Stanza azzurra", 2)
+                val luca = db.registration(running, marta, "Luca", "Rossi")
+                db.childInRoom(luca, running, runningOne)
+                db.teacherInRoom(running, paolo, runningTwo)
+                val openOne = db.room(open, "Camera 1", 4)
+                val openTwo = db.room(open, "Stanza azzurra", 2)
+                val sara = db.registration(open, marta, "Sara", "Neri")
+                db.childInRoom(sara, open, openOne)
+                db.teacherInRoom(open, marta, openTwo)
+                OldestKept(running, open, runningOne, runningTwo, listOf(openOne, openTwo), luca, sara, paolo)
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                val venue = db.id("select venue_id from gathering where id = ${rows.running}")
+                assertEquals(venue, db.id("select venue_id from gathering where id = ${rows.open}"))
+                // The rooms of the one that is happening now are the rooms of the venue, with the same ids; those of the open one are gone.
+                assertEquals(listOf(rows.runningOne, rows.runningTwo).sorted(), db.fetch("select id from room order by id").map { it.get(0, Long::class.java) })
+                for (gone in rows.openRooms) assertEquals(0, db.count("select count(*) from room where id = $gone"), "room $gone")
+                // The people of the one that is happening now are where they were, with the venue.
+                assertEquals(rows.runningOne, db.id("select room_id from room_child where registration_id = ${rows.luca}"))
+                assertEquals(venue, db.id("select venue_id from room_child where registration_id = ${rows.luca}"))
+                assertEquals(rows.runningTwo, db.id("select room_id from room_teacher where gathering_id = ${rows.running} and teacher_account_id = ${rows.paolo}"))
+                // The people of the open one went with its rooms, and nobody else: the registration of the child is still there.
+                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.sara}"))
+                assertEquals(0, db.count("select count(*) from room_teacher where gathering_id = ${rows.open}"))
+                assertEquals(1, db.count("select count(*) from room_child"))
+                assertEquals(1, db.count("select count(*) from room_teacher"))
+                assertEquals(2, db.count("select count(*) from registration"))
+            }
+        }
+    }
+
+    /** The rows of the test of two gatherings with people: the one that is happening, the open one, their rooms and the people. */
+    private data class OldestKept(
+        val running: Long, val open: Long, val runningOne: Long, val runningTwo: Long, val openRooms: List<Long>, val luca: Long, val sara: Long, val paolo: Long,
+    )
 
     @Test
     fun `t20 c19 with nobody in the rooms a gathering that is not a draft is kept before a draft that is later, and the draft's rooms go`() {

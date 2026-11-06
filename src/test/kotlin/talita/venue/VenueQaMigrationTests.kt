@@ -180,15 +180,15 @@ class VenueQaMigrationTests {
                 assertEquals(venue, db.id("select venue_id from gathering where id = ${rows.getValue("old")}"))
                 assertEquals(venue, db.id("select venue_id from gathering where id = ${rows.getValue("recent")}"))
                 assertNull(db.fetchOne("select venue_id from gathering where id = ${rows.getValue("draft")} and venue_id is not null"))
-                assertEquals(listOf(rows.getValue("newOne")), db.fetch("select id from room").map { it.get(0, Long::class.java) })
-                assertEquals(venue, db.id("select venue_id from room where id = ${rows.getValue("newOne")}"))
-                assertEquals(rows.getValue("newOne"), db.id("select room_id from room_child where registration_id = ${rows.getValue("sara")}"))
-                assertEquals(rows.getValue("newOne"), db.id("select room_id from room_teacher where gathering_id = ${rows.getValue("recent")}"))
-                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("luca")}"))
-                assertEquals(0, db.count("select count(*) from room_teacher where gathering_id in (${rows.getValue("old")}, ${rows.getValue("draft")})"))
+                // Both gatherings have people in the rooms: the older keeps its rooms (the one that is happening), with Luca where he was; the rooms of the later one go, with Sara and the teacher.
+                assertEquals(listOf(rows.getValue("oldOne"), rows.getValue("oldTwo")).sorted(), db.fetch("select id from room order by id").map { it.get(0, Long::class.java) })
+                assertEquals(venue, db.id("select venue_id from room where id = ${rows.getValue("oldOne")}"))
+                assertEquals(rows.getValue("oldOne"), db.id("select room_id from room_child where registration_id = ${rows.getValue("luca")}"))
+                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("sara")}"))
+                assertEquals(0, db.count("select count(*) from room_teacher where gathering_id in (${rows.getValue("recent")}, ${rows.getValue("draft")})"))
                 assertEquals(1, db.count("select count(*) from room_child"))
-                assertEquals(1, db.count("select count(*) from room_teacher"))
-                // The registrations of the child who slept in a room that went are still there: only the room goes, and who slept there.
+                assertEquals(0, db.count("select count(*) from room_teacher"))
+                // The registration of the child who slept in a room that went is still there: only the room goes, and who slept there.
                 assertEquals(2, db.count("select count(*) from registration"))
             }
         }
@@ -237,7 +237,40 @@ class VenueQaMigrationTests {
     }
 
     @Test
-    fun `t20 c19 when two gatherings of a venue both have people in their rooms the later one keeps its rooms, the other loses them with its people, and nobody is left in a room of a venue that is not the one of their gathering`() {
+    fun `t20 c19 with the same first day the rooms with people are kept, even when the gathering without people has the higher id`() {
+        MigrationDatabase.use { database ->
+            database.migrateTo("12")
+            database.dsl { db ->
+                // The same first day: the one with the lowest id has the people, the one with the highest id has the same rooms copied and nobody in them.
+                db.gathering("qav1400000000021", "2026-09-18", "Casa del bosco")
+                db.gathering("qav1400000000022", "2026-09-18", "Casa del bosco")
+            }
+            database.migrateTo("13")
+            val marta = database.dsl { db -> db.teacher(Addresses.unique("qa-marta"), "Marta", "Bianchi") }
+            val rows = database.dsl { db ->
+                val withPeople = db.id("select id from gathering where public_code = 'qav1400000000021'")
+                val empty = db.id("select id from gathering where public_code = 'qav1400000000022'")
+                assertTrue(withPeople < empty, "the one with people has the lowest id")
+                val roomWith = db.room(withPeople, "Camera 1", 4)
+                val roomEmpty = db.room(empty, "Camera 1", 4)
+                val luca = db.childInRoom(withPeople, marta, "Luca", "Rossi", roomWith)
+                db.execute("insert into room_teacher (gathering_id, teacher_account_id, room_id) values ($withPeople, $marta, $roomWith)")
+                mapOf("roomWith" to roomWith, "roomEmpty" to roomEmpty, "luca" to luca, "withPeople" to withPeople)
+            }
+
+            database.migrateTo("14")
+
+            database.dsl { db ->
+                assertEquals(listOf(rows.getValue("roomWith")), db.fetch("select id from room").map { it.get(0, Long::class.java) }, "the rooms with people stay, the others go")
+                assertEquals(0, db.count("select count(*) from room where id = ${rows.getValue("roomEmpty")}"))
+                assertEquals(rows.getValue("roomWith"), db.id("select room_id from room_child where registration_id = ${rows.getValue("luca")}"), "the child is where he was")
+                assertEquals(rows.getValue("roomWith"), db.id("select room_id from room_teacher where gathering_id = ${rows.getValue("withPeople")}"), "the teacher is where she was")
+            }
+        }
+    }
+
+    @Test
+    fun `t20 c19 when two gatherings of a venue both have people in their rooms the older one keeps its rooms, the other loses them with its people, and nobody is left in a room of a venue that is not the one of their gathering`() {
         MigrationDatabase.use { database ->
             database.migrateTo("12")
             database.dsl { db ->
@@ -259,9 +292,9 @@ class VenueQaMigrationTests {
             database.migrateTo("14")
 
             database.dsl { db ->
-                assertEquals(listOf(rows.getValue("roomLater")), db.fetch("select id from room").map { it.get(0, Long::class.java) })
-                assertEquals(rows.getValue("roomLater"), db.id("select room_id from room_child where registration_id = ${rows.getValue("sara")}"))
-                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("luca")}"), "the people of the gathering that lost its rooms are gone")
+                assertEquals(listOf(rows.getValue("roomBefore")), db.fetch("select id from room").map { it.get(0, Long::class.java) })
+                assertEquals(rows.getValue("roomBefore"), db.id("select room_id from room_child where registration_id = ${rows.getValue("luca")}"))
+                assertEquals(0, db.count("select count(*) from room_child where registration_id = ${rows.getValue("sara")}"), "the people of the gathering that lost its rooms are gone")
                 assertEquals(2, db.count("select count(*) from registration"), "only who slept in a room is gone from the rooms, never a registration")
                 assertEquals(0, db.count("select count(*) from room_child rc join gathering g on g.id = rc.gathering_id where g.venue_id is distinct from rc.venue_id"))
             }
