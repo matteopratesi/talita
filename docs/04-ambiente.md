@@ -14,6 +14,10 @@ Come si lavora su Talità da un PC Linux. Il PC di Matteo è lo stesso su cui gi
   `docker` equivale ai permessi di root sul PC.
 - **La rete, alla prima build** (vedi le cache sotto). Niente Node né npm: non servono e un test
   controlla che non ci siano.
+- **`pdftotext`** (il pacchetto `poppler-utils`, `sudo apt install poppler-utils`): i test e2e che leggono
+  il PDF stampato da Chromium (i fogli dei moduli della struttura e le camere) lo lanciano per contare
+  i fogli e leggerne il testo. Senza, quei test si saltano e non provano niente. In CI lo installa il
+  workflow, prima della build.
 - `git`, e `gh` per le PR e per leggere l'identità dell'account GitHub.
 
 ## Docker e `sg docker`

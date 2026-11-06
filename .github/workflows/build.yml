@@ -47,6 +47,12 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ steps.playwright.outputs.version }}-chromium-${{ runner.os }}
       - run: ./gradlew playwrightInstall -PplaywrightWithDeps
+      # `pdftotext`, from poppler-utils: the e2e tests that read the PDF that Chromium prints (the sheets of the
+      # forms of the venue and the sheets of the rooms) run it to count the sheets and read their text. Without
+      # the package those tests skip themselves and prove nothing, so it is installed every run, before the build.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils
       # Tests use Testcontainers with the runner's Docker. `build` runs the unit tests and the e2e
       # tests (check depends on e2eTest): an e2e failure fails the build.
       - run: ./gradlew build
