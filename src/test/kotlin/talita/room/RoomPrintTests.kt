@@ -153,8 +153,11 @@ class RoomPrintTests(
     fun `t11 c14 every class of the page of the rooms and of the print has its rule in the stylesheet that is served`() {
         val w = World()
         kit.otherGathering("Convivenza di settembre 2026", daysFromToday = -400)
-        val pages = listOf(w.print, "/convivenza/${w.setup.id}/camere", "/convivenza/${w.setup.id}/camere/nuova", "/convivenza/${w.setup.id}/camere/${w.one}/modifica", "/convivenza/${w.setup.id}/camere/${w.one}/togli")
-            .map { w.marta.get(it).body() }
+        // The pages of the rooms of the gathering, and (TALITA-20) the ones of the rooms of the venue and the form of the dates with the dialog of the change of venue (somebody is in a room).
+        val house = "/strutture/${kit.venueOf(w.setup.id)}"
+        val pages = listOf(
+            w.print, "/convivenza/${w.setup.id}/camere", house, "$house/camere/nuova", "$house/camere/${w.one}/modifica", "$house/camere/${w.one}/togli", "/convivenza/${w.setup.id}/date",
+        ).map { w.marta.get(it).body() }
         val css = w.marta.get(Regex("""href="([^"]+\.css)"""").find(pages.first())!!.groupValues[1]).body()
 
         val missing = pages.flatMap { html -> Regex("""\sclass="([^"]*)"""").findAll(html).flatMap { it.groupValues[1].split(Regex("""\s+""")) }.toList() }

@@ -2,6 +2,7 @@ package talita.venue
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
+import talita.Addresses
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -75,8 +76,8 @@ class VenueRoomsMigrationTests {
                 val before = db.id("select id from gathering where public_code = 'rooms00000000002'")
                 val recent = db.id("select id from gathering where public_code = 'rooms00000000003'")
                 val draft = db.id("select id from gathering where public_code = 'rooms00000000004'")
-                val marta = db.teacher("marta.migr@example.org", "Marta", "Bianchi")
-                val paolo = db.teacher("paolo.migr@example.org", "Paolo", "Verdi")
+                val marta = db.teacher(Addresses.unique("marta-migr"), "Marta", "Bianchi")
+                val paolo = db.teacher(Addresses.unique("paolo-migr"), "Paolo", "Verdi")
                 // The lake: one gathering, two rooms, kept.
                 val lakeOne = db.room(lake, "Camera lago 1", 4)
                 val lakeTwo = db.room(lake, "Camera lago 2", 2)
