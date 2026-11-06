@@ -131,10 +131,6 @@ class VenueForms(private val dsl: DSLContext) : ArrivalForms {
     override fun find(venueId: Long, id: Long): VenueFormRef? =
         dsl.select(columns).from(VENUE_FORM).where(VENUE_FORM.ID.eq(id)).and(VENUE_FORM.VENUE_ID.eq(venueId)).fetchOne { ref(it) }
 
-    /** How many forms each venue has: the list of the venues says it. */
-    fun counts(): Map<Long, Int> =
-        dsl.select(VENUE_FORM.VENUE_ID, DSL.count()).from(VENUE_FORM).groupBy(VENUE_FORM.VENUE_ID).fetch().associate { it[VENUE_FORM.VENUE_ID]!! to it.value2() }
-
     private fun venueShared(tx: DSLContext, venueId: Long): Boolean = tx.select(VENUE.ID).from(VENUE).where(VENUE.ID.eq(venueId)).forShare().fetchOne() != null
 
     /** A new form of the venue, with a [name] that [VenueFormChecks] has already checked. */
