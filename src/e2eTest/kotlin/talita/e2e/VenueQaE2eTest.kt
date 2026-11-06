@@ -614,6 +614,90 @@ class VenueQaE2eTest {
         assertEquals(0, e2e.dsl().fetchCount(ROOM, ROOM.ID.eq(empty)))
     }
 
+    // ---- The dialog of the change of venue, while the answer is awaited (what the tests of the developer do not do) ---------------------------------------
+
+    private data class PeopleWorld(val gathering: Long, val from: Long, val to: Long)
+
+    /** A gathering with two people in a room of its venue (a child and a teacher), and another venue to change to. */
+    private fun E2e.peopleWorld(): PeopleWorld {
+        val w = arrivalsGathering()
+        val from = venueOf(w.id)
+        val to = GatheringSupport(dsl(), application.getBean(Clock::class.java)).makeVenue(lakePlace, "Casa sul lago")
+        val room = room(from, "Camera 1", 4)
+        putChild(rows().register(w.id, someParent(), "Luca", "Rossi", LocalDate.of(2016, 4, 4)), w.id, room)
+        putTeacher(w.paoloId, w.id, room)
+        return PeopleWorld(w.id, from, to)
+    }
+
+    private fun E2e.peopleIn(gathering: Long): Int = dsl().fetchCount(ROOM_CHILD, ROOM_CHILD.GATHERING_ID.eq(gathering)) + dsl().fetchCount(ROOM_TEACHER, ROOM_TEACHER.GATHERING_ID.eq(gathering))
+
+    /** The form of the dates with the other venue chosen and the dialog open and still. */
+    private fun E2e.openTheDialog(w: PeopleWorld) {
+        open("/convivenza/${w.gathering}/date")
+        page.locator("#struttura").selectOption(w.to.toString())
+        press(page.locator("main").buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+    }
+
+    @E2eTest
+    fun `t20 c12 while the answer of the change of venue is awaited the button of the dialog fits at 320 px, Escape closes the dialog and leaves the form waiting with its button off, and the answer is the change`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.peopleWorld()
+        e2e.openTheDialog(w)
+        val pattern = "**/convivenza/${w.gathering}/date"
+        val held = page.holdPosts(pattern)
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        page.waitForLabel("dialog[open] button", "Cambio…")
+
+        // 320 px: nothing scrolls sideways and the button with its new words is inside the screen.
+        page.setViewportSize(320, 800)
+        assertTrue(page.noHorizontalScroll(), "the dialog that waits scrolls sideways at 320 px")
+        val box = checkNotNull(page.openDialog().locator("button[data-conferma-cambio]").boundingBox())
+        assertTrue(box.x >= 0 && box.x + box.width <= 320, "the button is outside the screen: ${box.x} + ${box.width}")
+        page.setViewportSize(if (e2e.profile.isPhone) 360 else 1280, 800)
+
+        // Escape closes the dialog (as it does for every dialog of the app), the request goes on, and the button of the form cannot send it a second time.
+        page.keyboard().press("Escape")
+        assertEquals(0, page.locator("dialog[open]").count(), "Escape closes the dialog")
+        assertThat(page.locator("main button[type=submit]")).isDisabled()
+        assertEquals(w.from, e2e.venueOf(w.gathering), "the server has not seen the request")
+        page.release(pattern, held)
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.peopleIn(w.gathering))
+        assertThat(page.locator("main")).containsText("sono senza camera")
+    }
+
+    @E2eTest
+    fun `t20 c12 when the server does not answer (503) while the dialog of the change of venue waits the message closes the dialog, nothing changes, and the next try asks again with the button as new and works`(e2e: E2e) {
+        val page = e2e.page
+        val w = e2e.peopleWorld()
+        e2e.openTheDialog(w)
+        val pattern = "**/convivenza/${w.gathering}/date"
+        page.route(pattern) { route ->
+            if (route.request().method() == "POST") route.fulfill(com.microsoft.playwright.Route.FulfillOptions().setStatus(503).setContentType("text/html").setBody("<p>errore</p>")) else route.resume()
+        }
+        e2e.touch(page.openDialog().buttonNamed("Cambia la struttura"))
+        assertThat(page.locator("#messaggi")).containsText("Qualcosa non ha funzionato")
+        assertEquals(0, page.locator("dialog[open]").count(), "the message is not hidden under the dialog")
+        assertEquals(w.from, e2e.venueOf(w.gathering))
+        assertEquals(2, e2e.peopleIn(w.gathering))
+        assertThat(page.locator("main button[type=submit]")).isEnabled()
+
+        page.unroute(pattern)
+        // The message is over the bottom of the page, where the button is: it is closed first, as a person does.
+        e2e.touch(page.locator("#messaggi").buttonNamed("Chiudi"))
+        e2e.press(page.locator("main").buttonNamed("Salva le modifiche"))
+        page.waitForSettledDialog()
+        val confirm = page.openDialog().locator("button[data-conferma-cambio]")
+        assertThat(confirm).isEnabled()
+        assertThat(confirm).containsText("Cambia la struttura")
+        e2e.touch(confirm)
+        assertThat(page).hasURL(e2e.url("/convivenza/${w.gathering}"))
+        assertEquals(w.to, e2e.venueOf(w.gathering))
+        assertEquals(0, e2e.peopleIn(w.gathering))
+    }
+
     // ---- A draft with no venue ----------------------------------------------------------------------------------------------------------------------
 
     @E2eTest
