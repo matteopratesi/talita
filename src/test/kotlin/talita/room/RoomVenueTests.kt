@@ -103,7 +103,8 @@ class RoomVenueTests(
         val dialog = Regex("""<dialog id="cambia-struttura".*?</dialog>""", RegexOption.DOT_MATCHES_ALL).find(html)!!.value
         assertTrue(words(dialog).contains("Cambiare la struttura? Le 2 persone nelle camere di ${venueName(w.from)} restano senza camera: le camere sono quelle della struttura."), words(dialog))
         assertTrue(words(dialog).contains("Per i genitori nome e luogo diventano"), "the second sentence is filled by the script with the venue that is chosen")
-        assertTrue(words(dialog).contains("Cambia la struttura Annulla"), words(dialog))
+        // The button has the two labels (the second one, «Cambio…», is shown while the answer is awaited).
+        assertTrue(words(dialog).contains("Cambia la struttura Cambio… Annulla"), words(dialog))
         assertTrue(dialog.contains("""data-conferma-cambio="2""""), "the number of people that the dialog says is the one that the button sends")
         assertTrue(html.contains("""data-valore-struttura="${w.from}""""), "the form knows the venue of now, to see that the choice changes it")
         assertTrue(Regex("""<input type="hidden" name="cambio" value="">""").containsMatchIn(html), "the field that carries the number is there, empty")
