@@ -65,18 +65,21 @@ class ApiTokenController(
 
     @PostMapping("/profilo/token")
     fun create(account: CurrentAccount, @RequestParam(name = "azione", defaultValue = "") action: String, request: HttpServletRequest, response: HttpServletResponse): ModelAndView {
-        // The card without a token (or with one that expired) asks for `crea`: if another tab made a token in the meantime, this one does not replace it without the dialog of «Crea un token nuovo»
-        // (`nuovo`): the card as it is now, and nothing changes.
-        if (action == "crea") {
-            val current = tokens.of(account.id)
-            if (current != null && !tokens.expired(current)) return answer(account, request, response, presenter.block(account.id, confirmFirst(account, request), presenter.alreadyThere()))
-        }
         if (confirmFirst(account, request)) {
             // 409 for htmx and for a request made by hand alike: the block (or the whole profile) as it is, with what to do first.
             val alert = if (request.isHtmxFragment()) presenter.needsConfirmation() else presenter.needsConfirmationWithoutScript()
             return answer(account, request, response, presenter.block(account.id, confirmFirst = true, alert = alert), HttpStatus.CONFLICT)
         }
-        val made = tokens.create(account.id) ?: return seeOther("/profilo")
+        // `crea` (the card that showed no token) makes one only if there is none that works, decided under the lock of the teacher; `nuovo` (the dialog) replaces.
+        val made = if (action == "crea") {
+            when (val result = tokens.createUnlessThere(account.id)) {
+                is ApiTokens.Created.Made -> result.token
+                ApiTokens.Created.Exists -> return answer(account, request, response, presenter.block(account.id, confirmFirst = false, alert = presenter.alreadyThere()))
+                ApiTokens.Created.NotATeacher -> return seeOther("/profilo")
+            }
+        } else {
+            tokens.create(account.id) ?: return seeOther("/profilo")
+        }
         return answer(account, request, response, presenter.created(made, confirmFirst = false))
     }
 

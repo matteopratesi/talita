@@ -54,11 +54,29 @@ class ApiTokens(private val dsl: DSLContext, private val clock: Clock, private v
     /** The last day on which the token still works. */
     fun lastDay(row: ApiTokenRow): LocalDate = policy.apiTokenLastDay(row.createdOn)
 
-    /** Makes a token for [accountId], which must be a teacher (null if it is not: a request made by hand after the teacher was taken away). The one it had goes in the same transaction. */
-    fun create(accountId: Long): NewApiToken? = dsl.transactionResult { configuration ->
+    /** What [createUnlessThere] did. */
+    sealed interface Created {
+        class Made(val token: NewApiToken) : Created
+
+        /** There is a token that still works and the request was not the confirmed replacement: nothing changed. */
+        data object Exists : Created
+
+        data object NotATeacher : Created
+    }
+
+    /**
+     * «Crea un token» from a card that showed none: **under the lock of the teacher** it makes the token only if there is none that still works ([Created.Exists] otherwise, and nothing changes); an expired
+     * one may be replaced. The replacement with the dialog of «Crea un token nuovo» is [create].
+     */
+    fun createUnlessThere(accountId: Long): Created = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
-        // The row of the teacher is locked: two taps together leave one token and the second one replaces the first.
-        tx.select(TEACHER.ACCOUNT_ID).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).forUpdate().fetchOne() ?: return@transactionResult null
+        tx.select(TEACHER.ACCOUNT_ID).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).forUpdate().fetchOne() ?: return@transactionResult Created.NotATeacher
+        val current = tx.selectFrom(API_TOKEN).where(API_TOKEN.ACCOUNT_ID.eq(accountId)).fetchOne()?.let(::toRow)
+        if (current != null && !expired(current)) return@transactionResult Created.Exists
+        Created.Made(insertNew(tx, accountId))
+    }
+
+    private fun insertNew(tx: DSLContext, accountId: Long): NewApiToken {
         tx.deleteFrom(API_TOKEN).where(API_TOKEN.ACCOUNT_ID.eq(accountId)).execute()
         val day = today()
         val value = PREFIX + base64.encodeToString(ByteArray(BYTES).also(random::nextBytes))
@@ -67,7 +85,15 @@ class ApiTokens(private val dsl: DSLContext, private val clock: Clock, private v
             .set(API_TOKEN.TOKEN_HASH, hash(value))
             .set(API_TOKEN.CREATED_ON, day)
             .returning(API_TOKEN.ID).fetchSingle().id!!
-        NewApiToken(ApiTokenRow(id, accountId, day), value)
+        return NewApiToken(ApiTokenRow(id, accountId, day), value)
+    }
+
+    /** Makes a token for [accountId], which must be a teacher (null if it is not: a request made by hand after the teacher was taken away). The one it had goes in the same transaction. */
+    fun create(accountId: Long): NewApiToken? = dsl.transactionResult { configuration ->
+        val tx = DSL.using(configuration)
+        // The row of the teacher is locked: two taps together leave one token and the second one replaces the first.
+        tx.select(TEACHER.ACCOUNT_ID).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).forUpdate().fetchOne() ?: return@transactionResult null
+        insertNew(tx, accountId)
     }
 
     /** Takes away the token [id] **of [accountId]**: a number that is not theirs, or that is gone (a double tap, two pages), takes away nothing and says so. */
