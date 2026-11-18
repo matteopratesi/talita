@@ -323,6 +323,101 @@ class ApiTokenQaE2eTest {
         e2e.check("devices after revoking the token")
     }
 
+    // ---- After the review of CodeRabbit ---------------------------------------------------------------------------------------------------
+
+    @E2eTest
+    fun `t21 c03 the card that was empty in a tab does not replace the token that another tab made, and says that there is one`(e2e: E2e) {
+        val page = e2e.page
+        e2e.open("/profilo")
+        page.waitForSettledContent()
+        assertThat(page.locator("#token")).containsText("Non hai nessun token.")
+
+        // Another tab of the same person makes the token while this card is still the empty one.
+        val other = e2e.newPage(signedIn = false)
+        other.context().addCookies(page.context().cookies())
+        other.navigate(e2e.url("/profilo"))
+        other.waitForSettledContent()
+        e2e.press(other.locator("#token").buttonNamed("Crea un token"))
+        assertThat(other.locator("#token [role=status]").first()).containsText("Token creato.")
+        val made = other.shownToken()
+        assertEquals(200, e2e.call("GET", "/api/convivenza", made).statusCode())
+
+        // The empty card asks again: nothing is replaced, the card says so and shows the one of now.
+        e2e.press(page.locator("#token").buttonNamed("Crea un token"))
+        assertThat(page.locator("#token")).containsText("C’è già un token.")
+        assertThat(page.locator("#token")).containsText("Per sostituirlo tocca «Crea un token nuovo».")
+        assertEquals(0, page.locator("#token-riga").count(), "no value in the card")
+        assertEquals(200, e2e.call("GET", "/api/convivenza", made).statusCode(), "the token of the other tab still works")
+        assertEquals(1, e2e.tokenRows())
+        e2e.check("the card after a token that was already there")
+    }
+
+    @E2eTest
+    fun `t21 c01 the command to save the line says to press Enter, starts from a new file with rm -f before cat, and each Copia button works by itself`(e2e: E2e) {
+        val page = e2e.page
+        e2e.browserContext.grantPermissions(listOf("clipboard-read", "clipboard-write"))
+        e2e.open("/profilo")
+        page.waitForSettledContent()
+        val card = page.locator("#token")
+        e2e.press(card.buttonNamed("Crea un token"))
+        assertThat(card.locator("[role=status]").first()).containsText("Token creato.")
+        assertThat(card).containsText("Apri il terminale, incolla questo comando e premi Invio.")
+        assertThat(card).containsText("vai avanti solo se il comando è partito senza errori")
+        val command = card.locator("#token-comando").innerText()
+        assertTrue(command.contains("rm -f ~/.config/talita/dev.header && cat > ~/.config/talita/dev.header"), "rm -f comes before cat >")
+        assertTrue(command.indexOf("rm -f") < command.indexOf("cat >"))
+        assertFalse(command.contains("talita_"), "the command has no token")
+        e2e.check("the token just made, with the new command")
+
+        // Two buttons: a tap on the first and then on the second. Each says «copiato» for itself and both come back by themselves.
+        val line = card.locator("[data-copia=token-riga]")
+        val cmd = card.locator("[data-copia=token-comando]")
+        e2e.press(line)
+        assertThat(line.locator("[data-copia-fatto]")).isVisible()
+        e2e.press(cmd)
+        assertThat(cmd.locator("[data-copia-fatto]")).isVisible()
+        assertThat(line.locator("[data-copia-fatto]")).isVisible()
+        assertEquals(command, page.evaluate("navigator.clipboard.readText()"))
+        assertThat(line.locator("[data-copia-normale]")).isVisible(com.microsoft.playwright.assertions.LocatorAssertions.IsVisibleOptions().setTimeout(7000.0))
+        assertThat(cmd.locator("[data-copia-normale]")).isVisible(com.microsoft.playwright.assertions.LocatorAssertions.IsVisibleOptions().setTimeout(7000.0))
+    }
+
+    @E2eTest
+    fun `t21 c13 a room is not named after a person that the application knows, by the page of the rooms and by the API, with the same sentence, and a normal name goes`(e2e: E2e) {
+        val page = e2e.page
+        val me = e2e.dsl().select(talita.jooq.tables.references.TEACHER.FIRST_NAME, talita.jooq.tables.references.TEACHER.LAST_NAME).from(talita.jooq.tables.references.TEACHER)
+            .where(talita.jooq.tables.references.TEACHER.ACCOUNT_ID.eq(e2e.accountOfPage())).fetchSingle().let { "${it.value1()} ${it.value2()}" }
+        val token = checkNotNull(e2e.application.getBean(talita.api.ApiTokens::class.java).create(e2e.accountOfPage())).value
+        val venueName = "Casa QA " + (1..6).map { ('a'..'z').random() }.joinToString("")
+        val created = e2e.call("POST", "/api/strutture", token, """{"name":"$venueName","place":"Valle sintetica"}""")
+        assertEquals(201, created.statusCode())
+        val venue = Regex("\"id\":(\\d+)").find(created.body())!!.groupValues[1]
+        val sentence = "Scrivi il nome della camera nella casa, non il nome di una persona."
+        try {
+            e2e.open("/strutture/$venue/camere/nuova")
+            page.waitForSettledContent()
+            page.getByLabel("Nome della camera").fill(me)
+            page.getByLabel("Posti letto").fill("3")
+            e2e.touch(page.buttonNamed("Salva la camera"))
+            assertThat(page.locator("#nome-errore")).hasText(sentence)
+            e2e.check("the form of a room with the name of a person")
+            assertEquals(0, e2e.dsl().fetchCount(talita.jooq.tables.references.ROOM, talita.jooq.tables.references.ROOM.VENUE_ID.eq(venue.toLong())))
+
+            val api = e2e.call("POST", "/api/strutture/$venue/camere", token, """{"name":"$me","beds":3}""")
+            assertEquals(422, api.statusCode())
+            assertTrue(api.body().contains(sentence), api.body())
+
+            page.getByLabel("Nome della camera").fill("Camera 7")
+            e2e.touch(page.buttonNamed("Salva la camera"))
+            page.waitForURL { !it.contains("camere/nuova") }
+            assertEquals(1, e2e.dsl().fetchCount(talita.jooq.tables.references.ROOM, talita.jooq.tables.references.ROOM.VENUE_ID.eq(venue.toLong())))
+            assertEquals(201, e2e.call("POST", "/api/strutture/$venue/camere", token, """{"name":"Camera 8","beds":2}""").statusCode())
+        } finally {
+            e2e.dsl().deleteFrom(talita.jooq.tables.references.ROOM).where(talita.jooq.tables.references.ROOM.VENUE_ID.eq(venue.toLong())).execute()
+            e2e.call("DELETE", "/api/strutture/$venue", token)
+        }
+    }
+
     // ---- Criterion 4: the days of the token ---------------------------------------------------------------------------------------------------
 
     @E2eTest
