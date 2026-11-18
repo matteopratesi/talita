@@ -35,13 +35,15 @@ Il corpo di un errore è `{"error": "frase"}`, e con `422` anche `{"fields": {"c
 | `429` | più di 60 richieste al minuto con lo stesso token; `Retry-After` dice quanti secondi aspettare |
 | `500` | un errore di Talità: «Qualcosa non ha funzionato.», senza dettagli |
 
-Ogni richiesta è una transazione: un errore lascia il database com'era.
+Ogni scrittura è una transazione: **una richiesta rifiutata (`4xx`) lascia la configurazione com'era**. Il registro delle richieste del profilo scrive comunque una riga per ogni richiesta con un token valido, rifiutata o no. **Un `500` non promette niente**: la scrittura può essere già avvenuta e la risposta (che si costruisce dopo) essere fallita; prima di ripetere una `POST` si fa un `GET` per vedere com'è.
+
+Gli errori che dà **Talità** sono sempre JSON. Quelli che il contenitore dà prima che la richiesta arrivi all'app (un `%` scritto male come `%ZZ`, `%00`, una `/` codificata come `%2f`) sono una pagina HTML con `400`: **prima di leggere il corpo di un errore si guarda il `Content-Type`**.
 
 ## Le regole per chi le usa
 
 Valgono per **chiunque** usi le API, una persona o un programma:
 
-1. **Leggi prima di scrivere.** Un `PUT` scrive **ogni campo** (anche vuoto: `null` o `""`) e **un campo che manca è un `400`**: così un valore non si svuota perché ci si è dimenticati di scriverlo. Per cambiare una cosa sola, prima si fa il `GET`, poi si rimanda tutto com'era, con quella cosa cambiata.
+1. **Leggi prima di scrivere.** Un `PUT` scrive **ogni campo** (anche vuoto: `null` o `""`) e **un campo che manca è un `400`**: così un valore non si svuota perché ci si è dimenticati di scriverlo. Per cambiare una cosa sola, prima si fa il `GET`, poi si rimanda tutto com'era, con quella cosa cambiata. **Il procedimento vale se nel frattempo nessun altro cambia la stessa cosa** (un maestro dall'app, un altro programma): il `PUT` sostituisce tutti i campi e rimanda indietro anche un valore che nel frattempo è cambiato. Le API non hanno una versione da controllare: per modifiche in due si fa un `GET` subito prima del `PUT`.
 2. **Mai nomi di persone nei testi.** I testi (titolo, informazioni, «cosa portare», nomi di strutture, camere e moduli) sono pubblici o sono stampati: non ci vanno nomi di bambini, genitori o maestri, né email, telefoni, IBAN. Talità rifiuta un testo con il nome e il cognome di una persona che conosce, e il rifiuto dice che quella persona c'è: non usare le API per cercarlo.
 3. **Mai aprire il file del token**, né scriverne il contenuto in un comando, una risposta, un commento o un documento. Il programma legge il file da sé (`curl -H @file`).
 4. **Una modifica alla volta**, e ogni modifica si rimedia con un'altra. Il registro «Ultime richieste» nel profilo del maestro mostra cosa è stato fatto (metodo, rotta e codice).
@@ -67,7 +69,7 @@ Una bozza nuova. `201` con la convivenza come nel `GET`. Un campo che manca è u
 
 - `title`: da 1 a 100 caratteri, su una riga, senza email, telefoni, IBAN né nome e cognome di una persona che l'app conosce.
 - `startDate`: il primo giorno, `2027-09-17`, da oggi in poi.
-- `endDate`: l'ultimo giorno, non prima del primo e al massimo 7 giorni dopo.
+- `endDate`: l'ultimo giorno, non prima del primo: la convivenza dura al massimo 7 giorni, primo e ultimo compresi (l'ultimo giorno è al più 6 giorni dopo il primo).
 
 ### PUT /api/convivenza/{id}/date
 
