@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.servlet.ModelAndView
 import talita.account.AccessFlash
+import talita.account.AccessPresenter
 import talita.account.CurrentAccount
 import talita.account.PasskeyConfirmations
 import talita.account.ProfileController
@@ -35,6 +36,7 @@ class ApiTokenController(
     private val confirmations: PasskeyConfirmations,
     private val profile: ProfileController,
     private val shells: ShellFactory,
+    private val access: AccessPresenter,
 ) {
 
     private fun confirmFirst(account: CurrentAccount, request: HttpServletRequest) = confirmations.needed(account, request.getSession(false))
@@ -42,7 +44,11 @@ class ApiTokenController(
     /** The block as the answer of an action: htmx gets it, a form without JavaScript gets the whole profile (the block is the card). */
     private fun answer(account: CurrentAccount, request: HttpServletRequest, response: HttpServletResponse, block: TokenBlock, status: HttpStatus = HttpStatus.OK): ModelAndView {
         response.setHeader("Cache-Control", "no-store")
-        if (request.isHtmxFragment()) return ModelAndView("profile/tokenBlock", mapOf("block" to block, "oob" to false)).also { it.status = status }
+        // The block of the devices comes out of order with it, drawn again: its dialog and the line under «Esci da tutti gli altri dispositivi» speak of the token only if there is one now, and the page
+        // was drawn before. It has no notice, so the focus stays on the one of the token (TALITA-21, norm 7).
+        if (request.isHtmxFragment()) {
+            return ModelAndView("profile/tokenBlock", mapOf("block" to block, "oob" to false, "devices" to access.devices(account, request, null))).also { it.status = status }
+        }
         return profile.page(account, null, status, token = block)
     }
 

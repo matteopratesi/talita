@@ -4,11 +4,12 @@
 @import talita.ui.Icon
 @param DevicesBlock block
 @param CsrfToken csrf
+@param boolean oob = false
 <%-- «Dispositivi collegati» (TALITA-15, criteria 14-18), the part of the card «Il tuo accesso» that every action of it replaces as a whole (htmx: hx-target="#dispositivi-contenuto",
      hx-swap="outerHTML"): the title, the notice, the list with its dialogs and «Esci da tutti gli altri dispositivi». The rest of the page, and the scroll, stay. A row says only the day of
      the touch and the last day that it enters: never a name of the device, a browser, a place or a last use. The device that the person is on has the label «Questo dispositivo» and no
      button, because «Esci» above it does the same. --%>
-<div id="dispositivi-contenuto">
+<div id="dispositivi-contenuto" hx-swap-oob="${oob ? "true" : null}">
   <h3 id="dispositivi-titolo" class="mt-6 text-base font-semibold">Dispositivi collegati</h3>
   @if(block.getAlert() != null)
     <div class="mt-2">

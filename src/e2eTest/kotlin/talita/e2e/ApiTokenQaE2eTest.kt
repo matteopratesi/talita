@@ -255,7 +255,6 @@ class ApiTokenQaE2eTest {
 
     // Defect found by QA: the block of the devices is drawn with the page, so after «Crea un token» (which only draws the card of the token) the sentence under «Esci da tutti gli altri dispositivi» and the dialog do not
     // say that the token goes too, and the click revokes it all the same. Enable the test when the developer has fixed it.
-    @org.junit.jupiter.api.Disabled("defect of TALITA-21 found by QA: after Crea un token the dialog of Esci da tutti does not mention the token until the page is loaded again")
     @E2eTest
     fun `t21 c03 the dialog of Esci da tutti says that the token goes too also when the token was made a moment ago on the same page`(e2e: E2e) {
         val page = e2e.page

@@ -1,10 +1,12 @@
 @import org.springframework.security.web.csrf.CsrfToken
+@import talita.account.DevicesBlock
 @import talita.api.TokenBlock
 @import talita.api.TokenState
 @import talita.ui.AlertVariant
 @import talita.ui.Icon
 @param TokenBlock block
 @param boolean oob = false
+@param DevicesBlock devices = null
 @param CsrfToken csrf
 <%-- The inside of the card «Token per le API» (TALITA-21), which every action of it replaces as a whole (htmx: hx-target="#token-contenuto", hx-swap="outerHTML"): the notice, what the token is for, the token or the
      way to make one, and the dialogs. The answer that makes a token (`CREATED`) is the only place where its value is: as text to select, never in an address or an attribute, with `hx-history="false"` so that the
@@ -145,3 +147,7 @@
     @endif
   @endif
 </div>
+@if(devices != null)
+  <%-- The devices, out of order (hx-swap-oob): the dialog of «Esci da tutti gli altri dispositivi» and the line under it say of the token only if there is one now. No notice in it: one focus only. --%>
+  @template.profile.devicesBlock(block = devices, oob = true, csrf = csrf)
+@endif
