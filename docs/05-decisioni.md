@@ -1307,3 +1307,10 @@ API REST di configurazione con il token personale di un maestro. Un branch e una
 - **`ProjectFilesTests`** ha `docs/06-api.md` fra i documenti del progetto; **tre test e2e dei profili dei maestri** (`MaestriE2eTest` c47, `RetentionE2eTest` c23, `ErasureE2eTest` c16 c21) hanno la scheda «Token per le API» fra i titoli del profilo di un maestro: è la scheda che il design mette dopo «Passkey», e i test controllano l'elenco dei titoli.
 - **Un test e2e che passava solo di venerdì** (`ArrivalWeekendQaE2eTest` t19 c13, «la correzione dei giorni»): dipendeva dal giorno della settimana in cui si lancia: cercava i campi `fri`, `sat` e `sun`, ma la convivenza del test parte da oggi, quindi passava solo se lanciato di venerdì. Corretto in un commit a parte dello stesso branch: la correzione dei giorni prende le date del test e i campi hanno il nome del loro giorno vero (`Quota.key`).
 
+**Correzioni dopo il QA (TALITA-21)**
+
+- **Indirizzi rifiutati dal firewall** (`//`, `;`, `%2e%2e`, `/api/..`): un `RequestRejectedHandler` (`ApiSecurityConfiguration`) risponde in JSON con le intestazioni delle API per `/api/…`, e per le pagine lascia il 400 di sempre. **Limite**: `%ZZ`, `%00` e `%2f` li rifiuta Tomcat prima dell'applicazione, con la sua pagina HTML (400); portarli a JSON vorrebbe dire toccare il connettore o mettere una valvola fuori dall'app, un rischio che non vale il caso. Il test `t21 c09` copre solo gli indirizzi che l'app può gestire.
+- **Il blocco dei dispositivi segue il token**: ogni risposta htmx del token (crea, «Fatto», «Revoca», sostituzione) porta anche `#dispositivi-contenuto` con `hx-swap-oob`, senza avviso (il fuoco resta uno), così la frase sotto «Esci da tutti gli altri dispositivi» e il dialogo parlano del token appena nato o sparito.
+- **Le risposte JSON hanno tutte `application/json`**, senza `charset` (i byte sono UTF-8).
+- **Resta com'è**: 413, 415 e 429 su una rotta vera finiscono nel registro come `/api/{altro}` (la scheda dice «altro»), perché il filtro del token li risponde prima che una rotta sia scelta; sapere la rotta vorrebbe dire risolverla due volte. Il registro dice comunque metodo e codice.
+

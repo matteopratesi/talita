@@ -14,6 +14,8 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.firewall.HttpStatusRequestRejectedHandler
+import org.springframework.security.web.firewall.RequestRejectedHandler
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter
 import org.springframework.security.web.header.HeaderWriterFilter
 import org.springframework.web.filter.OncePerRequestFilter
@@ -59,6 +61,22 @@ class ApiSecurityConfiguration {
             addFilterBefore<AnonymousAuthenticationFilter>(ApiTokenFilter(tokens, limit, requests, clock))
         }
         return http.build()
+    }
+
+    /**
+     * The firewall of Spring Security refuses some addresses before any chain (`//`, `;`, an encoded `/` or `..`): for the pages the answer stays the 400 that it always was, for `/api/…` it is a JSON error with the
+     * headers of the APIs (TALITA-21, criteria 7 and 9). What Tomcat refuses before the application (a bad `%` escape, `%00`) never gets here and keeps the page of the container: `docs/05`.
+     */
+    @Bean
+    fun requestRejectedHandler(): RequestRejectedHandler {
+        val pages = HttpStatusRequestRejectedHandler()
+        return RequestRejectedHandler { request, response, rejected ->
+            if (request.requestURI.startsWith("/api/") || request.requestURI == "/api") {
+                ApiErrors.write(response, 400, ApiTexts.BAD_REQUEST, headers = mapOf("Content-Security-Policy" to CONTENT_SECURITY_POLICY))
+            } else {
+                pages.handle(request, response, rejected)
+            }
+        }
     }
 
     companion object {

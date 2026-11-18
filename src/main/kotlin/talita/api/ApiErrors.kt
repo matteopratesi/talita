@@ -62,7 +62,6 @@ object ApiErrors {
         response.reset()
         response.status = status
         response.contentType = MediaType.APPLICATION_JSON_VALUE
-        response.characterEncoding = "UTF-8"
         response.setHeader("Cache-Control", "no-store")
         response.setHeader("X-Content-Type-Options", "nosniff")
         headers.forEach { (name, value) -> response.setHeader(name, value) }

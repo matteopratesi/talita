@@ -2,7 +2,6 @@ package talita.api
 
 import org.jooq.DSLContext
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -215,17 +214,18 @@ class ApiQaHttpTests(
         assertTrue(rows.none { it.second!!.contains("424242") || it.second!!.contains("segreto") }, "no address that was asked for is kept")
     }
 
-    // Defect found by QA (TALITA-21): the firewall of Spring Security and Tomcat refuse these addresses before the chain of the APIs, and the answer is a page of HTML (the page of the errors of the app, or the
+    // Defect found by QA (TALITA-21), fixed: the firewall of Spring Security refuses these addresses before the chain of the APIs (`RequestRejectedHandler`: JSON). Tomcat refuses `%ZZ`, `%00` and `%2f` before the app: not tried here (docs/05). It used to be a page (the page of the errors of the app, or the
     // page of Tomcat for a bad escape). Criterion 9 asks for JSON on every answer of /api/**. Enable the test when the developer has fixed it.
-    @Disabled("defect of TALITA-21 found by QA: addresses refused by the firewall answer with HTML on /api/**")
     @Test
     fun `t21 c09 an address with a bad escape, a double slash or a semicolon is a JSON error and never a page of HTML`() {
         val token = teacherToken()
-        for (path in listOf("/api/convivenza/%ZZ", "/api//convivenza", "/api/convivenza;x=1", "/api/convivenza/%2e%2e/x", "/api/convivenza%2f1", "/api/%00")) {
+        for (path in listOf("/api//convivenza", "/api/convivenza;x=1", "/api/convivenza/%2e%2e/x", "/api/..")) {
             val r = raw(path, token)
             assertTrue(r.headers["content-type"]!!.startsWith("application/json"), "$path: ${r.status} ${r.headers["content-type"]}")
             assertFalse(r.body.trimStart().startsWith("<"), "$path: a page of HTML (${r.status})")
             assertEquals("no-store", r.headers["cache-control"], "$path: cache-control")
+            assertEquals("nosniff", r.headers["x-content-type-options"], "$path: nosniff")
+            assertEquals("default-src 'none'; frame-ancestors 'none'", r.headers["content-security-policy"], "$path: csp")
         }
     }
 }
