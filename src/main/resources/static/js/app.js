@@ -430,7 +430,6 @@
   // ---- Copy, share and print the information page ----
 
   const COPIED_FOR_MS = 3000;
-  let copiedTimer = null;
 
   /**
    * The buttons that copy and share are in the page hidden: they are shown only where the browser can do it. Without JavaScript the address is text to select. The
@@ -455,8 +454,10 @@
     const source = document.getElementById(button.getAttribute("data-copia"));
     const normal = button.querySelector("[data-copia-normale]");
     const done = button.querySelector("[data-copia-fatto]");
-    const status = document.querySelector("[data-copia-stato]");
-    const failure = document.querySelector("[data-copia-errore]");
+    // Where there is more than one thing to copy (the line of the token and the command that saves it) each has its own group (`data-copia-ambito`) with its own announcement and its own error.
+    const scope = button.closest("[data-copia-ambito]") || document;
+    const status = scope.querySelector("[data-copia-stato]");
+    const failure = scope.querySelector("[data-copia-errore]");
     if (!source || !navigator.clipboard) return;
     navigator.clipboard.writeText(source.textContent.trim()).then(
       () => {
@@ -465,8 +466,9 @@
         if (normal) normal.hidden = true;
         if (done) done.hidden = false;
         if (status) status.textContent = status.getAttribute("data-copia-annuncio") || "";
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => {
+        // Each button has its own timer: a second copy of the same one restarts its feedback, a copy of another does not cancel it.
+        clearTimeout(button.__copiedTimer);
+        button.__copiedTimer = setTimeout(() => {
           if (normal) normal.hidden = false;
           if (done) done.hidden = true;
           if (status) status.textContent = "";

@@ -81,8 +81,11 @@ sealed interface DatesResult {
     data object Saved : DatesResult
     data object NotFound : DatesResult
 
-    /** The venue that was chosen is not there (it was never, or the choice on the page is old): nothing was saved. */
+    /** The venue that was chosen is not there (it was never, or the choice on the page is old), or a gathering that is not a draft was left without one (it was opened after the checks): nothing was saved. */
     data object VenueNotFound : DatesResult
+
+    /** The gathering ended after the checks (midnight, under the lock) and the dates would change: they are closed, nothing was saved. */
+    data object DatesClosed : DatesResult
 
     /**
      * Saved, and the venue changed with people in the rooms of the one before (TALITA-20, criterion 12): [people] are now without a room, taken out in the same transaction that changed the venue, after the
@@ -104,6 +107,9 @@ sealed interface DatesResult {
 sealed interface FeesResult {
     data object Saved : FeesResult
     data object NotFound : FeesResult
+
+    /** The gathering was opened after the checks and the full fee would be left empty: nothing was saved. */
+    data object FullFeeMissing : FeesResult
 
     /** How many registrations use the daily fee and the fee of the lunch only, among the ones that the new fees would leave empty. */
     data class InUse(val daily: Int, val lunchOnly: Int) : FeesResult
@@ -137,6 +143,9 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock, private 
     /** The gathering that is not a draft with the latest first day, or null (a teacher's list of registrations starts from it). */
     fun latestNotDraft(): Gathering? =
         dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.draft)).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).limit(1).fetchOne()?.let(::gathering)
+
+    /** Every gathering, the most recent first (the APIs of configuration list them, TALITA-21). */
+    fun all(): List<Gathering> = dsl.selectFrom(GATHERING).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).fetch().map(::gathering)
 
     /** The closed gatherings, the most recent first. */
     fun closed(): List<Gathering> =
@@ -230,6 +239,12 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock, private 
     ): DatesResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
         val row = lock(transaction, id) ?: return@transactionResult DatesResult.NotFound
+        // What was checked before the lock is checked again on the locked row: a gathering opened, or ended at midnight, in the meantime.
+        if (venueId == null && row[GATHERING.STATUS] != GatheringStatus.draft) return@transactionResult DatesResult.VenueNotFound
+        if (start != null && end != null) {
+            val before = gathering(row)
+            if (before.isOver(today()) && (before.startDate != start || before.endDate != end)) return@transactionResult DatesResult.DatesClosed
+        }
         // The venue is locked for sharing: nobody takes it away (it has no gathering yet) while it is being chosen.
         if (venueId != null && venues.findIn(transaction, venueId, lock = true) == null) return@transactionResult DatesResult.VenueNotFound
         if (start != null && end != null) {
@@ -267,7 +282,8 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock, private 
      */
     fun saveFees(id: Long, fees: Fees, usage: RegistrationUsage): FeesResult = dsl.transactionResult { configuration ->
         val transaction = DSL.using(configuration)
-        lock(transaction, id) ?: return@transactionResult FeesResult.NotFound
+        val row = lock(transaction, id) ?: return@transactionResult FeesResult.NotFound
+        if (fees.fullCents == null && row[GATHERING.STATUS] != GatheringStatus.draft) return@transactionResult FeesResult.FullFeeMissing
         val users = usage.feeUsers(transaction, id)
         val daily = if (fees.dailyCents == null) users.daily else 0
         val lunch = if (fees.lunchOnlyCents == null) users.lunchOnly else 0

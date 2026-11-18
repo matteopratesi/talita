@@ -34,6 +34,10 @@ object VenueRoomTexts {
         else -> "Le $people persone che ci dormono tornano fra quelle senza camera."
     }
 
+    /** What the APIs say when a room where somebody sleeps is not taken away (TALITA-21): the confirmation is a dialog of the app. */
+    fun hasPeople(people: Int): String =
+        (if (people == 1) "Ci dorme 1 persona" else "Ci dormono $people persone") + ": togli la camera dall’app, che chiede la conferma."
+
     /** The second paragraph of the dialog, when the people are in more than one gathering: «Succede in 2 convivenze.» Null for one gathering or none. */
     fun removalMore(gatherings: Int): String? = if (gatherings >= 2) "Succede in $gatherings convivenze." else null
 

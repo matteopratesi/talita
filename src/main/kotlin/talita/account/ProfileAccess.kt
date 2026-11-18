@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.servlet.ModelAndView
+import talita.api.ApiTokenPresenter
+import talita.api.ApiTokens
+import talita.api.TokenBlock
 import talita.gathering.GatheringFormat
 import talita.retention.RetentionPolicy
 import talita.retention.RetentionTexts
@@ -45,6 +48,10 @@ data class DevicesBlock(
     val lines: List<DeviceLine>,
     val full: String?,
     val exitOthers: ConfirmModel,
+    /** The account has a token for the APIs (TALITA-21): «Esci da tutti gli altri dispositivi» takes it away too, and the dialog and the line under the button say so. */
+    val withToken: Boolean = false,
+    /** The card of the token as it is after «Esci da tutti gli altri dispositivi» took the token away: it goes out of order with this block (`hx-swap-oob`), with a notice that does not take the focus. */
+    val tokenOob: TokenBlock? = null,
 )
 
 /**
@@ -78,6 +85,7 @@ class AccessPresenter(
     private val origins: SessionOrigins,
     private val passkeys: Passkeys,
     private val support: PasskeySupport,
+    private val tokens: ApiTokens,
 ) {
 
     /** The device that this request is on: the one that it came in with (a re-entry) or whose cookie it carries, or the one that its session was born from. */
@@ -93,6 +101,7 @@ class AccessPresenter(
 
     fun devices(account: CurrentAccount, request: HttpServletRequest, alert: Alert?): DevicesBlock {
         val current = currentDevice(request)
+        val withToken = account.isTeacher && tokens.of(account.id) != null
         // A row that is past its day does not enter any more even if the job has not deleted it yet: it is not shown and not counted.
         val rows = devices.ofAccount(account.id).filterNot { devices.expired(it, account.isTeacher) }
             .sortedWith(compareByDescending<DeviceRow> { it.id == current }.thenByDescending { it.createdOn }.thenByDescending { it.id })
@@ -118,7 +127,8 @@ class AccessPresenter(
             intro = intro,
             lines = lines,
             full = if (lines.size >= RememberedDevices.MAX_PER_ACCOUNT) "Hai ${RememberedDevices.MAX_PER_ACCOUNT} dispositivi collegati, il massimo. Se ne colleghi un altro, esce quello collegato da più tempo." else null,
-            exitOthers = exitOthers(passkeys.hasAny(account.id)),
+            exitOthers = exitOthers(passkeys.hasAny(account.id), withToken),
+            withToken = withToken,
         )
     }
 
@@ -137,7 +147,7 @@ class AccessPresenter(
     )
 
     /** The dialog of «Esci da tutti gli altri dispositivi». [withPasskeys]: the account has passkeys, which this does not touch and the dialog sends to their list. */
-    private fun exitOthers(withPasskeys: Boolean) = ConfirmModel(
+    private fun exitOthers(withPasskeys: Boolean, withToken: Boolean) = ConfirmModel(
         id = "esci-altri",
         title = "Uscire da tutti gli altri dispositivi?",
         text = "Tutti gli altri telefoni e computer escono da Talità, anche quelli dove hai scelto «Ricordami su questo telefono». Per rientrare servirà $orLink.",
@@ -148,7 +158,10 @@ class AccessPresenter(
         value = "esci-altri",
         target = BLOCK,
         cancelHref = "/profilo",
-        more = listOf("Questo dispositivo resta dentro."),
+        more = listOfNotNull(
+            if (withToken) "Il token per le API viene revocato: nessun programma potrà più fare modifiche finché non ne crei uno nuovo." else null,
+            "Questo dispositivo resta dentro.",
+        ),
         note = if (withPasskeys) "Le passkey non cambiano. Se ce n’è una di un telefono perso, o che non è tua, toglila dalla scheda «Passkey», qui sotto." else null,
     )
 
@@ -159,12 +172,14 @@ class AccessPresenter(
     fun alreadyRemoved(): Alert = Alert(INFO, "Questo dispositivo era già stato tolto.")
 
     /** After «Esci da tutti gli altri dispositivi»: this one stays inside, and the person is told to look at the passkeys if there are any. */
-    fun othersExited(withPasskeys: Boolean): Alert =
-        if (withPasskeys) {
-            Alert(SUCCESS, "Questo resta dentro. Controlla le passkey: se ce n’è una che non è tua, o di un telefono che non hai più, toglila.", "Gli altri dispositivi sono usciti.", "Vai alle passkey", "/profilo#passkey")
+    fun othersExited(withPasskeys: Boolean, tokenRevoked: Boolean = false): Alert {
+        val head = "Questo resta dentro." + if (tokenRevoked) " Anche il token per le API è stato revocato." else ""
+        return if (withPasskeys) {
+            Alert(SUCCESS, "$head Controlla le passkey: se ce n’è una che non è tua, o di un telefono che non hai più, toglila.", "Gli altri dispositivi sono usciti.", "Vai alle passkey", "/profilo#passkey")
         } else {
-            Alert(SUCCESS, "Questo resta dentro.", "Gli altri dispositivi sono usciti.")
+            Alert(SUCCESS, head, "Gli altri dispositivi sono usciti.")
         }
+    }
 
     companion object {
         /** The block that the actions replace. */
@@ -174,13 +189,17 @@ class AccessPresenter(
 
 /** What «Esci da tutti gli altri dispositivi» does, in one transaction: the rows of the others go and the number of the sessions of the account grows. */
 @Component
-class OtherDevices(private val dsl: DSLContext, private val devices: RememberedDevices, private val accounts: Accounts) {
+class OtherDevices(private val dsl: DSLContext, private val devices: RememberedDevices, private val accounts: Accounts, private val tokens: ApiTokens) {
 
-    /** Closes every session and every device of [accountId] but the device [keep] (the one of the person who asks), and returns the new number of the sessions. */
-    fun closeAllBut(accountId: Long, keep: Long?): Int = dsl.transactionResult { configuration ->
+    /** What it did: the new number of the sessions, and whether the token for the APIs of the account went too (TALITA-21, criterion 3). */
+    data class Closed(val generation: Int, val tokenRevoked: Boolean)
+
+    /** Closes every session and every device of [accountId] but the device [keep] (the one of the person who asks), and the token for the APIs: all in one transaction. */
+    fun closeAllBut(accountId: Long, keep: Long?): Closed = dsl.transactionResult { configuration ->
         val tx = org.jooq.impl.DSL.using(configuration)
         devices.deleteOthers(tx, accountId, keep)
-        accounts.raiseSessionGeneration(tx, accountId)
+        val tokenRevoked = tokens.revokeOf(tx, accountId)
+        Closed(accounts.raiseSessionGeneration(tx, accountId), tokenRevoked)
     }
 }
 
@@ -204,11 +223,19 @@ class DevicesController(
     private val remembered: DeviceRememberMeServices,
     private val passkeys: Passkeys,
     private val texts: SessionTexts,
+    private val tokenPresenter: ApiTokenPresenter,
+    private val confirmations: PasskeyConfirmations,
 ) {
 
     /** The block, as the answer of an action: htmx gets it, a form without JavaScript is sent back to the profile with the notice. */
-    private fun answer(account: CurrentAccount, request: HttpServletRequest, alert: Alert): Any {
-        if (request.isHtmxFragment()) return ModelAndView("profile/devicesBlock", mapOf("block" to presenter.devices(account, request, alert)))
+    private fun answer(account: CurrentAccount, request: HttpServletRequest, alert: Alert, tokenRevoked: Boolean = false): Any {
+        if (request.isHtmxFragment()) {
+            val block = presenter.devices(account, request, alert)
+            // The card of the token comes out of order with the block, if the token went with the devices: its own notice, which leaves the focus to the first one (TALITA-21, criterion 3).
+            val oob = if (tokenRevoked) tokenPresenter.block(account.id, confirmations.needed(account, request.getSession(false)), tokenPresenter.revokedWithDevices(), focus = false) else null
+            return ModelAndView("profile/devicesBlock", mapOf("block" to block.copy(tokenOob = oob)))
+        }
+        if (tokenRevoked) AccessFlash.put(request, "token", tokenPresenter.revokedWithDevices())
         AccessFlash.put(request, "dispositivi", alert)
         return seeOther("/profilo#dispositivi-contenuto")
     }
@@ -231,10 +258,10 @@ class DevicesController(
 
     @PostMapping("/profilo/dispositivi/esci-altri")
     fun exitOthers(account: CurrentAccount, request: HttpServletRequest): Any {
-        val generation = others.closeAllBut(account.id, presenter.currentDevice(request))
+        val closed = others.closeAllBut(account.id, presenter.currentDevice(request))
         // This session stays inside: it adopts the new number, the others (which have the old one) end at their next request.
-        origins.adopt(request.getSession(true), generation)
-        return answer(account, request, presenter.othersExited(passkeys.hasAny(account.id)))
+        origins.adopt(request.getSession(true), closed.generation)
+        return answer(account, request, presenter.othersExited(passkeys.hasAny(account.id), closed.tokenRevoked), closed.tokenRevoked)
     }
 
     // ---- Without JavaScript: the page that stands in for the dialog ------------------------------------------------------------------------

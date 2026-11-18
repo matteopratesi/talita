@@ -283,6 +283,65 @@ class RepositoryRulesTests {
         assertEquals(emptyList<String>(), forbiddenTrackedFiles(tracked))
     }
 
+    @Test
+    fun `t21 c27 no tracked file holds something that looks like a token for the APIs`() {
+        val shape = Regex("talita_[A-Za-z0-9_-]{43}")
+        val binary = setOf("woff2", "woff", "jar", "png", "ico", "gif", "jpg", "jpeg", "webp")
+        val entries = indexEntries()
+        assumeTrue(entries != null, "not a git checkout: the index cannot be read")
+
+        // What a commit would hold: the blob of the index of each entry, not the file of the working copy (a token that is staged and then removed from the working copy is still in the commit, and a staged
+        // file that was deleted from the working copy too). Submodules (mode 160000) have no blob here and are skipped on purpose; a symlink (120000) is a blob with the target in it and is read like the others.
+        val found = readBlobs(entries!!.filter { it.mode != "160000" && Path.of(it.path).name.substringAfterLast('.', "").lowercase() !in binary })
+            .filter { (_, content) -> shape.containsMatchIn(String(content, Charsets.UTF_8)) }.map { it.first }
+        assertEquals(emptyList<String>(), found, "a file holds `talita_` and 43 characters: a token that works, or one that looks like it")
+    }
+
+    @Test
+    fun `t21 c27 the shape of a token is found, and a short example of a mockup is not`() {
+        val shape = Regex("talita_[A-Za-z0-9_-]{43}")
+
+        assertTrue(shape.containsMatchIn("Authorization: Bearer talita_" + "A".repeat(43)))
+        assertFalse(shape.containsMatchIn("Authorization: Bearer talita_FINTO-solo-un-esempio"))
+    }
+
+    /** An entry of the index: its mode (`100644`, `120000`, `160000`…), the id of its blob and its path. */
+    private class IndexEntry(val mode: String, val blob: String, val path: String)
+
+    private fun indexEntries(): List<IndexEntry>? = try {
+        val process = ProcessBuilder("git", "ls-files", "-s", "-z").directory(root.toFile()).redirectErrorStream(false).start()
+        val output = process.inputStream.readBytes().toString(Charsets.UTF_8)
+        if (!process.waitFor(30, TimeUnit.SECONDS) || process.exitValue() != 0) {
+            null
+        } else {
+            output.split('\u0000').filter { it.isNotEmpty() }.map { line ->
+                val (info, path) = line.split('\t', limit = 2)
+                val parts = info.split(' ')
+                IndexEntry(parts[0], parts[1], path)
+            }
+        }
+    } catch (_: java.io.IOException) {
+        null
+    }
+
+    /** The content of the blob of each entry, from `git cat-file --batch` (one process for all). */
+    private fun readBlobs(entries: List<IndexEntry>): List<Pair<String, ByteArray>> {
+        val process = ProcessBuilder("git", "cat-file", "--batch").directory(root.toFile()).redirectErrorStream(false).start()
+        val writer = Thread { process.outputStream.bufferedWriter().use { out -> entries.forEach { out.write(it.blob + "\n") } } }
+        writer.start()
+        val input = java.io.DataInputStream(process.inputStream.buffered())
+        val result = entries.map { entry ->
+            val header = generateSequence { input.read().takeIf { it >= 0 && it != '\n'.code }?.toChar() }.joinToString("")
+            val size = header.split(' ').getOrNull(2)?.toIntOrNull() ?: error("git cat-file: no blob for ${entry.path}: $header")
+            val bytes = ByteArray(size).also { input.readFully(it) }
+            input.read()
+            entry.path to bytes
+        }
+        writer.join()
+        process.waitFor(30, TimeUnit.SECONDS)
+        return result
+    }
+
     private fun trackedFiles(): List<String>? = try {
         val process = ProcessBuilder("git", "ls-files", "-z").directory(root.toFile()).redirectErrorStream(false).start()
         val output = process.inputStream.readBytes().toString(Charsets.UTF_8)

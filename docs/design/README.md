@@ -512,6 +512,7 @@ Icone assegnate (nomi di Lucide):
 | Il menù, il collegamento in Arrivi (TALITA-12) | `utensils` |
 | Un dispositivo collegato con «Ricordami su questo telefono» (TALITA-15) | `monitor-smartphone` |
 | Una passkey nell'elenco (TALITA-15) | `key-round` |
+| Il token per le API (TALITA-21): la riga del token e il bottone «Crea un token» (`Icon.BOT`) | `bot` |
 | «Entra con una passkey», «Aggiungi una passkey», la conferma prima delle segnalazioni, l'invito ad aggiungerne una (TALITA-15) | `fingerprint-pattern` |
 | Giorno dopo oggi già segnato: «Sarà presente» (TALITA-19) | `calendar-check` |
 
@@ -1652,6 +1653,18 @@ Prima di mostrare le segnalazioni, e prima di togliere o aggiungere una passkey,
 - **L'invito**, per un maestro senza passkey: `<div data-passkey hidden class="mt-4 border-t border-line pt-4">` (il `hidden` sta sul contenitore, perché un `flex` sullo stesso elemento lo annullerebbe) con dentro il riquadro `grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-muted` e `fingerprint-pattern`, e il testo. Una riga discreta, che **non blocca e non si chiude** (chiuderla sarebbe un dato in più), e porta alla scheda «Passkey» del profilo.
 - **Mai nei testi** dati personali, id o nomi di passkey. I bersagli sono da 48 px (il bottone di testo dell'invito da 44).
 
+### 4.27 Token per le API (TALITA-21)
+
+Una scheda del profilo dei maestri, dopo «Passkey» e prima di «Il tuo nome»: `<section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" id="token" aria-labelledby="token-titolo">`. I mockup sono in `docs/design/TALITA-21/` (17 pagine, `index.html`, `talita-21.css`, valore del token finto). Serve a un programma, non a una persona: il testo lo spiega con «chiave» e «programma», mai con il nome di uno strumento.
+
+- **Due blocchi.** `#token-contenuto` (`hx-swap="outerHTML"`, `data-esiti`) ha l'avviso in cima (con `data-fuoco`), la spiegazione, il token o il modo di crearlo, e i dialoghi; ogni azione lo sostituisce intero. `#token-registro` sta **fuori** e non si aggiorna con le azioni.
+- **Stati**: nessun token; token attivo (etichetta «Attivo», tono positivo); «Ultimo giorno» (tono di attenzione, «Vale fino a oggi…»); «Scaduto» (neutro, senza «Revoca», con «Crea un token nuovo» senza dialogo); token appena creato.
+- **Riga del token**: la riga di 4.25 con l'icona `bot` (nuova), il titolo «Token creato il 18 settembre 2027», l'etichetta e «Vale fino al 18 ottobre 2027. Poi smette di funzionare da solo.», e «Revoca» come bottone di testo con il nome per esteso per il lettore di schermo. Mai un «ultimo uso».
+- **Creare**: da vuoto o scaduto il bottone «Crea un token» è un form con `hx-post` e nessun dialogo; da attivo «Crea un token nuovo» apre il dialogo `#nuovo` (4.8) e dice «Sostituisce questo: quello di adesso smette di funzionare subito.». **«Revoca»** apre `#revoca`, e **non** chiede la passkey (riduce il rischio). Il form porta `data-conferma="token"` solo se l'account ha passkey (4.26), con gli esiti nascosti `token-annullata` e `token-rifiutata`; senza passkey niente conferma. «Serve la conferma.» (409) sostituisce il blocco come un 422.
+- **Il token appena creato** (`hx-history="false"`, risposta 200 con `Cache-Control: no-store`): «Token creato.», la riga `Authorization: Bearer …` come testo da selezionare (`select-all`, `break-all`, `id="token-riga"`), «Copia la riga» (4.13, `hidden` finché `app.js` non sa copiare; ogni gruppo ha il suo `data-copia-ambito`), l'avviso di attenzione «Non incollarla in chat, email o documenti.», i tre passi per salvarla (il comando `umask 077; …` con il nome del file che viene dalla configurazione, mai scritto a mano nel template) e «Fatto». Il valore non sta mai in un indirizzo, in un attributo `data-*` o nel log.
+- **Registro** «Ultime richieste» (4.17, chiuso di partenza): righe `18 settembre alle 21:40 · POST camere · 201` con la frase sotto («Andata a buon fine.», «Rifiutata: i dati non sono validi.», «Rifiutata: adesso non si può fare.», «Richiesta non valida.», «Troppe richieste.», «Errore di Talità.»): il codice è nel testo, mai solo un colore. Non dice chi né cosa.
+- **Fuori dalla scheda**: «Esci da tutti gli altri dispositivi» dice del token solo se c'è (dialogo e riga sotto il bottone) e, dopo, la scheda diventa «Token revocato.» con `hx-swap-oob` e un avviso informativo **senza** `data-fuoco` (il fuoco resta uno solo); «Cancella il mio account» e i dialoghi dei maestri tolti aggiungono una frase.
+
 ## 5. htmx: cosa vede chi usa Talità
 
 **Cambio di pagina** (link della navigazione o di una lista, `hx-boost`):
@@ -1778,6 +1791,7 @@ apertura dei dialoghi. Come scriverlo lo decide il developer.
 - **Una richiesta ripetuta non è un errore**: il doppio tocco su «Togli» o su «Esci da tutti gli altri dispositivi» mostra lo stato di adesso, con un avviso informativo («Questo dispositivo era già stato tolto.»). Senza rete, lenta o con un errore compare il messaggio a comparsa della guida e niente cambia.
 - **Chi non ha più l'accesso** (un dispositivo tolto o «Esci da tutti» da un altro telefono) alla richiesta dopo trova `/accedi` come **pagina intera**, anche se la richiesta era htmx (`HX-Redirect`), con un avviso che dice perché. Il codice CSRF scaduto (una pagina aperta da ore, con il cookie di «Ricordami» ancora valido) ricarica la pagina senza uscire («La pagina era aperta da troppo tempo. Riprova.»).
 - **«Entra con una passkey» e «Entra» sono cambi di pagina interi**, non htmx; la conferma con la casella è il form di sempre.
+- **Il token per le API** (4.27): in **tutte** le risposte htmx del token (crea, «Fatto», «Revoca», sostituzione) anche `#dispositivi-contenuto` si ridisegna con `hx-swap-oob`, senza avviso, perché la frase e il dialogo di «Esci da tutti» dicono del token solo se c'è; `#token-contenuto` si sostituisce, il registro `#token-registro` no; «Esci da tutti gli altri dispositivi» aggiorna `#dispositivi-contenuto` e, se c'era un token, anche `#token-contenuto` con `hx-swap-oob="true"` (l'avviso informativo senza `data-fuoco`). La risposta che crea il token è 200, `Cache-Control: no-store` e `hx-history="false"` sul blocco.
 - **La conferma con la passkey** (4.26) avviene **prima** della richiesta e non cambia i bersagli: il dettaglio risponde con la scheda `#segnalazioni`, Arrivi con `#scheda`, il profilo con il blocco. `409 «Serve la conferma»` sostituisce come un 422. Una conferma già arrivata resta valida anche se la richiesta dopo non è riuscita.
 
 ## 6. Scrivere i testi
@@ -1950,6 +1964,13 @@ Nel codice le date e gli importi si formattano con `Locale.ITALIAN`, non a mano.
 - **Date**: «Collegato dal 3 settembre 2027», «fino al 2 ottobre 2027» (ultimo giorno compreso), sempre con l'anno. Una passkey dice «Aggiunta il 3 settembre 2027» e «Sincronizzata» (anche sugli altri dispositivi del suo account Apple o Google) oppure «Solo su un dispositivo».
 - **«Conferma»** è il verbo della verifica prima delle segnalazioni: «Serve la conferma.», «Conferma con la passkey». **«Non aperte»** e **«Non tolta»** sono i participi dell'oggetto negli avvisi di una conferma rifiutata; **«codice di sblocco»** dice PIN, sequenza o codice. Annullare non è un errore, e il testo non lo tratta come tale; una conferma rifiutata dice sempre la stessa strada: riprovare, o un altro maestro.
 - **Mai** nei testi l'indirizzo, il nome di un dispositivo o di una passkey, né «il tuo account è in pericolo».
+
+### Token per le API (TALITA-21)
+
+- **«Token»** si spiega con «chiave» e si usa con «programma» («il programma non potrà più fare modifiche»), mai con il nome di uno strumento. **«Revoca»** e non «elimina»: si rimedia con un token nuovo. «Crea un token» da vuoto, «Crea un token nuovo» quando ce n'è uno, e il dialogo dice che quello di adesso smette subito.
+- **Le date** sono con l'anno: «Token creato il 18 settembre 2027», «Vale fino al 18 ottobre 2027» (ultimo giorno compreso), «È scaduto il 17 settembre 2027».
+- **Il registro** non dice chi: «Le ultime 20 richieste fatte con un token di un maestro», con «Se ne vedi una che non riconosci, tocca «Revoca».».
+- **Mai** nei testi un esempio di token lungo quanto uno vero (`talita_` e 43 caratteri): la build lo cerca in ogni file.
 
 ## 7. Accessibilità: controlli prima della PR
 

@@ -28,6 +28,8 @@ import java.time.Period
  * @property devicesParent how long a parent stays inside on a phone where they touched «Ricordami su questo telefono» (TALITA-15): 30 days from the day of the touch, never from the last use
  * @property devicesTeacher the same for a teacher: 7 days, because a teacher can open the notes on health. The length is the one of the role **today**: a parent who becomes a teacher is
  * a teacher for the row of the day before as well
+ * @property apiTokens how long the token of a teacher for the APIs of configuration is good (TALITA-21): it is good through the 30th day after the day it was made, a day of Rome, and the job deletes it the night after
+ * @property apiRequests how long the register of the requests made with a token is kept (TALITA-21): 30 days
  */
 data class RetentionPolicy(
     val notes: Period = Period.ofMonths(1),
@@ -39,12 +41,16 @@ data class RetentionPolicy(
     val rooms: Period = Period.ZERO,
     val devicesParent: Period = Period.ofDays(30),
     val devicesTeacher: Period = Period.ofDays(7),
+    val apiTokens: Period = Period.ofDays(30),
+    val apiRequests: Period = Period.ofDays(30),
 ) {
 
     init {
         // The pages say «30 giorni (7 se sei tra i maestri)»: the lengths of the devices are a number of days.
         require(devicesParent.years == 0 && devicesParent.months == 0 && devicesParent.days > 0) { "the length of a device is in days" }
         require(devicesTeacher.years == 0 && devicesTeacher.months == 0 && devicesTeacher.days > 0) { "the length of a device is in days" }
+        require(apiTokens.years == 0 && apiTokens.months == 0 && apiTokens.days > 0) { "the length of a token is in days" }
+        require(apiRequests.years == 0 && apiRequests.months == 0 && apiRequests.days > 0) { "the length of the register of the requests is in days" }
     }
 
     /** The day after the last day: from here every period counts (R6). */
@@ -85,6 +91,15 @@ data class RetentionPolicy(
 
     /** The device made on [createdOn] does not enter any more as of [today] (a day of Rome): from its day, not from the hour of the job. */
     fun deviceExpired(createdOn: LocalDate, teacher: Boolean, today: LocalDate): Boolean = !today.isBefore(deviceGoneOn(createdOn, teacher))
+
+    /** The last day on which the token made on [createdOn] (a day of Rome) is still good: the day of creation plus 30 days. The profile says «Vale fino al» this day. */
+    fun apiTokenLastDay(createdOn: LocalDate): LocalDate = createdOn.plus(apiTokens)
+
+    /** The token made on [createdOn] does not work any more as of [today] (a day of Rome): from the day after its last day, not from the hour of the job. */
+    fun apiTokenExpired(createdOn: LocalDate, today: LocalDate): Boolean = today.isAfter(apiTokenLastDay(createdOn))
+
+    /** The register of the requests: the moment from which what is older is deleted (the job looks at days: [today] minus the period, at midnight of Rome). */
+    fun apiRequestsKeptFrom(today: LocalDate): java.time.OffsetDateTime = today.minus(apiRequests).atStartOfDay(ClockConfiguration.ZONE).toOffsetDateTime()
 
     /** The day an account born on [bornOn] is deleted, if it is still empty. */
     fun emptyAccountDeletionDate(bornOn: LocalDate): LocalDate = bornOn.plus(emptyAccounts)

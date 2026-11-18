@@ -65,6 +65,7 @@ Kotlin passa alla 2.4 insieme a Spring Boot 4.2. Prima di ogni aggiornamento, co
 - `docs/03-privacy.md`: titolare, natura dei dati, base giuridica, fornitori, misure, conservazione, informativa e consenso
 - `docs/04-ambiente.md`: setup del PC di sviluppo
 - `docs/05-decisioni.md`: registro delle decisioni e del loro perché
+- `docs/06-api.md`: le API REST di configurazione (convivenza, strutture, camere, moduli) con il token personale di un maestro: rotte, campi, errori e regole per chi le usa; un test lo tiene allineato al codice
 - `docs/design/README.md`: design system (e `docs/design/KOINE-11/`, il mockup di origine)
 
 ## Come lavorare

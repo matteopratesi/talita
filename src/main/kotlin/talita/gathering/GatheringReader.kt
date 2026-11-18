@@ -36,6 +36,12 @@ class GatheringReader(private val gatherings: Gatherings, private val venues: Ga
         return info(gathering, gatherings.custodians(context, id), venue)
     }
 
+    /** Every gathering, the most recent first, with what a list says and nothing more: no custodian, no public code, no count (the APIs of configuration read this, TALITA-21). */
+    fun summaries(): List<GatheringSummary> {
+        val today = gatherings.today()
+        return gatherings.all().map { GatheringSummary(it.id, it.title, it.startDate, it.endDate, it.state, it.isOver(today), it.venueId) }
+    }
+
     /** The gathering that is not a draft and starts last (the one that the registrations of the teachers are about), or null. */
     fun latestNotDraft(): GatheringInfo? = gatherings.latestNotDraft()?.let { info(it) }
 

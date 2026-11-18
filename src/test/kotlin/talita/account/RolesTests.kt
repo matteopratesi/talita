@@ -243,7 +243,7 @@ class RolesTests(
         // The addresses of the teachers: one list, read by the security configuration.
         assertEquals(
             listOf(
-                "/convivenza/**", "/arrivi/**", "/maestri/**", "/strutture/**", "/profilo/nome",
+                "/convivenza/**", "/arrivi/**", "/maestri/**", "/strutture/**", "/profilo/nome", "/profilo/token/**",
                 "/iscrizioni/nuova", "/iscrizioni/nuova/quota", "/iscrizioni/{id:[0-9]+}", "/iscrizioni/{id:[0-9]+}/mostra-segnalazioni", "/iscrizioni/{id:[0-9]+}/correggi",
                 "/iscrizioni/{id:[0-9]+}/correggi/quota", "/iscrizioni/{id:[0-9]+}/correggi-segnalazioni", "/iscrizioni/{id:[0-9]+}/manleva",
             ),
@@ -264,6 +264,8 @@ class RolesTests(
             "/strutture/**" to listOf("/strutture", "/strutture/x", "/strutture/nuova", "/strutture/12/modifica", "/strutture/12/togli"),
             // The correction of the name that a teacher makes in the profile: one address, not a branch.
             "/profilo/nome" to listOf("/profilo/nome"),
+            // The token for the APIs (TALITA-21): make it, take it away, the block again and the pages that stand in for the dialogs.
+            "/profilo/token/**" to listOf("/profilo/token", "/profilo/token/revoca", "/profilo/token/revoca/conferma", "/profilo/token/nuovo/conferma"),
             // The registrations of the teachers (TALITA-5): the paper form, the detail with its notes, the corrections and the manleva.
             "/iscrizioni/nuova" to listOf("/iscrizioni/nuova"),
             "/iscrizioni/nuova/quota" to listOf("/iscrizioni/nuova/quota"),

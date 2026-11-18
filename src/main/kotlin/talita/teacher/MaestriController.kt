@@ -249,7 +249,7 @@ class MaestriController(
             ConfirmModel(
                 id = "togli-$index",
                 title = "Toglierti dai maestri?",
-                text = "Non potrai più gestire la convivenza né vedere i bambini e le segnalazioni. Il tuo nome viene cancellato dall’elenco dei maestri. Un altro maestro potrà invitarti di nuovo.$extra",
+                text = "Non potrai più gestire la convivenza né vedere i bambini e le segnalazioni. Il tuo nome viene cancellato dall’elenco dei maestri. Un altro maestro potrà invitarti di nuovo.$extra Se hai un token per le API, smette di funzionare.",
                 confirmLabel = "Toglimi dai maestri",
                 busyLabel = "Rimozione…",
                 action = "/maestri/togli",
@@ -260,7 +260,7 @@ class MaestriController(
             ConfirmModel(
                 id = "togli-$index",
                 title = "Togliere $name dai maestri?",
-                text = "$name non potrà più gestire la convivenza né vedere i bambini e le segnalazioni. Il suo nome viene cancellato dall’elenco dei maestri. Potrà ancora entrare in Talità come genitore.$extra",
+                text = "$name non potrà più gestire la convivenza né vedere i bambini e le segnalazioni. Il suo nome viene cancellato dall’elenco dei maestri. Potrà ancora entrare in Talità come genitore.$extra Se ha un token per le API, smette di funzionare.",
                 confirmLabel = "Togli dai maestri",
                 busyLabel = "Rimozione…",
                 action = "/maestri/togli",

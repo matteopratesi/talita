@@ -13,10 +13,8 @@ import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.room.RemoveResult
 import talita.room.Room
-import talita.room.RoomChecks
 import talita.room.RoomPeople
 import talita.room.Rooms
-import talita.room.SaveResult
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
 import talita.ui.AlertVariant.INFO
@@ -40,6 +38,7 @@ class VenueRoomsController(
     private val shells: ShellFactory,
     private val venues: Venues,
     private val rooms: Rooms,
+    private val edits: VenueRoomEdits,
     private val presenter: VenueRoomsPresenter,
 ) {
 
@@ -75,17 +74,13 @@ class VenueRoomsController(
         request: HttpServletRequest,
     ): ModelAndView {
         val venue = venue(id)
-        val nameCheck = RoomChecks.name(name)
-        val bedsCheck = RoomChecks.beds(beds)
-        val errors = listOfNotNull(nameCheck.error, bedsCheck.error).size
-        if (errors > 0) {
-            val form = presenter.newForm(id, venue.name, nameCheck.value.take(MAX_ECHO), bedsCheck.typed.take(MAX_ECHO), nameCheck.error, bedsCheck.error, errorsAlert(errors))
-            return formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (rooms.create(id, nameCheck.value, bedsCheck.beds!!)) {
-            is SaveResult.Saved -> saved(request, id)
-            SaveResult.NameTaken -> formPage(presenter.newForm(id, venue.name, nameCheck.value, bedsCheck.typed.take(MAX_ECHO), RoomChecks.NAME_TAKEN), HttpStatus.UNPROCESSABLE_ENTITY)
-            SaveResult.NotFound -> notFound()
+        return when (val result = edits.create(id, name, beds)) {
+            is RoomEdit.Saved -> saved(request, id)
+            is RoomEdit.Invalid -> {
+                val form = presenter.newForm(id, venue.name, result.name.value.take(MAX_ECHO), result.beds.typed.take(MAX_ECHO), result.name.error, result.beds.error, errorsAlert(result.errors))
+                formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+            RoomEdit.NotFound -> notFound()
         }
     }
 
@@ -108,18 +103,14 @@ class VenueRoomsController(
     ): ModelAndView {
         val venue = venue(id)
         val found = room(id, room)
-        val nameCheck = RoomChecks.name(name)
-        val bedsCheck = RoomChecks.beds(beds)
-        val errors = listOfNotNull(nameCheck.error, bedsCheck.error).size
         val people = peopleIn(id, room).people
-        if (errors > 0) {
-            val form = presenter.changeForm(id, venue.name, found, people, nameCheck.value.take(MAX_ECHO), bedsCheck.typed.take(MAX_ECHO), nameCheck.error, bedsCheck.error, errorsAlert(errors))
-            return formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (rooms.update(id, room, nameCheck.value, bedsCheck.beds!!)) {
-            is SaveResult.Saved -> saved(request, id)
-            SaveResult.NameTaken -> formPage(presenter.changeForm(id, venue.name, found, people, nameCheck.value, bedsCheck.typed.take(MAX_ECHO), RoomChecks.NAME_TAKEN), HttpStatus.UNPROCESSABLE_ENTITY)
-            SaveResult.NotFound -> notFound()
+        return when (val result = edits.update(id, room, name, beds)) {
+            is RoomEdit.Saved -> saved(request, id)
+            is RoomEdit.Invalid -> {
+                val form = presenter.changeForm(id, venue.name, found, people, result.name.value.take(MAX_ECHO), result.beds.typed.take(MAX_ECHO), result.name.error, result.beds.error, errorsAlert(result.errors))
+                formPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+            RoomEdit.NotFound -> notFound()
         }
     }
 
@@ -137,8 +128,10 @@ class VenueRoomsController(
     @PostMapping("/strutture/{id:[0-9]{1,18}}/camere/{room:[0-9]{1,18}}/togli")
     fun remove(@PathVariable id: Long, @PathVariable room: Long, request: HttpServletRequest): ModelAndView {
         venue(id)
-        val alert = when (rooms.remove(id, room)) {
+        val alert = when (edits.remove(id, room)) {
             is RemoveResult.Removed -> Alert(SUCCESS, VenueRoomTexts.REMOVED)
+            // The pages never ask to refuse a room with people (the dialog is the confirmation): only the APIs do.
+            is RemoveResult.HasPeople -> error("the pages of the app do not refuse a room that has people")
             // Taken away by another teacher already: the state as it is, with its own words.
             RemoveResult.AlreadyGone -> Alert(INFO, VenueRoomTexts.ALREADY_REMOVED)
             RemoveResult.NotFound -> notFound()

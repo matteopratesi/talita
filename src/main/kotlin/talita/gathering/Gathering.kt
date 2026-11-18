@@ -95,6 +95,17 @@ data class GatheringInfo(
     val registrationsPossibleToday: Boolean,
 )
 
+/** A gathering as a list says it (TALITA-21): no custodians, no public code, no counts. */
+data class GatheringSummary(
+    val id: Long,
+    val title: String,
+    val start: LocalDate,
+    val end: LocalDate,
+    val state: GatheringState,
+    val over: Boolean,
+    val venueId: Long?,
+)
+
 /** How many registrations of each state a gathering has: only counts, never names (the card «Iscrizioni» of its detail, the list of the teachers). */
 data class RegistrationCounts(val confirmed: Int, val maybe: Int, val withdrawn: Int) {
     /** The registrations that are not withdrawn. */

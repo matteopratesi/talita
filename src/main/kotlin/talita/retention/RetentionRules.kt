@@ -7,6 +7,8 @@ import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 import talita.account.Passkeys
 import talita.account.RememberedDevices
+import talita.api.ApiRequests
+import talita.api.ApiTokens
 import talita.jooq.enums.GatheringStatus
 import talita.jooq.tables.references.ACCOUNT
 import talita.jooq.tables.references.CHILD
@@ -210,6 +212,41 @@ class DeviceRotationsRule(private val devices: RememberedDevices) : RetentionRul
     override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
         val rows = devices.clearRotations(tx, context.now)
         if (rows > 0) log.info("Retention: rule {} emptied {} rows.", name, rows)
+        return emptyList()
+    }
+}
+
+/**
+ * The tokens for the APIs that are past their day (TALITA-21, criterion 4): the day they were made plus 30 days, from the day after the last day of the token. Like the devices, the register of the
+ * deletions does not hear of it (it is a credential that has ended, not personal data): the log says how many.
+ */
+@Component
+@Order(57)
+class ApiTokensRule(private val tokens: ApiTokens) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(ApiTokensRule::class.java)
+
+    override val name: String = "api-tokens"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val rows = tokens.removeExpired(tx, context.today)
+        if (rows > 0) log.info("Retention: rule {} deleted {} rows.", name, rows)
+        return emptyList()
+    }
+}
+
+/** The register of the requests made with a token (TALITA-21, criterion 12), 30 days: what is older goes. Like the devices, the register of the deletions does not hear of it; the log says how many. */
+@Component
+@Order(58)
+class ApiRequestsRule(private val policy: RetentionPolicy, private val requests: ApiRequests) : RetentionRule {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(ApiRequestsRule::class.java)
+
+    override val name: String = "api-requests"
+
+    override fun apply(tx: DSLContext, context: RetentionContext): List<Deleted> {
+        val rows = requests.removeBefore(tx, policy.apiRequestsKeptFrom(context.today))
+        if (rows > 0) log.info("Retention: rule {} deleted {} rows.", name, rows)
         return emptyList()
     }
 }

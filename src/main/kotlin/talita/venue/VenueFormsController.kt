@@ -12,8 +12,6 @@ import org.springframework.web.servlet.ModelAndView
 import talita.account.isHtmxFragment
 import talita.account.seeOther
 import talita.checkin.VenueFormRef
-import talita.gathering.GatheringChecks
-import talita.gathering.PublicNames
 import talita.ui.Alert
 import talita.ui.AlertVariant.INFO
 import talita.ui.AlertVariant.SUCCESS
@@ -35,7 +33,7 @@ class VenueFormsController(
     private val shells: ShellFactory,
     private val venues: Venues,
     private val forms: VenueForms,
-    private val names: PublicNames,
+    private val edits: VenueFormEdits,
     private val presenter: VenueFormsPresenter,
 ) {
 
@@ -72,12 +70,10 @@ class VenueFormsController(
     ): ModelAndView {
         val venue = venue(id)
         val chosen = choices(age, days, document, taxCode)
-        val check = GatheringChecks.withNames(names, VenueFormChecks.name(name)).single()
-        if (!check.valid) return page(presenter.newPage(id, venue.name, check.value.take(MAX_ECHO), chosen, check.error), HttpStatus.UNPROCESSABLE_ENTITY)
-        return when (forms.create(id, check.value, chosen)) {
-            is FormSave.Saved -> saved(request, id)
-            FormSave.NameTaken -> page(presenter.newPage(id, venue.name, check.value, chosen, VenueFormChecks.NAME_TAKEN), HttpStatus.UNPROCESSABLE_ENTITY)
-            FormSave.NotFound -> notFound()
+        return when (val result = edits.create(id, name, chosen)) {
+            is FormEdit.Saved -> saved(request, id)
+            is FormEdit.Invalid -> page(presenter.newPage(id, venue.name, result.name.value.take(MAX_ECHO), chosen, result.name.error), HttpStatus.UNPROCESSABLE_ENTITY)
+            FormEdit.NotFound -> notFound()
         }
     }
 
@@ -103,12 +99,10 @@ class VenueFormsController(
         val venue = venue(id)
         val found = form(id, form)
         val chosen = choices(age, days, document, taxCode)
-        val check = GatheringChecks.withNames(names, VenueFormChecks.name(name)).single()
-        if (!check.valid) return page(presenter.changePage(id, venue.name, found, check.value.take(MAX_ECHO), chosen, check.error), HttpStatus.UNPROCESSABLE_ENTITY)
-        return when (forms.update(id, form, check.value, chosen)) {
-            is FormSave.Saved -> saved(request, id)
-            FormSave.NameTaken -> page(presenter.changePage(id, venue.name, found, check.value, chosen, VenueFormChecks.NAME_TAKEN), HttpStatus.UNPROCESSABLE_ENTITY)
-            FormSave.NotFound -> notFound()
+        return when (val result = edits.update(id, form, name, chosen)) {
+            is FormEdit.Saved -> saved(request, id)
+            is FormEdit.Invalid -> page(presenter.changePage(id, venue.name, found, result.name.value.take(MAX_ECHO), chosen, result.name.error), HttpStatus.UNPROCESSABLE_ENTITY)
+            FormEdit.NotFound -> notFound()
         }
     }
 
@@ -125,7 +119,7 @@ class VenueFormsController(
     @PostMapping("/strutture/{id:[0-9]{1,18}}/moduli/{form:[0-9]{1,18}}/togli")
     fun remove(@PathVariable id: Long, @PathVariable form: Long, request: HttpServletRequest): ModelAndView {
         venue(id)
-        val alert = when (forms.remove(id, form)) {
+        val alert = when (edits.remove(id, form)) {
             is FormRemoval.Removed -> Alert(SUCCESS, VenueFormTexts.REMOVED)
             // Taken away by another teacher already: the state as it is, with its own words.
             FormRemoval.AlreadyGone -> Alert(INFO, VenueFormTexts.ALREADY_REMOVED)

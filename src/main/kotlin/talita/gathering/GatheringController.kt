@@ -32,10 +32,9 @@ import talita.ui.ShellFactory
 class GatheringController(
     private val shells: ShellFactory,
     private val gatherings: Gatherings,
+    private val edits: GatheringEdits,
     private val presenter: GatheringPresenter,
     private val usage: RegistrationUsage,
-    private val arrivals: ArrivalUsage,
-    private val names: PublicNames,
     private val venues: GatheringVenues,
     private val assignments: RoomAssignments,
 ) {
@@ -59,24 +58,17 @@ class GatheringController(
         @RequestParam(name = "startDate", defaultValue = "") startDate: String,
         @RequestParam(name = "endDate", defaultValue = "") endDate: String,
         request: HttpServletRequest,
-    ): ModelAndView {
+    ): ModelAndView = when (val result = edits.create(title, startDate, endDate)) {
         // Somebody made one (or it was there all along, for a request made by hand): the page says so, nothing is created.
-        gatherings.current()?.let { return newPage(blocked(it), HttpStatus.CONFLICT) }
-
-        val (titleCheck) = withNames(GatheringChecks.title(title))
-        val dates = GatheringChecks.dates(startDate, endDate, gatherings.today())
-        val errors = listOfNotNull(titleCheck.error, dates.startError, dates.endError).size
-        if (errors > 0) {
+        is CreateEdit.AlreadyCurrent -> newPage(blocked(result.id, result.title, result.state), HttpStatus.CONFLICT)
+        is CreateEdit.Invalid -> {
             val page = NewPage(
-                titleCheck.value.take(MAX_ECHO), dates.startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO),
-                titleCheck.error, dates.startError, dates.endError, errorsAlert(errors), null,
+                result.title.value.take(MAX_ECHO), result.dates.startTyped.take(MAX_ECHO), result.dates.endTyped.take(MAX_ECHO),
+                result.title.error, result.dates.startError, result.dates.endError, errorsAlert(result.errors), null,
             )
-            return newPage(page, HttpStatus.UNPROCESSABLE_ENTITY)
+            newPage(page, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        return when (val result = gatherings.create(titleCheck.value, dates.start!!, dates.end!!)) {
-            is CreateResult.Created -> savedAndBack(request, result.id, "Convivenza salvata.")
-            is CreateResult.AlreadyCurrent -> newPage(blocked(result.id, result.title, result.state), HttpStatus.CONFLICT)
-        }
+        is CreateEdit.Created -> savedAndBack(request, result.id, "Convivenza salvata.")
     }
 
     // ---- The detail ----------------------------------------------------------------------------------------------------------
@@ -105,32 +97,30 @@ class GatheringController(
         request: HttpServletRequest,
     ): ModelAndView {
         val gathering = found(id)
-        val today = gatherings.today()
-        val over = gathering.isOver(today)
-        val chosen = venue.trim().take(MAX_ID_TEXT)
-        val chosenId = chosen.toLongOrNull()?.takeIf { it > 0 }
-        // How many people the teacher saw leave their rooms (the dialog, or the page that stands in for it), if the venue changes: nothing in the request says it any other way.
-        val confirmed = change.trim().take(MAX_ID_TEXT).toIntOrNull()?.takeIf { it >= 0 }
+        return when (val edit = edits.saveDates(id, title, startDate, endDate, venue, change)) {
+            DatesEdit.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            is DatesEdit.Closed -> {
+                // After the end the dates do not change: a request made by hand that carries other dates is refused whole, nothing is saved.
+                val form = datesForm(gathering, edit.title.value.take(MAX_ECHO), "", "", edit.chosen, titleError = edit.title.error, alert = Alert(WARNING, GatheringChecks.DATES_CLOSED))
+                datesPage(form, HttpStatus.CONFLICT)
+            }
+            is DatesEdit.Invalid -> {
+                val dates = edit.dates
+                val form = datesForm(
+                    gathering, edit.title.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), edit.chosen,
+                    titleError = edit.title.error, startError = dates?.startError, endError = dates?.endError, venueError = edit.venueError, alert = errorsAlert(edit.errors),
+                )
+                datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+            is DatesEdit.Done -> saved(id, gathering, edit, request)
+        }
+    }
 
-        // After the end the dates do not change: a request made by hand that carries other dates is refused whole, nothing is saved.
-        val changesDates = over && ((startDate != null && startDate.trim() != gathering.startDate.toString()) || (endDate != null && endDate.trim() != gathering.endDate.toString()))
-        val (titleCheck) = withNames(GatheringChecks.title(title))
-        // The venue: a draft may have none, a gathering that is not a draft needs one, and an id that is not a number is never a choice (TALITA-20, criteria 8 and 9).
-        val venueError = if (chosenId == null && (chosen.isNotEmpty() || gathering.state != GatheringState.DRAFT)) GatheringChecks.VENUE_MISSING else null
-        if (changesDates) {
-            val form = datesForm(gathering, titleCheck.value.take(MAX_ECHO), "", "", chosen, titleError = titleCheck.error, alert = Alert(WARNING, GatheringChecks.DATES_CLOSED))
-            return datesPage(form, HttpStatus.CONFLICT)
-        }
-        val dates = if (over) null else GatheringChecks.dates(startDate, endDate, today, gathering.startDate to gathering.endDate)
-        val errors = listOfNotNull(titleCheck.error, dates?.startError, dates?.endError, venueError).size
-        if (errors > 0) {
-            val form = datesForm(
-                gathering, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), chosen,
-                titleError = titleCheck.error, startError = dates?.startError, endError = dates?.endError, venueError = venueError, alert = errorsAlert(errors),
-            )
-            return datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, chosenId, usage, arrivals, assignments, confirmed)) {
+    /** What came of saving the dates of a gathering whose checks were good. */
+    private fun saved(id: Long, gathering: Gathering, edit: DatesEdit.Done, request: HttpServletRequest): ModelAndView {
+        val dates = edit.dates
+        val titleValue = edit.title.value.take(MAX_ECHO)
+        return when (val result = edit.result) {
             DatesResult.Saved -> savedAndBack(request, id, "Titolo, date e luogo salvati.")
             is DatesResult.VenueChanged -> {
                 // The people who were in the rooms of the venue before are without a room: the notice says how many.
@@ -139,29 +129,29 @@ class GatheringController(
             }
             is DatesResult.PeopleInRooms -> {
                 // The venue changes and people are in the rooms of the one before: the page that stands in for the dialog (with JavaScript the dialog came first, and this is a page that was old).
-                val chosenVenue = chosenId?.let(venues::find)
+                val chosenVenue = edit.chosenId?.let(venues::find)
                 val page = VenueChangePage(
-                    id, titleCheck.value.take(MAX_ECHO), dates?.start?.toString(), dates?.end?.toString(), chosen, result.people,
+                    id, titleValue, dates?.start?.toString(), dates?.end?.toString(), edit.chosen, result.people,
                     VenueChangeTexts.leave(result.people, result.from), chosenVenue?.let { VenueChangeTexts.parents(it.name, it.place) },
                 )
                 page("gathering/changeVenue", "Cambiare la struttura?", page)
             }
             DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            // Turned into `DatesEdit.Closed` by GatheringEdits: it does not get here.
+            DatesResult.DatesClosed -> error("closed dates are answered by GatheringEdits")
             DatesResult.VenueNotFound -> {
                 // A venue that is not there any more (the page was old) or never was: the field says so, and the choices are those of now.
                 val form = datesForm(
-                    gathering, titleCheck.value.take(MAX_ECHO), dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), chosen,
+                    gathering, titleValue, dates?.startTyped?.take(MAX_ECHO).orEmpty(), dates?.endTyped?.take(MAX_ECHO).orEmpty(), edit.chosen,
                     venueError = GatheringChecks.VENUE_MISSING,
                 )
                 datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
             }
             is DatesResult.DaysInUse -> {
                 // One sentence for each day that would go (rule R3), under the field that would lose it: the first day or the last.
-                val sentences = result.days.map { use -> use.day to "Non puoi togliere ${GatheringFormat.weekday(use.day)} ${GatheringFormat.date(use.day)}: " + holdsTheDay(use) }
-                val startError = sentences.filter { it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
-                val endError = sentences.filter { !it.first.isBefore(dates!!.start!!) }.joinToString(" ") { it.second }.ifEmpty { null }
+                val (startError, endError) = GatheringEdits.daysInUse(result, checkNotNull(dates?.start))
                 val form = datesForm(
-                    gathering, titleCheck.value.take(MAX_ECHO), dates!!.startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO), chosen,
+                    gathering, titleValue, checkNotNull(dates).startTyped.take(MAX_ECHO), dates.endTyped.take(MAX_ECHO), edit.chosen,
                     startError = startError, endError = endError, alert = errorsAlert(listOfNotNull(startError, endError).size), withRegistrations = true,
                 )
                 datesPage(form, HttpStatus.UNPROCESSABLE_ENTITY)
@@ -174,7 +164,7 @@ class GatheringController(
     @GetMapping("/convivenza/{id:[0-9]{1,18}}/quote")
     fun feesForm(@PathVariable id: Long): ModelAndView {
         val fees = found(id).fees
-        val form = FeesForm(id, fees.fullCents.field(), fees.dailyCents.field(), fees.lunchOnlyCents.field(), null, null, null, null, feesNotice(id))
+        val form = FeesForm(id, fees.fullCents.field(), fees.dailyCents.field(), fees.lunchOnlyCents.field(), null, null, null, null, edits.feesNotice(id))
         return page("gathering/feesForm", "Modifica le quote", form)
     }
 
@@ -186,28 +176,22 @@ class GatheringController(
         @RequestParam(name = "lunchOnlyFee", defaultValue = "") lunchOnly: String,
         request: HttpServletRequest,
     ): ModelAndView {
-        val gathering = found(id)
-        val fullCheck = GatheringChecks.fee(full, required = gathering.state != GatheringState.DRAFT)
-        val dailyCheck = GatheringChecks.fee(daily)
-        val lunchCheck = GatheringChecks.fee(lunchOnly)
-        val errors = listOfNotNull(fullCheck.error, dailyCheck.error, lunchCheck.error).size
-        if (errors > 0) {
-            val form = FeesForm(
-                id, fullCheck.typed.take(MAX_ECHO), dailyCheck.typed.take(MAX_ECHO), lunchCheck.typed.take(MAX_ECHO),
-                fullCheck.error, dailyCheck.error, lunchCheck.error, errorsAlert(errors), feesNotice(id),
-            )
-            return page("gathering/feesForm", "Modifica le quote", form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (val result = gatherings.saveFees(id, Fees(fullCheck.cents, dailyCheck.cents, lunchCheck.cents), usage)) {
-            FeesResult.Saved -> savedAndBack(request, id, "Quote salvate.")
-            FeesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
-            is FeesResult.InUse -> {
-                // A fee that registrations use cannot be left empty (rule R2): the error says how many use it and what to write if it becomes free.
-                val daily = result.daily.takeIf { it > 0 }?.let(::inUse)
-                val lunch = result.lunchOnly.takeIf { it > 0 }?.let(::inUse)
+        found(id)
+        return when (val edit = edits.saveFees(id, full, daily, lunchOnly)) {
+            FeesEdit.Saved -> savedAndBack(request, id, "Quote salvate.")
+            FeesEdit.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            is FeesEdit.Invalid -> {
                 val form = FeesForm(
-                    id, fullCheck.typed.take(MAX_ECHO), dailyCheck.typed.take(MAX_ECHO), lunchCheck.typed.take(MAX_ECHO), null, daily, lunch,
-                    errorsAlert(listOfNotNull(daily, lunch).size), feesNotice(id),
+                    id, edit.full.typed.take(MAX_ECHO), edit.daily.typed.take(MAX_ECHO), edit.lunchOnly.typed.take(MAX_ECHO),
+                    edit.full.error, edit.daily.error, edit.lunchOnly.error, errorsAlert(edit.errors), edits.feesNotice(id),
+                )
+                page("gathering/feesForm", "Modifica le quote", form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+            is FeesEdit.InUse -> {
+                // A fee that registrations use cannot be left empty (rule R2): the error says how many use it and what to write if it becomes free.
+                val form = FeesForm(
+                    id, edit.full.typed.take(MAX_ECHO), edit.daily.typed.take(MAX_ECHO), edit.lunchOnly.typed.take(MAX_ECHO), null, edit.dailyError, edit.lunchOnlyError,
+                    errorsAlert(listOfNotNull(edit.dailyError, edit.lunchOnlyError).size), edits.feesNotice(id),
                 )
                 page("gathering/feesForm", "Modifica le quote", form, HttpStatus.UNPROCESSABLE_ENTITY)
             }
@@ -256,50 +240,20 @@ class GatheringController(
         request: HttpServletRequest,
     ): ModelAndView {
         found(id)
-        val (infoCheck, bringCheck) = withNames(GatheringChecks.info(info), GatheringChecks.whatToBring(whatToBring))
-        val errors = listOfNotNull(infoCheck.error, bringCheck.error).size
-        if (errors > 0) {
-            val form = InfoForm(id, infoCheck.value.take(MAX_ECHO_LONG), bringCheck.value.take(MAX_ECHO_LONG), infoCheck.error, bringCheck.error, errorsAlert(errors))
-            return page("gathering/infoForm", "Modifica le informazioni", form, HttpStatus.UNPROCESSABLE_ENTITY)
+        return when (val edit = edits.saveInfo(id, info, whatToBring)) {
+            InfoEdit.Saved -> savedAndBack(request, id, "Informazioni salvate.")
+            InfoEdit.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            is InfoEdit.Invalid -> {
+                val form = InfoForm(id, edit.info.value.take(MAX_ECHO_LONG), edit.whatToBring.value.take(MAX_ECHO_LONG), edit.info.error, edit.whatToBring.error, errorsAlert(edit.errors))
+                page("gathering/infoForm", "Modifica le informazioni", form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
         }
-        gatherings.saveInfo(id, infoCheck.value.ifEmpty { null }, bringCheck.value.ifEmpty { null })
-        return savedAndBack(request, id, "Informazioni salvate.")
     }
 
     // ---- Support -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * The texts of a form with the check of the names done (criteria 12-16): one question to the database for all the texts that still have to be asked about, which answers only
-     * yes or no for each; the words and the order of the errors are those of [GatheringChecks.withNames]. A text that is empty or too long is not asked about, and a form with no
-     * text to ask about does not ask.
-     */
-    private fun withNames(vararg checks: TextCheck): List<TextCheck> {
-        val asked = checks.filter { it.askForName }
-        val found = if (asked.isEmpty()) emptyList() else names.contain(asked.map { it.value })
-        return GatheringChecks.withNames(checks.toList(), found)
-    }
-
     /** The gathering, or the page «Pagina non trovata» (an id that does not exist). */
     private fun found(id: Long): Gathering = gatherings.find(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
-
-    /** The error of a fee that registrations use and that was left empty. */
-    private fun inUse(count: Int): String =
-        (if (count == 1) "La usa 1 iscrizione" else "La usano $count iscrizioni") + ": non puoi lasciarla vuota. Se diventa gratuita, scrivi 0."
-
-    /** What holds a day that the new dates would take away: the registrations that chose it, the presences marked on it, or both (one sentence). */
-    private fun holdsTheDay(use: DayInUse): String {
-        val registrations = when (use.registrations) {
-            0 -> null
-            1 -> "l’ha scelto 1 iscrizione"
-            else -> "l’hanno scelto ${use.registrations} iscrizioni"
-        }
-        val presences = when (use.presences) {
-            0 -> null
-            1 -> "c’è 1 presenza segnata"
-            else -> "ci sono ${use.presences} presenze segnate"
-        }
-        return listOfNotNull(registrations, presences).joinToString(" e ") + "."
-    }
 
     private fun hasRegistrations(id: Long): Boolean = usage.counts(id).active > 0
 
@@ -332,16 +286,6 @@ class GatheringController(
         )
     }
 
-    /** Rule R2: with registrations that are not withdrawn the form of the fees says how many are recalculated. */
-    private fun feesNotice(id: Long): String? {
-        val active = usage.counts(id).active
-        return when {
-            active == 0 -> null
-            active == 1 -> "Hai già 1 iscrizione: se cambi le quote, la sua quota dovuta si ricalcola. Quello che è già stato pagato non cambia."
-            else -> "Hai già $active iscrizioni: se cambi le quote, la quota dovuta di ognuna si ricalcola. Quello che è già stato pagato non cambia."
-        }
-    }
-
     private fun Int?.field(): String = this?.let(GatheringFormat::amountField).orEmpty()
 
     private fun lockedDates(gathering: Gathering): String? =
@@ -352,11 +296,7 @@ class GatheringController(
     private fun blocked(gathering: Gathering): NewPage = blocked(gathering.id, gathering.title, gathering.state)
 
     private fun blocked(id: Long, title: String, state: GatheringState): NewPage {
-        val text = if (state == GatheringState.DRAFT) {
-            "C’è già una convivenza in bozza: «$title». Puoi modificarla invece di crearne un’altra."
-        } else {
-            "C’è già una convivenza con le iscrizioni aperte: «$title». Chiudi le iscrizioni prima di crearne un’altra."
-        }
+        val text = GatheringEdits.blocked(title, state)
         return NewPage("", "", "", null, null, null, null, ExistingGathering("/convivenza/$id", text))
     }
 
@@ -387,8 +327,5 @@ class GatheringController(
     private companion object {
         const val MAX_ECHO = 1000
         const val MAX_ECHO_LONG = 10000
-
-        /** More than this is not an id: a choice of the venue that is longer is cut (and is not one). */
-        const val MAX_ID_TEXT = 40
     }
 }

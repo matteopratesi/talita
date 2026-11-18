@@ -32,3 +32,5 @@ lucide-static della stessa versione, e il suo nome qui sopra. Se si cambia versi
 si aggiornano versione, integrity e questo elenco.
 
 Il marchio (quadrato blu con la T) e favicon.svg non sono di Lucide: disegnati per Talità.
+
+Aggiunta da TALITA-21: bot (la scheda «Token per le API» del profilo).

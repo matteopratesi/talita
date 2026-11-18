@@ -210,9 +210,21 @@ Previste dal progetto, con il ticket in cui diventano vere:
   tocca solo sul server. Il repo è pubblico: una build fallisce se ci sono PDF, documenti Office o
   immagini fuori dai posti previsti, e su GitHub sono attivi secret scanning e push protection.
 
+## Le API di configurazione (TALITA-21)
+
+Le API REST di configurazione (`docs/06-api.md`) sono JSON su `/api/**`, per qualunque programma che abbia il **token personale di un maestro**. Cosa ne segue per i dati:
+
+- **Non danno e non ricevono dati personali.** Rispondono solo con dati di convivenza, struttura, camere e moduli, che `docs/02-modello-dati.md` dice senza dati personali; e scrivono solo quelli. Non c'è nessuna rotta per bambini, genitori, account, iscrizioni, segnalazioni, presenze, pagamenti, chi dorme dove, nomi e indirizzi dei maestri, inviti, registro delle letture, e nemmeno per il codice della pagina informativa (`/info/{codice}`), che protegge dove e quando ci saranno dei bambini. Gli affidatari si scelgono dall'app. Un test (`t21 c25`) riempie il database di dati sintetici di ogni tipo, chiama ogni rotta, errori compresi, e cerca i valori uno per uno nei corpi e nelle intestazioni.
+- **Un programma che le usa non è un fornitore** (sopra, «Fornitori che ricevono dati»): riceve solo configurazione: testi, date e quote che chiunque abbia il link legge già nella pagina informativa (titolo, informazioni, «cosa portare», nome e luogo della struttura) e dati che vedono solo i maestri (i nomi delle camere e dei moduli, che non sono dati personali: i controlli rifiutano i nomi di persone che l'app conosce). I testi li detta il maestro e hanno i controlli di sempre. Il token non è un dato personale e non lo vede nessun programma che non sia quello che il maestro ha scelto.
+- **Il token** vale quanto il maestro per la sola configurazione: **30 giorni**, uno per maestro, revocabile (anche con «Esci da tutti gli altri dispositivi»), e nel database c'è solo l'impronta SHA-256. Non apre mai nessun dato personale, quindi un token uscito per sbaglio permette di cambiare testi pubblici e quote, non di leggere i dati di nessuno. Lo limitano la scadenza, la revoca, il limite di 60 richieste al minuto per token e il registro delle ultime richieste, che mostra un uso che il maestro non riconosce.
+- **Il registro delle richieste** (`api_request`) ha momento, metodo, rotta come modello e codice: non dice quale token né quale maestro, e non ha corpo, indirizzo di rete né browser. Si tiene 30 giorni.
+- **Il controllo dei nomi risponde anche alle API** (decisione di Matteo, commento 11083): un testo con il nome e il cognome di una persona che l'app conosce (un bambino, un maestro) è rifiutato anche se arriva dalle API, e il rifiuto dice a chi l'ha mandato che l'app conosce quel nome. Lo sa però solo di un nome che gli ha dato chi scrive, senza dire chi è né dove; il limite di richieste rende lento un sondaggio a tappeto; e `docs/06-api.md` vieta di scrivere nomi di persone nei testi. L'alternativa, che le API non scrivano testi pubblici, è stata scartata.
+- **Il log** non ha il token, l'intestazione, i corpi, i testi né id di account: al più una riga al minuto, con il numero delle richieste rifiutate per un token non valido.
+- **Il token viaggia solo in HTTPS** in produzione (requisito 6 dei backup, sopra), e dopo un ripristino si cancellano tutti i token (requisito 7).
+
 ## Backup: requisiti per TALITA-8
 
-Un dato cancellato resta nei backup al più 30 giorni, cifrato e non usato; un ripristino riapplica le cancellazioni. Per questo TALITA-8 deve rispettare cinque requisiti:
+Un dato cancellato resta nei backup al più 30 giorni, cifrato e non usato; un ripristino riapplica le cancellazioni. Per questo TALITA-8 deve rispettare sette requisiti:
 
 1. **Backup logici** (`pg_dump`), cifrati prima di uscire dalla macchina. Niente copie della cartella dei dati né del WAL: conterrebbero righe cancellate.
 2. **Nessun backup più vecchio di 30 giorni**, in nessun posto, macchina compresa. La rotazione scelta (per esempio 7 giornalieri e 3 settimanali) si scrive qui.
@@ -220,6 +232,8 @@ Un dato cancellato resta nei backup al più 30 giorni, cifrato e non usato; un r
 4. **Ripristino dal backup più recente**: all'avvio il job riapplica le regole a tempo. Se il database di prima è ancora leggibile, prima di avviare l'app si copiano le sue righe del registro con `target_id` più recenti del
    backup e si portano le sequenze ai suoi valori (un id non si riusa): il job rifà le richieste. Se non è leggibile, la finestra scoperta va dall'ultimo backup al guasto (al massimo un giorno), e si scrive in `docs/05-decisioni.md`.
 5. **Il log del proxy senza query string** (TALITA-3).
+6. **Il proxy non serve `/api/**` in chiaro** (TALITA-21): il token dei maestri viaggia nell'intestazione `Authorization`, e un reindirizzamento da HTTP a HTTPS arriva tardi, quando l'intestazione è già partita. Su HTTP le API rispondono con un rifiuto o non rispondono. In sviluppo il token resta su `localhost`.
+7. **Dopo un ripristino si cancellano tutti i token delle API** (`delete from api_token;`, TALITA-21): un backup può riportare un token che era stato revocato, e il token si fa di nuovo dal profilo in un momento. **Le API restano irraggiungibili per tutto il ripristino** (il proxy chiude `/api/` finché dura) e **si riaprono solo dopo che il `delete` è stato confermato** (commit): un token riportato dal backup non deve mai poter essere usato, nemmeno per un momento.
 
 ## Carta
 
@@ -268,6 +282,8 @@ dal 17 al 19 settembre, è finita il 20; chi dorme dove va via il 20 settembre 2
 | Link di accesso, sessione, contatori | link usato subito, scaduto entro un'ora; il resto in memoria | TALITA-3 | la sessione: 2 ore senza uso, 12 ore al massimo (TALITA-15); il momento della conferma e la sfida stanno nella sessione |
 | Dispositivi collegati (`remembered_device`, TALITA-15) | **7 giorni (maestro) o 30 (genitore) dal giorno della casella**, col ruolo di adesso; il job cancella la riga quella notte (e svuota ogni notte l'ora dell'ultimo rientro con il cookie, che serve solo ai 60 secondi di margine); prima: «Esci» da quel browser, «Togli», «Esci da tutti gli altri dispositivi», cookie copiato, cancellazione dell'account (anche vuoto), rifacimento dopo un ripristino | job, persona | senza riga nel registro delle cancellazioni (come i numeri scaduti), con una riga di log con il numero; i giorni vengono da `RetentionPolicy` |
 | Passkey (`passkey`, TALITA-15) e `account.passkey_handle` | quando la persona le toglie; con l'account (richiesta, account vuoto dopo 30 giorni, rifacimento) | persona, job | `passkey_handle` si svuota anche quando la richiesta di cancellazione lascia l'account per le letture |
+| Token per le API (`api_token`, TALITA-21) | **fino al 30° giorno dopo quello di creazione** (un giorno di Roma, da `RetentionPolicy`); il job cancella la riga la notte dopo, senza riga nel registro delle cancellazioni; prima: «Revoca», un token nuovo, «Esci da tutti gli altri dispositivi», maestro tolto o account cancellato (cascata) | job, maestro | nel database c'è solo l'impronta SHA-256, mai il token; dopo un ripristino si cancellano tutti (requisito 7 dei backup) |
+| Registro delle richieste alle API (`api_request`, TALITA-21) | **30 giorni** dopo la richiesta; il job cancella le righe più vecchie, senza riga nel registro delle cancellazioni | job | nessun dato personale: momento, metodo, rotta come modello e codice |
 | Id nel registro delle cancellazioni | dopo **37 giorni** (rotazione dei backup più 7) | job | il resto del registro non ha dati personali e resta |
 | Backup | **entro 30 giorni** dalla cancellazione | TALITA-8 | requisiti sopra |
 | Carta: manleve firmate e registro stampato | un anno dopo la fine | titolare | il foglio per i maestri alla fine della convivenza (TALITA-6); l'elenco resta alla struttura |

@@ -11,6 +11,7 @@ import talita.checkin.CheckinFormat
 import talita.jooq.enums.RegistrationStatus
 import talita.jooq.tables.references.CHECKIN
 import talita.jooq.tables.references.REGISTRATION
+import talita.registration.Quota
 import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -322,10 +323,10 @@ class ArrivalWeekendQaE2eTest {
         assertEquals(listOf(x.friday, x.saturday, x.sunday), e2e.days(anna))
 
         // Luca is now Friday and Sunday: Saturday goes, and Sunday goes with it (Saturday would be its day before).
-        e2e.correctDays(x.luca, mapOf("fri" to "full", "sat" to "", "sun" to "full"))
+        e2e.correctDays(x.luca, mapOf(x.friday to "full", x.saturday to "", x.sunday to "full"))
         assertEquals(listOf(x.friday), e2e.days(x.luca))
         // Anna is now Friday and Saturday: Sunday goes, Saturday stays.
-        e2e.correctDays(anna, mapOf("fri" to "full", "sat" to "full", "sun" to ""))
+        e2e.correctDays(anna, mapOf(x.friday to "full", x.saturday to "full", x.sunday to ""))
         assertEquals(listOf(x.friday, x.saturday), e2e.days(anna))
 
         e2e.open("/arrivi/$anna")
@@ -338,12 +339,12 @@ class ArrivalWeekendQaE2eTest {
         page.looksRight(e2e, "card of a corrected registration")
     }
 
-    /** The correction of the days of [registration] as a teacher makes it: the form of the page of the registration, with «Alcuni giorni» and the kind of each day (empty: not that day). */
-    private fun E2e.correctDays(registration: Long, kinds: Map<String, String>) {
+    /** The correction of the days of [registration] as a teacher makes it: the form of the page of the registration, with «Alcuni giorni» and the kind of each day (empty: not that day). The fields are named after the real weekday of each date, which depends on the day the test runs. */
+    private fun E2e.correctDays(registration: Long, kinds: Map<LocalDate, String>) {
         open("/iscrizioni/$registration")
         press(page.locator("main").linkNamed("Correggi l’iscrizione"))
         page.locator("input[name='children[0].presence'][value='days']").check()
-        for ((key, kind) in kinds) page.locator("input[name='children[0].day.$key'][value='$kind']").check()
+        for ((day, kind) in kinds) page.locator("input[name='children[0].day.${Quota.key(day)}'][value='$kind']").check()
         press(page.locator("main").buttonNamed("Salva le correzioni"))
         assertThat(page.locator("[role=status]")).containsText("Iscrizione salvata.")
     }

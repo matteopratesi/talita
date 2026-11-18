@@ -44,6 +44,7 @@ class RetentionTexts(private val policy: RetentionPolicy) {
     val devicesTeacher: String get() = words(policy.devicesTeacher)
     val devicesTeacherNumber: String get() = policy.devicesTeacher.days.toString()
 
+    val apiTokens: String get() = words(policy.apiTokens)
     val registrations: String get() = words(policy.registrations)
     val invitations: String get() = words(policy.invitations)
     val emptyAccounts: String get() = words(policy.emptyAccounts)
@@ -126,6 +127,11 @@ class RetentionTexts(private val policy: RetentionPolicy) {
                 "Talità li cancella da sola, ogni notte, quando scadono. L’ora dell’ultimo rientro senza link si cancella la notte dopo.",
         ),
         TimeRow("Passkey", "Finché non le togli dal tuo profilo o non cancelli l’account. Se l’account si cancella da solo perché è vuoto, si cancellano con lui."),
+        TimeRow(
+            "Token dei maestri per le API",
+            "Un maestro può creare un token personale per far lavorare un programma sulla configurazione (strutture, camere, quote e testi della convivenza). Il token non apre mai i dati di bambini, " +
+                "genitori e maestri, vale $apiTokens e si cancella alla scadenza, con «Revoca» o quando il maestro lascia i maestri.",
+        ),
         TimeRow(
             "Dati dei maestri",
             "Nome, cognome e indirizzo email finché sono tra i maestri o finché non cancellano l’account. Un invito non accettato si cancella $invitations dopo la scadenza.",
