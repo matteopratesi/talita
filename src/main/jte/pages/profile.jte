@@ -47,6 +47,16 @@
       </section>
     @endif
 
+    @if(page.getToken() != null)
+      <section id="token" tabindex="-1" class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="token-titolo">
+        <h2 id="token-titolo" class="text-lg font-semibold">Token per le API</h2>
+        @template.profile.tokenBlock(block = page.getToken(), oob = false, csrf = csrf)
+        @if(page.getTokenLog() != null)
+          @template.profile.tokenLog(log = page.getTokenLog())
+        @endif
+      </section>
+    @endif
+
     @if(page.getNameForm() != null)
       <section class="rounded-2xl border border-line bg-surface p-4 lg:p-6" aria-labelledby="nome-titolo">
         <h2 id="nome-titolo" class="text-lg font-semibold">Il tuo nome</h2>

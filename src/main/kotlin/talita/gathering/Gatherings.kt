@@ -138,6 +138,9 @@ class Gatherings(private val dsl: DSLContext, private val clock: Clock, private 
     fun latestNotDraft(): Gathering? =
         dsl.selectFrom(GATHERING).where(GATHERING.STATUS.ne(GatheringStatus.draft)).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).limit(1).fetchOne()?.let(::gathering)
 
+    /** Every gathering, the most recent first (the APIs of configuration list them, TALITA-21). */
+    fun all(): List<Gathering> = dsl.selectFrom(GATHERING).orderBy(GATHERING.START_DATE.desc(), GATHERING.ID.desc()).fetch().map(::gathering)
+
     /** The closed gatherings, the most recent first. */
     fun closed(): List<Gathering> =
         dsl.selectFrom(GATHERING).where(GATHERING.STATUS.eq(GatheringStatus.closed))

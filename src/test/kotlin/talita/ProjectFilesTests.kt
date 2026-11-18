@@ -263,7 +263,7 @@ class ProjectFilesTests {
 
         assertEquals(actual, listed)
         assertEquals(
-            setOf("docs/01-contesto.md", "docs/02-modello-dati.md", "docs/03-privacy.md", "docs/04-ambiente.md", "docs/05-decisioni.md", "docs/design/README.md"),
+            setOf("docs/01-contesto.md", "docs/02-modello-dati.md", "docs/03-privacy.md", "docs/04-ambiente.md", "docs/05-decisioni.md", "docs/06-api.md", "docs/design/README.md"),
             actual,
         )
     }

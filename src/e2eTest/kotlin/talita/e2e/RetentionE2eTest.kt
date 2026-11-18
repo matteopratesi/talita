@@ -205,7 +205,7 @@ class RetentionE2eTest {
 
         e2e.open("/profilo")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Il tuo nome", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Token per le API", "Il tuo nome", "I tuoi dati"))
         assertThat(page.locator("main")).containsText("Qui puoi cancellare il tuo account.")
         assertThat(page.locator("main")).containsText("Cancelliamo il tuo indirizzo email e il tuo nome. Non sarai più tra i maestri")
         page.fits320(e2e.profile.isPhone)

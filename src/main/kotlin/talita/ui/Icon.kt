@@ -66,4 +66,7 @@ enum class Icon {
 
     /** The venues (TALITA-20): a house. */
     BUILDING_2,
+
+    /** The token for the APIs (TALITA-21): a small robot, a program. */
+    BOT,
 }

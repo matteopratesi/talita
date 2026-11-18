@@ -381,7 +381,7 @@ class ErasureE2eTest {
 
         e2e.open("/profilo")
 
-        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Il tuo nome", "Email da Talità", "I tuoi dati"))
+        assertThat(page.locator("main h2:visible")).hasText(arrayOf("Il tuo accesso", "Passkey", "Token per le API", "Il tuo nome", "Email da Talità", "I tuoi dati"))
         assertThat(page.locator("main").linkNamed("Cancella i dati di Giulia Blu")).isVisible()
         assertThat(page.locator("main")).not().containsText("Luca")
         // The dialog of the account has the words of both roles, and the child who is theirs.

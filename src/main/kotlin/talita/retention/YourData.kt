@@ -222,6 +222,8 @@ class YourDataPresenter(private val erasures: ErasureService, private val texts:
             if (plan.passkeys == 1) add("La passkey: resta nel telefono, ma non fa più entrare.")
             if (plan.passkeys > 1) add("Le passkey: restano nei telefoni, ma non fanno più entrare.")
             if (plan.isTeacher) add("Il tuo nome e cognome dall’elenco dei maestri: non gestirai più la convivenza né vedrai i bambini.")
+            // The token for the APIs goes with the teacher row (TALITA-21, criterion 5): it is said right after the line of the role, which is what makes it stop.
+            if (plan.isTeacher) add("Il token per le API, se ne hai uno: smette di funzionare.")
             if (plan.hasInvitations) add("Gli inviti mandati a questo indirizzo.")
             for (child in plan.children) {
                 if (child.childGoes) {

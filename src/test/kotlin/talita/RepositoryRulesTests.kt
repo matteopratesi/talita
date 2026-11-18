@@ -283,6 +283,26 @@ class RepositoryRulesTests {
         assertEquals(emptyList<String>(), forbiddenTrackedFiles(tracked))
     }
 
+    @Test
+    fun `t21 c27 no tracked file holds something that looks like a token for the APIs`() {
+        val tracked = trackedFiles()
+        assumeTrue(tracked != null, "not a git checkout: the tracked files cannot be listed")
+
+        val shape = Regex("talita_[A-Za-z0-9_-]{43}")
+        val binary = setOf("woff2", "woff", "jar", "png", "ico", "svg", "gif", "jpg", "jpeg", "webp")
+        val found = tracked!!.filter { Path.of(it).name.substringAfterLast('.', "").lowercase() !in binary && Files.isRegularFile(root.resolve(it)) }
+            .filter { shape.containsMatchIn(String(Files.readAllBytes(root.resolve(it)), Charsets.UTF_8)) }
+        assertEquals(emptyList<String>(), found, "a file holds `talita_` and 43 characters: a token that works, or one that looks like it")
+    }
+
+    @Test
+    fun `t21 c27 the shape of a token is found, and a short example of a mockup is not`() {
+        val shape = Regex("talita_[A-Za-z0-9_-]{43}")
+
+        assertTrue(shape.containsMatchIn("Authorization: Bearer talita_" + "A".repeat(43)))
+        assertFalse(shape.containsMatchIn("Authorization: Bearer talita_FINTO-solo-un-esempio"))
+    }
+
     private fun trackedFiles(): List<String>? = try {
         val process = ProcessBuilder("git", "ls-files", "-z").directory(root.toFile()).redirectErrorStream(false).start()
         val output = process.inputStream.readBytes().toString(Charsets.UTF_8)

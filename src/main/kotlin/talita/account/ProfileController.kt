@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.servlet.ModelAndView
+import talita.api.ApiTokenPresenter
+import talita.api.TokenBlock
+import talita.api.TokenLog
 import talita.reminder.EmailCard
 import talita.reminder.NoticePresenter
 import talita.retention.YourData
@@ -37,6 +40,9 @@ data class ProfilePage(
     val access: DevicesBlock? = null,
     /** The card «Passkey», or null when this site has none (there is no public address). */
     val passkeys: PasskeysBlock? = null,
+    /** The card «Token per le API» (TALITA-21), only for a teacher, and its register of the requests. */
+    val token: TokenBlock? = null,
+    val tokenLog: TokenLog? = null,
 )
 
 /**
@@ -52,6 +58,7 @@ class ProfileController(
     private val access: AccessPresenter,
     private val passkeyPresenter: PasskeyPresenter,
     private val confirmations: PasskeyConfirmations,
+    private val tokenPresenter: ApiTokenPresenter,
     /** The request of the thread: the profile is drawn from many controllers, and the devices ask which one the person is on. */
     private val request: HttpServletRequest,
 ) {
@@ -65,6 +72,8 @@ class ProfileController(
         alert: Alert?,
         status: HttpStatus,
         nameForm: NameForm? = account.teacher?.let { NameForm(it.first, it.last, null, null) },
+        /** The card «Token per le API» as an action drew it (the token that was just made, a 409): by default the one of now. */
+        token: TokenBlock? = null,
     ): ModelAndView =
         ModelAndView(
             "pages/profile",
@@ -79,6 +88,8 @@ class ProfileController(
                     emailCard = notices.card(account.id, full = true),
                     access = access.devices(account, request, AccessFlash.take(request, "dispositivi")),
                     passkeys = passkeyPresenter.block(account, AccessFlash.take(request, "passkey"), confirmations.needed(account, request.getSession(false))),
+                    token = if (account.isTeacher) token ?: tokenPresenter.block(account.id, confirmations.needed(account, request.getSession(false)), AccessFlash.take(request, "token")) else null,
+                    tokenLog = if (account.isTeacher) tokenPresenter.log() else null,
                 ),
             ),
         ).also { it.status = status }

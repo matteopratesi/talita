@@ -455,8 +455,10 @@
     const source = document.getElementById(button.getAttribute("data-copia"));
     const normal = button.querySelector("[data-copia-normale]");
     const done = button.querySelector("[data-copia-fatto]");
-    const status = document.querySelector("[data-copia-stato]");
-    const failure = document.querySelector("[data-copia-errore]");
+    // Where there is more than one thing to copy (the line of the token and the command that saves it) each has its own group (`data-copia-ambito`) with its own announcement and its own error.
+    const scope = button.closest("[data-copia-ambito]") || document;
+    const status = scope.querySelector("[data-copia-stato]");
+    const failure = scope.querySelector("[data-copia-errore]");
     if (!source || !navigator.clipboard) return;
     navigator.clipboard.writeText(source.textContent.trim()).then(
       () => {

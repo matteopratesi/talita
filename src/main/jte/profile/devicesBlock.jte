@@ -53,7 +53,7 @@
     <input type="hidden" name="${block.getExitOthers().getField()}" value="${block.getExitOthers().getValue()}">
     @template.components.button(label = "Esci da tutti gli altri dispositivi", busyLabel = "Uscita…", variant = "secondary", icon = Icon.LOG_OUT, opens = block.getExitOthers().getId())
   </form>
-  <p class="mt-3 text-sm text-ink-muted">Chiude Talità su tutti gli altri telefoni e computer, anche dove non hai scelto «Ricordami su questo telefono». Questo resta dentro.</p>
+  <p class="mt-3 text-sm text-ink-muted">Chiude Talità su tutti gli altri telefoni e computer, anche dove non hai scelto «Ricordami su questo telefono». Questo resta dentro.@if(block.getWithToken()) Revoca anche il token per le API.@endif</p>
 
   @for(DeviceLine line : block.getLines())
     @if(line.getRemoval() != null)
@@ -62,3 +62,7 @@
   @endfor
   @template.components.confirmDialog(dialog = block.getExitOthers(), csrf = csrf)
 </div>
+@if(block.getTokenOob() != null)
+  <%-- The token that «Esci da tutti gli altri dispositivi» took away (TALITA-21): its card comes out of order, with a notice that does not take the focus. --%>
+  @template.profile.tokenBlock(block = block.getTokenOob(), oob = true, csrf = csrf)
+@endif

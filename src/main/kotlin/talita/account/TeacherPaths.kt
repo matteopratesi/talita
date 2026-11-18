@@ -16,9 +16,11 @@ import org.springframework.web.util.pattern.PathPatternParser
  */
 object TeacherPaths {
 
-    /** `/profilo/nome` is the correction of their name that a teacher makes in the profile (a POST): the profile itself is for everyone. */
+    /** `/profilo/nome` is the correction of their name that a teacher makes in the profile (a POST), and `/profilo/token` and what is under it the token for the APIs (TALITA-21): the profile itself is for everyone. */
     val patterns: List<String> = listOf(
         "/convivenza/**", "/arrivi/**", "/maestri/**", "/strutture/**", "/profilo/nome",
+        // The token for the APIs of configuration (TALITA-21): make it, take it away, the block again and the pages that stand in for the dialogs. The profile itself is for everyone.
+        "/profilo/token/**",
         // The registrations of the teachers (TALITA-5). `/iscrizioni` itself is open to every account (the controller gives the list of the teachers to
         // a teacher and the cards to a parent), and so are `/iscrizioni/{id}/modifica`, `/segnalazioni`, `/segnalazioni/togli` and `/ritira`, which a
         // parent uses (a teacher withdraws any registration from the last one).
