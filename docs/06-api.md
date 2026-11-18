@@ -16,7 +16,7 @@ Ogni richiesta porta l'intestazione `Authorization: Bearer <token>`. Il token si
 
 Un token che manca, ha un'altra forma, non esiste, è revocato, è scaduto o è di chi non è più maestro riceve **sempre la stessa risposta**: `401`, `WWW-Authenticate: Bearer` e `{"error":"Token mancante o non valido."}`.
 
-Ogni risposta, errori compresi, è JSON (`Content-Type: application/json`) con `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`. Mai una pagina HTML, nemmeno per una rotta che non esiste. Le date sono `2027-09-17`; gli importi sono testi come nel form: `"12,50"`, `"0"` (gratuita) o `null` (non prevista).
+Ogni risposta **che produce Talità**, errori compresi, è JSON (`Content-Type: application/json`) con `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`, nemmeno una pagina HTML per una rotta che non esiste. Fanno eccezione gli errori del contenitore (sotto, «Gli errori»): **si guarda sempre il `Content-Type` prima di leggere un corpo**. Un corpo `application/x-www-form-urlencoded` è un `415` subito, prima ancora del controllo del token. Le date sono `2027-09-17`; gli importi sono testi come nel form: `"12,50"`, `"0"` (gratuita) o `null` (non prevista).
 
 ## Gli errori
 
@@ -35,9 +35,9 @@ Il corpo di un errore è `{"error": "frase"}`, e con `422` anche `{"fields": {"c
 | `429` | più di 60 richieste al minuto con lo stesso token; `Retry-After` dice quanti secondi aspettare |
 | `500` | un errore di Talità: «Qualcosa non ha funzionato.», senza dettagli |
 
-Ogni scrittura è una transazione: **una richiesta rifiutata (`4xx`) lascia la configurazione com'era**. Il registro delle richieste del profilo scrive comunque una riga per ogni richiesta con un token valido, rifiutata o no. **Un `500` non promette niente**: la scrittura può essere già avvenuta e la risposta (che si costruisce dopo) essere fallita; prima di ripetere una `POST` si fa un `GET` per vedere com'è.
+Ogni scrittura è una transazione: **una richiesta rifiutata (`4xx`) lascia la configurazione com'era**. Il registro delle richieste del profilo **non è un conto completo**: scrive una riga per le richieste con un token valido, rifiutate o no, ma dopo il primo `429` del minuto salta le altre, e se la scrittura della riga fallisce la risposta non cambia. **Un `500` non promette niente**: la scrittura può essere già avvenuta e la risposta (che si costruisce dopo) essere fallita; prima di ripetere una `POST` si fa un `GET` per vedere com'è.
 
-Gli errori che dà **Talità** sono sempre JSON. Quelli che il contenitore dà prima che la richiesta arrivi all'app (un `%` scritto male come `%ZZ`, `%00`, una `/` codificata come `%2f`) sono una pagina HTML con `400`: **prima di leggere il corpo di un errore si guarda il `Content-Type`**.
+Gli errori che dà **Talità** sono JSON. Quelli che il contenitore dà prima che la richiesta arrivi all'app (un `%` scritto male come `%ZZ`, un `%00`, una `/` codificata come `%2f`) sono una pagina HTML con `400`: **prima di leggere il corpo di un errore si guarda il `Content-Type`**.
 
 ## Le regole per chi le usa
 
