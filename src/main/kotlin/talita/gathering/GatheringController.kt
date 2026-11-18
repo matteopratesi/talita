@@ -137,6 +137,8 @@ class GatheringController(
                 page("gathering/changeVenue", "Cambiare la struttura?", page)
             }
             DatesResult.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            // Turned into `DatesEdit.Closed` by GatheringEdits: it does not get here.
+            DatesResult.DatesClosed -> error("closed dates are answered by GatheringEdits")
             DatesResult.VenueNotFound -> {
                 // A venue that is not there any more (the page was old) or never was: the field says so, and the choices are those of now.
                 val form = datesForm(

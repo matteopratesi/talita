@@ -113,6 +113,7 @@ class GatheringEdits(
         val invalid = DatesEdit.Invalid(titleCheck, dates, venueError, chosen)
         if (invalid.errors > 0) return invalid
         val result = gatherings.saveDates(id, titleCheck.value, dates?.start, dates?.end, chosenId, usage, arrivals, assignments, confirmed)
+        if (result == DatesResult.DatesClosed) return DatesEdit.Closed(titleCheck, chosen)
         return DatesEdit.Done(titleCheck, dates, chosen, chosenId, result)
     }
 
@@ -128,6 +129,7 @@ class GatheringEdits(
         return when (val result = gatherings.saveFees(id, Fees(fullCheck.cents, dailyCheck.cents, lunchCheck.cents), usage)) {
             FeesResult.Saved -> FeesEdit.Saved
             FeesResult.NotFound -> FeesEdit.NotFound
+            FeesResult.FullFeeMissing -> FeesEdit.Invalid(fullCheck.copy(error = GatheringChecks.FULL_FEE_MISSING), dailyCheck, lunchCheck)
             is FeesResult.InUse -> FeesEdit.InUse(fullCheck, dailyCheck, lunchCheck, result.daily.takeIf { it > 0 }?.let(::inUse), result.lunchOnly.takeIf { it > 0 }?.let(::inUse))
         }
     }
