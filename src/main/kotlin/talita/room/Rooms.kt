@@ -147,6 +147,9 @@ sealed interface RemoveResult {
     /** It was gone already (another teacher took it away a moment before): the same answer, never an error. */
     data object AlreadyGone : RemoveResult
 
+    /** Not taken away: [people] sleep in it, in the gatherings that are not over, and the one who asked did not want people left without a room (the APIs, which never take the dialog of confirmation). */
+    data class HasPeople(val people: Int) : RemoveResult
+
     data object NotFound : RemoveResult
 }
 
@@ -318,9 +321,10 @@ class Rooms(
 
     /**
      * Takes the room away; the people in it are without a room (the keys of the tables cascade), in every gathering. [RemoveResult.Removed] says how many they were in the gatherings that are not over (the
-     * number that the dialog said, or more, if somebody was put in meanwhile: the room is locked for update first, and a choice of a room locks it for sharing).
+     * number that the dialog said, or more, if somebody was put in meanwhile: the room is locked for update first, and a choice of a room locks it for sharing). With [refusePeople] a room where
+     * somebody sleeps is not taken away ([RemoveResult.HasPeople]), and nothing changes.
      */
-    fun remove(venueId: Long, roomId: Long): RemoveResult = dsl.transactionResult { configuration ->
+    fun remove(venueId: Long, roomId: Long, refusePeople: Boolean = false): RemoveResult = dsl.transactionResult { configuration ->
         val tx = DSL.using(configuration)
         val row = tx.select(ROOM.NAME).from(ROOM).where(ROOM.ID.eq(roomId)).and(ROOM.VENUE_ID.eq(venueId)).forUpdate().fetchOne()
             ?: return@transactionResult if (wasHere(tx, roomId)) RemoveResult.AlreadyGone else RemoveResult.NotFound
@@ -328,6 +332,8 @@ class Rooms(
         val children = tx.select(ROOM_CHILD.GATHERING_ID).from(ROOM_CHILD).join(GATHERING).on(GATHERING.ID.eq(ROOM_CHILD.GATHERING_ID)).join(REGISTRATION).on(REGISTRATION.ID.eq(ROOM_CHILD.REGISTRATION_ID))
             .where(ROOM_CHILD.ROOM_ID.eq(roomId)).and(REGISTRATION.STATUS.ne(RegistrationStatus.withdrawn)).and(notOver).fetch(ROOM_CHILD.GATHERING_ID)
         val teachers = tx.select(ROOM_TEACHER.GATHERING_ID).from(ROOM_TEACHER).join(GATHERING).on(GATHERING.ID.eq(ROOM_TEACHER.GATHERING_ID)).where(ROOM_TEACHER.ROOM_ID.eq(roomId)).and(notOver).fetch(ROOM_TEACHER.GATHERING_ID)
+        // The count is made under the lock of the room, in the transaction that deletes it: nobody is put in it between the count and the `DELETE`.
+        if (refusePeople && children.size + teachers.size > 0) return@transactionResult RemoveResult.HasPeople(children.size + teachers.size)
         tx.deleteFrom(ROOM).where(ROOM.ID.eq(roomId)).execute()
         RemoveResult.Removed(row[ROOM.NAME]!!, children.size + teachers.size, (children + teachers).toSet().size)
     }

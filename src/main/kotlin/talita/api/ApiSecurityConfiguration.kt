@@ -130,7 +130,7 @@ internal class ApiTokenFilter(
     private fun record(request: HttpServletRequest, response: HttpServletResponse) {
         try {
             // An address that no route of the APIs took (the handler of the static files has `/**`) is the same line for every one of them.
-            val route = (request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String)?.takeIf { it.startsWith("/api/") } ?: ApiRequests.UNKNOWN_ROUTE
+            val route = (request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String)?.takeIf { it.startsWith("/api/") }?.let(ApiRequests::model) ?: ApiRequests.UNKNOWN_ROUTE
             requests.add(request.method, route, response.status)
         } catch (e: Exception) {
             log.warn("API: a request could not be written in the register ({}).", e.javaClass.simpleName)

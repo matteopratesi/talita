@@ -222,6 +222,7 @@ object ApiBody {
         return when (parameter.type.classifier) {
             String::class -> if (node.isString) node.stringValue() else throw wrong
             Int::class -> if (node.isIntegralNumber && node.canConvertToInt()) node.intValue() else throw wrong
+            Long::class -> if (node.isIntegralNumber && node.canConvertToLong()) node.longValue() else throw wrong
             Boolean::class -> if (node.isBoolean) node.booleanValue() else throw wrong
             else -> throw IllegalStateException("type of the field $name is not supported")
         }

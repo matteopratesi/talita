@@ -59,6 +59,82 @@ L'elenco delle convivenze, dalla più recente. Risposta: una lista (vuota se non
 
 L'elenco delle strutture per nome. Risposta: una lista di oggetti con `id`, `name`, `place`, `gatherings` (da quante convivenze è usata, mai quali), `rooms`, `beds` e `forms`. Niente persone.
 
+### GET /api/strutture/{id}
+
+Una struttura con le sue camere e i suoi moduli. Risposta: `id`, `name`, `place`, `gatherings`, `rooms` (una lista di `id`, `name`, `beds`), `forms` (una lista di `id`, `name` e le quattro scelte `withAge`, `withDays`, `withTeacherDocument`, `withTeacherTaxCode`) e `notice` (sempre `null` in una lettura). `404` se non c'è.
+
+### POST /api/strutture
+
+Una struttura nuova. `201` con la struttura come nel `GET`. Un campo che manca è un campo vuoto: `422` con la frase del form («Scrivi il nome della struttura.»).
+
+**Campi**
+
+- `name`: da 1 a 60 caratteri, su una riga, senza email, telefoni, IBAN né nome e cognome di una persona che l'app conosce; unico fra le strutture (maiuscole e spazi ai lati non contano).
+- `place`: da 1 a 200 caratteri, con gli stessi controlli. È il luogo che i genitori leggono.
+
+### PUT /api/strutture/{id}
+
+Cambia nome e luogo. **Va scritto tutto**: un campo che manca è un `400`. `200` con la struttura; se una convivenza la usa, `notice` ha la frase del form («Nome e luogo nuovi sono già nella pagina per i genitori. Le iscrizioni già fatte restano con il testo di allora.»). `404` se non c'è, `422` per i campi.
+
+**Campi**
+
+- `name`: come nel `POST`.
+- `place`: come nel `POST`.
+
+### DELETE /api/strutture/{id}
+
+Toglie una struttura che nessuna convivenza usa, con le sue camere e i suoi moduli. `200` con `message` («Struttura tolta.»). Una struttura usata non si toglie: `409` («Non è stato tolto niente. Questa struttura è usata da 1 convivenza.») e non cambia niente.
+
+### POST /api/strutture/{id}/camere
+
+Una camera nuova della struttura. `201` con `id`, `name` e `beds`. Un campo che manca è un campo vuoto: `422` con la frase del form. Una `POST` ripetuta trova il nome già usato (`422`) e non fa doppioni.
+
+**Campi**
+
+- `name`: il nome della camera nella casa («Camera 3»), mai chi ci dorme: le parole sul sesso delle persone sono rifiutate. Fino a 50 caratteri, unico nella struttura.
+- `beds`: i posti letto, **un numero intero** da 1 a 50 (un testo è un `400`).
+
+### PUT /api/strutture/{id}/camere/{camera}
+
+Cambia nome e posti di una camera. **Va scritto tutto.** `200` con la camera. `404` se la struttura o la camera non ci sono, o la camera è di un'altra struttura.
+
+**Campi**
+
+- `name`: come nel `POST`.
+- `beds`: come nel `POST`.
+
+### DELETE /api/strutture/{id}/camere/{camera}
+
+Toglie una camera in cui non dorme nessuno. `200` con `message` («Camera tolta.»); una camera già tolta risponde come l'app, `200` con «La camera era già stata tolta.». **Se ci dorme qualcuno, in qualunque convivenza non finita, è un `409`** («Ci dormono 3 persone: togli la camera dall’app, che chiede la conferma.») e non cambia niente: il conto si fa nella transazione che toglie la camera. Una camera di un'altra struttura è un `404`.
+
+### POST /api/strutture/{id}/moduli
+
+Un modulo nuovo della struttura (un documento che la struttura chiede, che l'app stampa da Arrivi). `201` con `id`, `name` e le quattro scelte. **Le scelte che non scrivi sono `false`.** Un campo `name` che manca è vuoto: `422`.
+
+**Campi**
+
+- `name`: il nome del documento, non di una persona: da 1 a 60 caratteri, con i controlli dei testi pubblici (una persona che l'app conosce è rifiutata con la frase «scrivi solo il nome del documento»); unico nella struttura.
+- `withAge`: la colonna «età al primo giorno» per i bambini (`true` o `false`).
+- `withDays`: una colonna per ogni giorno di presenza.
+- `withTeacherDocument`: il campo del documento d'identità dei maestri (sul foglio, non nell'app).
+- `withTeacherTaxCode`: il campo del codice fiscale dei maestri (sul foglio, non nell'app).
+
+### PUT /api/strutture/{id}/moduli/{modulo}
+
+Cambia nome e scelte di un modulo. **Vanno scritti tutti e cinque i campi.** `200` con il modulo. `404` se la struttura o il modulo non ci sono, o il modulo è di un'altra struttura.
+
+**Campi**
+
+- `name`: come nel `POST`.
+- `withAge`: come nel `POST`.
+- `withDays`: come nel `POST`.
+- `withTeacherDocument`: come nel `POST`.
+- `withTeacherTaxCode`: come nel `POST`.
+
+### DELETE /api/strutture/{id}/moduli/{modulo}
+
+Toglie un modulo. `200` con `message` («Modulo tolto.»); un modulo già tolto risponde `200` con «Il modulo era già stato tolto.».
+
 ## Come le usa Claude Code dal PC di Matteo
 
 Claude Code chiama le API con `curl`, una modifica alla volta, quando Matteo gli chiede una cosa come «aggiungi questa camera» o «la quota ora è 0 per ogni bambino». Legge il token con `curl -H @"$HOME/.config/talita/dev.header"`, **senza mai aprire quel file**, e l'indirizzo da `~/.config/talita/dev.url`. L'ambiente è `dev` finché Matteo non dice «in produzione». Fa un `GET` prima di ogni `PUT`, non scrive nomi di persone nei testi, e dopo ogni modifica riferisce cosa ha cambiato. Sono le regole di sopra: valgono per lui come per chiunque.

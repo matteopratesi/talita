@@ -42,6 +42,9 @@ class ApiRequests(private val dsl: DSLContext, private val clock: Clock) {
         /** The route of a request that no handler took (an address that does not exist): the register has a line all the same. */
         const val UNKNOWN_ROUTE = "/api/{altro}"
 
+        /** The route of a handler as a model: without the pattern that limits the number (`{id:[0-9]{1,18}}` is `{id}`). */
+        fun model(pattern: String): String = pattern.replace(":[0-9]{1,18}", "")
+
         /** The last fixed segment of a route as a model: `/api/strutture/{id}/camere/{camera}` is «camere». What the profile shows. */
         fun label(route: String): String =
             if (route == UNKNOWN_ROUTE) "altro" else route.split('/').lastOrNull { it.isNotEmpty() && !it.startsWith("{") } ?: "api"

@@ -32,7 +32,7 @@ class ApiDocsTests(
             val patterns = info.pathPatternsCondition?.patternValues.orEmpty().filter { it.startsWith("/api/") }
             if (patterns.isEmpty()) continue
             val fields = handler.method.getAnnotation(ApiRequest::class.java)?.type?.primaryConstructor?.parameters?.map { it.name!! }?.toSet()
-            for (method in info.methodsCondition.methods) for (pattern in patterns) put("${method.name} $pattern", fields)
+            for (method in info.methodsCondition.methods) for (pattern in patterns) put("${method.name} ${ApiRequests.model(pattern)}", fields)
         }
     }
 

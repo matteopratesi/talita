@@ -439,6 +439,17 @@ class ApiTokenTests(
     }
 
     @Test
+    fun `t21 c12 a route with a number is written as a model, never as the address that was asked for`() {
+        val t = kit.teacher()
+
+        kit.get("/api/strutture/987654321", t.token)
+
+        assertEquals(listOf(Triple("GET", "/api/strutture/{id}", 404)), kit.register())
+        assertEquals("strutture", ApiRequests.label("/api/strutture/{id}"))
+        assertEquals("camere", ApiRequests.label("/api/strutture/{id}/camere/{camera}"))
+    }
+
+    @Test
     fun `t21 c12 the table of the register has the moment, the method, the route and the code and nothing else, and the table of the tokens the hash and the day`() {
         val columns = { table: String ->
             dsl.resultQuery("select column_name from information_schema.columns where table_name = ? order by ordinal_position", table).fetch(0, String::class.java)

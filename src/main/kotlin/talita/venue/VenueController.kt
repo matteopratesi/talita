@@ -10,9 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.ModelAndView
 import talita.account.seeOther
-import talita.gathering.GatheringChecks
 import talita.gathering.GatheringReader
-import talita.gathering.PublicNames
 import talita.room.Rooms
 import talita.ui.Alert
 import talita.ui.AlertVariant.DANGER
@@ -37,7 +35,7 @@ class VenueController(
     private val shells: ShellFactory,
     private val venues: Venues,
     private val presenter: VenuePresenter,
-    private val names: PublicNames,
+    private val edits: VenueEdits,
     private val gatherings: GatheringReader,
     private val rooms: Rooms,
     private val forms: VenueForms,
@@ -67,23 +65,18 @@ class VenueController(
         @RequestParam(name = "name", defaultValue = "") name: String,
         @RequestParam(name = "place", defaultValue = "") place: String,
         request: HttpServletRequest,
-    ): ModelAndView {
-        val (nameCheck, placeCheck) = GatheringChecks.withNames(names, VenueChecks.name(name), VenueChecks.place(place))
-        val errors = listOfNotNull(nameCheck.error, placeCheck.error).size
-        if (errors > 0) {
-            val form = presenter.newForm(nameCheck.value.take(MAX_ECHO), placeCheck.value.take(MAX_ECHO), nameCheck.error, placeCheck.error, errorsAlert(errors))
-            return page("venue/form", VenueTexts.NEW_TITLE, form, HttpStatus.UNPROCESSABLE_ENTITY)
+    ): ModelAndView = when (val result = edits.create(name, place)) {
+        is VenueEdit.Invalid -> {
+            val form = presenter.newForm(result.name.value.take(MAX_ECHO), result.place.value.take(MAX_ECHO), result.name.error, result.place.error, errorsAlert(result.errors))
+            page("venue/form", VenueTexts.NEW_TITLE, form, HttpStatus.UNPROCESSABLE_ENTITY)
         }
-        return when (val result = venues.create(nameCheck.value, placeCheck.value)) {
-            is VenueSave.Saved -> {
-                // How to use it, with the way to the gathering: the venue is chosen there.
-                val toGathering = gatherings.current()?.let { "/convivenza/${it.id}" } ?: "/convivenza"
-                Flash.put(request, Alert(SUCCESS, VenueTexts.howToUse(result.venue.name), lead = VenueTexts.SAVED, actionLabel = "Vai alla convivenza", actionHref = toGathering))
-                seeOther("/strutture/${result.venue.id}")
-            }
-            VenueSave.NameTaken -> page("venue/form", VenueTexts.NEW_TITLE, presenter.newForm(nameCheck.value, placeCheck.value, VenueChecks.NAME_TAKEN, null, null), HttpStatus.UNPROCESSABLE_ENTITY)
-            VenueSave.NotFound -> notFound()
+        is VenueEdit.Saved -> {
+            // How to use it, with the way to the gathering: the venue is chosen there.
+            val toGathering = gatherings.current()?.let { "/convivenza/${it.id}" } ?: "/convivenza"
+            Flash.put(request, Alert(SUCCESS, VenueTexts.howToUse(result.venue.name), lead = VenueTexts.SAVED, actionLabel = "Vai alla convivenza", actionHref = toGathering))
+            seeOther("/strutture/${result.venue.id}")
         }
+        VenueEdit.NotFound -> notFound()
     }
 
     // ---- A venue -------------------------------------------------------------------------------------------------------------
@@ -108,23 +101,17 @@ class VenueController(
         request: HttpServletRequest,
     ): ModelAndView {
         val venue = found(id)
-        val (nameCheck, placeCheck) = GatheringChecks.withNames(names, VenueChecks.name(name), VenueChecks.place(place))
-        val errors = listOfNotNull(nameCheck.error, placeCheck.error).size
-        if (errors > 0) {
-            val form = presenter.changeForm(venue, venues.usage(id), nameCheck.value.take(MAX_ECHO), placeCheck.value.take(MAX_ECHO), nameCheck.error, placeCheck.error, errorsAlert(errors))
-            return page("venue/form", VenueTexts.CHANGE_TITLE, form, HttpStatus.UNPROCESSABLE_ENTITY)
-        }
-        return when (val result = venues.update(id, nameCheck.value, placeCheck.value)) {
-            is VenueSave.Saved -> {
+        return when (val result = edits.update(id, name, place)) {
+            is VenueEdit.Invalid -> {
+                val form = presenter.changeForm(venue, venues.usage(id), result.name.value.take(MAX_ECHO), result.place.value.take(MAX_ECHO), result.name.error, result.place.error, errorsAlert(result.errors))
+                page("venue/form", VenueTexts.CHANGE_TITLE, form, HttpStatus.UNPROCESSABLE_ENTITY)
+            }
+            is VenueEdit.Saved -> {
                 // A venue that a gathering uses: what the parents read has changed, and the notice says so (and that the registrations already made keep the text of that time).
                 Flash.put(request, if (result.gatherings > 0) Alert(SUCCESS, VenueTexts.SAVED_USED, lead = VenueTexts.SAVED) else Alert(SUCCESS, VenueTexts.SAVED))
                 seeOther("/strutture/$id")
             }
-            VenueSave.NameTaken -> {
-                val form = presenter.changeForm(venue, venues.usage(id), nameCheck.value, placeCheck.value, VenueChecks.NAME_TAKEN, null, null)
-                page("venue/form", VenueTexts.CHANGE_TITLE, form, HttpStatus.UNPROCESSABLE_ENTITY)
-            }
-            VenueSave.NotFound -> notFound()
+            VenueEdit.NotFound -> notFound()
         }
     }
 
@@ -142,7 +129,7 @@ class VenueController(
     @PostMapping("/strutture/{id:[0-9]{1,18}}/togli")
     fun remove(@PathVariable id: Long, request: HttpServletRequest): ModelAndView {
         found(id)
-        return when (val result = venues.remove(id)) {
+        return when (val result = edits.remove(id)) {
             is VenueRemoval.Removed -> {
                 Flash.put(request, Alert(SUCCESS, VenueTexts.REMOVED))
                 seeOther("/strutture")
