@@ -184,6 +184,12 @@ object VenueChangeTexts {
         }
     }
 
+    /** What the APIs say (TALITA-21, criterion 18): they never confirm, and the change is made from the app, which asks. «Nelle camere di «Casa del bosco» ci sono 5 persone: cambia la struttura dall’app, che chiede la conferma.» */
+    fun apiLeave(people: Int, from: String?): String {
+        val house = from?.let { "di «$it»" } ?: "della struttura"
+        return "Nelle camere $house " + (if (people == 1) "c’è 1 persona" else "ci sono $people persone") + ": cambia la struttura dall’app, che chiede la conferma."
+    }
+
     /** «Per i genitori nome e luogo diventano «Casa sul lago» e «Casa per ritiri sul lago, Località Esempio».» */
     fun parents(name: String, place: String): String = "Per i genitori nome e luogo diventano «$name» e «$place»."
 

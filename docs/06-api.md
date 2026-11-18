@@ -55,6 +55,52 @@ Un `GET` risponde `200`. Le risposte che cambiano qualcosa hanno `200` (o `201` 
 
 L'elenco delle convivenze, dalla più recente. Risposta: una lista (vuota se non ce n'è nessuna) di oggetti con `id`, `title`, `startDate`, `endDate`, `state` (`draft`, `open`, `closed`), `over` (finita: non è una bozza e l'ultimo giorno è passato) e `venueId` (o `null`). Niente affidatari, codice pubblico né conteggi.
 
+### GET /api/convivenza/{id}
+
+Una convivenza. Risposta: `id`, `title`, `startDate`, `endDate`, `state`, `over`, `venue` (`id`, `name`, `place`, oppure `null`), le tre quote come nel form (`fullFee`, `dailyFee`, `lunchOnlyFee`: `"12,50"`, `"0"` o `null`), `infoText`, `whatToBring` (testi o `null`), `missing` (le frasi di «Prima di aprire le iscrizioni», solo per una bozza: cosa manca) e `notice` (`null` in una lettura). **Solo questi campi**: niente affidatari, codice della pagina pubblica, conteggi delle iscrizioni né menù. `404` se non c'è.
+
+### POST /api/convivenza
+
+Una bozza nuova. `201` con la convivenza come nel `GET`. Un campo che manca è un campo vuoto: `422` con la frase del form. **Se c'è già una convivenza in bozza o con le iscrizioni aperte è un `409`** con la frase di «Nuova convivenza» («C’è già una convivenza in bozza: «…». Puoi modificarla invece di crearne un’altra.») e non nasce niente: l'altra si chiude dall'app. Una `POST` ripetuta trova la bozza che c'è.
+
+**Campi**
+
+- `title`: da 1 a 100 caratteri, su una riga, senza email, telefoni, IBAN né nome e cognome di una persona che l'app conosce.
+- `startDate`: il primo giorno, `2027-09-17`, da oggi in poi.
+- `endDate`: l'ultimo giorno, non prima del primo e al massimo 7 giorni dopo.
+
+### PUT /api/convivenza/{id}/date
+
+Titolo, date e struttura. **Va scritto tutto**: anche `venue`, che è `null` per una bozza che non ha ancora la struttura. Valgono le regole del form: fuori dalla bozza la struttura non si può lasciare vuota; un giorno che una iscrizione usa, o in cui c'è una presenza segnata, non si toglie (`422` con la frase del form per il primo o l'ultimo giorno); **le date di una convivenza finita non cambiano** (`409`: «Le date non si cambiano più, perché la convivenza è finita.»). **Se la struttura cambia e nelle camere di quella di prima dorme qualcuno** è un `409` («Nelle camere di «Casa del bosco» ci sono 5 persone: cambia la struttura dall’app, che chiede la conferma.») e non cambia niente: le API non confermano mai. `200` con la convivenza.
+
+**Campi**
+
+- `title`: come nel `POST`.
+- `startDate`: come nel `POST`; una data che è quella di prima può essere passata.
+- `endDate`: come nel `POST`.
+- `venue`: il numero (`id`) della struttura, un intero, oppure `null`.
+
+### PUT /api/convivenza/{id}/quote
+
+Le tre quote, che si **sostituiscono** tutte e tre. Per cambiarne una («la quota ora è 0») si fa un `GET` e poi un `PUT` con quella cambiata e le altre due com'erano. **Va scritto tutto.** `200` con la convivenza e, se ci sono iscrizioni non ritirate, `notice` con la frase del form («Hai già 3 iscrizioni: la quota dovuta di ognuna si ricalcola. Quello che è già stato pagato non cambia.»). Una quota che una iscrizione usa non si lascia vuota: `422` con la frase del form («La usa 1 iscrizione: non puoi lasciarla vuota. Se diventa gratuita, scrivi 0.»).
+
+**Campi**
+
+- `fullFee`: la quota intera; obbligatoria fuori dalla bozza («0» è gratuita, vuota è «non prevista» solo in una bozza).
+- `dailyFee`: la quota per giorno, o vuota (o `null`) se non è prevista.
+- `lunchOnlyFee`: la quota del solo pranzo, o vuota (o `null`) se non è prevista.
+
+Un importo si scrive `60` o `12,50` (o `12.5`), fino a 1000 €.
+
+### PUT /api/convivenza/{id}/informazioni
+
+Il testo delle informazioni e «cosa portare». **Va scritto tutto**; vuoto o `null` toglie il testo. `200` con la convivenza.
+
+**Campi**
+
+- `infoText`: le informazioni per i genitori, fino a 5000 caratteri, con i controlli dei testi pubblici.
+- `whatToBring`: cosa portare, fino a 2000 caratteri, con gli stessi controlli.
+
 ### GET /api/strutture
 
 L'elenco delle strutture per nome. Risposta: una lista di oggetti con `id`, `name`, `place`, `gatherings` (da quante convivenze è usata, mai quali), `rooms`, `beds` e `forms`. Niente persone.

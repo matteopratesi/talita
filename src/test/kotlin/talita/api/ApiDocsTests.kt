@@ -85,4 +85,30 @@ class ApiDocsTests(
         assertFalse(before.contains("Claude"), "the document is for any client")
         assertTrue(doc.contains("qualunque client"))
     }
+
+    private fun read(path: String): String = Files.readString(Path.of(path))
+
+    @Test
+    fun `t21 c28 the documents of the project say what the ticket adds`() {
+        val data = read("docs/02-modello-dati.md")
+        for (part in listOf("Token per le API (`api_token`, `V16__api_tokens.sql`)", "**SHA-256 del token**", "far usare le API di configurazione a un programma sul computer del maestro", "Registro delle richieste alle API (`api_request`, `V16__api_tokens.sql`)", "**nessun dato personale**", "non dice quale token né quale maestro")) {
+            assertTrue(data.contains(part), "docs/02 does not say: $part")
+        }
+        val privacy = read("docs/03-privacy.md")
+        for (part in listOf(
+            "## Le API di configurazione (TALITA-21)", "**Non danno e non ricevono dati personali.**", "**Un programma che le usa non è un fornitore**", "**Il controllo dei nomi risponde anche alle API**", "`/info/{codice}`",
+            "**Il proxy non serve `/api/**` in chiaro**", "`delete from api_token;`", "deve rispettare sette requisiti", "| Token per le API (`api_token`, TALITA-21) |", "| Registro delle richieste alle API (`api_request`, TALITA-21) |",
+        )) {
+            assertTrue(privacy.contains(part), "docs/03 does not say: $part")
+        }
+        val environment = read("docs/04-ambiente.md")
+        for (part in listOf("## Le API di configurazione e il token", "`~/.config/talita/`", "`dev.header`", "`dev.url`", "`prod.header`", "`prod.url`", "umask 077", "curl -sS -H @", "`deny`", "«Revoca»")) {
+            assertTrue(environment.contains(part), "docs/04 does not say: $part")
+        }
+        assertTrue(read("docs/05-decisioni.md").contains("## 2026-11-18: scelte di TALITA-21"))
+        assertTrue(read("CLAUDE.md").contains("`docs/06-api.md`"))
+        assertTrue(read("docs/design/README.md").contains("### 4.27 Token per le API (TALITA-21)"))
+        // The APIs are for any client: the name of the tool is not in the notice, the data model, the privacy document or the guide of the design.
+        for (path in listOf("docs/02-modello-dati.md", "docs/03-privacy.md", "docs/design/README.md")) assertFalse(read(path).contains("Claude"), "$path names a tool")
+    }
 }
