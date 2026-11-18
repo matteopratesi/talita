@@ -173,22 +173,31 @@ class ApiReviewTests(
         val email = Addresses.unique("maestro-due-schede")
         val id = TestAccounts.makeTeacher(dsl, email)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
-        val gate = java.util.concurrent.CountDownLatch(1)
+        try {
+            val gate = java.util.concurrent.CountDownLatch(1)
 
-        val results = (1..2).map { pool.submit<ApiTokens.Created> { gate.await(); tokens.createUnlessThere(id) } }
-        gate.countDown()
-        val outcomes = results.map { it.get() }
-        pool.shutdown()
+            val results = (1..2).map { pool.submit<ApiTokens.Created> { gate.await(); tokens.createUnlessThere(id) } }
+            gate.countDown()
+            val outcomes = results.map {
+                try {
+                    it.get(10, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (e: java.util.concurrent.TimeoutException) {
+                    throw AssertionError("a request for the first token did not finish in 10 seconds: a lock that is not let go?", e)
+                }
+            }
 
-        assertEquals(1, outcomes.count { it is ApiTokens.Created.Made })
-        assertEquals(1, outcomes.count { it == ApiTokens.Created.Exists })
-        assertEquals(1, dsl.fetchCount(API_TOKEN, API_TOKEN.ACCOUNT_ID.eq(id)))
-        // An expired token is replaced by a card that showed none; one that works is replaced only by the dialog (`create`).
-        dsl.update(API_TOKEN).set(API_TOKEN.CREATED_ON, LocalDate.now(clock).minusDays(40)).where(API_TOKEN.ACCOUNT_ID.eq(id)).execute()
-        assertTrue(tokens.createUnlessThere(id) is ApiTokens.Created.Made)
-        assertTrue(tokens.createUnlessThere(id) == ApiTokens.Created.Exists)
-        assertNotNull(tokens.create(id))
-        dsl.execute("delete from teacher where account_id = ?", id)
-        dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(id)).execute()
+            assertEquals(1, outcomes.count { it is ApiTokens.Created.Made })
+            assertEquals(1, outcomes.count { it == ApiTokens.Created.Exists })
+            assertEquals(1, dsl.fetchCount(API_TOKEN, API_TOKEN.ACCOUNT_ID.eq(id)))
+            // An expired token is replaced by a card that showed none; one that works is replaced only by the dialog (`create`).
+            dsl.update(API_TOKEN).set(API_TOKEN.CREATED_ON, LocalDate.now(clock).minusDays(40)).where(API_TOKEN.ACCOUNT_ID.eq(id)).execute()
+            assertTrue(tokens.createUnlessThere(id) is ApiTokens.Created.Made)
+            assertTrue(tokens.createUnlessThere(id) == ApiTokens.Created.Exists)
+            assertNotNull(tokens.create(id))
+        } finally {
+            pool.shutdownNow()
+            dsl.execute("delete from teacher where account_id = ?", id)
+            dsl.deleteFrom(ACCOUNT).where(ACCOUNT.ID.eq(id)).execute()
+        }
     }
 }

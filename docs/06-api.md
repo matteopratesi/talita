@@ -30,12 +30,12 @@ Il corpo di un errore è `{"error": "frase"}`, e con `422` anche `{"fields": {"c
 | `405` | il metodo non è quello della rotta |
 | `409` | lo stato non lo permette (una struttura usata che si toglie, una camera in cui dorme qualcuno, la bozza che c'è già, le date di una convivenza finita) |
 | `413` | il corpo supera 64 KB |
-| `415` | il corpo non è `application/json` |
+| `415` | il corpo non è `application/json`; un corpo form-encoded ha il `415` **prima** del controllo del token, anche senza token e senza essere letto |
 | `422` | campi sbagliati, con le frasi dei form |
 | `429` | più di 60 richieste al minuto con lo stesso token; `Retry-After` dice quanti secondi aspettare |
 | `500` | un errore di Talità: «Qualcosa non ha funzionato.», senza dettagli |
 
-Ogni scrittura è una transazione: **una richiesta rifiutata (`4xx`) lascia la configurazione com'era**. Il registro delle richieste del profilo **non è un conto completo**: scrive una riga per le richieste con un token valido, rifiutate o no, ma dopo il primo `429` del minuto salta le altre, e se la scrittura della riga fallisce la risposta non cambia. **Un `500` non promette niente**: la scrittura può essere già avvenuta e la risposta (che si costruisce dopo) essere fallita; prima di ripetere una `POST` si fa un `GET` per vedere com'è.
+Ogni scrittura è una transazione: **una richiesta rifiutata (`4xx`) lascia la configurazione com'era**. Il registro delle richieste del profilo **non è un conto completo**: scrive una riga per le richieste con un token valido, rifiutate o no, ma dopo il primo `429` del minuto salta le altre, un corpo `application/x-www-form-urlencoded` (che ha il `415` prima del controllo del token, quindi non arriva né al limite né al registro) non c'è, e se la scrittura della riga fallisce la risposta non cambia. **Un `500` non promette niente**: la scrittura può essere già avvenuta e la risposta (che si costruisce dopo) essere fallita; prima di ripetere una `POST` si fa un `GET` per vedere com'è.
 
 Gli errori che dà **Talità** sono JSON. Quelli che il contenitore dà prima che la richiesta arrivi all'app (un `%` scritto male come `%ZZ`, un `%00`, una `/` codificata come `%2f`) sono una pagina HTML con `400`: **prima di leggere il corpo di un errore si guarda il `Content-Type`**.
 

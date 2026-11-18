@@ -1332,3 +1332,7 @@ API REST di configurazione con il token personale di un maestro. Un branch e una
 - **`docs/06-api.md`** dice che il registro non è un conto completo (salta i `429` dopo il primo del minuto, e una scrittura del registro che fallisce non cambia la risposta) e che «sempre JSON» vale per quello che produce Talità, con il `Content-Type` da guardare per gli errori del contenitore.
 - **La scansione dei token legge il contenuto dell'indice** (`git ls-files -s`, poi `git cat-file --batch`): un token nell'area di staging e tolto dalla copia di lavoro, o un file in staging cancellato dalla copia, si trova. I sottomoduli (modo 160000) non hanno un blob e si saltano apposta; un collegamento simbolico (120000) è un blob con la destinazione dentro e si legge come gli altri.
 
+**Terza review di CodeRabbit (TALITA-21)**
+
+- **Il `415` per un form non passa dal limite né dal registro**: `ApiFormBodyGuard` risponde prima del controllo del token, senza leggere il corpo. Una risposta che non costa niente (non legge, non scrive, non cerca il token) non ha bisogno del limite delle richieste; il registro non ne ha una riga perché non sa a quale token appartiene. È scritto in `docs/06-api.md`, nell'elenco di ciò che il registro non ha e nella riga del `415`. Il test della creazione contemporanea ora ha un'attesa a tempo, chiude il pool e pulisce l'account in un `finally`.
+
