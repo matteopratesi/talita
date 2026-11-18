@@ -13,25 +13,31 @@ import java.util.concurrent.ConcurrentHashMap
 @Component
 class ApiRateLimit(private val clock: Clock) {
 
-    private class Window(val start: Instant, var count: Int)
+    private class Window(val start: Instant, var count: Int, var refused: Boolean = false)
 
     private val windows = ConcurrentHashMap<Long, Window>()
 
-    /** Counts a request of [tokenId]. Returns null if it may go on, or how many seconds to wait (at least one) if the minute is full. */
-    fun take(tokenId: Long): Long? {
+    /** A refused request: how many seconds to wait (rounded up, at least one) and whether it is the first refusal of this minute (only that one goes in the register). */
+    class Refusal(val seconds: Long, val first: Boolean)
+
+    /** Counts a request of [tokenId]. Returns null if it may go on, or the [Refusal] if the minute is full. */
+    fun take(tokenId: Long): Refusal? {
         val now = clock.instant()
         if (windows.size > CLEAN_ABOVE) windows.entries.removeIf { !it.value.start.plus(WINDOW).isAfter(now) }
-        var wait: Long? = null
+        var refusal: Refusal? = null
         windows.compute(tokenId) { _, current ->
             val window = if (current == null || !current.start.plus(WINDOW).isAfter(now)) Window(now, 0) else current
             if (window.count >= LIMIT) {
-                wait = Duration.between(now, window.start.plus(WINDOW)).seconds.coerceAtLeast(1)
+                val left = Duration.between(now, window.start.plus(WINDOW))
+                val seconds = (left.seconds + if (left.nano > 0) 1 else 0).coerceAtLeast(1)
+                refusal = Refusal(seconds, !window.refused)
+                window.refused = true
             } else {
                 window.count++
             }
             window
         }
-        return wait
+        return refusal
     }
 
     companion object {

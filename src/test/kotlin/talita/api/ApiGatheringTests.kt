@@ -438,7 +438,7 @@ class ApiGatheringTests(
         calls += kit.post("/api/strutture/$venue/moduli", token, json("name" to "Registro Nicolò Ferri"))
         // A route for every route of the APIs: each one is called at least once.
         val routes = mapping.handlerMethods.keys.flatMap { info -> info.pathPatternsCondition!!.patternValues.filter { it.startsWith("/api/") } }.toSet()
-        assertEquals(setOf("/api/convivenza", "/api/convivenza/{id:[0-9]{1,18}}", "/api/convivenza/{id:[0-9]{1,18}}/date", "/api/convivenza/{id:[0-9]{1,18}}/quote", "/api/convivenza/{id:[0-9]{1,18}}/informazioni", "/api/strutture", "/api/strutture/{id:[0-9]{1,18}}", "/api/strutture/{id:[0-9]{1,18}}/camere", "/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[0-9]{1,18}}", "/api/strutture/{id:[0-9]{1,18}}/moduli", "/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[0-9]{1,18}}"), routes)
+        assertEquals(setOf("/api/convivenza", "/api/convivenza/{id:[0-9]{1,18}}", "/api/convivenza/{id:[0-9]{1,18}}/date", "/api/convivenza/{id:[0-9]{1,18}}/quote", "/api/convivenza/{id:[0-9]{1,18}}/informazioni", "/api/strutture", "/api/strutture/{id:[0-9]{1,18}}", "/api/strutture/{id:[0-9]{1,18}}/camere", "/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[1-9][0-9]{0,17}}", "/api/strutture/{id:[0-9]{1,18}}/moduli", "/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[1-9][0-9]{0,17}}"), routes)
         calls += kit.put("/api/strutture/$venue/camere/$room", token, json("name" to "Camera 1", "beds" to 4))
         calls += kit.put("/api/strutture/$venue/moduli/999999", token, json("name" to "x", "withAge" to true, "withDays" to true, "withTeacherDocument" to true, "withTeacherTaxCode" to true))
         calls += kit.post("/api/convivenza", token, json("title" to "Luca Rossi", "startDate" to "", "endDate" to ""))

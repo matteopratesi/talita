@@ -62,8 +62,8 @@ class VenueApi(
     private fun notFound(): Nothing = throw ApiProblem(404, "Non c’è questa struttura.")
 
     /** The venue with what hangs from it. [notice] only for the answer of a write. */
-    private fun detail(venue: Venue, notice: String? = null): VenueDetail = VenueDetail(
-        venue.id, venue.name, venue.place, venues.usage(venue.id), rooms.rooms(venue.id).map(::room), forms.ofVenue(venue.id).map(::form), notice,
+    private fun detail(venue: Venue, notice: String? = null, used: Int = venues.usage(venue.id)): VenueDetail = VenueDetail(
+        venue.id, venue.name, venue.place, used, rooms.rooms(venue.id).map(::room), forms.ofVenue(venue.id).map(::form), notice,
     )
 
     private fun room(room: Room) = RoomItem(room.id, room.name, room.beds)
@@ -94,7 +94,7 @@ class VenueApi(
         venues.byId(id) ?: notFound()
         return when (val result = edits.update(id, body.name, body.place)) {
             // A venue that a gathering uses: what the parents read has changed, and the registrations already made keep the text of that time (the sentence of the form).
-            is VenueEdit.Saved -> detail(result.venue, if (result.gatherings > 0) VenueTexts.SAVED_USED else null)
+            is VenueEdit.Saved -> detail(result.venue, if (result.gatherings > 0) VenueTexts.SAVED_USED else null, result.gatherings)
             is VenueEdit.Invalid -> throw invalid(result)
             VenueEdit.NotFound -> notFound()
         }

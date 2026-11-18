@@ -289,7 +289,7 @@ class RepositoryRulesTests {
         assumeTrue(tracked != null, "not a git checkout: the tracked files cannot be listed")
 
         val shape = Regex("talita_[A-Za-z0-9_-]{43}")
-        val binary = setOf("woff2", "woff", "jar", "png", "ico", "svg", "gif", "jpg", "jpeg", "webp")
+        val binary = setOf("woff2", "woff", "jar", "png", "ico", "gif", "jpg", "jpeg", "webp")
         val found = tracked!!.filter { Path.of(it).name.substringAfterLast('.', "").lowercase() !in binary && Files.isRegularFile(root.resolve(it)) }
             .filter { shape.containsMatchIn(String(Files.readAllBytes(root.resolve(it)), Charsets.UTF_8)) }
         assertEquals(emptyList<String>(), found, "a file holds `talita_` and 43 characters: a token that works, or one that looks like it")

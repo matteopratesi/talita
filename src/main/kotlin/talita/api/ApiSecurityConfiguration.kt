@@ -130,17 +130,23 @@ internal class ApiTokenFilter(
         }
         // The teacher of the token, for this request only: the chain is without a session, and the holder is emptied at the end of the request.
         SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext().also { it.authentication = UsernamePasswordAuthenticationToken(principal, null, listOf(SimpleGrantedAuthority("ROLE_TEACHER"))) })
+        var skipRegister = false
         try {
-            val wait = limit.take(principal.tokenId)
-            if (wait != null) {
-                ApiErrors.write(response, 429, ApiTexts.tooMany(wait), headers = mapOf("Retry-After" to wait.toString()))
+            val refusal = limit.take(principal.tokenId)
+            if (refusal != null) {
+                // Only the first refusal of a minute is written in the register: a flood of 429 must not fill it, nor push the real requests out of the card.
+                skipRegister = !refusal.first
+                ApiErrors.write(response, 429, ApiTexts.tooMany(refusal.seconds), headers = mapOf("Retry-After" to refusal.seconds.toString()))
+            } else if (request.contentType?.lowercase()?.startsWith("multipart/") == true) {
+                // A multipart body is read by the resolver of Spring before the counter of the bytes: the APIs take only JSON.
+                ApiErrors.write(response, 415, ApiTexts.NOT_JSON)
             } else if (request.contentLengthLong > LimitedRequest.MAX_BYTES) {
                 ApiErrors.write(response, 413, ApiTexts.TOO_LARGE)
             } else {
                 chain.doFilter(LimitedRequest(request, LimitedRequest.MAX_BYTES), response)
             }
         } finally {
-            record(request, response)
+            if (!skipRegister) record(request, response)
         }
     }
 

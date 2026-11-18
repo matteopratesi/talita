@@ -36,10 +36,12 @@ class ApiDocsTests(
         }
     }
 
-    private val headings = Regex("""(?m)^### (GET|POST|PUT|DELETE) (/api/\S+)\s*$""")
+    private val headings = Regex("""(?m)^### ([A-Z]+) (/api/\S+)\s*$""")
 
     private fun documented(): Map<String, String> {
         val found = headings.findAll(doc).toList()
+        val keys = found.map { "${it.groupValues[1]} ${it.groupValues[2]}" }
+        assertEquals(keys.distinct(), keys, "a route has more than one section in docs/06-api.md")
         return found.mapIndexed { index, match ->
             val end = if (index + 1 < found.size) found[index + 1].range.first else doc.length
             val section = doc.substring(match.range.last, end).substringBefore("\n## ")

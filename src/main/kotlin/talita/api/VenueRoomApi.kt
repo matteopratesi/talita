@@ -29,10 +29,10 @@ data class RoomRequest(val name: String? = null, val beds: Int? = null)
 /** The body of `POST` and `PUT` of a form of a venue: its name and the four choices (a choice that is not written is `false` in a `POST`; a `PUT` writes all of them). */
 data class FormRequest(
     val name: String? = null,
-    val withAge: Boolean? = null,
-    val withDays: Boolean? = null,
-    val withTeacherDocument: Boolean? = null,
-    val withTeacherTaxCode: Boolean? = null,
+    val withAge: Boolean = false,
+    val withDays: Boolean = false,
+    val withTeacherDocument: Boolean = false,
+    val withTeacherTaxCode: Boolean = false,
 )
 
 /**
@@ -66,7 +66,7 @@ class VenueRoomApi(private val venues: Venues, private val rooms: Rooms, private
     }
 
     @ApiRequest(RoomRequest::class)
-    @PutMapping("/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[0-9]{1,18}}", consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
+    @PutMapping("/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[1-9][0-9]{0,17}}", consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
     fun change(@PathVariable id: Long, @PathVariable camera: Long, @RequestBody raw: ByteArray): RoomItem {
         val body = ApiBody.read(raw, RoomRequest::class, required = setOf("name", "beds"))
         venues.byId(id) ?: venueNotFound()
@@ -78,7 +78,7 @@ class VenueRoomApi(private val venues: Venues, private val rooms: Rooms, private
         }
     }
 
-    @DeleteMapping("/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[0-9]{1,18}}", produces = [MediaType.APPLICATION_JSON_VALUE])
+    @DeleteMapping("/api/strutture/{id:[0-9]{1,18}}/camere/{camera:[1-9][0-9]{0,17}}", produces = [MediaType.APPLICATION_JSON_VALUE])
     fun remove(@PathVariable id: Long, @PathVariable camera: Long): RemovedAnswer {
         venues.byId(id) ?: venueNotFound()
         return when (val result = edits.remove(id, camera, refusePeople = true)) {
@@ -102,7 +102,7 @@ class VenueFormApi(private val venues: Venues, private val forms: ArrivalForms, 
     private fun item(form: VenueFormRef) = FormItem(form.id, form.name, form.age, form.days, form.teacherDocument, form.teacherTaxCode)
 
     /** The choices of a `POST` (the ones not written are `false`) or of a `PUT` (all written: [ApiBody] has refused it if one was missing). */
-    private fun choices(body: FormRequest) = FormColumns(body.withAge == true, body.withDays == true, body.withTeacherDocument == true, body.withTeacherTaxCode == true)
+    private fun choices(body: FormRequest) = FormColumns(body.withAge, body.withDays, body.withTeacherDocument, body.withTeacherTaxCode)
 
     private fun invalid(result: FormEdit.Invalid) = ApiProblem(422, ApiTexts.INVALID, mapOf("name" to checkNotNull(result.name.error)))
 
@@ -119,7 +119,7 @@ class VenueFormApi(private val venues: Venues, private val forms: ArrivalForms, 
     }
 
     @ApiRequest(FormRequest::class)
-    @PutMapping("/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[0-9]{1,18}}", consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
+    @PutMapping("/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[1-9][0-9]{0,17}}", consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
     fun change(@PathVariable id: Long, @PathVariable modulo: Long, @RequestBody raw: ByteArray): FormItem {
         val body = ApiBody.read(raw, FormRequest::class, required = setOf("name", "withAge", "withDays", "withTeacherDocument", "withTeacherTaxCode"))
         venues.byId(id) ?: venueNotFound()
@@ -131,7 +131,7 @@ class VenueFormApi(private val venues: Venues, private val forms: ArrivalForms, 
         }
     }
 
-    @DeleteMapping("/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[0-9]{1,18}}", produces = [MediaType.APPLICATION_JSON_VALUE])
+    @DeleteMapping("/api/strutture/{id:[0-9]{1,18}}/moduli/{modulo:[1-9][0-9]{0,17}}", produces = [MediaType.APPLICATION_JSON_VALUE])
     fun remove(@PathVariable id: Long, @PathVariable modulo: Long): RemovedAnswer {
         venues.byId(id) ?: venueNotFound()
         return when (edits.remove(id, modulo)) {

@@ -117,7 +117,7 @@ class ApiTokenTests(
         assertEquals("no-store", answer.response.getHeader("Cache-Control"))
         assertTrue(html.contains("""hx-history="false""""))
         assertTrue(text(html).contains("Token creato. Copialo adesso: dopo questa schermata non si vede più."))
-        assertTrue(html.contains("umask 077; mkdir -p ~/.config/talita &amp;&amp; cat &gt; ~/.config/talita/dev.header") || html.contains("umask 077; mkdir -p ~/.config/talita && cat > ~/.config/talita/dev.header"), "the command has no token and names the file of the configuration")
+        assertTrue(html.contains("umask 077; mkdir -p ~/.config/talita &amp;&amp; rm -f ~/.config/talita/dev.header &amp;&amp; cat &gt; ~/.config/talita/dev.header") || html.contains("umask 077; mkdir -p ~/.config/talita && rm -f ~/.config/talita/dev.header && cat > ~/.config/talita/dev.header"), "the command has no token and names the file of the configuration")
         assertFalse(html.substringAfter("token-comando").substringBefore("</p>").contains("talita_"), "the command does not hold the token")
         // The value is in a text to select: never in an attribute or an address.
         assertFalse(Regex("""(href|value|data-[a-z-]+|action|hx-[a-z-]+)="[^"]*$value""").containsMatchIn(html))
@@ -397,7 +397,7 @@ class ApiTokenTests(
         assertEquals(200, kit.get("/api/convivenza", other.token).response.status)
         assertEquals(429, kit.get("/api/convivenza", t.token).response.status)
         // The refusals of the limit are in the register too, as requests that a valid token made.
-        assertEquals(2, kit.register().count { it.third == 429 })
+        assertEquals(1, kit.register().count { it.third == 429 }, "only the first refusal of the minute is written")
     }
 
     // ---- The log and the register (criteria 11, 12) -----------------------------------------------------------------------------------

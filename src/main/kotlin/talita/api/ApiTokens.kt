@@ -60,13 +60,14 @@ class ApiTokens(private val dsl: DSLContext, private val clock: Clock, private v
         // The row of the teacher is locked: two taps together leave one token and the second one replaces the first.
         tx.select(TEACHER.ACCOUNT_ID).from(TEACHER).where(TEACHER.ACCOUNT_ID.eq(accountId)).forUpdate().fetchOne() ?: return@transactionResult null
         tx.deleteFrom(API_TOKEN).where(API_TOKEN.ACCOUNT_ID.eq(accountId)).execute()
+        val day = today()
         val value = PREFIX + base64.encodeToString(ByteArray(BYTES).also(random::nextBytes))
         val id = tx.insertInto(API_TOKEN)
             .set(API_TOKEN.ACCOUNT_ID, accountId)
             .set(API_TOKEN.TOKEN_HASH, hash(value))
-            .set(API_TOKEN.CREATED_ON, today())
+            .set(API_TOKEN.CREATED_ON, day)
             .returning(API_TOKEN.ID).fetchSingle().id!!
-        NewApiToken(ApiTokenRow(id, accountId, today()), value)
+        NewApiToken(ApiTokenRow(id, accountId, day), value)
     }
 
     /** Takes away the token [id] **of [accountId]**: a number that is not theirs, or that is gone (a double tap, two pages), takes away nothing and says so. */

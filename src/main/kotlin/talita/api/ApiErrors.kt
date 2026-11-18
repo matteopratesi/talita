@@ -55,11 +55,14 @@ object ApiTexts {
 /** Writes an error in JSON, the same way from everywhere: the filter, the advice and the 401 (which must be the same bytes whatever was wrong with the token). */
 object ApiErrors {
 
-    internal val json: JsonMapper = JsonMapper.builder().build()
+    internal val json: JsonMapper = JsonMapper.builder().enable(tools.jackson.databind.DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY).build()
 
     fun write(response: HttpServletResponse, status: Int, message: String, fields: Map<String, String>? = null, headers: Map<String, String> = emptyMap()) {
         if (response.isCommitted) return
+        // A 405 says which methods the route has (Spring sets it before `sendError`): it survives the reset.
+        val allow = response.getHeader("Allow")
         response.reset()
+        if (allow != null) response.setHeader("Allow", allow)
         response.status = status
         response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.setHeader("Cache-Control", "no-store")

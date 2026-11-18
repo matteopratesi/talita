@@ -129,6 +129,10 @@ class GatheringApi(
     fun saveDates(@PathVariable id: Long, @RequestBody raw: ByteArray): GatheringDetail {
         val body = ApiBody.read(raw, DatesRequest::class, required = setOf("title", "startDate", "endDate", "venue"))
         services.find(id) ?: notFound()
+        // The API writes both dates (a form of a gathering that is over has no field for them; the API has): a `null` is not a date.
+        if (body.startDate == null || body.endDate == null) {
+            throw ApiProblem(422, ApiTexts.INVALID, fields("startDate" to GatheringChecks.START_MISSING.takeIf { body.startDate == null }, "endDate" to GatheringChecks.END_MISSING.takeIf { body.endDate == null }))
+        }
         // The APIs never confirm a change of venue that takes people out of their rooms: no number of people, so the answer is a 409 that says how many.
         val edit = edits.saveDates(id, body.title.orEmpty(), body.startDate, body.endDate, body.venue?.toString().orEmpty(), "")
         return when (edit) {
@@ -140,6 +144,7 @@ class GatheringApi(
             is DatesEdit.Done -> when (val result = edit.result) {
                 DatesResult.Saved, is DatesResult.VenueChanged -> fresh(id)
                 DatesResult.NotFound -> notFound()
+                DatesResult.DatesClosed -> throw ApiProblem(409, GatheringChecks.DATES_CLOSED)
                 DatesResult.VenueNotFound -> throw ApiProblem(422, ApiTexts.INVALID, fields("venue" to GatheringChecks.VENUE_MISSING))
                 is DatesResult.PeopleInRooms -> throw ApiProblem(409, VenueChangeTexts.apiLeave(result.people, result.from))
                 is DatesResult.DaysInUse -> {

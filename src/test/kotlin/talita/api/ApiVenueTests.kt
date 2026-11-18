@@ -231,8 +231,10 @@ class ApiVenueTests(
         assertEquals(404, kit.put("/api/strutture/999999999", t.token, json("name" to "x", "place" to "y")).response.status)
 
         // Taken away with its rooms and forms.
-        kit.post("/api/strutture/$id/camere", t.token, json("name" to "Camera 1", "beds" to 4))
-        kit.post("/api/strutture/$id/moduli", t.token, json("name" to "Registro"))
+        assertEquals(201, kit.post("/api/strutture/$id/camere", t.token, json("name" to "Camera 1", "beds" to 4)).response.status)
+        assertEquals(201, kit.post("/api/strutture/$id/moduli", t.token, json("name" to "Registro")).response.status)
+        assertEquals(1, dsl.fetchCount(ROOM, ROOM.VENUE_ID.eq(id)))
+        assertEquals(1, dsl.fetchCount(VENUE_FORM, VENUE_FORM.VENUE_ID.eq(id)))
         val removed = kit.delete("/api/strutture/$id", t.token)
         assertEquals(200, removed.response.status)
         assertEquals("Struttura tolta.", kit.tree(removed).get("message").stringValue())

@@ -77,7 +77,7 @@ sealed interface RoomEdit {
 
 /** The one place that writes a room of a venue (TALITA-21): the checks of `RoomChecks` and the write of [Rooms], for the pages and for the APIs. */
 @Component
-class VenueRoomEdits(private val rooms: Rooms) {
+class VenueRoomEdits(private val rooms: Rooms, private val names: PublicNames) {
 
     private fun saved(name: NameCheck, beds: BedsCheck, result: SaveResult): RoomEdit = when (result) {
         is SaveResult.Saved -> RoomEdit.Saved(result.room)
@@ -85,15 +85,22 @@ class VenueRoomEdits(private val rooms: Rooms) {
         SaveResult.NotFound -> RoomEdit.NotFound
     }
 
+    /** The name of a room as the checks of the room say it, and then the question about the names of people: a room is named after the house, never after a person that the application knows (TALITA-21). */
+    private fun checkedName(raw: String?): NameCheck {
+        val name = RoomChecks.name(raw.orEmpty())
+        if (name.error != null || name.value.isEmpty()) return name
+        return if (names.contain(listOf(name.value)).single()) name.copy(error = NAME_IS_A_PERSON) else name
+    }
+
     fun create(venueId: Long, rawName: String?, rawBeds: String?): RoomEdit {
-        val name = RoomChecks.name(rawName.orEmpty())
+        val name = checkedName(rawName)
         val beds = RoomChecks.beds(rawBeds.orEmpty())
         if (name.error != null || beds.error != null) return RoomEdit.Invalid(name, beds)
         return saved(name, beds, rooms.create(venueId, name.value, beds.beds!!))
     }
 
     fun update(venueId: Long, roomId: Long, rawName: String?, rawBeds: String?): RoomEdit {
-        val name = RoomChecks.name(rawName.orEmpty())
+        val name = checkedName(rawName)
         val beds = RoomChecks.beds(rawBeds.orEmpty())
         if (name.error != null || beds.error != null) return RoomEdit.Invalid(name, beds)
         return saved(name, beds, rooms.update(venueId, roomId, name.value, beds.beds!!))
@@ -101,6 +108,10 @@ class VenueRoomEdits(private val rooms: Rooms) {
 
     /** Takes the room away. [refusePeople] is for the APIs: a room where somebody sleeps is not taken away ([RemoveResult.HasPeople]), because the confirmation is a dialog of the app. */
     fun remove(venueId: Long, roomId: Long, refusePeople: Boolean = false): RemoveResult = rooms.remove(venueId, roomId, refusePeople)
+
+    companion object {
+        const val NAME_IS_A_PERSON = "Scrivi il nome della camera nella casa, non il nome di una persona."
+    }
 }
 
 /** What came of writing a form of a venue through [VenueFormEdits]. */
