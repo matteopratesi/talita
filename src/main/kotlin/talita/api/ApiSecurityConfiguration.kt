@@ -64,6 +64,17 @@ class ApiSecurityConfiguration {
     }
 
     /**
+     * `FormContentFilter` of Spring MVC runs before the chain of security and reads the whole body of a form-encoded `PUT`, `PATCH` or `DELETE`: on `/api/…` that would be a body buffered and parsed before the
+     * token and before the limit of 64 KB. The APIs take only JSON, so the form-encoded body is refused here, first of all (415), and never read. No page of the app sends a form with these methods.
+     */
+    @Bean
+    fun apiFormBodyGuard(): org.springframework.boot.web.servlet.FilterRegistrationBean<ApiFormBodyGuard> =
+        org.springframework.boot.web.servlet.FilterRegistrationBean(ApiFormBodyGuard()).also {
+            it.order = org.springframework.core.Ordered.HIGHEST_PRECEDENCE
+            it.addUrlPatterns("/api/*")
+        }
+
+    /**
      * The firewall of Spring Security refuses some addresses before any chain (`//`, `;`, an encoded `/` or `..`): for the pages the answer stays the 400 that it always was, for `/api/…` it is a JSON error with the
      * headers of the APIs (TALITA-21, criteria 7 and 9). What Tomcat refuses before the application (a bad `%` escape, `%00`) never gets here and keeps the page of the container: `docs/05`.
      */
@@ -163,5 +174,16 @@ internal class ApiTokenFilter(
 
     private companion object {
         const val SCHEME = "Bearer "
+    }
+}
+
+/** Refuses with a 415 a body of `/api/…` that is a form (`application/x-www-form-urlencoded`), before anything reads it (see [ApiSecurityConfiguration.apiFormBodyGuard]). */
+class ApiFormBodyGuard : OncePerRequestFilter() {
+    override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
+        if (request.contentType?.lowercase()?.startsWith("application/x-www-form-urlencoded") == true) {
+            ApiErrors.write(response, 415, ApiTexts.NOT_JSON, headers = mapOf("Content-Security-Policy" to ApiSecurityConfiguration.CONTENT_SECURITY_POLICY))
+            return
+        }
+        chain.doFilter(request, response)
     }
 }
