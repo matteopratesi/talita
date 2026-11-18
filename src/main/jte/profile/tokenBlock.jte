@@ -37,7 +37,7 @@
       <h3 id="come-salvarla" class="mt-6 text-base font-semibold">Come salvarla sul tuo computer</h3>
       <ol aria-labelledby="come-salvarla" class="mt-3 list-decimal space-y-4 pl-6 marker:font-semibold">
         <li>
-          <p>Apri il terminale e incolla questo comando. Prepara una cartella solo tua e aspetta il testo.</p>
+          <p>Apri il terminale, incolla questo comando e premi Invio. Prepara una cartella solo tua e aspetta il testo: vai avanti solo se il comando è partito senza errori.</p>
           <p id="token-comando" class="mt-2 rounded-xl bg-surface-muted px-4 py-3 font-mono text-sm break-all select-all">${block.getCommand()}</p>
           <div class="mt-3" data-copia-ambito>
             <button type="button" hidden data-azione="copia" data-copia="token-comando" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-5 text-base font-semibold text-ink transition-colors duration-150 select-none hover:bg-surface-muted active:bg-surface-muted sm:w-auto">
@@ -104,6 +104,7 @@
       <div data-ambito class="mt-4">
         <form method="post" action="/profilo/token" hx-post="/profilo/token" hx-target="#token-contenuto" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]" data-conferma="${block.getConfirmFirst() ? "token" : null}" class="contents">
           @template.components.csrf(csrf = csrf)
+          <input type="hidden" name="azione" value="crea">
           @template.components.button(label = block.getState() == TokenState.NONE ? "Crea un token" : "Crea un token nuovo", busyLabel = "Creazione…", variant = "secondary", icon = Icon.BOT, width = "full")
         </form>
         @if(block.getConfirmFirst())

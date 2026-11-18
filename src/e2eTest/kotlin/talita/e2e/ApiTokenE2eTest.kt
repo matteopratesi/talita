@@ -60,7 +60,7 @@ class ApiTokenE2eTest {
         assertThat(card.locator("[role=status]").first()).containsText("Token creato.")
         val line = card.locator("#token-riga")
         assertThat(line).containsText("Authorization: Bearer talita_")
-        assertThat(card.locator("#token-comando")).containsText("umask 077; mkdir -p ~/.config/talita && cat > ~/.config/talita/dev.header")
+        assertThat(card.locator("#token-comando")).containsText("umask 077; mkdir -p ~/.config/talita && rm -f ~/.config/talita/dev.header && cat > ~/.config/talita/dev.header")
         assertThat(card).containsText("Non incollarla in chat, email o documenti.")
         page.sideways(e2e, "the token just made (${e2e.profile.label})")
         assertAccessible(page, "the token just made (${e2e.profile.label})")

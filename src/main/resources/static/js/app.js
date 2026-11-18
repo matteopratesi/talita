@@ -430,7 +430,6 @@
   // ---- Copy, share and print the information page ----
 
   const COPIED_FOR_MS = 3000;
-  let copiedTimer = null;
 
   /**
    * The buttons that copy and share are in the page hidden: they are shown only where the browser can do it. Without JavaScript the address is text to select. The
@@ -467,8 +466,9 @@
         if (normal) normal.hidden = true;
         if (done) done.hidden = false;
         if (status) status.textContent = status.getAttribute("data-copia-annuncio") || "";
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => {
+        // Each button has its own timer: a second copy of the same one restarts its feedback, a copy of another does not cancel it.
+        clearTimeout(button.__copiedTimer);
+        button.__copiedTimer = setTimeout(() => {
           if (normal) normal.hidden = false;
           if (done) done.hidden = true;
           if (status) status.textContent = "";

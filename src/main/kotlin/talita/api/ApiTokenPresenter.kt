@@ -38,7 +38,10 @@ data class TokenBlock(
     val command: String? = null,
     val until: String? = null,
     val revokeAria: String? = null,
-)
+) {
+    /** Nothing of the line, which holds the token, can end up in a log through the model. */
+    override fun toString(): String = "TokenBlock(state=$state, id=$id)"
+}
 
 /** A line of the register of the requests as the card says it, with what it means in a sentence under it. */
 data class TokenLogLine(val title: String, val note: String)
@@ -92,7 +95,7 @@ class ApiTokenPresenter(
         confirmFirst = confirmFirst,
         revoke = null, renew = null,
         line = "Authorization: Bearer ${token.value}",
-        command = "umask 077; mkdir -p ~/.config/talita && cat > ~/.config/talita/$headerFile",
+        command = "umask 077; mkdir -p ~/.config/talita && rm -f ~/.config/talita/$headerFile && cat > ~/.config/talita/$headerFile",
         until = date(tokens.lastDay(token.row)),
     )
 
@@ -160,6 +163,9 @@ class ApiTokenPresenter(
     )
 
     fun alreadyRevoked(): Alert = Alert(INFO, "Qui sotto trovi quello di adesso.", lead = "Quel token era già stato revocato o sostituito.")
+
+    /** A form of the card without a token arrived when there is one (another tab made it): nothing was replaced. */
+    fun alreadyThere(): Alert = Alert(INFO, "Qui sotto trovi quello di adesso. Per sostituirlo tocca «Crea un token nuovo».", lead = "C’è già un token.")
 
     /** The confirmation with the passkey is missing (409): the page was drawn before, or the ten minutes passed between the tap and the request. */
     fun needsConfirmation(): Alert = Alert(
