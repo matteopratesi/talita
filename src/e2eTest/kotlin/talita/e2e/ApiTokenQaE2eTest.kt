@@ -271,6 +271,58 @@ class ApiTokenQaE2eTest {
         assertThat(page.openDialog()).containsText("Il token per le API viene revocato")
     }
 
+    @E2eTest
+    fun `t21 c03 the block of the devices follows the token on the same page after making, revoking and replacing it, with one focus and no sideways scrolling`(e2e: E2e) {
+        val page = e2e.page
+        e2e.open("/profilo")
+        page.waitForSettledContent()
+        val card = page.locator("#token")
+        val devices = page.locator("#dispositivi-contenuto")
+        val sentence = "Revoca anche il token per le API."
+        val dialogSentence = "Il token per le API viene revocato: nessun programma potrà più fare modifiche finché non ne crei uno nuovo."
+
+        fun readDialog(expected: Boolean) {
+            e2e.press(devices.buttonNamed("Esci da tutti gli altri dispositivi"))
+            page.waitForSettledDialog()
+            val dialog = page.openDialog()
+            if (expected) assertThat(dialog).containsText(dialogSentence) else assertThat(dialog).not().containsText("token per le API")
+            assertAccessible(page, "dialog of Esci da tutti, token ${if (expected) "present" else "absent"} (${e2e.profile.label})")
+            e2e.touch(dialog.buttonNamed("Annulla"))
+            page.waitUntil("document.querySelector('dialog[open]') === null")
+        }
+
+        assertThat(devices).not().containsText(sentence)
+        readDialog(false)
+
+        // Made and «Fatto», with no reload: the sentence and the dialog speak of the token at once.
+        e2e.press(card.buttonNamed("Crea un token"))
+        assertThat(card.locator("[role=status]").first()).containsText("Token creato.")
+        assertThat(devices).containsText(sentence)
+        assertTrue(page.locator("[data-fuoco]").count() <= 1, "one focus")
+        e2e.press(card.linkNamed("Fatto"))
+        assertThat(devices).containsText(sentence)
+        readDialog(true)
+        e2e.check("devices after making the token")
+
+        // Replaced: still there. Revoked: gone, in the sentence and in the dialog.
+        e2e.press(card.buttonNamed("Crea un token nuovo"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Crea il token nuovo"))
+        assertThat(card.locator("[role=status]").first()).containsText("Token creato.")
+        e2e.press(card.linkNamed("Fatto"))
+        assertThat(devices).containsText(sentence)
+        readDialog(true)
+
+        e2e.press(card.getByRole(AriaRole.BUTTON, Locator.GetByRoleOptions().setName(Pattern.compile("^Revoca il token creato il "))))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Revoca il token"))
+        assertThat(card).containsText("Token revocato.")
+        assertThat(devices).not().containsText(sentence)
+        assertTrue(page.locator("[data-fuoco]").count() <= 1, "one focus")
+        readDialog(false)
+        e2e.check("devices after revoking the token")
+    }
+
     // ---- Criterion 4: the days of the token ---------------------------------------------------------------------------------------------------
 
     @E2eTest
