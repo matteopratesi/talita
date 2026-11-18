@@ -228,4 +228,24 @@ class ApiQaHttpTests(
             assertEquals("default-src 'none'; frame-ancestors 'none'", r.headers["content-security-policy"], "$path: csp")
         }
     }
+
+    @Test
+    fun `t21 c07 c09 a form-encoded body on the APIs is a 415 in JSON with the headers of the APIs, for every method, with or without a token, and a JSON body is not touched`() {
+        val token = teacherToken()
+        for (method in listOf("POST", "PUT", "DELETE", "PATCH")) {
+            for (t in listOf(token, null)) {
+                for (type in listOf("application/x-www-form-urlencoded", "application/x-www-form-urlencoded; charset=UTF-8")) {
+                    val r = send(method, "/api/strutture/1", t, "a=b", contentType = type)
+                    assertEquals(415, r.statusCode(), "$method ${if (t == null) "without" else "with"} a token, $type")
+                    assertApiAnswer("$method form", r)
+                    assertEquals("""{"error":"Il corpo deve essere JSON, con Content-Type: application/json."}""", r.body())
+                }
+            }
+        }
+        assertEquals(422, send("POST", "/api/strutture", token, """{"name":"","place":""}""").statusCode(), "JSON goes on as before")
+        assertEquals(401, send("POST", "/api/strutture", null, "{}").statusCode(), "JSON without a token is still a 401")
+        // The pages keep reading a form: the page of access answers a form without the code with its own 4xx page, not with JSON.
+        val page = send("POST", "/accedi", null, "email=nome%40example.org", contentType = "application/x-www-form-urlencoded")
+        assertFalse((page.header("content-type") ?: "").startsWith("application/json"), "the pages are unchanged")
+    }
 }

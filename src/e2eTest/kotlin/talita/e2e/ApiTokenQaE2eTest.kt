@@ -418,6 +418,46 @@ class ApiTokenQaE2eTest {
         }
     }
 
+    @E2eTest
+    fun `t21 c03 c02 a teacher with a passkey on a card that was empty asks the phone first, then finds the token that is there and keeps it, and by hand the confirmation comes before it`(e2e: E2e) {
+        val page = e2e.page
+        val phone = e2e.phoneOf()
+        e2e.addPasskey()
+        e2e.open("/profilo")
+        page.waitForSettledContent()
+        val card = page.locator("#token")
+        assertThat(card).containsText("Non hai nessun token.")
+        // The token is made elsewhere (the service) while this card is still the empty one.
+        val there = checkNotNull(e2e.application.getBean(talita.api.ApiTokens::class.java).create(e2e.accountOfPage())).value
+
+        // By hand, with no confirmation: the confirmation comes first (409), and nothing changes.
+        val csrf = page.locator("input[name=_csrf]").first().getAttribute("value")!!
+        val byHand = page.request().post(e2e.url("/profilo/token"), com.microsoft.playwright.options.RequestOptions.create().setHeader("HX-Request", "true")
+            .setForm(com.microsoft.playwright.options.FormData.create().set("_csrf", csrf).set("azione", "crea")))
+        assertEquals(409, byHand.status())
+        assertTrue(byHand.text().contains("Serve la conferma."))
+        assertEquals(200, e2e.call("GET", "/api/convivenza", there).statusCode(), "the token is still the same")
+
+        // With the phone: the finger is put, and then the card says that there is a token and keeps it.
+        phone.verified(true)
+        e2e.press(card.buttonNamed("Crea un token"))
+        assertThat(card).containsText("C’è già un token.")
+        assertEquals(0, page.locator("#token-riga").count())
+        assertEquals(200, e2e.call("GET", "/api/convivenza", there).statusCode(), "the token that was there still works")
+        assertEquals(1, e2e.tokenRows())
+        e2e.check("the empty card after a confirmation, with a token that was there")
+
+        // «Crea un token nuovo» still replaces it (no more confirmation inside the ten minutes).
+        page.reload()
+        page.waitForSettledContent()
+        e2e.press(card.buttonNamed("Crea un token nuovo"))
+        page.waitForSettledDialog()
+        e2e.touch(page.openDialog().buttonNamed("Crea il token nuovo"))
+        assertThat(card.locator("[role=status]").first()).containsText("Token creato.")
+        assertEquals(401, e2e.call("GET", "/api/convivenza", there).statusCode())
+        assertEquals(200, e2e.call("GET", "/api/convivenza", page.shownToken()).statusCode())
+    }
+
     // ---- Criterion 4: the days of the token ---------------------------------------------------------------------------------------------------
 
     @E2eTest
