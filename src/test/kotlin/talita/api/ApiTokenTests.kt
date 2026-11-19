@@ -33,7 +33,6 @@ import talita.retention.RetentionPolicy
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -465,7 +464,12 @@ class ApiTokenTests(
         val token = checkNotNull(tokens.create(t.id)).value
         repeat(22) { kit.get("/api/convivenza", token) }
         kit.get("/api/strutture", token)
-        dsl.update(API_REQUEST).set(API_REQUEST.AT, OffsetDateTime.now(clock).minusDays(31)).where(API_REQUEST.ID.eq(dsl.select(org.jooq.impl.DSL.min(API_REQUEST.ID)).from(API_REQUEST))).execute()
+        // The register keeps the whole day of 30 days ago (Rome): the oldest line goes one second before that day begins and is deleted, the next one exactly at its start and stays.
+        // Not "now minus 31 days": an `OffsetDateTime` keeps its offset, so in the month after the end of summer time, from 23:00 on, that moment falls in the first day that is kept.
+        val keptFrom = policy.apiRequestsKeptFrom(LocalDate.now(clock))
+        val (oldest, next) = dsl.select(API_REQUEST.ID).from(API_REQUEST).orderBy(API_REQUEST.ID).limit(2).fetch(API_REQUEST.ID)
+        dsl.update(API_REQUEST).set(API_REQUEST.AT, keptFrom.minusSeconds(1)).where(API_REQUEST.ID.eq(oldest)).execute()
+        dsl.update(API_REQUEST).set(API_REQUEST.AT, keptFrom).where(API_REQUEST.ID.eq(next)).execute()
 
         val page = t.phone.body("/profilo")
 
@@ -479,7 +483,7 @@ class ApiTokenTests(
         assertFalse(log.substringBefore("</summary>").contains(" open"), "closed to start with")
         val before = kit.register().size
         assertTrue(job.run().succeeded)
-        assertEquals(before - 1, kit.register().size, "the line older than 30 days is deleted, the others stay")
+        assertEquals(before - 1, kit.register().size, "the line before the first day that is kept is deleted, the one at its start and the others stay")
     }
 
     @Test
